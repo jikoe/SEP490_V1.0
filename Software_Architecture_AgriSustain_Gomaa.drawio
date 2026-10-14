@@ -1,0 +1,253 @@
+<mxfile host="app.diagrams.net" agent="Codex" pages="3">
+  <diagram id="structural-architecture" name="1 Structural Architecture">
+    <mxGraphModel dx="1348" dy="763" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=20;" value="AgriSustain - Structural Software Architecture" vertex="1">
+          <mxGeometry height="35" width="760" x="300" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="system" parent="1" style="swimlane;html=1;rounded=1;startSize=45;fillColor=#ffffff;strokeColor=#4F6B7A;fontSize=14;" value="&lt;b&gt;AGRISUSTAIN SYSTEM&lt;/b&gt;&lt;br&gt;Multi-tier client/service architecture with layered server-side design" vertex="1">
+          <mxGeometry height="610" width="1160" x="260" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="client" parent="system" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;" value="&lt;b&gt;&lt;&lt;client&gt;&gt; &lt;&lt;subsystem&gt;&gt;&lt;/b&gt;&lt;br&gt;&lt;b&gt;React 19 Single Page Application&lt;/b&gt;&lt;br&gt;Tailwind CSS | UI and routing | Session and access UI&lt;br&gt;API client: HTTPS REST JSON, Bearer JWT" vertex="1">
+          <mxGeometry height="140" width="255" x="35" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="api" parent="system" style="swimlane;html=1;rounded=1;startSize=45;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" value="&lt;b&gt;&lt;&lt;service&gt;&gt; &lt;&lt;subsystem&gt;&gt; AgriSustain Web API - ASP.NET Core 8&lt;/b&gt;" vertex="1">
+          <mxGeometry height="380" width="380" x="345" y="55" as="geometry" />
+        </mxCell>
+        <mxCell id="apiBoundary" parent="api" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#ffffff;strokeColor=#82b366;fontSize=11;" value="&lt;b&gt;API Boundary&lt;/b&gt;&lt;br&gt;Controllers | JWT | RBAC | validation | error handling" vertex="1">
+          <mxGeometry height="52" width="330" x="25" y="65" as="geometry" />
+        </mxCell>
+        <mxCell id="applicationCoordinators" parent="api" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#e1f5e0;strokeColor=#82b366;fontSize=11;" value="&lt;b&gt;Application Coordinators&lt;/b&gt;&lt;br&gt;Authentication | marketplace | ordering | B2B | administration" vertex="1">
+          <mxGeometry height="60" width="330" x="25" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="domainServices" parent="api" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" value="&lt;b&gt;Domain Business Services&lt;/b&gt;&lt;br&gt;Inventory | order state | QR uniqueness | audit rules" vertex="1">
+          <mxGeometry height="55" width="330" x="25" y="215" as="geometry" />
+        </mxCell>
+        <mxCell id="infrastructurePorts" parent="api" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="&lt;b&gt;Infrastructure Ports&lt;/b&gt;&lt;br&gt;IOrderRepository | IPaymentGateway | IEmailSender | IAuditLogWriter" vertex="1">
+          <mxGeometry height="62" width="330" x="25" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="worker" parent="system" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="&lt;b&gt;&lt;&lt;control&gt;&gt; &lt;&lt;subsystem&gt;&gt; Background Processing&lt;/b&gt;&lt;br&gt;Expire OTP | cancel unpaid orders | reconcile payment&lt;br&gt;campaign, contract, KYC and certificate reminders | retry notifications | archive audit logs" vertex="1">
+          <mxGeometry height="100" width="380" x="345" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="persistenceAdapter" parent="system" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="&lt;b&gt;&lt;&lt;adapter&gt;&gt; Persistence Adapter&lt;/b&gt;&lt;br&gt;EF Core repositories | DbContext | migrations" vertex="1">
+          <mxGeometry height="68" width="155" x="790" y="92" as="geometry" />
+        </mxCell>
+        <mxCell id="paymentAdapter" parent="system" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="&lt;b&gt;&lt;&lt;adapter&gt;&gt; Payment Gateway Adapter&lt;/b&gt;&lt;br&gt;Create payment | query status | validate IPN webhook" vertex="1">
+          <mxGeometry height="82" width="155" x="790" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="emailAdapter" parent="system" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" value="&lt;b&gt;&lt;&lt;adapter&gt;&gt; Email Adapter&lt;/b&gt;&lt;br&gt;OTP and order, payment, contract notifications" vertex="1">
+          <mxGeometry height="70" width="155" x="790" y="392" as="geometry" />
+        </mxCell>
+        <mxCell id="db" parent="system" style="shape=cylinder;html=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="&lt;b&gt;&lt;&lt;database&gt;&gt;&lt;/b&gt;&lt;br&gt;Microsoft SQL Server&lt;br&gt;Accounts, products, batches, orders, transactions, contracts, notifications, audit logs" vertex="1">
+          <mxGeometry height="110" width="160" x="980" y="75" as="geometry" />
+        </mxCell>
+        <mxCell id="payos" parent="system" style="rounded=1;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="&lt;b&gt;&lt;&lt;external system&gt;&gt;&lt;/b&gt;&lt;br&gt;PayOS / VietQR&lt;br&gt;Payment gateway" vertex="1">
+          <mxGeometry height="75" width="160" x="980" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="gmail" parent="system" style="rounded=1;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" value="&lt;b&gt;&lt;&lt;external system&gt;&gt;&lt;/b&gt;&lt;br&gt;Google Gmail API&lt;br&gt;OTP and notification email" vertex="1">
+          <mxGeometry height="75" width="160" x="980" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="system" source="client" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="api" value="HTTPS REST JSON&lt;br&gt;synchronous request/reply">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="system" source="api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="persistenceAdapter" value="uses IOrderRepository and related ports">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="system" source="persistenceAdapter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="db" value="EF Core / SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="system" source="api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="paymentAdapter" value="uses IPaymentGateway">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="system" source="paymentAdapter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="payos" value="CreatePayment / QueryStatus; IPN webhook">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="system" source="api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="emailAdapter" value="uses IEmailSender">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="system" source="emailAdapter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="gmail" value="Send email">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="system" source="worker" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="api" value="scheduled invocation">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="guest" parent="1" style="rounded=1;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;&lt;external user&gt;&gt;&lt;br&gt;&lt;b&gt;Guest&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="155" x="35" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="consumer" parent="1" style="rounded=1;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;&lt;external user&gt;&gt;&lt;br&gt;&lt;b&gt;Consumer&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="155" x="35" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="farmer" parent="1" style="rounded=1;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;&lt;external user&gt;&gt;&lt;br&gt;&lt;b&gt;Farmer / Cooperative&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="155" x="35" y="315" as="geometry" />
+        </mxCell>
+        <mxCell id="buyer" parent="1" style="rounded=1;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;&lt;external user&gt;&gt;&lt;br&gt;&lt;b&gt;Buyer B2B&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="155" x="35" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" parent="1" style="rounded=1;html=1;fillColor=#f5f5f5;strokeColor=#666666;" value="&lt;&lt;external user&gt;&gt;&lt;br&gt;&lt;b&gt;Administrator&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="155" x="35" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="guest" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;fontSize=10;" target="client" value="Browser access">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="consumer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="client">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="farmer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="client">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="buyer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="client">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;" target="client">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" value="Legend: solid arrows = synchronous request/reply; dashed arrows in Page 2 = asynchronous payment callback." vertex="1">
+          <mxGeometry height="25" width="700" x="300" y="720" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="payment-sequence" name="2 Payment Sequence">
+    <mxGraphModel dx="1478" dy="836" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=20;" value="AgriSustain - Retail Payment Dynamic View" vertex="1">
+          <mxGeometry height="35" width="700" x="280" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="rounded=1;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;" value="Consumer" vertex="1">
+          <mxGeometry height="40" width="120" x="70" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="b" parent="1" style="rounded=1;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" value="React SPA" vertex="1">
+          <mxGeometry height="40" width="120" x="330" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="c" parent="1" style="rounded=1;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" value="Web API / Payment Coordinator" vertex="1">
+          <mxGeometry height="40" width="185" x="480" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="d" parent="1" style="rounded=1;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" value="PayOS Adapter" vertex="1">
+          <mxGeometry height="40" width="125" x="1044" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="e" parent="1" style="rounded=1;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" value="PayOS / VietQR" vertex="1">
+          <mxGeometry height="40" width="130" x="690" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="f" parent="1" style="shape=cylinder;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" value="SQL Server" vertex="1">
+          <mxGeometry height="50" width="120" x="1210" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" parent="1" style="shape=line;html=1;strokeColor=#999999;dashed=1;" vertex="1">
+          <mxGeometry height="530" x="130" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" parent="1" style="shape=line;html=1;strokeColor=#999999;dashed=1;" vertex="1">
+          <mxGeometry height="530" x="335" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" parent="1" style="shape=line;html=1;strokeColor=#999999;dashed=1;" vertex="1">
+          <mxGeometry height="530" x="572" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" parent="1" style="shape=line;html=1;strokeColor=#999999;dashed=1;" vertex="1">
+          <mxGeometry height="530" x="812" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" parent="1" style="shape=line;html=1;strokeColor=#999999;dashed=1;" vertex="1">
+          <mxGeometry height="530" x="1040" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="l6" parent="1" style="shape=line;html=1;strokeColor=#999999;dashed=1;" vertex="1">
+          <mxGeometry height="520" x="1270" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="m1" edge="1" parent="1" source="a" style="endArrow=block;endFill=1;html=1;fontSize=11;" target="b" value="1. Confirm checkout">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="230" y="175" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m2" edge="1" parent="1" source="b" style="endArrow=block;endFill=1;html=1;fontSize=11;" target="c" value="2. Place order and request payment">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="450" y="225" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m3" edge="1" parent="1" source="c" style="endArrow=block;endFill=1;html=1;fontSize=11;" target="f" value="3. Reserve stock; create PendingPayment order">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1150" y="275" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m4" edge="1" parent="1" source="c" style="endArrow=block;endFill=1;html=1;fontSize=11;" target="d" value="4. CreatePayment">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="700" y="325" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m5" edge="1" parent="1" source="d" style="endArrow=block;endFill=1;html=1;fontSize=11;" target="e" value="5. Create dynamic QR">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="935" y="375" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m6" edge="1" parent="1" source="e" style="dashed=1;endArrow=open;html=1;fontSize=11;" target="b" value="6. Return QR payment data">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="430" y="425" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m7" edge="1" parent="1" source="e" style="dashed=1;endArrow=block;endFill=1;html=1;fontSize=11;strokeColor=#b85450;fontColor=#b85450;" target="d" value="7. Payment IPN webhook (asynchronous)">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="910" y="475" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m8" edge="1" parent="1" source="d" style="endArrow=block;endFill=1;html=1;fontSize=11;" target="c" value="8. Validate signature; update Paid transaction and order">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="690" y="525" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m9" edge="1" parent="1" source="c" style="endArrow=block;endFill=1;html=1;fontSize=11;" target="f" value="9. Commit state and audit history">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1150" y="575" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m10" edge="1" parent="1" source="c" style="dashed=1;endArrow=open;html=1;fontSize=11;" target="b" value="10. Show paid status / send notification">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="435" y="625" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="n" parent="1" style="rounded=1;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" value="Payment is authoritative only after a validated webhook or payment reconciliation job updates the transaction and order." vertex="1">
+          <mxGeometry height="45" width="760" x="270" y="700" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="deployment" name="3 Deployment">
+    <mxGraphModel dx="1265" dy="715" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=20;" value="AgriSustain - Deployment View" vertex="1">
+          <mxGeometry height="35" width="600" x="350" y="25" as="geometry" />
+        </mxCell>
+        <mxCell id="browser" parent="1" style="shape=umlFrame;html=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;" value="&lt;b&gt;&lt;&lt;client node&gt;&gt;&lt;/b&gt;&lt;br&gt;Web Browser&lt;br&gt;React SPA" vertex="1">
+          <mxGeometry height="130" width="210" x="75" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="server" parent="1" style="shape=umlFrame;html=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;" value="&lt;b&gt;&lt;&lt;server node&gt;&gt;&lt;/b&gt;&lt;br&gt;Application Server&lt;br&gt;ASP.NET Core 8 Web API&lt;br&gt;Background Processing&lt;br&gt;Infrastructure adapters" vertex="1">
+          <mxGeometry height="210" width="310" x="430" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="database" parent="1" style="shape=umlFrame;html=1;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" value="&lt;b&gt;&lt;&lt;database node&gt;&gt;&lt;/b&gt;&lt;br&gt;Microsoft SQL Server" vertex="1">
+          <mxGeometry height="95" width="230" x="900" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="pay" parent="1" style="shape=umlFrame;html=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;" value="&lt;b&gt;&lt;&lt;external node&gt;&gt;&lt;/b&gt;&lt;br&gt;PayOS / VietQR" vertex="1">
+          <mxGeometry height="80" width="230" x="900" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="mail" parent="1" style="shape=umlFrame;html=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;" value="&lt;b&gt;&lt;&lt;external node&gt;&gt;&lt;/b&gt;&lt;br&gt;Google Gmail API" vertex="1">
+          <mxGeometry height="80" width="230" x="900" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="browser" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" target="server" value="HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="server" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" target="database" value="EF Core / SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="server" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;dashed=1;" target="pay" value="Payment API and IPN webhook">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="server" style="edgeStyle=orthogonalEdgeStyle;html=1;endArrow=block;endFill=1;" target="mail" value="Gmail API">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="1" style="rounded=1;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" value="Deployment details such as CDN, load balancer, object storage, and separate worker hosting can be added only after they are selected for the project." vertex="1">
+          <mxGeometry height="45" width="700" x="270" y="650" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

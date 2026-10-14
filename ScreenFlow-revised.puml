@@ -1,0 +1,167 @@
+@startuml
+title AgriSustain Platform - Revised Screen Flow
+left to right direction
+
+skinparam linetype ortho
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam nodesep 45
+skinparam ranksep 55
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #4A5568
+  BorderThickness 1.2
+}
+skinparam package {
+  BackgroundColor #F8FAFC
+  BorderColor #CBD5E1
+  FontColor #1E293B
+  FontStyle bold
+}
+skinparam arrow {
+  Color #334155
+  FontColor #0F172A
+  FontSize 10
+}
+
+package "1. Public, Guest & Authentication Flow" {
+  rectangle "SCR-PUB-01\nLanding & Home" as HOME #F1F5F9
+  rectangle "SCR-AUTH-01\nLogin Screen" as LOGIN #FEF3C7
+  rectangle "SCR-AUTH-02\nRegister Consumer/Farmer" as REGISTER_CF
+  rectangle "SCR-AUTH-03\nRegister B2B Buyer" as REGISTER_B2B
+  rectangle "SCR-AUTH-04\nForgot / Reset Password" as RESET_PASSWORD
+  rectangle "SCR-USER-01\nComplete Profile & User Profile" as PROFILE
+}
+
+package "2. Marketplace & Traceability" {
+  rectangle "SCR-MKT-01\nMarketplace Catalog" as CATALOG
+  rectangle "SCR-MKT-02\nProduct Detail Page" as PRODUCT_DETAIL
+  rectangle "SCR-TRC-01\nPublic Traceability" as TRACEABILITY #DCFCE7
+}
+
+package "3. Consumer Retail & Order Flow" {
+  rectangle "SCR-CON-01\nShopping Cart" as CART
+  rectangle "SCR-CON-02\nRetail Checkout" as CHECKOUT
+  rectangle "SCR-PAY-01\nDynamic Payment Gateway" as PAYMENT #E0E7FF
+  rectangle "SCR-CON-03\nOrder Tracking & History" as ORDER_TRACKING
+  rectangle "SCR-CON-04\nProduct Review Modal" as REVIEW_MODAL #FEF9C3
+  rectangle "SCR-CON-05\nOrder Complaint Screen" as COMPLAINT #FEE2E2
+}
+
+package "4. B2B Buyer Procurement & Contracting" {
+  rectangle "SCR-B2B-01\nSupplier Directory" as SUPPLIERS
+  rectangle "SCR-B2B-02\nSupplier Capacity Profile" as SUPPLIER_PROFILE
+  rectangle "SCR-B2B-03\nWholesale Order Form" as WHOLESALE_ORDER
+  rectangle "SCR-B2B-04\nSeason Pre-Order Screen" as B2B_PREORDER
+  rectangle "SCR-B2B-05\nOfftake Proposal Builder" as OFFTAKE_PROPOSAL
+  rectangle "SCR-B2B-06\nOfftake Contract & E-Sign" as SIGN_CONTRACT
+  rectangle "SCR-B2B-07\nB2B Fulfillment & Invoices" as B2B_FULFILLMENT
+  rectangle "SCR-B2B-08\nSubscription Tier Center" as B2B_SUBSCRIPTION
+}
+
+package "5. Farmer Portal (Production & Sales)" {
+  rectangle "SCR-FAR-01\nFarmer Dashboard & Revenue" as FARMER_DASHBOARD #F0FDF4
+  rectangle "SCR-FAR-02\nCrop Season Planner" as CROP_SEASONS
+  rectangle "SCR-FAR-03\nE-Farming Log Entry" as FARMING_LOGS
+  rectangle "SCR-FAR-04\nTraceability Batches & QR" as BATCHES
+  rectangle "SCR-FAR-05\nProduct Listing Manager" as FARMER_PRODUCTS
+  rectangle "SCR-FAR-06\nPre-Order Campaign Manager" as FARMER_PREORDER
+  rectangle "SCR-FAR-07\nOrder Fulfillment & Packing" as FARMER_ORDERS
+  rectangle "SCR-FAR-08\nCertificate Dossier Center" as FARMER_CERTIFICATES
+  rectangle "SCR-FAR-09\nFarmer Offtake Contract Desk" as FARMER_OFFTAKE
+}
+
+package "6. Administration Governance Console" {
+  rectangle "SCR-ADM-01\nExecutive Operations Dashboard" as ADMIN_DASHBOARD #F8FAFC
+  rectangle "SCR-ADM-02\nKYC / Account Approval Queue" as ADMIN_KYC
+  rectangle "SCR-ADM-03\nUser Account Manager" as ADMIN_USERS
+  rectangle "SCR-ADM-04\nProduct & Review Moderation" as ADMIN_MODERATION
+  rectangle "SCR-ADM-05\nCategory & Promotion Engine" as ADMIN_PROMOTIONS
+  rectangle "SCR-ADM-06\nComplaint Resolution Desk" as ADMIN_COMPLAINTS
+  rectangle "SCR-ADM-07\nSubscription Tier Config" as ADMIN_TIERS
+  rectangle "SCR-ADM-08\nCertification Review Queue" as ADMIN_CERTIFICATIONS
+}
+
+' Public and authentication
+HOME --> LOGIN
+HOME --> CATALOG
+HOME --> TRACEABILITY
+
+LOGIN --> REGISTER_CF
+LOGIN --> REGISTER_B2B
+LOGIN --> RESET_PASSWORD
+RESET_PASSWORD --> LOGIN
+
+REGISTER_CF --> PROFILE
+PROFILE --> CATALOG : Consumer
+PROFILE ..> ADMIN_KYC : Farmer application
+REGISTER_B2B ..> ADMIN_KYC : Buyer application
+ADMIN_KYC --> LOGIN : Approved
+
+CATALOG ..> PROFILE : Profile
+SUPPLIERS ..> PROFILE : Profile
+FARMER_DASHBOARD ..> PROFILE : Profile
+ADMIN_DASHBOARD ..> PROFILE : Profile
+PROFILE --> LOGIN : Log out
+
+' Role entry points
+LOGIN --> CATALOG : Consumer
+LOGIN --> SUPPLIERS : Buyer
+LOGIN --> FARMER_DASHBOARD : Farmer
+LOGIN --> ADMIN_DASHBOARD : Admin
+
+' Marketplace and consumer purchase
+CATALOG --> PRODUCT_DETAIL
+PRODUCT_DETAIL --> TRACEABILITY
+PRODUCT_DETAIL --> CART
+CART --> CHECKOUT
+CHECKOUT --> PAYMENT
+PAYMENT --> ORDER_TRACKING : Payment successful
+PAYMENT --> CHECKOUT : Failed / cancelled
+ORDER_TRACKING --> REVIEW_MODAL
+ORDER_TRACKING --> COMPLAINT
+
+' B2B procurement and contracting
+SUPPLIERS --> SUPPLIER_PROFILE
+SUPPLIER_PROFILE --> WHOLESALE_ORDER
+SUPPLIER_PROFILE --> B2B_PREORDER
+SUPPLIER_PROFILE --> OFFTAKE_PROPOSAL
+SUPPLIERS --> B2B_SUBSCRIPTION
+WHOLESALE_ORDER --> B2B_FULFILLMENT
+B2B_PREORDER --> B2B_FULFILLMENT
+OFFTAKE_PROPOSAL ..> FARMER_OFFTAKE : Submit proposal
+FARMER_OFFTAKE --> SIGN_CONTRACT : Accept proposal
+SIGN_CONTRACT --> B2B_FULFILLMENT
+
+' Farmer production and sales
+FARMER_DASHBOARD --> CROP_SEASONS
+CROP_SEASONS --> FARMING_LOGS
+CROP_SEASONS --> BATCHES
+FARMER_DASHBOARD --> FARMER_PRODUCTS
+FARMER_PRODUCTS --> BATCHES
+FARMER_DASHBOARD --> FARMER_PREORDER
+FARMER_PREORDER ..> B2B_PREORDER : Seasonal offer
+FARMER_DASHBOARD --> FARMER_ORDERS
+FARMER_DASHBOARD --> FARMER_CERTIFICATES
+FARMER_CERTIFICATES ..> ADMIN_CERTIFICATIONS : Submit dossier
+
+' Administration and cross-role moderation
+ADMIN_DASHBOARD --> ADMIN_KYC
+ADMIN_DASHBOARD --> ADMIN_USERS
+ADMIN_DASHBOARD --> ADMIN_MODERATION
+ADMIN_DASHBOARD --> ADMIN_PROMOTIONS
+ADMIN_DASHBOARD --> ADMIN_COMPLAINTS
+ADMIN_DASHBOARD --> ADMIN_TIERS
+ADMIN_DASHBOARD --> ADMIN_CERTIFICATIONS
+FARMER_PRODUCTS ..> ADMIN_MODERATION : Submit product
+REVIEW_MODAL ..> ADMIN_MODERATION : Review report
+COMPLAINT ..> ADMIN_COMPLAINTS : Submit complaint
+
+legend right
+Solid arrow: user navigation
+Dashed arrow: submission, approval, or cross-role hand-off
+endlegend
+@enduml

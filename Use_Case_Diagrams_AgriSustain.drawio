@@ -1,0 +1,389 @@
+<mxfile host="app.diagrams.net" pages="6">
+  <diagram id="uc-guest" name="UCs - Public Marketplace">
+    <mxGraphModel dx="1227" dy="694" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" value="AgriSustain System" vertex="1">
+          <mxGeometry height="570" width="680" x="310" y="10" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Guest" vertex="1">
+          <mxGeometry height="100" width="50" x="90" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="bb" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Buyer B2B" vertex="1">
+          <mxGeometry height="100" width="70" x="1060" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="u1" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-MKT-01&lt;br&gt;Browse Marketplace&lt;br&gt;(search / filter)" vertex="1">
+          <mxGeometry height="55" width="210" x="350" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-MKT-02&lt;br&gt;View Product Detail" vertex="1">
+          <mxGeometry height="55" width="230" x="510" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-TRC-01&lt;br&gt;View Product Traceability" vertex="1">
+          <mxGeometry height="55" width="210" x="470" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="bb" style="endArrow=none;html=1;" target="u1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="bb" style="endArrow=none;html=1;" target="u2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="bb" style="endArrow=none;html=1;" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="uc-consumer" name="UCs - Consumer">
+    <mxGraphModel dx="1227" dy="694" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" value="AgriSustain System" vertex="1">
+          <mxGeometry height="680" width="730" x="270" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Consumer" vertex="1">
+          <mxGeometry height="100" width="60" x="80" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="p" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="VietQR / PayOS" vertex="1">
+          <mxGeometry height="100" width="60" x="1060" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-MKT-01&lt;br&gt;Browse Marketplace" vertex="1">
+          <mxGeometry height="55" width="240" x="290" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="u10" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-MKT-02&lt;br&gt;View Product Detail" vertex="1">
+          <mxGeometry height="55" width="230" x="670" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-TRC-01&lt;br&gt;View Product Traceability" vertex="1">
+          <mxGeometry height="55" width="240" x="340" y="165" as="geometry" />
+        </mxCell>
+        <mxCell id="u4" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-CON-01&lt;br&gt;Manage Shopping Cart" vertex="1">
+          <mxGeometry height="55" width="230" x="670" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="u5" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-CON-02&lt;br&gt;Place Retail Order" vertex="1">
+          <mxGeometry height="55" width="240" x="630" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="u6" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-CON-03&lt;br&gt;Pay Retail Order" vertex="1">
+          <mxGeometry height="55" width="230" x="670" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="u7" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-CON-04&lt;br&gt;Track Retail Order" vertex="1">
+          <mxGeometry height="55" width="240" x="390" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="u8" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-CON-05&lt;br&gt;Submit Product Review" vertex="1">
+          <mxGeometry height="55" width="230" x="740" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="u9" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-CON-06&lt;br&gt;Submit Order Complaint" vertex="1">
+          <mxGeometry height="55" width="240" x="350" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="p" style="endArrow=none;html=1;" target="u6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="uc-buyer" name="UCs - Buyer B2B and Offtake Workflow">
+    <mxGraphModel dx="1227" dy="694" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" value="AgriSustain System" vertex="1">
+          <mxGeometry height="650" width="700" x="300" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Buyer B2B" vertex="1">
+          <mxGeometry height="100" width="60" x="90" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="f" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Farmer / Cooperative" vertex="1">
+          <mxGeometry height="100" width="80" x="1060" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-B2B-01&lt;br&gt;Search Suppliers" vertex="1">
+          <mxGeometry height="55" width="250" x="700" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-B2B-02&lt;br&gt;View Supplier Capacity Profile" vertex="1">
+          <mxGeometry height="55" width="260" x="355" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="u4" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-B2B-03&lt;br&gt;Create Wholesale Order" vertex="1">
+          <mxGeometry height="55" width="250" x="700" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="u5" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-B2B-04&lt;br&gt;Create Pre-Order Commitment" vertex="1">
+          <mxGeometry height="55" width="260" x="490" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="u6" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-B2B-05&lt;br&gt;Create Offtake Contract Proposal" vertex="1">
+          <mxGeometry height="55" width="250" x="690" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="u7" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-B2B-06&lt;br&gt;Sign Offtake Contract" vertex="1">
+          <mxGeometry height="55" width="260" x="640" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="u8" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-B2B-07&lt;br&gt;Track B2B Fulfillment" vertex="1">
+          <mxGeometry height="55" width="250" x="620" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="u9" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-B2B-08&lt;br&gt;Manage Buyer Subscription" vertex="1">
+          <mxGeometry height="55" width="250" x="360" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="f" style="endArrow=none;html=1;" target="u7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="uc-farmer" name="UCs - Farmer">
+    <mxGraphModel dx="1292" dy="731" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" value="AgriSustain System" vertex="1">
+          <mxGeometry height="690" width="700" x="300" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Farmer / Cooperative" vertex="1">
+          <mxGeometry height="100" width="80" x="80" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-01&lt;br&gt;Manage Crop Seasons" vertex="1">
+          <mxGeometry height="55" width="250" x="730" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-02&lt;br&gt;Record E-Farming Logs" vertex="1">
+          <mxGeometry height="55" width="270" x="300" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="u4" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-03&lt;br&gt;Manage Product Listing" vertex="1">
+          <mxGeometry height="55" width="250" x="700" y="195" as="geometry" />
+        </mxCell>
+        <mxCell id="u5" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-04&lt;br&gt;Manage Traceability Batches" vertex="1">
+          <mxGeometry height="55" width="270" x="410" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="u6" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-05&lt;br&gt;Manage Pre-Order Campaign" vertex="1">
+          <mxGeometry height="55" width="250" x="700" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="u7" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-07&lt;br&gt;Submit Certificate Dossier" vertex="1">
+          <mxGeometry height="55" width="270" x="680" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="u8" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-06&lt;br&gt;Process Order" vertex="1">
+          <mxGeometry height="55" width="250" x="700" y="405" as="geometry" />
+        </mxCell>
+        <mxCell id="u9" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-08&lt;br&gt;Manage Offtake Contract" vertex="1">
+          <mxGeometry height="55" width="270" x="330" y="640" as="geometry" />
+        </mxCell>
+        <mxCell id="u10" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-FAR-09&lt;br&gt;View Revenue Dashboard" vertex="1">
+          <mxGeometry height="55" width="250" x="700" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="uc-admin" name="UCs - Administrator">
+    <mxGraphModel dx="1292" dy="731" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" value="AgriSustain System" vertex="1">
+          <mxGeometry height="690" width="710" x="290" y="45" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Administrator" vertex="1">
+          <mxGeometry height="100" width="70" x="80" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="u1" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-01&lt;br&gt;Monitor Platform Operations" vertex="1">
+          <mxGeometry height="55" width="260" x="360" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-02&lt;br&gt;Review KYC Application" vertex="1">
+          <mxGeometry height="55" width="250" x="700" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-03&lt;br&gt;Manage User Account Status" vertex="1">
+          <mxGeometry height="55" width="260" x="690" y="273" as="geometry" />
+        </mxCell>
+        <mxCell id="u4" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-04&lt;br&gt;Moderate Product Listing" vertex="1">
+          <mxGeometry height="55" width="250" x="700" y="195" as="geometry" />
+        </mxCell>
+        <mxCell id="u5" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-05&lt;br&gt;Manage Product Categories" vertex="1">
+          <mxGeometry height="55" width="260" x="660" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="u6" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-06&lt;br&gt;Resolve Complaint" vertex="1">
+          <mxGeometry height="55" width="250" x="670" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="u7" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-07&lt;br&gt;Manage Promotions" vertex="1">
+          <mxGeometry height="55" width="260" x="370" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="u8" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-08&lt;br&gt;Moderate Product Review" vertex="1">
+          <mxGeometry height="55" width="250" x="670" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="u9" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-ADM-09&lt;br&gt;Manage Subscription Tiers" vertex="1">
+          <mxGeometry height="55" width="260" x="340" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="a" style="endArrow=none;html=1;" target="u9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="uc-auth" name="UCs - Common Authentication">
+    <mxGraphModel dx="1227" dy="694" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="b" parent="1" style="rounded=0;whiteSpace=wrap;html=1;dashed=1;fontStyle=1;align=center;verticalAlign=top;spacingTop=10;" value="AgriSustain System" vertex="1">
+          <mxGeometry height="560" width="650" x="300" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="g" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Guest" vertex="1">
+          <mxGeometry height="100" width="60" x="90" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="u" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Registered User&lt;br&gt;(Consumer / Farmer / Buyer B2B / Admin)" vertex="1">
+          <mxGeometry height="110" width="120" x="90" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="m" parent="1" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;" value="Gmail Notification API" vertex="1">
+          <mxGeometry height="100" width="90" x="1030" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="u1" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-AUTH-01&lt;br&gt;Register Consumer or Farmer Account" vertex="1">
+          <mxGeometry height="55" width="240" x="360" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="u2" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-AUTH-02&lt;br&gt;Register Buyer B2B Account" vertex="1">
+          <mxGeometry height="55" width="250" x="670" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="u3" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-AUTH-07&lt;br&gt;Reset Password" vertex="1">
+          <mxGeometry height="55" width="230" x="510" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="u4" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-AUTH-04&lt;br&gt;Log In" vertex="1">
+          <mxGeometry height="55" width="240" x="360" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="u5" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-AUTH-05&lt;br&gt;Log Out" vertex="1">
+          <mxGeometry height="55" width="250" x="650" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="u6" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-AUTH-03&lt;br&gt;Manage Profile" vertex="1">
+          <mxGeometry height="55" width="240" x="350" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="u7" parent="1" style="ellipse;whiteSpace=wrap;html=1;" value="UC-AUTH-06&lt;br&gt;Change Password" vertex="1">
+          <mxGeometry height="55" width="250" x="650" y="485" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="g" style="endArrow=none;html=1;" target="u1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="g" style="endArrow=none;html=1;" target="u2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="g" style="endArrow=none;html=1;" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="u" style="endArrow=none;html=1;" target="u4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="u" style="endArrow=none;html=1;" target="u5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="u" style="endArrow=none;html=1;" target="u6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="u" style="endArrow=none;html=1;" target="u7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="m" style="endArrow=none;html=1;" target="u3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

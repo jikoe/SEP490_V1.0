@@ -1,0 +1,234 @@
+{"kind":"deck","id":"pr/5f2wij","name":"Deck"}
+{"kind":"layout","layoutId":"/ppt/slideMasters/slideMaster1.xml","name":"","type":"master","placeholders":[{"name":"title","type":"title","textPreview":"Click to edit Master title style"},{"name":"body","type":"body","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout1.xml","name":"Title Slide","placeholders":[{"name":"title","type":"title","textPreview":"Click to edit Master title style"},{"name":"subtitle","type":"subtitle","textPreview":"Click to edit Master subtitle style"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout2.xml","name":"Title and Content","placeholders":[{"name":"text placeholder 2","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"},{"name":"title","type":"title","textPreview":"Click to edit Master title style"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout3.xml","name":"Two Content","placeholders":[{"name":"text placeholder 2","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"},{"name":"text placeholder 2","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"title","type":"title","textPreview":"Click to edit Master title style"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout4.xml","name":"Three Content","placeholders":[{"name":"text placeholder 2","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"},{"name":"text placeholder 2","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"text placeholder 2","textPreview":"Click to edit Master text styles | Second level | Third level | Fourth level | Fifth level"},{"name":"title","type":"title","textPreview":"Click to edit Master title style"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout5.xml","name":"Four Content","placeholders":[{"name":"text placeholder 2","textPreview":"Click to edit Master"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"},{"name":"title","type":"title","textPreview":"Click to edit Master title style"},{"name":"body","type":"body","textPreview":"Click to edit Master"},{"name":"text placeholder 2","textPreview":"Click to edit Master"},{"name":"body","type":"body","textPreview":"Click to edit Master"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout6.xml","name":"Title Only","placeholders":[{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"},{"name":"title","type":"title","textPreview":"Click to edit Master title style"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout7.xml","name":"Footer Only","placeholders":[{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹#›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout8.xml","name":"Blank"}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout9.xml","name":"36 Field Grid"}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout10.xml","name":"48 Field Grid"}
+{"kind":"slide","id":"sl/y90nupkv","slide":1,"title":"AGRISUSTAIN","textShapes":4}
+{"kind":"textbox","id":"sh/i1w3yp8f","slide":1,"text":"AGRISUSTAIN","textPreview":"AGRISUSTAIN","textChars":11,"textLines":1,"bbox":[54,70,460,36]}
+{"kind":"textbox","id":"sh/547294r6","slide":1,"text":"Digital Platform for\nSustainable Agriculture","textPreview":"Digital Platform for | Sustainable Agriculture","textChars":44,"textLines":2,"bbox":[54,175,760,165]}
+{"kind":"textbox","id":"sh/k3yl0zql","slide":1,"text":"A graduation capstone project that connects farmers, consumers, and B2B buyers through trusted digital trade.","textPreview":"A graduation capstone project that connects farmers, consumers, and B2B buyers through trusted digital trade.","textChars":109,"textLines":1,"bbox":[58,380,720,58]}
+{"kind":"textbox","id":"sh/7qp4be9c","slide":1,"text":"SEP490_AGRISUSTAIN\nWeb application for B2B and B2C agricultural commerce","textPreview":"SEP490_AGRISUSTAIN | Web application for B2B and B2C agricultural commerce","textChars":72,"textLines":2,"bbox":[58,590,510,48]}
+{"kind":"notes","id":"nt/y90nupkv","slide":1,"text":"Sources: Report 1: Project Information and Project Purpose\n\nSpeaker notes: Open with the project purpose and the three audiences served."}
+{"kind":"slide","id":"sl/hwbqtkby","slide":2,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":15}
+{"kind":"shape","id":"sh/r65knqtk","slide":2,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/q5wjelsz","slide":2,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/ove9o7yd","slide":2,"text":"2","textPreview":"2","textChars":1,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/9wnqhczy","slide":2,"text":"Presentation roadmap","textPreview":"Presentation roadmap","textChars":20,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/mtwrmxg7","slide":2,"text":"A 15-minute overview of the project idea, delivery plan, and expected outcomes.","textPreview":"A 15-minute overview of the project idea, delivery plan, and expected outcomes.","textChars":79,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"textbox","id":"sh/nu58f2hs","slide":2,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[80,220,55,30]}
+{"kind":"textbox","id":"sh/wjy9sry9","slide":2,"text":"Problem and opportunity","textPreview":"Problem and opportunity","textChars":23,"textLines":1,"bbox":[155,220,560,30]}
+{"kind":"textbox","id":"sh/xk7qlczu","slide":2,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[80,290,55,30]}
+{"kind":"textbox","id":"sh/ahwrqhgj","slide":2,"text":"AgriSustain solution","textPreview":"AgriSustain solution","textChars":20,"textLines":1,"bbox":[155,290,560,30]}
+{"kind":"textbox","id":"sh/bip8jmho","slide":2,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[80,360,55,30]}
+{"kind":"textbox","id":"sh/cnupgny5","slide":2,"text":"Scope and system design","textPreview":"Scope and system design","textChars":23,"textLines":1,"bbox":[155,360,560,30]}
+{"kind":"textbox","id":"sh/do3q9szq","slide":2,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[80,430,55,30]}
+{"kind":"textbox","id":"sh/t8byxkn2","slide":2,"text":"Delivery, quality, and risk management","textPreview":"Delivery, quality, and risk management","textChars":38,"textLines":1,"bbox":[155,430,560,30]}
+{"kind":"textbox","id":"sh/s72xofmh","slide":2,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[80,500,55,30]}
+{"kind":"textbox","id":"sh/76twva5c","slide":2,"text":"Expected contribution","textPreview":"Expected contribution","textChars":21,"textLines":1,"bbox":[155,500,560,30]}
+{"kind":"textbox","id":"sh/65kfmpor","slide":2,"text":"The presentation prioritizes Reports 1 and 2. Report 3 provides the functional evidence behind the solution.","textPreview":"The presentation prioritizes Reports 1 and 2. Report 3 provides the functional evidence behind the solution.","textChars":108,"textLines":1,"bbox":[800,230,340,150]}
+{"kind":"table","id":"tb/tkr2t0bu","slide":2,"name":"Table 6","rows":6,"cols":2,"bbox":[41,280,823,345]}
+{"kind":"notes","id":"nt/hwbqtkby","slide":2,"text":"Sources: Reports 1–3\n\nSpeaker notes: Set expectations: the presentation explains both the product idea and the plan to deliver it."}
+{"kind":"slide","id":"sl/ofy9wn61","slide":3,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":10}
+{"kind":"shape","id":"sh/by1svqlc","slide":3,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/cza94vmx","slide":3,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/d0jax03i","slide":3,"text":"3","textPreview":"3","textChars":1,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/298ryl4v","slide":3,"text":"Agricultural trade faces three connected gaps","textPreview":"Agricultural trade faces three connected gaps","textChars":45,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/3ah8rqlg","slide":3,"text":"Fragmented market access, weak product evidence, and limited price visibility create risk for every participant.","textPreview":"Fragmented market access, weak product evidence, and limited price visibility create risk for every participant.","textChars":112,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"shape","id":"sh/obq90bml","slide":3,"bbox":[42,230,360,290]}
+{"kind":"textbox","id":"sh/pcjqtg36","slide":3,"text":"Supply and demand mismatch","textPreview":"Supply and demand mismatch","textChars":26,"textLines":1,"bbox":[64,250,316,38]}
+{"kind":"textbox","id":"sh/m5cra54z","slide":3,"text":"Farmers may face harvest-time oversupply while buyers elsewhere cannot identify reliable suppliers with the quantity and schedule they need.","textPreview":"Farmers may face harvest-time oversupply while buyers elsewhere cannot identify reliable suppliers with the quantity and schedule they need.","textChars":140,"textLines":1,"bbox":[64,298,316,204]}
+{"kind":"shape","id":"sh/n6ls3alk","slide":3,"bbox":[460,230,360,290]}
+{"kind":"textbox","id":"sh/n2l4fq98","slide":3,"text":"Trust and food safety","textPreview":"Trust and food safety","textChars":21,"textLines":1,"bbox":[482,250,316,38]}
+{"kind":"textbox","id":"sh/m1c3mlsn","slide":3,"text":"Buyers often depend on seller descriptions because cultivation history, harvest dates, and certificates are difficult to verify.","textPreview":"Buyers often depend on seller descriptions because cultivation history, harvest dates, and certificates are difficult to verify.","textChars":128,"textLines":1,"bbox":[482,298,316,204]}
+{"kind":"shape","id":"sh/943mhgre","slide":3,"bbox":[878,230,360,290]}
+{"kind":"textbox","id":"sh/83ulovat","slide":3,"text":"Price information gaps","textPreview":"Price information gaps","textChars":22,"textLines":1,"bbox":[900,250,316,38]}
+{"kind":"textbox","id":"sh/v6l4jq94","slide":3,"text":"Fragmented and outdated regional price information makes it hard to judge whether an offer is fair.","textPreview":"Fragmented and outdated regional price information makes it hard to judge whether an offer is fair.","textChars":99,"textLines":1,"bbox":[900,298,316,204]}
+{"kind":"notes","id":"nt/ofy9wn61","slide":3,"text":"Sources: Report 1: Product Background\n\nSpeaker notes: Explain that the platform addresses a connected market problem, not only an online storefront."}
+{"kind":"slide","id":"sl/jyx0ra1s","slide":4,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":11}
+{"kind":"shape","id":"sh/e9sj2tsv","slide":4,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/1cj2d8b6","slide":4,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/0ba143al","slide":4,"text":"4","textPreview":"4","textChars":1,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/rm1k7yt4","slide":4,"text":"AgriSustain connects trade with evidence","textPreview":"AgriSustain connects trade with evidence","textChars":40,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/ql8jytsj","slide":4,"text":"One responsive web platform combines direct commerce, farming data, and transparent product information.","textPreview":"One responsive web platform combines direct commerce, farming data, and transparent product information.","textChars":104,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"textbox","id":"sh/doj29oba","slide":4,"text":"Farmer","textPreview":"Farmer","textChars":6,"textLines":1,"bbox":[82,235,190,34]}
+{"kind":"textbox","id":"sh/sna103ap","slide":4,"text":"Consumer","textPreview":"Consumer","textChars":8,"textLines":1,"bbox":[515,235,190,34]}
+{"kind":"textbox","id":"sh/3ihk3et8","slide":4,"text":"B2B Buyer","textPreview":"B2B Buyer","textChars":9,"textLines":1,"bbox":[947,235,190,34]}
+{"kind":"shape","id":"sh/ih8ju9sn","slide":4,"bbox":[70,300,230,150]}
+{"kind":"shape","id":"sh/kbm987y5","slide":4,"bbox":[502,300,230,150]}
+{"kind":"shape","id":"sh/5cva1cfq","slide":4,"bbox":[934,300,230,150]}
+{"kind":"textbox","id":"sh/i94r6xgz","slide":4,"text":"List products\nRecord farming logs\nManage harvest batches","textPreview":"List products | Record farming logs | Manage harvest batches","textChars":56,"textLines":3,"bbox":[92,332,185,95]}
+{"kind":"textbox","id":"sh/jadsz2xk","slide":4,"text":"Browse verified products\nScan batch QR codes\nOrder and review","textPreview":"Browse verified products | Scan batch QR codes | Order and review","textChars":61,"textLines":3,"bbox":[524,332,185,95]}
+{"kind":"textbox","id":"sh/w72947yt","slide":4,"text":"Discover suppliers\nPlace bulk orders\nManage offtake contracts","textPreview":"Discover suppliers | Place bulk orders | Manage offtake contracts","textChars":61,"textLines":3,"bbox":[956,332,185,95]}
+{"kind":"textbox","id":"sh/x8vaxsfe","slide":4,"text":"The platform links product listings to batches, cultivation logs, certification evidence, and transactions.","textPreview":"The platform links product listings to batches, cultivation logs, certification evidence, and transactions.","textChars":107,"textLines":1,"bbox":[240,550,800,44]}
+{"kind":"notes","id":"nt/jyx0ra1s","slide":4,"text":"Sources: Report 1: Proposed Solution\n\nSpeaker notes: Frame AgriSustain as an integrated value-chain platform, with B2C and B2B in the same ecosystem."}
+{"kind":"slide","id":"sl/i107q5of","slide":5,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":16}
+{"kind":"shape","id":"sh/qd0bahob","slide":5,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/dgbulwnm","slide":5,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/cf2tcr61","slide":5,"text":"5","textPreview":"5","textChars":1,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/z2tcnm5s","slide":5,"text":"Six capabilities define the first release","textPreview":"Six capabilities define the first release","textChars":41,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/yhkbe1o7","slide":5,"text":"The scope focuses on functions that make transactions trustworthy and operationally feasible.","textPreview":"The scope focuses on functions that make transactions trustworthy and operationally feasible.","textChars":93,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"shape","id":"sh/l4bupwny","slide":5,"bbox":[42,210,360,160]}
+{"kind":"textbox","id":"sh/032tgr6d","slide":5,"text":"Direct trade","textPreview":"Direct trade","textChars":12,"textLines":1,"bbox":[64,230,316,38]}
+{"kind":"textbox","id":"sh/n6dcr65o","slide":5,"text":"B2C marketplace and B2B procurement","textPreview":"B2C marketplace and B2B procurement","textChars":35,"textLines":1,"bbox":[64,278,316,74]}
+{"kind":"shape","id":"sh/m5kbi1oj","slide":5,"bbox":[442,210,360,160]}
+{"kind":"textbox","id":"sh/w32dkbuh","slide":5,"text":"Harvest-linked orders","textPreview":"Harvest-linked orders","textChars":21,"textLines":1,"bbox":[464,230,316,38]}
+{"kind":"textbox","id":"sh/x4vedgvm","slide":5,"text":"Order status, pre-orders, and fulfilment","textPreview":"Order status, pre-orders, and fulfilment","textChars":40,"textLines":1,"bbox":[464,278,316,74]}
+{"kind":"shape","id":"sh/ahkvi1cb","slide":5,"bbox":[842,210,360,160]}
+{"kind":"textbox","id":"sh/v2twb6dw","slide":5,"text":"Seller verification","textPreview":"Seller verification","textChars":19,"textLines":1,"bbox":[864,230,316,38]}
+{"kind":"textbox","id":"sh/k7mxovud","slide":5,"text":"KYC and certificate review before selling","textPreview":"KYC and certificate review before selling","textChars":41,"textLines":1,"bbox":[864,278,316,74]}
+{"kind":"shape","id":"sh/58vehgvy","slide":5,"bbox":[42,415,360,160]}
+{"kind":"textbox","id":"sh/i54fmlc7","slide":5,"text":"QR traceability","textPreview":"QR traceability","textChars":15,"textLines":1,"bbox":[64,435,316,38]}
+{"kind":"textbox","id":"sh/j6dwfqds","slide":5,"text":"Batch-level history from field to buyer","textPreview":"Batch-level history from field to buyer","textChars":39,"textLines":1,"bbox":[64,483,316,74]}
+{"kind":"shape","id":"sh/sb6xsvu9","slide":5,"bbox":[442,415,360,160]}
+{"kind":"textbox","id":"sh/tcfel0vu","slide":5,"text":"Price reference","textPreview":"Price reference","textChars":15,"textLines":1,"bbox":[464,435,316,38]}
+{"kind":"textbox","id":"sh/hgrmpwj2","slide":5,"text":"Regional benchmark information","textPreview":"Regional benchmark information","textChars":30,"textLines":1,"bbox":[464,483,316,74]}
+{"kind":"shape","id":"sh/gfi5grih","slide":5,"bbox":[842,415,360,160]}
+{"kind":"textbox","id":"sh/fe94nm1w","slide":5,"text":"Quality resolution","textPreview":"Quality resolution","textChars":18,"textLines":1,"bbox":[864,435,316,38]}
+{"kind":"textbox","id":"sh/ud0ne10b","slide":5,"text":"Reviews, complaints, and administration","textPreview":"Reviews, complaints, and administration","textChars":39,"textLines":1,"bbox":[864,483,316,74]}
+{"kind":"notes","id":"nt/i107q5of","slide":5,"text":"Sources: Report 1: Major Features FE-01 to FE-06\n\nSpeaker notes: Use this slide as the functional summary before showing requirements detail."}
+{"kind":"slide","id":"sl/x8f69ofe","slide":6,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":12}
+{"kind":"shape","id":"sh/lkrqp4ra","slide":6,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/yhg7epsj","slide":6,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/zi98nu94","slide":6,"text":"6","textPreview":"6","textChars":1,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/87ipkzal","slide":6,"text":"The requirements cover the full trading lifecycle","textPreview":"The requirements cover the full trading lifecycle","textChars":49,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/98rqt4r6","slide":6,"text":"The SRS defines 43 use cases across authentication, marketplace, farm management, transactions, B2B contracts, and administration.","textPreview":"The SRS defines 43 use cases across authentication, marketplace, farm management, transactions, B2B contracts, and administration.","textChars":130,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"shape","id":"sh/ml07i9sv","slide":6,"bbox":[42,210,278,280]}
+{"kind":"textbox","id":"sh/7m98ru9g","slide":6,"text":"Onboarding and trust","textPreview":"Onboarding and trust","textChars":20,"textLines":1,"bbox":[64,230,234,38]}
+{"kind":"textbox","id":"sh/oryp8fah","slide":6,"text":"• Role-based accounts\n• Email OTP\n• Farmer and buyer KYC\n• Certificate dossiers","textPreview":"• Role-based accounts | • Email OTP | • Farmer and buyer KYC | • Certificate dossiers","textChars":79,"textLines":4,"bbox":[64,278,234,194]}
+{"kind":"shape","id":"sh/pc76hkr2","slide":6,"bbox":[346,210,278,280]}
+{"kind":"textbox","id":"sh/h4bupgn6","slide":6,"text":"Commerce","textPreview":"Commerce","textChars":8,"textLines":1,"bbox":[368,230,234,38]}
+{"kind":"textbox","id":"sh/w32twb6l","slide":6,"text":"• Marketplace browsing\n• Cart and retail checkout\n• PayOS/VietQR payment\n• Order fulfilment","textPreview":"• Marketplace browsing | • Cart and retail checkout | • PayOS/VietQR payment | • Order fulfilment","textChars":91,"textLines":4,"bbox":[368,278,234,194]}
+{"kind":"shape","id":"sh/v2tcn650","slide":6,"bbox":[650,210,278,280]}
+{"kind":"textbox","id":"sh/u1kbu1ov","slide":6,"text":"Farm operations","textPreview":"Farm operations","textChars":15,"textLines":1,"bbox":[672,230,234,38]}
+{"kind":"textbox","id":"sh/5svutgni","slide":6,"text":"• Crop seasons\n• E-farming logs\n• Product listings\n• Traceability batches","textPreview":"• Crop seasons | • E-farming logs | • Product listings | • Traceability batches","textChars":73,"textLines":4,"bbox":[672,278,234,194]}
+{"kind":"shape","id":"sh/47mt0b6x","slide":6,"bbox":[954,210,278,280]}
+{"kind":"textbox","id":"sh/j6dcr65c","slide":6,"text":"Business control","textPreview":"Business control","textChars":16,"textLines":1,"bbox":[976,230,234,38]}
+{"kind":"textbox","id":"sh/i54bylor","slide":6,"text":"• Supplier search\n• Offtake contracts\n• Revenue dashboard\n• Moderation and complaints","textPreview":"• Supplier search | • Offtake contracts | • Revenue dashboard | • Moderation and complaints","textChars":85,"textLines":4,"bbox":[976,278,234,194]}
+{"kind":"notes","id":"nt/x8f69ofe","slide":6,"text":"Sources: Report 3: Use Cases, External API Inventory, Functional Requirements\n\nSpeaker notes: Make clear that Report 3 turns the business idea into testable system behavior."}
+{"kind":"slide","id":"sl/gnmp4jqx","slide":7,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":11}
+{"kind":"shape","id":"sh/batcbq94","slide":7,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/cb2tkvap","slide":7,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/dcbud0ra","slide":7,"text":"7","textPreview":"7","textChars":1,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/ydkbm5sv","slide":7,"text":"Technical foundation for a responsive web platform","textPreview":"Technical foundation for a responsive web platform","textChars":50,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/zedcfa9g","slide":7,"text":"The delivery stack supports browser-based access and integrates payment and email notification services.","textPreview":"The delivery stack supports browser-based access and integrates payment and email notification services.","textChars":104,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"textbox","id":"sh/kzmdova1","slide":7,"text":"User browsers","textPreview":"User browsers","textChars":13,"textLines":1,"bbox":[65,245,230,35]}
+{"kind":"textbox","id":"sh/l0vuh0rm","slide":7,"text":"Responsive web interface\nReact 19.1.0","textPreview":"Responsive web interface | React 19.1.0","textChars":37,"textLines":2,"bbox":[65,295,230,80]}
+{"kind":"textbox","id":"sh/eh0ba1sr","slide":7,"text":"Application services","textPreview":"Application services","textChars":20,"textLines":1,"bbox":[520,245,230,35]}
+{"kind":"textbox","id":"sh/fi9c369c","slide":7,"text":"ASP.NET Web API 8.0\nBusiness rules and APIs","textPreview":"ASP.NET Web API 8.0 | Business rules and APIs","textChars":43,"textLines":2,"bbox":[520,295,230,80]}
+{"kind":"textbox","id":"sh/baxkjqlk","slide":7,"text":"Data and integrations","textPreview":"Data and integrations","textChars":21,"textLines":1,"bbox":[945,245,230,35]}
+{"kind":"textbox","id":"sh/a9ojq5kz","slide":7,"text":"MS SQL Server\nPayOS / VietQR\nGmail Notification API","textPreview":"MS SQL Server | PayOS / VietQR | Gmail Notification API","textChars":51,"textLines":3,"bbox":[945,295,230,95]}
+{"kind":"textbox","id":"sh/xcz2l03q","slide":7,"text":"Azure staging supports integration, system testing, and stakeholder demonstrations.","textPreview":"Azure staging supports integration, system testing, and stakeholder demonstrations.","textChars":83,"textLines":1,"bbox":[115,535,1000,42]}
+{"kind":"notes","id":"nt/gnmp4jqx","slide":7,"text":"Sources: Report 2: Tools & Infrastructures; Report 3: External API Inventory\n\nSpeaker notes: Describe the technical choices as documented project technologies, not as completed production claims."}
+{"kind":"slide","id":"sl/fu1gfa1s","slide":8,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":23}
+{"kind":"shape","id":"sh/elkf2pg7","slide":8,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/18byd4zy","slide":8,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/g72x4zyd","slide":8,"text":"8","textPreview":"8","textChars":1,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/ri9g7uhw","slide":8,"text":"A 15-week delivery plan turns the concept into a release","textPreview":"A 15-week delivery plan turns the concept into a release","textChars":56,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/6h0fypgb","slide":8,"text":"The plan sequences discovery, design, three implementation sprints, verification, deployment, and handover.","textPreview":"The plan sequences discovery, design, three implementation sprints, verification, deployment, and handover.","textChars":107,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"shape","id":"sh/tkby9kzm","slide":8,"bbox":[40,260,175,220]}
+{"kind":"textbox","id":"sh/sjix0zy1","slide":8,"text":"Weeks 1–3","textPreview":"Weeks 1–3","textChars":9,"textLines":1,"bbox":[56,285,143,24]}
+{"kind":"textbox","id":"sh/je9g3ahk","slide":8,"text":"Initiation and backlog","textPreview":"Initiation and backlog","textChars":22,"textLines":1,"bbox":[56,335,143,62]}
+{"kind":"textbox","id":"sh/id0fu50z","slide":8,"text":"42 pds","textPreview":"42 pds","textChars":6,"textLines":1,"bbox":[56,435,143,22]}
+{"kind":"shape","id":"sh/o7ydoret","slide":8,"bbox":[240,260,175,220]}
+{"kind":"textbox","id":"sh/98rehwve","slide":8,"text":"Weeks 4–5","textPreview":"Weeks 4–5","textChars":9,"textLines":1,"bbox":[256,285,143,24]}
+{"kind":"textbox","id":"sh/m5gvmhwn","slide":8,"text":"Architecture and design","textPreview":"Architecture and design","textChars":23,"textLines":1,"bbox":[256,335,143,62]}
+{"kind":"textbox","id":"sh/n6pwfmd8","slide":8,"text":"43 pds","textPreview":"43 pds","textChars":6,"textLines":1,"bbox":[256,435,143,22]}
+{"kind":"shape","id":"sh/0jydkreh","slide":8,"bbox":[440,260,175,220]}
+{"kind":"textbox","id":"sh/1k7edwv2","slide":8,"text":"Weeks 6–11","textPreview":"Weeks 6–11","textChars":10,"textLines":1,"bbox":[456,285,143,24]}
+{"kind":"textbox","id":"sh/ehgvihwr","slide":8,"text":"Three delivery sprints","textPreview":"Three delivery sprints","textChars":22,"textLines":1,"bbox":[456,335,143,62]}
+{"kind":"textbox","id":"sh/zipwbmdc","slide":8,"text":"124 pds","textPreview":"124 pds","textChars":7,"textLines":1,"bbox":[456,435,143,22]}
+{"kind":"shape","id":"sh/kfixwbe1","slide":8,"bbox":[640,260,175,220]}
+{"kind":"textbox","id":"sh/lgbepgvm","slide":8,"text":"Week 12","textPreview":"Week 12","textChars":7,"textLines":1,"bbox":[656,285,143,24]}
+{"kind":"textbox","id":"sh/tw7e9gnq","slide":8,"text":"Integration and verification","textPreview":"Integration and verification","textChars":28,"textLines":1,"bbox":[656,335,143,62]}
+{"kind":"textbox","id":"sh/svydgb65","slide":8,"text":"38 pds","textPreview":"38 pds","textChars":6,"textLines":1,"bbox":[656,435,143,22]}
+{"kind":"shape","id":"sh/7u5w765k","slide":8,"bbox":[840,260,175,220]}
+{"kind":"textbox","id":"sh/6twve1oz","slide":8,"text":"Weeks 13–14","textPreview":"Weeks 13–14","textChars":11,"textLines":1,"bbox":[856,285,143,24]}
+{"kind":"textbox","id":"sh/5sne5wne","slide":8,"text":"UAT and deployment","textPreview":"UAT and deployment","textChars":18,"textLines":1,"bbox":[856,335,143,62]}
+{"kind":"textbox","id":"sh/kredcr6t","slide":8,"text":"28 pds","textPreview":"28 pds","textChars":6,"textLines":1,"bbox":[856,435,143,22]}
+{"kind":"shape","id":"sh/jq5w365o","slide":8,"bbox":[1040,260,175,220]}
+{"kind":"textbox","id":"sh/i5wva1o3","slide":8,"text":"Week 15","textPreview":"Week 15","textChars":7,"textLines":1,"bbox":[1056,285,143,24]}
+{"kind":"textbox","id":"sh/x4ne1wni","slide":8,"text":"Handover and defense","textPreview":"Handover and defense","textChars":20,"textLines":1,"bbox":[1056,335,143,62]}
+{"kind":"textbox","id":"sh/w3ed8r6x","slide":8,"text":"16 pds","textPreview":"16 pds","textChars":6,"textLines":1,"bbox":[1056,435,143,22]}
+{"kind":"textbox","id":"sh/m9sb2x4v","slide":8,"text":"Total planned effort: 291 person-days","textPreview":"Total planned effort: 291 person-days","textChars":37,"textLines":1,"bbox":[400,570,480,30]}
+{"kind":"notes","id":"nt/fu1gfa1s","slide":8,"text":"Sources: Report 2: Cost & Time Estimations\n\nSpeaker notes: Point out that the product scope is staged by dependency and business value."}
+{"kind":"slide","id":"sl/udsvah03","slide":9,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":19}
+{"kind":"shape","id":"sh/eponml43","slide":9,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/1cfmhgne","slide":9,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/0b65obm9","slide":9,"text":"9","textPreview":"9","textChars":1,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/nex4jq5k","slide":9,"text":"A five-member cross-functional team governs delivery","textPreview":"A five-member cross-functional team governs delivery","textChars":52,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/mdonql4z","slide":9,"text":"Scrum roles and RACI ownership make priorities, quality, and technical responsibilities explicit.","textPreview":"Scrum roles and RACI ownership make priorities, quality, and technical responsibilities explicit.","textChars":97,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"textbox","id":"sh/9gzml0nq","slide":9,"text":"01","textPreview":"01","textChars":2,"textLines":1,"bbox":[75,195,45,28]}
+{"kind":"textbox","id":"sh/ofq5svm5","slide":9,"text":"Nguyễn Văn Huy","textPreview":"Nguyễn Văn Huy","textChars":14,"textLines":1,"bbox":[150,195,280,28]}
+{"kind":"textbox","id":"sh/bih4na5w","slide":9,"text":"Project Manager, Lead BA, Fullstack","textPreview":"Project Manager, Lead BA, Fullstack","textChars":35,"textLines":1,"bbox":[475,195,620,34]}
+{"kind":"textbox","id":"sh/ah8nu54b","slide":9,"text":"02","textPreview":"02","textChars":2,"textLines":1,"bbox":[75,270,45,28]}
+{"kind":"textbox","id":"sh/oza1gfyh","slide":9,"text":"Lò Mạnh Xum","textPreview":"Lò Mạnh Xum","textChars":11,"textLines":1,"bbox":[150,270,280,28]}
+{"kind":"textbox","id":"sh/p0ji9kf2","slide":9,"text":"Backend Lead, Database Architect, Fullstack","textPreview":"Backend Lead, Database Architect, Fullstack","textChars":43,"textLines":1,"bbox":[475,270,620,34]}
+{"kind":"textbox","id":"sh/2xsjepgb","slide":9,"text":"03","textPreview":"03","textChars":2,"textLines":1,"bbox":[75,345,45,28]}
+{"kind":"textbox","id":"sh/3y107axw","slide":9,"text":"Ngô Đức Dự","textPreview":"Ngô Đức Dự","textChars":10,"textLines":1,"bbox":[150,345,280,28]}
+{"kind":"textbox","id":"sh/cnu1kzyd","slide":9,"text":"Frontend Lead, UI/UX, Fullstack","textPreview":"Frontend Lead, UI/UX, Fullstack","textChars":31,"textLines":1,"bbox":[475,345,620,34]}
+{"kind":"textbox","id":"sh/do3id4fy","slide":9,"text":"04","textPreview":"04","textChars":2,"textLines":1,"bbox":[75,420,45,28]}
+{"kind":"textbox","id":"sh/qlcjipgn","slide":9,"text":"Trần Bá Tú","textPreview":"Trần Bá Tú","textChars":10,"textLines":1,"bbox":[150,420,280,28]}
+{"kind":"textbox","id":"sh/bml0buxs","slide":9,"text":"QA/QC Lead, Fullstack","textPreview":"QA/QC Lead, Fullstack","textChars":21,"textLines":1,"bbox":[475,420,620,34]}
+{"kind":"textbox","id":"sh/0ru1ozyp","slide":9,"text":"05","textPreview":"05","textChars":2,"textLines":1,"bbox":[75,495,45,28]}
+{"kind":"textbox","id":"sh/lsn2h4fa","slide":9,"text":"Nguyễn Quang Thương","textPreview":"Nguyễn Quang Thương","textChars":19,"textLines":1,"bbox":[150,495,280,28]}
+{"kind":"textbox","id":"sh/98ji147e","slide":9,"text":"DevOps and System Administration, Fullstack","textPreview":"DevOps and System Administration, Fullstack","textChars":43,"textLines":1,"bbox":[475,495,620,34]}
+{"kind":"notes","id":"nt/udsvah03","slide":9,"text":"Sources: Report 2: Role and Responsibilities; Scrum Roles & Responsibilities\n\nSpeaker notes: Explain that every member contributes to delivery while holding a clear primary responsibility."}
+{"kind":"slide","id":"sl/m90b6t0r","slide":10,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":12}
+{"kind":"shape","id":"sh/q9sn69kb","slide":10,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/xc3mho32","slide":10,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/cbu58j2h","slide":10,"text":"10","textPreview":"10","textChars":2,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/zelojyl8","slide":10,"text":"Quality management is integrated into every sprint","textPreview":"Quality management is integrated into every sprint","textChars":50,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/ydcnatkn","slide":10,"text":"The team uses readiness criteria, code review, incremental testing, and UAT feedback before release.","textPreview":"The team uses readiness criteria, code review, incremental testing, and UAT feedback before release.","textChars":100,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"shape","id":"sh/l036l83y","slide":10,"bbox":[42,215,280,260]}
+{"kind":"textbox","id":"sh/kzu5c32t","slide":10,"text":"Definition of Ready","textPreview":"Definition of Ready","textChars":19,"textLines":1,"bbox":[64,235,236,38]}
+{"kind":"textbox","id":"sh/725onyl4","slide":10,"text":"• Clear business rules\n• Confirmed data dependencies\n• Agreed estimate and acceptance criteria","textPreview":"• Clear business rules | • Confirmed data dependencies | • Agreed estimate and acceptance criteria","textChars":94,"textLines":3,"bbox":[64,283,236,174]}
+{"kind":"shape","id":"sh/m1cnetkj","slide":10,"bbox":[350,215,280,260]}
+{"kind":"textbox","id":"sh/s7yt4b21","slide":10,"text":"Definition of Done","textPreview":"Definition of Done","textChars":18,"textLines":1,"bbox":[372,235,236,38]}
+{"kind":"textbox","id":"sh/d87uxg3m","slide":10,"text":"• Implemented API and interface\n• Peer review and test evidence\n• Demo-ready sprint increment","textPreview":"• Implemented API and interface | • Peer review and test evidence | • Demo-ready sprint increment","textChars":93,"textLines":3,"bbox":[372,283,236,174]}
+{"kind":"shape","id":"sh/q5gb21kb","slide":10,"bbox":[658,215,280,260]}
+{"kind":"textbox","id":"sh/r6pcv6lw","slide":10,"text":"Testing strategy","textPreview":"Testing strategy","textChars":16,"textLines":1,"bbox":[680,235,236,38]}
+{"kind":"textbox","id":"sh/0bit8b2d","slide":10,"text":"• Unit and integration tests\n• System testing on Azure staging\n• UAT scenarios for farmer and buyer","textPreview":"• Unit and integration tests | • System testing on Azure staging | • UAT scenarios for farmer and buyer","textChars":99,"textLines":3,"bbox":[680,283,236,174]}
+{"kind":"shape","id":"sh/1cru1g3y","slide":10,"bbox":[966,215,272,260]}
+{"kind":"textbox","id":"sh/e9gb61k7","slide":10,"text":"Project objectives","textPreview":"Project objectives","textChars":18,"textLines":1,"bbox":[988,235,228,38]}
+{"kind":"textbox","id":"sh/fapcz6ls","slide":10,"text":"• 90% timeliness target\n• 90% requirement completeness\n• Zero acceptance-test defects recorded","textPreview":"• 90% timeliness target | • 90% requirement completeness | • Zero acceptance-test defects recorded","textChars":94,"textLines":3,"bbox":[988,283,228,174]}
+{"kind":"notes","id":"nt/m90b6t0r","slide":10,"text":"Sources: Report 2: Quality Management, Testing Strategy, Project Objectives\n\nSpeaker notes: Discuss quality as a continuous control loop, not a final project phase."}
+{"kind":"slide","id":"sl/jetc3ut0","slide":11,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":10}
+{"kind":"shape","id":"sh/a90z21on","slide":11,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/xcryxg7y","slide":11,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/wbih4b6d","slide":11,"text":"11","textPreview":"11","textChars":2,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/n69grmpw","slide":11,"text":"Risk control preserves feasibility within the capstone scope","textPreview":"Risk control preserves feasibility within the capstone scope","textChars":60,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/250zy18b","slide":11,"text":"The plan protects core value while recognizing technology, timing, and business constraints.","textPreview":"The plan protects core value while recognizing technology, timing, and business constraints.","textChars":92,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"shape","id":"sh/98rytw72","slide":11,"bbox":[42,210,360,330]}
+{"kind":"textbox","id":"sh/o7ih0r6h","slide":11,"text":"Priority project risks","textPreview":"Priority project risks","textChars":22,"textLines":1,"bbox":[64,230,316,38]}
+{"kind":"textbox","id":"sh/72t03qp0","slide":11,"text":"• Unclear business requirements\n• Limited team availability\n• Scope expansion requests\n• Uneven workload\n• Compatibility issues","textPreview":"• Unclear business requirements | • Limited team availability | • Scope expansion requests | • Uneven workload | • Compatibility issues","textChars":127,"textLines":5,"bbox":[64,278,316,244]}
+{"kind":"shape","id":"sh/61kzalof","slide":11,"bbox":[460,210,360,330]}
+{"kind":"textbox","id":"sh/ofqtgnyt","slide":11,"text":"Management response","textPreview":"Management response","textChars":19,"textLines":1,"bbox":[482,230,316,38]}
+{"kind":"textbox","id":"sh/9gza9sze","slide":11,"text":"• Early clarification and benchmark research\n• Daily commitments and weekly reviews\n• Scope review with supervisors\n• Explicit task assignment\n• Early target-environment testing","textPreview":"• Early clarification and benchmark research | • Daily commitments and weekly reviews | • Scope review with supervisors | • Explicit task...","textChars":177,"textLines":5,"bbox":[482,278,316,244]}
+{"kind":"shape","id":"sh/mdobedg3","slide":11,"bbox":[878,210,360,330]}
+{"kind":"textbox","id":"sh/nehs7iho","slide":11,"text":"Deliberate exclusions","textPreview":"Deliberate exclusions","textChars":21,"textLines":1,"bbox":[900,230,316,38]}
+{"kind":"textbox","id":"sh/0b6tc3yx","slide":11,"text":"• No transport fleet or GPS tracking\n• No physical IoT sensors\n• No blockchain deployment\n• No native mobile application","textPreview":"• No transport fleet or GPS tracking | • No physical IoT sensors | • No blockchain deployment | • No native mobile application","textChars":120,"textLines":4,"bbox":[900,278,316,244]}
+{"kind":"notes","id":"nt/jetc3ut0","slide":11,"text":"Sources: Report 1: Limitations & Exclusions; Report 2: Risks and Mitigations; Assumptions & Constraints\n\nSpeaker notes: Show that exclusions are delivery decisions, not missing project objectives."}
+{"kind":"slide","id":"sl/8f2psfyx","slide":12,"title":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textShapes":11}
+{"kind":"shape","id":"sh/edk3ed4j","slide":12,"bbox":[40,38,1198,3]}
+{"kind":"textbox","id":"sh/1gbm9s3a","slide":12,"text":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textPreview":"AGRISUSTAIN  |  SEP490 GRADUATION PROJECT","textChars":41,"textLines":1,"bbox":[42,670,420,18]}
+{"kind":"textbox","id":"sh/0f2lgnmp","slide":12,"text":"12","textPreview":"12","textChars":2,"textLines":1,"bbox":[1188,668,42,18]}
+{"kind":"textbox","id":"sh/ra943il8","slide":12,"text":"Expected graduation project contribution","textPreview":"Expected graduation project contribution","textChars":40,"textLines":1,"bbox":[42,65,1120,54]}
+{"kind":"textbox","id":"sh/q903ad4n","slide":12,"text":"AgriSustain provides a feasible blueprint for transparent agricultural trade across retail and B2B channels.","textPreview":"AgriSustain provides a feasible blueprint for transparent agricultural trade across retail and B2B channels.","textChars":108,"textLines":1,"bbox":[42,126,1120,42]}
+{"kind":"shape","id":"sh/dcbm583y","slide":12,"bbox":[42,230,374,270]}
+{"kind":"textbox","id":"sh/sb2lcnmd","slide":12,"text":"For farmers","textPreview":"For farmers","textChars":11,"textLines":1,"bbox":[64,250,330,38]}
+{"kind":"textbox","id":"sh/b6d4f2lc","slide":12,"text":"Direct market access, digital farming records, verified profiles, and better visibility for quality products.","textPreview":"Direct market access, digital farming records, verified profiles, and better visibility for quality products.","textChars":109,"textLines":1,"bbox":[64,298,330,184]}
+{"kind":"shape","id":"sh/a543mx4r","slide":12,"bbox":[453,230,374,270]}
+{"kind":"textbox","id":"sh/wvupgz6t","slide":12,"text":"For buyers","textPreview":"For buyers","textChars":10,"textLines":1,"bbox":[475,250,330,38]}
+{"kind":"textbox","id":"sh/xw3q94ne","slide":12,"text":"A clearer way to evaluate supplier capacity, product origin, certificates, price, and order progress.","textPreview":"A clearer way to evaluate supplier capacity, product origin, certificates, price, and order progress.","textChars":101,"textLines":1,"bbox":[475,298,330,184]}
+{"kind":"shape","id":"sh/atc7epon","slide":12,"bbox":[864,230,374,270]}
+{"kind":"textbox","id":"sh/bulo7u58","slide":12,"text":"For the project","textPreview":"For the project","textChars":15,"textLines":1,"bbox":[886,250,330,38]}
+{"kind":"textbox","id":"sh/orapcf6h","slide":12,"text":"A complete capstone lifecycle from problem analysis and requirements to Scrum delivery, verification, and handover.","textPreview":"A complete capstone lifecycle from problem analysis and requirements to Scrum delivery, verification, and handover.","textChars":115,"textLines":1,"bbox":[886,298,330,184]}
+{"kind":"textbox","id":"sh/9sj65kn2","slide":12,"text":"Thank you","textPreview":"Thank you","textChars":9,"textLines":1,"bbox":[42,575,1100,48]}
+{"kind":"notes","id":"nt/8f2psfyx","slide":12,"text":"Sources: Reports 1–3\n\nSpeaker notes: Close by returning to the purpose: trusted digital trade that serves farmers, households, and business buyers."}

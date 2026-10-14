@@ -1,0 +1,75 @@
+<mxfile host="app.diagrams.net" agent="Codex">
+  <diagram id="agrisustain-context" name="Context Diagram">
+    <mxGraphModel dx="3006" dy="780" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=20;whiteSpace=wrap;" value="CONTEXT DIAGRAM - AGRISUSTAIN DIGITAL PLATFORM FOR SUSTAINABLE AGRICULTURE" vertex="1">
+          <mxGeometry height="35" width="980" x="310" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="scope" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontColor=#666666;whiteSpace=wrap;" value="System boundary: responsive web marketplace combining B2B &amp; B2C trading, traceability, and regional price transparency" vertex="1">
+          <mxGeometry height="24" width="1000" x="300" y="68" as="geometry" />
+        </mxCell>
+        <mxCell id="system" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d9eaf7;strokeColor=#1f4e78;strokeWidth=3;fontSize=14;align=center;verticalAlign=middle;spacing=10;" value="&lt;b&gt;AGRISUSTAIN&lt;/b&gt;&lt;br&gt;Digital Platform for Sustainable Agriculture&lt;br&gt;&lt;br&gt;• Marketplace &amp; product search&lt;br&gt;• Product, inventory &amp; order management&lt;br&gt;• QR traceability &amp; certifications&lt;br&gt;• Price comparison / market indicators&lt;br&gt;• Reviews, complaints &amp; dashboards" vertex="1">
+          <mxGeometry height="260" width="450" x="575" y="315" as="geometry" />
+        </mxCell>
+        <mxCell id="buyer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#bf9000;strokeWidth=2;fontSize=14;align=center;verticalAlign=middle;" value="&lt;b&gt;BUYERS&lt;/b&gt;&lt;br&gt;B2C consumers&lt;br&gt;Restaurants / cafeterias&lt;br&gt;Businesses / processors" vertex="1">
+          <mxGeometry height="120" width="250" x="200" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="seller" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d9ead3;strokeColor=#38761d;strokeWidth=2;fontSize=14;align=center;verticalAlign=middle;" value="&lt;b&gt;SELLERS&lt;/b&gt;&lt;br&gt;Farmers&lt;br&gt;Cooperatives&lt;br&gt;Agricultural producers" vertex="1">
+          <mxGeometry height="120" width="250" x="-260" y="920" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eadcf8;strokeColor=#7030a0;strokeWidth=2;fontSize=14;align=center;verticalAlign=middle;" value="&lt;b&gt;ADMINISTRATOR&lt;/b&gt;&lt;br&gt;Platform operations&lt;br&gt;and moderation" vertex="1">
+          <mxGeometry height="110" width="240" x="1930" y="92" as="geometry" />
+        </mxCell>
+        <mxCell id="payment" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce4d6;strokeColor=#c65911;strokeWidth=2;fontSize=14;align=center;verticalAlign=middle;" value="&lt;b&gt;ELECTRONIC PAYMENT&lt;/b&gt;&lt;br&gt;PAYMENT GATEWAY" vertex="1">
+          <mxGeometry height="95" width="250" x="1400" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="price" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e2f0d9;strokeColor=#548235;strokeWidth=2;fontSize=14;align=center;verticalAlign=middle;" value="&lt;b&gt;AGRICULTURAL MARKET&lt;/b&gt;&lt;br&gt;PRICE INFORMATION SOURCES&lt;br&gt;(official bulletins / market references)" vertex="1">
+          <mxGeometry height="105" width="330" x="1080" y="796.5" as="geometry" />
+        </mxCell>
+        <mxCell id="eBuyerIn" edge="1" parent="1" source="buyer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="system" value="Register / log in; profile data&lt;br&gt;Search &amp; filter requests&lt;br&gt;Cart, order &amp; delivery preferences&lt;br&gt;Payment request&lt;br&gt;Ratings, comments &amp; complaints">
+          <mxGeometry relative="1" x="-0.3535" y="40" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eBuyerOut" edge="1" parent="1" source="system" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="buyer" value="Products, prices &amp; stock&lt;br&gt;Traceability QR / farm logs / certificates&lt;br&gt;Order status &amp; purchase history&lt;br&gt;Payment result; response to review / complaint">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eSellerIn" edge="1" parent="1" source="seller" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="system" value="Register / log in; farm &amp; legal information&lt;br&gt;Product details, images, inventory, base price&lt;br&gt;Harvest / cultivation data; certificates&lt;br&gt;Order confirmation &amp; preparation / delivery updates">
+          <mxGeometry relative="1" x="-0.2757" y="10" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eSellerOut" edge="1" parent="1" source="system" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="seller" value="Seller approval / account status&lt;br&gt;Product approval / publication status&lt;br&gt;New orders &amp; buyer information&lt;br&gt;Sales, revenue &amp; product performance reports&lt;br&gt;Regional price indicators">
+          <mxGeometry relative="1" x="0.4262" y="105" as="geometry">
+            <mxPoint y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eAdminIn" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="system" value="Admin authentication&lt;br&gt;User / seller verification decisions&lt;br&gt;Product &amp; category approvals&lt;br&gt;Account actions; complaint / dispute handling">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eAdminOut" edge="1" parent="1" source="system" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="admin" value="User, seller, product &amp; order data&lt;br&gt;Pending approvals &amp; complaints&lt;br&gt;Marketplace statistics: growth, orders, revenue&lt;br&gt;Audit / operational status">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ePaymentOut" edge="1" parent="1" source="system" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="payment" value="Payment transaction request&lt;br&gt;Order ID, amount &amp; payment details">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ePaymentIn" edge="1" parent="1" source="payment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="system" value="Payment confirmation / failure&lt;br&gt;Transaction reference &amp; status">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ePriceIn" edge="1" parent="1" source="price" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="system" value="Regional commodity prices&lt;br&gt;Price bulletins / reference data&lt;br&gt;Source date &amp; location">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ePriceOut" edge="1" parent="1" source="system" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;fontSize=11;labelBackgroundColor=#ffffff;" target="price" value="Data query / synchronization request">
+          <mxGeometry relative="1" x="0.3473" y="-35" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="note" parent="1" style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontColor=#666666;whiteSpace=wrap;" value="Note: Transport fleet/GPS tracking, IoT sensors, blockchain nodes, and native mobile apps are explicitly outside the current project scope." vertex="1">
+          <mxGeometry height="28" width="980" x="520" y="1120" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

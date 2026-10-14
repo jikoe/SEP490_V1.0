@@ -1,0 +1,143 @@
+@startuml
+title AgriSustain Platform - Screen Flow Overview
+left to right direction
+
+' Polyline prevents the long shared horizontal/vertical segments produced by ortho routing.
+skinparam linetype polyline
+skinparam roundcorner 8
+skinparam shadowing false
+skinparam nodesep 80
+skinparam ranksep 90
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #4A5568
+  BorderThickness 1.2
+}
+skinparam package {
+  BackgroundColor #F8FAFC
+  BorderColor #CBD5E1
+  FontColor #1E293B
+  FontStyle bold
+}
+skinparam arrow {
+  Color #334155
+}
+
+package "Public, Guest & Authentication" {
+  rectangle "SCR-PUB-01\nLanding & Home" as HOME #F1F5F9
+  rectangle "SCR-AUTH-01\nLogin" as LOGIN #FEF3C7
+  rectangle "SCR-AUTH-02\nRegister Consumer/Farmer" as REGISTER_CF
+  rectangle "SCR-AUTH-03\nRegister B2B Buyer" as REGISTER_B2B
+  rectangle "SCR-AUTH-04\nForgot / Reset Password" as RESET_PASSWORD
+  rectangle "SCR-USER-01\nComplete Profile & User Profile" as PROFILE
+}
+
+package "Post-Login" {
+  package "Consumer" {
+    rectangle "SCR-MKT-01\nMarketplace Catalog" as CATALOG #E0F2FE
+    rectangle "SCR-MKT-02\nProduct Detail" as PRODUCT_DETAIL #E0F2FE
+    rectangle "SCR-TRC-01\nTraceability" as TRACEABILITY #DCFCE7
+    rectangle "SCR-CON-01\nShopping Cart" as CART #E0F2FE
+    rectangle "SCR-CON-02\nRetail Checkout" as CHECKOUT #E0F2FE
+    rectangle "SCR-PAY-01\nPayment Gateway" as PAYMENT #E0E7FF
+    rectangle "SCR-CON-03\nOrder Tracking & History" as ORDER_TRACKING #E0F2FE
+    rectangle "SCR-CON-04\nProduct Review" as REVIEW #FEF9C3
+    rectangle "SCR-CON-05\nOrder Complaint" as COMPLAINT #FEE2E2
+  }
+
+  package "Farmer" {
+    rectangle "SCR-FAR-01\nFarmer Dashboard & Revenue" as FARMER_DASHBOARD #F0FDF4
+    rectangle "SCR-FAR-02\nCrop Season Planner" as CROP_SEASONS
+    rectangle "SCR-FAR-03\nE-Farming Log" as FARMING_LOGS
+    rectangle "SCR-FAR-04\nBatches & QR" as BATCHES
+    rectangle "SCR-FAR-05\nProduct Listing Manager" as FARMER_PRODUCTS
+    rectangle "SCR-FAR-06\nPre-Order Campaign" as FARMER_PREORDER
+    rectangle "SCR-FAR-07\nOrder Fulfillment & Packing" as FARMER_ORDERS
+    rectangle "SCR-FAR-08\nCertificate Dossier" as FARMER_CERTIFICATES
+    rectangle "SCR-FAR-09\nOfftake Contract Desk" as FARMER_OFFTAKE
+  }
+
+  package "Buyer / B2B" {
+    rectangle "SCR-B2B-01\nSupplier Directory" as SUPPLIERS #FFF7ED
+    rectangle "SCR-B2B-02\nSupplier Profile" as SUPPLIER_PROFILE #FFF7ED
+    rectangle "SCR-B2B-03\nWholesale Order" as WHOLESALE_ORDER #FFF7ED
+    rectangle "SCR-B2B-04\nSeason Pre-Order" as B2B_PREORDER #FFF7ED
+    rectangle "SCR-B2B-05\nOfftake Proposal" as OFFTAKE_PROPOSAL #FFF7ED
+    rectangle "SCR-B2B-06\nContract & E-Sign" as SIGN_CONTRACT #FFF7ED
+    rectangle "SCR-B2B-07\nFulfillment & Invoices" as B2B_FULFILLMENT #FFF7ED
+    rectangle "SCR-B2B-08\nSubscription Tier Center" as B2B_SUBSCRIPTION #FFF7ED
+  }
+
+  package "Administrator" {
+    rectangle "SCR-ADM-01\nOperations Dashboard" as ADMIN_DASHBOARD #F3E8FF
+    rectangle "SCR-ADM-02\nKYC / Account Approval" as ADMIN_KYC #F3E8FF
+    rectangle "SCR-ADM-03\nUser Account Manager" as ADMIN_USERS #F3E8FF
+    rectangle "SCR-ADM-04\nProduct & Review Moderation" as ADMIN_MODERATION #F3E8FF
+    rectangle "SCR-ADM-05\nCategory & Promotion" as ADMIN_PROMOTIONS #F3E8FF
+    rectangle "SCR-ADM-06\nComplaint Resolution" as ADMIN_COMPLAINTS #F3E8FF
+    rectangle "SCR-ADM-07\nSubscription Tier Config" as ADMIN_TIERS #F3E8FF
+    rectangle "SCR-ADM-08\nCertification Review" as ADMIN_CERTIFICATIONS #F3E8FF
+  }
+}
+
+' Authentication
+HOME --> LOGIN
+HOME --> CATALOG
+HOME --> TRACEABILITY
+LOGIN --> REGISTER_CF
+LOGIN --> REGISTER_B2B
+LOGIN --> RESET_PASSWORD
+RESET_PASSWORD --> LOGIN
+REGISTER_CF --> PROFILE
+PROFILE --> LOGIN
+
+' Role entry
+LOGIN --> CATALOG
+LOGIN --> FARMER_DASHBOARD
+LOGIN --> SUPPLIERS
+LOGIN --> ADMIN_DASHBOARD
+
+' Consumer
+CATALOG --> PRODUCT_DETAIL
+PRODUCT_DETAIL --> TRACEABILITY
+PRODUCT_DETAIL --> CART
+CART --> CHECKOUT
+CHECKOUT --> PAYMENT
+PAYMENT --> ORDER_TRACKING
+PAYMENT --> CHECKOUT
+ORDER_TRACKING --> REVIEW
+ORDER_TRACKING --> COMPLAINT
+
+' Farmer
+FARMER_DASHBOARD --> CROP_SEASONS
+CROP_SEASONS --> FARMING_LOGS
+CROP_SEASONS --> BATCHES
+FARMER_DASHBOARD --> FARMER_PRODUCTS
+FARMER_DASHBOARD --> FARMER_PREORDER
+FARMER_DASHBOARD --> FARMER_ORDERS
+FARMER_DASHBOARD --> FARMER_CERTIFICATES
+FARMER_DASHBOARD --> FARMER_OFFTAKE
+
+' Buyer / B2B
+SUPPLIERS --> SUPPLIER_PROFILE
+SUPPLIER_PROFILE --> WHOLESALE_ORDER
+SUPPLIER_PROFILE --> B2B_PREORDER
+SUPPLIER_PROFILE --> OFFTAKE_PROPOSAL
+SUPPLIERS --> B2B_SUBSCRIPTION
+WHOLESALE_ORDER --> B2B_FULFILLMENT
+B2B_PREORDER --> B2B_FULFILLMENT
+OFFTAKE_PROPOSAL --> SIGN_CONTRACT
+SIGN_CONTRACT --> B2B_FULFILLMENT
+
+' Administrator
+ADMIN_DASHBOARD --> ADMIN_KYC
+ADMIN_DASHBOARD --> ADMIN_USERS
+ADMIN_DASHBOARD --> ADMIN_MODERATION
+ADMIN_DASHBOARD --> ADMIN_PROMOTIONS
+ADMIN_DASHBOARD --> ADMIN_COMPLAINTS
+ADMIN_DASHBOARD --> ADMIN_TIERS
+ADMIN_DASHBOARD --> ADMIN_CERTIFICATIONS
+@enduml

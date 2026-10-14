@@ -1,0 +1,338 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Trang-1" id="TfnWRrMgMdeixRSU0C6K">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <UserObject label="" plantUmlData="{&#xa;  &quot;data&quot;: &quot;@startuml\nskinparam shadowing false\nskinparam linetype ortho\nskinparam nodesep 28\nskinparam ranksep 35\n\nskinparam rectangle {\n  BorderColor #555555\n  BorderThickness 1\n  FontName \&quot;Segoe UI\&quot;, Arial, sans-serif\n  FontSize 12\n  FontColor #1E293B\n}\n\n&#39; Bảng màu Pastel theo phong cách mẫu ảnh\nskinparam rectangle&lt;&lt;Public&gt;&gt; {\n  BackgroundColor #D5E8D4\n  BorderColor #82B366\n}\n\nskinparam rectangle&lt;&lt;Auth&gt;&gt; {\n  BackgroundColor #F8CECC\n  BorderColor #B85450\n}\n\nskinparam rectangle&lt;&lt;Admin&gt;&gt; {\n  BackgroundColor #FFE6CC\n  BorderColor #D79B00\n}\n\nskinparam rectangle&lt;&lt;Farmer&gt;&gt; {\n  BackgroundColor #E1D5E7\n  BorderColor #9673A6\n}\n\nskinparam rectangle&lt;&lt;Buyer&gt;&gt; {\n  BackgroundColor #FFF2CC\n  BorderColor #D6B656\n}\n\nskinparam rectangle&lt;&lt;Consumer&gt;&gt; {\n  BackgroundColor #DAE8FC\n  BorderColor #6C8EBF\n}\n\n&#39; --- CÁC MÀN HÌNH PUBLIC (GUEST) ---\nrectangle \&quot;Home Screen\&quot; as SCR_HOME &lt;&lt;Public&gt;&gt;\nrectangle \&quot;Public Product Catalog\&quot; as SCR_MKT_CATALOG &lt;&lt;Public&gt;&gt;\nrectangle \&quot;Product Detail\&quot; as SCR_PROD_DETAIL &lt;&lt;Public&gt;&gt;\nrectangle \&quot;Farm Profile\&quot; as SCR_FARM_PROFILE &lt;&lt;Public&gt;&gt;\nrectangle \&quot;QR Traceability Detail\&quot; as SCR_TRACE_DETAIL &lt;&lt;Public&gt;&gt;\n\n&#39; --- CÁC MÀN HÌNH AUTHENTICATION ---\nrectangle \&quot;User Login\&quot; as SCR_LOGIN &lt;&lt;Auth&gt;&gt;\nrectangle \&quot;Account Register\&quot; as SCR_REG &lt;&lt;Auth&gt;&gt;\nrectangle \&quot;B2B Registration &amp; KYC\&quot; as SCR_REG_B2B &lt;&lt;Auth&gt;&gt;\nrectangle \&quot;Password Reset\&quot; as SCR_FORGOT_PWD &lt;&lt;Auth&gt;&gt;\nrectangle \&quot;User Profile\&quot; as SCR_PROFILE &lt;&lt;Auth&gt;&gt;\nrectangle \&quot;Password Change\&quot; as SCR_CHG_PWD &lt;&lt;Auth&gt;&gt;\n\n&#39; --- KHỐI POST-LOGIN CÁC ROLE WORKSPACE ---\nrectangle \&quot;Post-Login\&quot; as PostLogin {\n  rectangle \&quot;Admin Dashboard\&quot; as SCR_ADM_DASH &lt;&lt;Admin&gt;&gt;\n  rectangle \&quot;Farmer Dashboard\&quot; as SCR_FAR_DASH &lt;&lt;Farmer&gt;&gt;\n  rectangle \&quot;B2B Procurement Workspace\&quot; as SCR_B2B_SEARCH &lt;&lt;Buyer&gt;&gt;\n  rectangle \&quot;Consumer Home &amp; Orders\&quot; as SCR_CON_HOME &lt;&lt;Consumer&gt;&gt;\n}\n\n&#39; --- LUỒNG ADMIN ---\nrectangle \&quot;User Management\&quot; as SCR_USER_MGMT &lt;&lt;Admin&gt;&gt;\nrectangle \&quot;User Account Detail\&quot; as SCR_USER_DETAIL &lt;&lt;Admin&gt;&gt;\nrectangle \&quot;KYC Applications\&quot; as SCR_KYC_VERIFY &lt;&lt;Admin&gt;&gt;\nrectangle \&quot;Listing Moderation\&quot; as SCR_MODERATE_PROD &lt;&lt;Admin&gt;&gt;\nrectangle \&quot;Category Settings\&quot; as SCR_CAT_CONFIG &lt;&lt;Admin&gt;&gt;\nrectangle \&quot;Complaint Resolution\&quot; as SCR_COMPLAINT_RESOLVE &lt;&lt;Admin&gt;&gt;\n\n&#39; --- LUỒNG FARMER ---\nrectangle \&quot;Crop Season Management\&quot; as SCR_SEASON_MGMT &lt;&lt;Farmer&gt;&gt;\nrectangle \&quot;E-Farming Logs\&quot; as SCR_FARMING_LOG &lt;&lt;Farmer&gt;&gt;\nrectangle \&quot;Batch &amp; QR Management\&quot; as SCR_BATCH_QR &lt;&lt;Farmer&gt;&gt;\nrectangle \&quot;Product Listing Form\&quot; as SCR_LISTING_FORM &lt;&lt;Farmer&gt;&gt;\nrectangle \&quot;Farmer Orders Processing\&quot; as SCR_ORDER_PROCESS &lt;&lt;Farmer&gt;&gt;\n\n&#39; --- LUỒNG BUYER B2B ---\nrectangle \&quot;Supplier Capacity Profile\&quot; as SCR_B2B_SUPPLIER &lt;&lt;Buyer&gt;&gt;\nrectangle \&quot;Wholesale / Pre-order Form\&quot; as SCR_B2B_ORDER &lt;&lt;Buyer&gt;&gt;\nrectangle \&quot;Draft Offtake Contract\&quot; as SCR_B2B_CONTRACT &lt;&lt;Buyer&gt;&gt;\nrectangle \&quot;Contract Fulfillment Tracker\&quot; as SCR_B2B_FULFILL &lt;&lt;Buyer&gt;&gt;\n\n&#39; --- LUỒNG CONSUMER ---\nrectangle \&quot;Shopping Cart\&quot; as SCR_CART &lt;&lt;Consumer&gt;&gt;\nrectangle \&quot;Retail Checkout\&quot; as SCR_CHECKOUT &lt;&lt;Consumer&gt;&gt;\nrectangle \&quot;Payment Gateway\&quot; as SCR_PAYMENT &lt;&lt;Consumer&gt;&gt;\nrectangle \&quot;Order Tracking\&quot; as SCR_ORDER_TRACK &lt;&lt;Consumer&gt;&gt;\n\n&#39; ================= LIÊN KẾT ĐIỀU HƯỚNG =================\n\n&#39; Public flow\nSCR_HOME -down-&gt; SCR_MKT_CATALOG\nSCR_MKT_CATALOG -right-&gt; SCR_PROD_DETAIL\nSCR_PROD_DETAIL -down-&gt; SCR_FARM_PROFILE\nSCR_PROD_DETAIL -right-&gt; SCR_TRACE_DETAIL\n\n&#39; Auth flow\nSCR_HOME -right-&gt; SCR_LOGIN\nSCR_LOGIN -up-&gt; SCR_FORGOT_PWD\nSCR_LOGIN -down-&gt; SCR_REG\nSCR_REG -down-&gt; SCR_REG_B2B\nSCR_LOGIN -right-&gt; PostLogin\nSCR_PROFILE -up-&gt; SCR_CHG_PWD\n\n&#39; Admin branches\nSCR_ADM_DASH -right-&gt; SCR_USER_MGMT\nSCR_USER_MGMT -right-&gt; SCR_USER_DETAIL\nSCR_ADM_DASH -down-&gt; SCR_KYC_VERIFY\nSCR_ADM_DASH -down-&gt; SCR_MODERATE_PROD\nSCR_ADM_DASH -right-&gt; SCR_CAT_CONFIG\nSCR_KYC_VERIFY -right-&gt; SCR_COMPLAINT_RESOLVE\n\n&#39; Farmer branches\nSCR_FAR_DASH -right-&gt; SCR_SEASON_MGMT\nSCR_SEASON_MGMT -right-&gt; SCR_FARMING_LOG\nSCR_SEASON_MGMT -down-&gt; SCR_BATCH_QR\nSCR_BATCH_QR -right-&gt; SCR_LISTING_FORM\nSCR_FAR_DASH -down-&gt; SCR_ORDER_PROCESS\n\n&#39; Buyer B2B branches\nSCR_B2B_SEARCH -right-&gt; SCR_B2B_SUPPLIER\nSCR_B2B_SUPPLIER -right-&gt; SCR_B2B_ORDER\nSCR_B2B_SUPPLIER -down-&gt; SCR_B2B_CONTRACT\nSCR_B2B_CONTRACT -right-&gt; SCR_B2B_FULFILL\n\n&#39; Consumer branches\nSCR_PROD_DETAIL -down-&gt; SCR_CART\nSCR_CART -right-&gt; SCR_CHECKOUT\nSCR_CHECKOUT -right-&gt; SCR_PAYMENT\nSCR_PAYMENT -right-&gt; SCR_ORDER_TRACK\nSCR_CON_HOME -down-&gt; SCR_PROFILE\nSCR_CON_HOME -right-&gt; SCR_ORDER_TRACK\n\n@enduml&quot;,&#xa;  &quot;config&quot;: null&#xa;}" id="1sBFFaCSt3yOri6C6CnA-271">
+          <mxCell connectable="0" parent="1" style="group;transparentBounds=1;editIcon=1;lockedGroup=0;groupPadding=10;" vertex="1">
+            <mxGeometry as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-418" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-272" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="1sBFFaCSt3yOri6C6CnA-286">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2727.4" y="7674.49" />
+              <mxPoint x="2727.4" y="7674.49" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <UserObject label="Post-Login" plantUmlId="c_0" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=5;fillColor=none;strokeColor=#555555;verticalAlign=top;align=center;spacingTop=2;fontSize=12;fontStyle=1;whiteSpace=wrap;shadow=0;strokeWidth=1;fontColor=#1E293B;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="Post-Login" id="1sBFFaCSt3yOri6C6CnA-272">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=5;fillColor=none;strokeColor=#555555;verticalAlign=top;align=center;spacingTop=2;fontSize=12;fontStyle=1;whiteSpace=wrap;shadow=0;strokeWidth=1;fontColor=#1E293B;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="204" width="529" x="2747.3518518518517" y="7580" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Admin»&#xa;Admin Dashboard" plantUmlId="n_1" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Admin»&#xa;Admin Dashboard" id="1sBFFaCSt3yOri6C6CnA-273">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-272" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="154" x="326.5" y="120" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Farmer»&#xa;Farmer Dashboard" plantUmlId="n_2" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Farmer»&#xa;Farmer Dashboard" id="1sBFFaCSt3yOri6C6CnA-274">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-272" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="165" x="315.5" y="34" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Buyer»&#xa;B2B Procurement Workspace" plantUmlId="n_3" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Buyer»&#xa;B2B Procurement Workspace" id="1sBFFaCSt3yOri6C6CnA-275">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-272" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="232" x="11.149999999999999" y="120" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Consumer»&#xa;Consumer Home &amp; Orders" plantUmlId="n_4" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Consumer»&#xa;Consumer Home &amp; Orders" id="1sBFFaCSt3yOri6C6CnA-276">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-272" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="209" x="34.15000000000009" y="30" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-421" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-277" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="1sBFFaCSt3yOri6C6CnA-282">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="«Public»&#xa;Home Screen" plantUmlId="n_5" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Public»&#xa;Home Screen" id="1sBFFaCSt3yOri6C6CnA-277">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="126" x="2423.0051851851854" y="7650" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Public»&#xa;Public Product Catalog" plantUmlId="n_6" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Public»&#xa;Public Product Catalog" id="1sBFFaCSt3yOri6C6CnA-278">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="186" x="2393.001851851852" y="7560" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-422" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-279" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="1sBFFaCSt3yOri6C6CnA-281">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="«Public»&#xa;Product Detail" plantUmlId="n_7" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Public»&#xa;Product Detail" id="1sBFFaCSt3yOri6C6CnA-279">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="131" x="2420.5018518518523" y="7469" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Public»&#xa;Farm Profile" plantUmlId="n_8" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Public»&#xa;Farm Profile" id="1sBFFaCSt3yOri6C6CnA-280">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="123" x="2270" y="7469" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Public»&#xa;QR Traceability Detail" plantUmlId="n_9" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Public»&#xa;QR Traceability Detail" id="1sBFFaCSt3yOri6C6CnA-281">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#D5E8D4;strokeColor=#82B366;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="179" x="2396.5018518518523" y="7378" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-339" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-282" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="1sBFFaCSt3yOri6C6CnA-285">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="«Auth»&#xa;User Login" plantUmlId="n_10" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Auth»&#xa;User Login" id="1sBFFaCSt3yOri6C6CnA-282">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="111" x="2430.501851851852" y="7781" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-417" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-283" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="1sBFFaCSt3yOri6C6CnA-284">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="«Auth»&#xa;Account Register" plantUmlId="n_11" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Auth»&#xa;Account Register" id="1sBFFaCSt3yOri6C6CnA-283">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="150" x="2226.65" y="7781" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Auth»&#xa;B2B Registration &amp; KYC" plantUmlId="n_12" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Auth»&#xa;B2B Registration &amp; KYC" id="1sBFFaCSt3yOri6C6CnA-284">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="186" x="2208.65" y="7871" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Auth»&#xa;Password Reset" plantUmlId="n_13" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Auth»&#xa;Password Reset" id="1sBFFaCSt3yOri6C6CnA-285">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="146" x="2413.0051851851854" y="7881" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-410" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-286" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="1sBFFaCSt3yOri6C6CnA-287">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="«Auth»&#xa;User Profile" plantUmlId="n_14" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Auth»&#xa;User Profile" id="1sBFFaCSt3yOri6C6CnA-286">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="119" x="2589" y="7650" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Auth»&#xa;Password Change" plantUmlId="n_15" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Auth»&#xa;Password Change" id="1sBFFaCSt3yOri6C6CnA-287">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#F8CECC;strokeColor=#B85450;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="157" x="2569.995185185185" y="7731" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Admin»&#xa;User Management" plantUmlId="n_16" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Admin»&#xa;User Management" id="1sBFFaCSt3yOri6C6CnA-288">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="158" x="3331.0018518518523" y="7760" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Admin»&#xa;User Account Detail" plantUmlId="n_17" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Admin»&#xa;User Account Detail" id="1sBFFaCSt3yOri6C6CnA-289">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="167" x="3533.5018518518523" y="7760" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Admin»&#xa;KYC Applications" plantUmlId="n_18" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Admin»&#xa;KYC Applications" id="1sBFFaCSt3yOri6C6CnA-290">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="147" x="3240" y="7870" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Admin»&#xa;Listing Moderation" plantUmlId="n_19" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Admin»&#xa;Listing Moderation" id="1sBFFaCSt3yOri6C6CnA-291">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="163" x="3516.5" y="7620" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Admin»&#xa;Category Settings" plantUmlId="n_20" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Admin»&#xa;Category Settings" id="1sBFFaCSt3yOri6C6CnA-292">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="155" x="3332.5018518518523" y="7620" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Admin»&#xa;Complaint Resolution" plantUmlId="n_21" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Admin»&#xa;Complaint Resolution" id="1sBFFaCSt3yOri6C6CnA-293">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFE6CC;strokeColor=#D79B00;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="175" x="3450.0018518518523" y="7870" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Farmer»&#xa;Crop Season Management" plantUmlId="n_22" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Farmer»&#xa;Crop Season Management" id="1sBFFaCSt3yOri6C6CnA-294">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="209" x="3280.0018518518523" y="7479" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Farmer»&#xa;E-Farming Logs" plantUmlId="n_23" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Farmer»&#xa;E-Farming Logs" id="1sBFFaCSt3yOri6C6CnA-295">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="146" x="3533.5018518518523" y="7479" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Farmer»&#xa;Batch &amp; QR Management" plantUmlId="n_24" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Farmer»&#xa;Batch &amp; QR Management" id="1sBFFaCSt3yOri6C6CnA-296">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="194" x="3287.5018518518523" y="7371" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Farmer»&#xa;Product Listing Form" plantUmlId="n_25" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Farmer»&#xa;Product Listing Form" id="1sBFFaCSt3yOri6C6CnA-297">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="178" x="3517.5018518518523" y="7371" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Farmer»&#xa;Farmer Orders Processing" plantUmlId="n_26" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Farmer»&#xa;Farmer Orders Processing" id="1sBFFaCSt3yOri6C6CnA-298">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#E1D5E7;strokeColor=#9673A6;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="220" x="3035.35" y="7479" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Buyer»&#xa;Supplier Capacity Profile" plantUmlId="n_27" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Buyer»&#xa;Supplier Capacity Profile" id="1sBFFaCSt3yOri6C6CnA-299">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="203" x="2725.0018518518523" y="7840" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Buyer»&#xa;Wholesale / Pre-order Form" plantUmlId="n_28" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Buyer»&#xa;Wholesale / Pre-order Form" id="1sBFFaCSt3yOri6C6CnA-300">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="233" x="2710.0018518518523" y="7944.75" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Buyer»&#xa;Draft Offtake Contract" plantUmlId="n_29" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Buyer»&#xa;Draft Offtake Contract" id="1sBFFaCSt3yOri6C6CnA-301">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="179" x="2977.0018518518523" y="7840" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Buyer»&#xa;Contract Fulfillment Tracker" plantUmlId="n_30" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Buyer»&#xa;Contract Fulfillment Tracker" id="1sBFFaCSt3yOri6C6CnA-302">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#FFF2CC;strokeColor=#D6B656;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="226" x="2953.501851851852" y="7944.75" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-425" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-303" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="1sBFFaCSt3yOri6C6CnA-304">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="«Consumer»&#xa;Shopping Cart" plantUmlId="n_31" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Consumer»&#xa;Shopping Cart" id="1sBFFaCSt3yOri6C6CnA-303">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="131" x="2608.35" y="7469" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Consumer»&#xa;Retail Checkout" plantUmlId="n_32" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Consumer»&#xa;Retail Checkout" id="1sBFFaCSt3yOri6C6CnA-304">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="139" x="2604.351851851852" y="7371" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-426" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-305" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="1sBFFaCSt3yOri6C6CnA-306">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="«Consumer»&#xa;Payment Gateway" plantUmlId="n_33" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Consumer»&#xa;Payment Gateway" id="1sBFFaCSt3yOri6C6CnA-305">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="154" x="2809.0018518518523" y="7371" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="«Consumer»&#xa;Order Tracking" plantUmlId="n_34" plantUmlBaseStyle="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" plantUmlBaseValue="«Consumer»&#xa;Order Tracking" id="1sBFFaCSt3yOri6C6CnA-306">
+          <mxCell parent="1sBFFaCSt3yOri6C6CnA-271" style="rounded=1;absoluteArcSize=1;arcSize=3;strokeWidth=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;whiteSpace=wrap;shadow=0;fontColor=#1E293B;fontSize=12;fontFamily=Segoe UI, Arial, sans-serif;" vertex="1">
+            <mxGeometry height="49" width="142" x="2816" y="7469" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_35" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-307">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-277" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-278">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_36" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-308">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-278" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-279">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_37" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-309">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-279" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-280">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_41" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-313">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-282" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-283">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_45" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-317">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-273" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-288">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_46" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-318">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-288" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-289">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_47" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-319">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-273" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-290">
+            <mxGeometry relative="1" as="geometry">
+              <Array as="points">
+                <mxPoint x="3310.03" y="7724.48" />
+              </Array>
+            </mxGeometry>
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_48" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-320">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-273" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-291">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_49" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-321">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-273" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-292">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_50" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-322">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-290" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-293">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_52" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-324">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-294" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-295">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_53" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-325">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-294" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-296">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_54" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-326">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-296" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-297">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_57" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-329">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-299" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-300">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_58" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-330">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-299" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-301">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_59" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-331">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-301" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-302">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_60" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-332">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-279" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-303">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="" plantUmlId="e_62" plantUmlBaseStyle="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" plantUmlBaseValue="" id="1sBFFaCSt3yOri6C6CnA-334">
+          <mxCell edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-304" style="strokeColor=#181818;fontColor=#000000;fontSize=12;html=1;endArrow=classicThin;endFill=1;edgeStyle=orthogonalEdgeStyle;curved=0;rounded=0;endSize=6;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;" target="1sBFFaCSt3yOri6C6CnA-305">
+            <mxGeometry relative="1" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-413" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-276" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="1sBFFaCSt3yOri6C6CnA-306">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-414" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-274" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="1sBFFaCSt3yOri6C6CnA-298">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-415" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-274" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="1sBFFaCSt3yOri6C6CnA-294">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3145.42" y="7560" />
+              <mxPoint x="3384.5" y="7560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-420" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-282" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.047;entryY=1.002;entryDx=0;entryDy=0;entryPerimeter=0;" target="1sBFFaCSt3yOri6C6CnA-272">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1sBFFaCSt3yOri6C6CnA-494" edge="1" parent="1sBFFaCSt3yOri6C6CnA-271" source="1sBFFaCSt3yOri6C6CnA-275" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="1sBFFaCSt3yOri6C6CnA-299">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2826.5" y="7780" />
+              <mxPoint x="2826.5" y="7780" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

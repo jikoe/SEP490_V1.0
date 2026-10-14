@@ -1,0 +1,234 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="B2B Offtake Contract Flow" id="b2b-offtake-flow">
+    <mxGraphModel dx="2544" dy="816" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="1750" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;fillColor=none;strokeColor=none;fontSize=14;fontStyle=1;fontColor=#000000;align=center;verticalAlign=middle;" value="B2B Offtake Contract Signing Flow (Draft → PendingSign → Active)" vertex="1">
+          <mxGeometry height="24" width="500" x="300" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="buyerLane" parent="1" style="swimlane;collapsible=0;startSize=30;fillColor=none;swimlaneFillColor=none;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=16;html=1;align=center;" value="Buyer B2B" vertex="1">
+          <mxGeometry height="1600" width="310" x="-30" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="systemLane" parent="1" style="swimlane;collapsible=0;startSize=30;fillColor=none;swimlaneFillColor=none;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=16;html=1;align=center;" value="AgriSustain System" vertex="1">
+          <mxGeometry height="1600" width="270" x="280" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="terminated" parent="systemLane" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Set Terminated" vertex="1">
+          <mxGeometry height="36" width="170" x="50" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="farmerLane" parent="1" style="swimlane;collapsible=0;startSize=30;fillColor=none;swimlaneFillColor=none;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=16;html=1;align=center;" value="Farmer / Cooperative" vertex="1">
+          <mxGeometry height="1600" width="260" x="550" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="reject" parent="farmerLane" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Reject / terminate" vertex="1">
+          <mxGeometry height="36" width="150" x="55" y="680" as="geometry" />
+        </mxCell>
+        <mxCell id="gmailLane" parent="1" style="swimlane;collapsible=0;startSize=30;fillColor=none;swimlaneFillColor=none;strokeColor=#181818;strokeWidth=1.5;fontColor=#000000;fontSize=16;html=1;align=center;" value="Notification Service (Gmail API)" vertex="1">
+          <mxGeometry height="1600" width="250" x="810" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="termEmail" parent="gmailLane" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Notify termination" vertex="1">
+          <mxGeometry height="36" width="170" x="30" y="740" as="geometry" />
+        </mxCell>
+        <mxCell id="start" parent="1" style="ellipse;fillColor=#222222;strokeColor=#222222;" vertex="1">
+          <mxGeometry height="20" width="20" x="150" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="create" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Create proposal" vertex="1">
+          <mxGeometry height="36" width="170" x="75" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="terms" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Enter contract terms" vertex="1">
+          <mxGeometry height="36" width="170" x="75" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="fix" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Fix proposal" vertex="1">
+          <mxGeometry height="36" width="170" x="75" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="buyerSign" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Sign contract" vertex="1">
+          <mxGeometry height="36" width="170" x="75" y="1100" as="geometry" />
+        </mxCell>
+        <mxCell id="terminatedResult" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Receive termination" vertex="1">
+          <mxGeometry height="36" width="190" x="65" y="940" as="geometry" />
+        </mxCell>
+        <mxCell id="activeResult" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Contract Activated" vertex="1">
+          <mxGeometry height="36" width="190" x="65" y="1580" as="geometry" />
+        </mxCell>
+        <mxCell id="endTerminated" parent="1" style="ellipse;shape=endState;fillColor=#222222;strokeColor=#222222;" vertex="1">
+          <mxGeometry height="24" width="24" x="148" y="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="endActive" parent="1" style="ellipse;shape=endState;fillColor=#222222;strokeColor=#222222;" vertex="1">
+          <mxGeometry height="24" width="24" x="148" y="1640" as="geometry" />
+        </mxCell>
+        <mxCell id="draft" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Save as Draft" vertex="1">
+          <mxGeometry height="36" width="170" x="330" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="validate" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Validate parties, crop season, capacity and terms" vertex="1">
+          <mxGeometry height="48" width="205" x="315" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="valid" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;fontSize=11;" value="Valid?" vertex="1">
+          <mxGeometry height="55" width="85" x="375" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="pending" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Set PendingSign" vertex="1">
+          <mxGeometry height="36" width="170" x="330" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="lock" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Lock terms and prepare final contract" vertex="1">
+          <mxGeometry height="36" width="205" x="315" y="1030" as="geometry" />
+        </mxCell>
+        <mxCell id="recordBuyer" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Record Buyer signature" vertex="1">
+          <mxGeometry height="36" width="170" x="330" y="1160" as="geometry" />
+        </mxCell>
+        <mxCell id="verify" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Verify both signatures" vertex="1">
+          <mxGeometry height="36" width="170" x="330" y="1340" as="geometry" />
+        </mxCell>
+        <mxCell id="active" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Set Active and SignedDate" vertex="1">
+          <mxGeometry height="36" width="190" x="320" y="1460" as="geometry" />
+        </mxCell>
+        <mxCell id="review" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Review proposal" vertex="1">
+          <mxGeometry height="36" width="170" x="595" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="decision" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;fontSize=11;" value="Accept / revise / reject?" vertex="1">
+          <mxGeometry height="60" width="90" x="635" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="farmerSign" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Sign contract" vertex="1">
+          <mxGeometry height="36" width="170" x="595" y="1280" as="geometry" />
+        </mxCell>
+        <mxCell id="proposalEmail" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Send proposal alert" vertex="1">
+          <mxGeometry height="36" width="170" x="850" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="signEmail" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Send signing alert" vertex="1">
+          <mxGeometry height="36" width="170" x="850" y="1220" as="geometry" />
+        </mxCell>
+        <mxCell id="activeEmail" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=25;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=12;align=left;spacingLeft=6;" value="Notify both parties" vertex="1">
+          <mxGeometry height="36" width="170" x="850" y="1520" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="start" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="create">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="create" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="terms">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="terms" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="draft">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="draft" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="validate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="validate" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="valid">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="valid" style="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;rounded=0;" target="fix" value="No: show errors">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="437.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="fix" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;rounded=0;" target="validate" value="Resubmit">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="590" />
+              <mxPoint x="55" y="590" />
+              <mxPoint x="55" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="valid" style="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;rounded=0;" target="pending" value="Yes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="pending" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="proposalEmail">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="425" y="510" />
+              <mxPoint x="935" y="510" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="proposalEmail" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="review">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="review" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="decision">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="decision" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;rounded=0;" target="reject" value="Reject">
+          <mxGeometry relative="1" x="0.0136" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="750" y="690" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="reject" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="terminated">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="415" y="770" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="terminated" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="termEmail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="termEmail" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="terminatedResult">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="935.06" y="870" />
+              <mxPoint x="160" y="870" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="terminatedResult" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="endTerminated">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="decision" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;rounded=0;" target="lock" value="Accept">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="320" y="690" />
+              <mxPoint x="320" y="1000" />
+              <mxPoint x="420" y="1000" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="lock" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="buyerSign">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="1080" />
+              <mxPoint x="160" y="1080" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="buyerSign" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="recordBuyer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e25" edge="1" parent="1" source="recordBuyer" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="signEmail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e26" edge="1" parent="1" source="signEmail" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="farmerSign">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="935" y="1260" />
+              <mxPoint x="680" y="1260" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e27" edge="1" parent="1" source="farmerSign" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="verify">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e28" edge="1" parent="1" source="verify" style="endArrow=classic;endSize=8;strokeColor=#181818;fontSize=11;rounded=0;" target="active" value="Both signatures recorded">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e29" edge="1" parent="1" source="active" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="activeEmail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e30" edge="1" parent="1" source="activeEmail" style="edgeStyle=orthogonalEdgeStyle;endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="activeResult">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="935" y="1600" />
+              <mxPoint x="160" y="1600" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e31" edge="1" parent="1" source="activeResult" style="endArrow=classic;endSize=8;strokeColor=#181818;rounded=0;" target="endActive">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="1" style="rounded=1;absoluteArcSize=1;arcSize=15;fillColor=#F1F1F1;strokeColor=#181818;strokeWidth=0.5;whiteSpace=wrap;fontSize=11;align=left;spacingLeft=6;" value="&lt;b&gt;Scope:&lt;/b&gt; Proposal and signing only — Draft → PendingSign → Active. After activation: UC-B2B-07 fulfillment and JOB-05 milestone reminders; later outcomes: Fulfilled, Defaulted or Terminated." vertex="1">
+          <mxGeometry height="38" width="1020" x="40" y="1690" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,427 @@
+@startuml
+title AgriSustain - Proposed Entity Relationship Diagram
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+package "Identity and administration" {
+  entity Account {
+    * AccountID : bigint <<PK>>
+    --
+    Email : varchar <<UQ>>
+    PhoneNumber : varchar <<UQ>>
+    PasswordHash : varchar
+    Status : AccountStatus
+    CreatedAt : datetime2
+  }
+  entity Role {
+    * RoleID : smallint <<PK>>
+    --
+    RoleName : varchar <<UQ>>
+  }
+  entity AccountRole {
+    * AccountID : bigint <<PK, FK>>
+    * RoleID : smallint <<PK, FK>>
+    --
+    AssignedAt : datetime2
+  }
+  entity Address {
+    * AddressID : bigint <<PK>>
+    --
+    AccountID : bigint <<FK>>
+    RecipientName : nvarchar
+    RecipientPhone : varchar
+    AddressLine : nvarchar
+    Ward : nvarchar
+    District : nvarchar
+    Province : nvarchar
+    IsDefault : bit
+  }
+  entity AccountVerification {
+    * VerificationID : bigint <<PK>>
+    --
+    AccountID : bigint <<FK>>
+    VerificationType : KYCType
+    SubmittedDocumentUrl : varchar
+    Status : ReviewStatus
+    ReviewedByAccountID : bigint <<FK>>
+    ReviewedAt : datetime2
+    RejectionReason : nvarchar
+  }
+  entity AuditLog {
+    * AuditLogID : bigint <<PK>>
+    --
+    ActorAccountID : bigint <<FK>>
+    Action : varchar
+    EntityName : varchar
+    EntityID : bigint
+    OccurredAt : datetime2
+  }
+}
+
+package "Actor profiles and farms" {
+  entity FarmerProfile {
+    * FarmerID : bigint <<PK>>
+    --
+    AccountID : bigint <<FK, UQ>>
+    RepresentativeName : nvarchar
+    ReputationScore : decimal
+  }
+  entity BuyerProfile {
+    * BuyerID : bigint <<PK>>
+    --
+    AccountID : bigint <<FK, UQ>>
+    CompanyName : nvarchar
+    TaxCode : varchar <<UQ>>
+    BuyerType : varchar
+  }
+  entity ConsumerProfile {
+    * ConsumerID : bigint <<PK>>
+    --
+    AccountID : bigint <<FK, UQ>>
+    FullName : nvarchar
+    RewardPoints : int
+  }
+  entity Farm {
+    * FarmID : bigint <<PK>>
+    --
+    FarmerID : bigint <<FK>>
+    FarmName : nvarchar
+    AreaHectares : decimal
+    CultivationRegion : nvarchar
+    AddressText : nvarchar
+    Latitude : decimal
+    Longitude : decimal
+  }
+}
+
+package "Traceability and catalogue" {
+  entity CertificationBody {
+    * CertificationBodyID : bigint <<PK>>
+    --
+    Name : nvarchar
+    GovernmentCode : varchar <<UQ>>
+    Status : PartnerStatus
+  }
+  entity Certificate {
+    * CertificateID : bigint <<PK>>
+    --
+    FarmerID : bigint <<FK>>
+    CertificationBodyID : bigint <<FK>>
+    CertificateType : varchar
+    CertificateNumber : varchar <<UQ>>
+    IssueDate : date
+    ExpiryDate : date
+    DocumentUrl : varchar
+    Status : ReviewStatus
+    ReviewedByAccountID : bigint <<FK>>
+  }
+  entity CropSeason {
+    * SeasonID : bigint <<PK>>
+    --
+    FarmID : bigint <<FK>>
+    CropName : nvarchar
+    StartDate : date
+    ExpectedHarvestDate : date
+    EstimatedYield : decimal
+    ActualYield : decimal
+    Status : CropSeasonStatus
+  }
+  entity FarmingLog {
+    * FarmingLogID : bigint <<PK>>
+    --
+    SeasonID : bigint <<FK>>
+    LogDate : datetime2
+    ActivityType : varchar
+    Description : nvarchar
+    InputsUsed : nvarchar
+    EvidenceUrl : varchar
+  }
+  entity Category {
+    * CategoryID : bigint <<PK>>
+    --
+    ParentCategoryID : bigint <<FK, nullable>>
+    Name : nvarchar <<UQ within parent>>
+    Description : nvarchar
+    IsActive : bit
+  }
+  entity Product {
+    * ProductID : bigint <<PK>>
+    --
+    FarmerID : bigint <<FK>>
+    CategoryID : bigint <<FK>>
+    Name : nvarchar
+    Description : nvarchar
+    Unit : varchar
+    BasePrice : decimal
+    Status : ProductStatus
+    ApprovedByAccountID : bigint <<FK>>
+    ApprovedAt : datetime2
+  }
+  entity ProductImage {
+    * ProductImageID : bigint <<PK>>
+    --
+    ProductID : bigint <<FK>>
+    ImageUrl : varchar
+    SortOrder : int
+  }
+  entity ProductCertificate {
+    * ProductID : bigint <<PK, FK>>
+    * CertificateID : bigint <<PK, FK>>
+  }
+  entity ProductBatch {
+    * BatchID : bigint <<PK>>
+    --
+    ProductID : bigint <<FK>>
+    SeasonID : bigint <<FK>>
+    BatchCode : varchar <<UQ>>
+    HarvestDate : date
+    ExpiryDate : date
+    QuantityAvailable : decimal
+    TraceabilityQRCode : varchar <<UQ>>
+    Status : BatchStatus
+  }
+  entity PreorderCampaign {
+    * PreorderCampaignID : bigint <<PK>>
+    --
+    ProductID : bigint <<FK>>
+    SeasonID : bigint <<FK>>
+    TargetQuantity : decimal
+    ReservedQuantity : decimal
+    PricePerUnit : decimal
+    OpenAt : datetime2
+    CloseAt : datetime2
+    Status : CampaignStatus
+  }
+  entity MarketPriceFeed {
+    * MarketPriceFeedID : bigint <<PK>>
+    --
+    CropName : nvarchar
+    Region : nvarchar
+    RecordedDate : date
+    AveragePrice : decimal
+    SourceName : nvarchar
+  }
+}
+
+package "Commerce and payment" {
+  entity Cart {
+    * CartID : bigint <<PK>>
+    --
+    AccountID : bigint <<FK>>
+    FarmerID : bigint <<FK>>
+    Status : CartStatus
+    UpdatedAt : datetime2
+  }
+  entity CartItem {
+    * CartItemID : bigint <<PK>>
+    --
+    CartID : bigint <<FK>>
+    ProductID : bigint <<FK>>
+    BatchID : bigint <<FK, nullable>>
+    Quantity : decimal
+  }
+  entity Voucher {
+    * VoucherID : bigint <<PK>>
+    --
+    Code : varchar <<UQ>>
+    VoucherType : varchar
+    DiscountValue : decimal
+    MinimumOrderAmount : decimal
+    MaximumDiscountAmount : decimal
+    UsageLimit : int
+    StartAt : datetime2
+    EndAt : datetime2
+    IsActive : bit
+  }
+  entity SalesOrder {
+    * OrderID : bigint <<PK>>
+    --
+    BuyerAccountID : bigint <<FK>>
+    FarmerID : bigint <<FK>>
+    ShippingAddressID : bigint <<FK>>
+    OrderType : OrderType
+    OrderStatus : OrderStatus
+    SubtotalAmount : decimal
+    DiscountAmount : decimal
+    ShippingFee : decimal
+    TotalAmount : decimal
+    PlacedAt : datetime2
+  }
+  entity OrderItem {
+    * OrderItemID : bigint <<PK>>
+    --
+    OrderID : bigint <<FK>>
+    ProductID : bigint <<FK>>
+    BatchID : bigint <<FK, nullable>>
+    PreorderCampaignID : bigint <<FK, nullable>>
+    Quantity : decimal
+    UnitPrice : decimal
+  }
+  entity OrderVoucher {
+    * OrderID : bigint <<PK, FK>>
+    * VoucherID : bigint <<PK, FK>>
+    --
+    DiscountAmount : decimal
+  }
+  entity PaymentTransaction {
+    * PaymentTransactionID : bigint <<PK>>
+    --
+    OrderID : bigint <<FK>>
+    PayerAccountID : bigint <<FK>>
+    Provider : varchar
+    ProviderReference : varchar <<UQ>>
+    Amount : decimal
+    QRPayload : varchar
+    Status : PaymentStatus
+    InitiatedAt : datetime2
+    PaidAt : datetime2
+    WebhookReceivedAt : datetime2
+  }
+  entity Shipment {
+    * ShipmentID : bigint <<PK>>
+    --
+    OrderID : bigint <<FK, UQ>>
+    CarrierName : nvarchar
+    TrackingNumber : varchar
+    Status : ShipmentStatus
+    HandoverAt : datetime2
+    DeliveredAt : datetime2
+  }
+}
+
+package "B2B contracts and platform operations" {
+  entity OfftakeContract {
+    * ContractID : bigint <<PK>>
+    --
+    FarmerID : bigint <<FK>>
+    BuyerID : bigint <<FK>>
+    ProductID : bigint <<FK>>
+    CommittedQuantity : decimal
+    FixedPricePerUnit : decimal
+    StartDate : date
+    EndDate : date
+    TermsUrl : varchar
+    Status : ContractStatus
+  }
+  entity ContractSignature {
+    * ContractSignatureID : bigint <<PK>>
+    --
+    ContractID : bigint <<FK>>
+    SignerAccountID : bigint <<FK>>
+    SignatureMethod : varchar
+    SignedAt : datetime2
+  }
+  entity SubscriptionTier {
+    * SubscriptionTierID : bigint <<PK>>
+    --
+    Name : varchar <<UQ>>
+    MonthlyPrice : decimal
+    FeaturesDescription : nvarchar
+  }
+  entity BuyerSubscription {
+    * BuyerSubscriptionID : bigint <<PK>>
+    --
+    BuyerID : bigint <<FK>>
+    SubscriptionTierID : bigint <<FK>>
+    StartAt : datetime2
+    EndAt : datetime2
+    Status : SubscriptionStatus
+  }
+  entity ProductReview {
+    * ProductReviewID : bigint <<PK>>
+    --
+    OrderItemID : bigint <<FK>>
+    ReviewerAccountID : bigint <<FK>>
+    Rating : int
+    Comment : nvarchar
+    Status : ReviewStatus
+    ModeratedByAccountID : bigint <<FK>>
+  }
+  entity Complaint {
+    * ComplaintID : bigint <<PK>>
+    --
+    OrderID : bigint <<FK>>
+    ComplainantAccountID : bigint <<FK>>
+    Reason : nvarchar
+    Status : ComplaintStatus
+    Resolution : nvarchar
+    HandledByAccountID : bigint <<FK>>
+  }
+  entity ComplaintEvidence {
+    * ComplaintEvidenceID : bigint <<PK>>
+    --
+    ComplaintID : bigint <<FK>>
+    FileUrl : varchar
+    FileType : varchar
+    UploadedAt : datetime2
+  }
+  entity Notification {
+    * NotificationID : uuid <<PK>>
+    --
+    AccountID : bigint <<FK>>
+    Type : varchar
+    Channel : varchar
+    Title : nvarchar
+    Content : nvarchar
+    Status : NotificationStatus
+    ReadAt : datetime2
+  }
+}
+
+Account ||--o{ AccountRole
+Role ||--o{ AccountRole
+Account ||--o{ Address
+Account ||--o{ AccountVerification : submits
+Account ||--o{ AccountVerification : reviews
+Account ||--o{ AuditLog : performs
+Account ||--o| FarmerProfile
+Account ||--o| BuyerProfile
+Account ||--o| ConsumerProfile
+FarmerProfile ||--o{ Farm
+FarmerProfile ||--o{ Certificate
+CertificationBody ||--o{ Certificate : issues
+Farm ||--o{ CropSeason
+CropSeason ||--o{ FarmingLog
+Category ||--o{ Category : parent of
+FarmerProfile ||--o{ Product
+Category ||--o{ Product
+Product ||--o{ ProductImage
+Product ||--o{ ProductCertificate
+Certificate ||--o{ ProductCertificate
+Product ||--o{ ProductBatch
+CropSeason ||--o{ ProductBatch
+Product ||--o{ PreorderCampaign
+CropSeason ||--o{ PreorderCampaign
+Account ||--o{ Cart
+FarmerProfile ||--o{ Cart
+Cart ||--o{ CartItem
+Product ||--o{ CartItem
+ProductBatch ||--o{ CartItem
+Account ||--o{ SalesOrder : places
+FarmerProfile ||--o{ SalesOrder : fulfils
+Address ||--o{ SalesOrder : used for
+SalesOrder ||--|{ OrderItem
+Product ||--o{ OrderItem
+ProductBatch ||--o{ OrderItem
+PreorderCampaign ||--o{ OrderItem
+SalesOrder ||--o{ OrderVoucher
+Voucher ||--o{ OrderVoucher
+SalesOrder ||--o{ PaymentTransaction
+Account ||--o{ PaymentTransaction : pays
+SalesOrder ||--o| Shipment
+FarmerProfile ||--o{ OfftakeContract
+BuyerProfile ||--o{ OfftakeContract
+Product ||--o{ OfftakeContract
+OfftakeContract ||--|{ ContractSignature
+Account ||--o{ ContractSignature : signs
+BuyerProfile ||--o{ BuyerSubscription
+SubscriptionTier ||--o{ BuyerSubscription
+OrderItem ||--o| ProductReview
+Account ||--o{ ProductReview : writes
+SalesOrder ||--o{ Complaint
+Account ||--o{ Complaint : submits
+Complaint ||--o{ ComplaintEvidence
+Account ||--o{ Notification
+@enduml

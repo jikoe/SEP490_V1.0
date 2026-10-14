@@ -1,0 +1,83 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Trang-1" id="TEet0RLpoqZ2Y7XOZ6oI">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <UserObject label="" plantUmlData="{&#xa;  &quot;data&quot;: &quot;@startmindmap\n&lt;style&gt;\nmindmapDiagram {\n  node {\n    BackgroundColor #FFFFFF\n    BorderColor #2D3748\n    FontName Arial\n    FontSize 12\n    Padding 8\n    RoundCorner 10\n  }\n  rootNode {\n    BackgroundColor #2F855A\n    FontColor #FFFFFF\n    FontSize 14\n    FontStyle bold\n    RoundCorner 12\n  }\n  :depth(1) {\n    BackgroundColor #E6FFFA\n    BorderColor #319795\n    FontColor #234E52\n    FontStyle bold\n  }\n  :depth(2) {\n    BackgroundColor #F7FAFC\n    BorderColor #CBD5E0\n    FontColor #2D3748\n  }\n}\n&lt;/style&gt;\n\n* **AgriSustain Platform**\\n(Core Features)\n\n** **[FE-01] Direct Agricultural Trade Management**\\n*(Resolves GAP-01)*\n*** Product Catalog &amp; Inventory Listing\n*** Multi-Segment Pricing Setup (B2C Retail &amp; B2B Bulk Discounts)\n*** Smart Product Search &amp; Multi-criteria Filtering\n*** Shopping Cart &amp; Dynamic Tier Price Calculation\n\n** **[FE-02] Harvest-Linked Ordering &amp; Order Fulfillment**\\n*(Resolves GAP-01)*\n*** Seasonal Pre-ordering &amp; Spot Ordering\n*** Order Processing (Confirm, Harvest Preparation, Packaging)\n*** Third-party Delivery Status Tracking\n*** Order Handover Confirmation &amp; History\n\n** **[FE-03] Seller Credential &amp; Farm Verification Workflow**\\n*(Resolves GAP-02)*\n*** Farmer &amp; Cooperative Profile Submission\n*** Agricultural Certificate Upload (VietGAP, GlobalGAP, OCOP)\n*** Admin Credential Audit &amp; Approval Portal\n*** Seller Trading Permission &amp; Policy Enforcement\n\n** **[FE-04] Digital Cultivation Logging &amp; Batch QR Traceability**\\n*(Resolves GAP-02)*\n*** Electronic Field Activity Logs (Sowing, Fertilizing, Spraying)\n*** Harvest Batch Creation &amp; Timestamping\n*** Dynamic Batch-Level QR Code Generation\n*** Public Web Traceability Inspection (QR Scanner)\n\n** **[FE-05] Regional Benchmark Price Dashboard**\\n*(Resolves GAP-03)*\n*** Daily Commodity Price Index Tracking\n*** Regional &amp; Provincial Price Comparison\n*** Historical Price Trend Charts &amp; Visualizations\n*** Suggested Pricing Indicator for Sellers\n\n** **[FE-06] Post-Harvest Dispute &amp; Quality Review Management**\\n*(Resolves GAP-02)*\n*** Verified Purchase Rating &amp; Review System\n*** Quality Non-compliance Complaint Ticket Submission\n*** Multi-party Dispute Mediation (Buyer, Seller, Admin)\n*** Refund, Compensation &amp; Dispute Resolution Workflow\n\n@endmindmap&quot;,&#xa;  &quot;config&quot;: null&#xa;}" id="dQhrEFzU9mHPbsD3ezhG-1">
+          <mxCell connectable="0" parent="1" style="group;transparentBounds=1;editIcon=1;lockedGroup=0;groupPadding=10;" vertex="1">
+            <mxGeometry as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="dQhrEFzU9mHPbsD3ezhG-63" edge="1" parent="dQhrEFzU9mHPbsD3ezhG-1" source="dQhrEFzU9mHPbsD3ezhG-2" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=none;endFill=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="dQhrEFzU9mHPbsD3ezhG-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <UserObject label="&lt;b&gt;AgriSustain Platform&lt;/b&gt;&lt;br&gt;(Core Features)" plantUmlId="root_0" plantUmlBaseStyle="rounded=1;arcSize=12;absoluteArcSize=1;fillColor=#2F855A;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#FFFFFF;fontSize=14;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" plantUmlBaseValue="&lt;b&gt;AgriSustain Platform&lt;/b&gt;&lt;br&gt;(Core Features)" id="dQhrEFzU9mHPbsD3ezhG-2">
+          <mxCell parent="dQhrEFzU9mHPbsD3ezhG-1" style="rounded=1;arcSize=12;absoluteArcSize=1;fillColor=#2F855A;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#FFFFFF;fontSize=14;align=center;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" vertex="1">
+            <mxGeometry height="48.98" width="180" x="80" y="201.01999999999998" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="&lt;b&gt;[FE-01] Direct Agricultural Trade Management&lt;/b&gt;&lt;br&gt;*(Resolves GAP-01)*" plantUmlId="mm_1" plantUmlBaseStyle="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" plantUmlBaseValue="&lt;b&gt;[FE-01] Direct Agricultural Trade Management&lt;/b&gt;&lt;br&gt;*(Resolves GAP-01)*" id="dQhrEFzU9mHPbsD3ezhG-3">
+          <mxCell parent="dQhrEFzU9mHPbsD3ezhG-1" style="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" vertex="1">
+            <mxGeometry height="44.27" width="339" x="321" y="70" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="&lt;b&gt;[FE-02] Harvest-Linked Ordering &amp;amp; Order Fulfillment&lt;/b&gt;&lt;br&gt;*(Resolves GAP-01)*" plantUmlId="mm_11" plantUmlBaseStyle="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" plantUmlBaseValue="&lt;b&gt;[FE-02] Harvest-Linked Ordering &amp;amp; Order Fulfillment&lt;/b&gt;&lt;br&gt;*(Resolves GAP-01)*" id="dQhrEFzU9mHPbsD3ezhG-13">
+          <mxCell parent="dQhrEFzU9mHPbsD3ezhG-1" style="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" vertex="1">
+            <mxGeometry height="44.27" width="359" x="321" y="130" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="&lt;b&gt;[FE-03] Seller Credential &amp;amp; Farm Verification Workflow&lt;/b&gt;&lt;br&gt;*(Resolves GAP-02)*" plantUmlId="mm_21" plantUmlBaseStyle="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" plantUmlBaseValue="&lt;b&gt;[FE-03] Seller Credential &amp;amp; Farm Verification Workflow&lt;/b&gt;&lt;br&gt;*(Resolves GAP-02)*" id="dQhrEFzU9mHPbsD3ezhG-23">
+          <mxCell parent="dQhrEFzU9mHPbsD3ezhG-1" style="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" vertex="1">
+            <mxGeometry height="44.27" width="379" x="321" y="190" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="&lt;b&gt;[FE-04] Digital Cultivation Logging &amp;amp; Batch QR Traceability&lt;/b&gt;&lt;br&gt;*(Resolves GAP-02)*" plantUmlId="mm_31" plantUmlBaseStyle="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" plantUmlBaseValue="&lt;b&gt;[FE-04] Digital Cultivation Logging &amp;amp; Batch QR Traceability&lt;/b&gt;&lt;br&gt;*(Resolves GAP-02)*" id="dQhrEFzU9mHPbsD3ezhG-33">
+          <mxCell parent="dQhrEFzU9mHPbsD3ezhG-1" style="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" vertex="1">
+            <mxGeometry height="44.27" width="399" x="321" y="250" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="&lt;b&gt;[FE-05] Regional Benchmark Price Dashboard&lt;/b&gt;&lt;br&gt;*(Resolves GAP-03)*" plantUmlId="mm_41" plantUmlBaseStyle="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" plantUmlBaseValue="&lt;b&gt;[FE-05] Regional Benchmark Price Dashboard&lt;/b&gt;&lt;br&gt;*(Resolves GAP-03)*" id="dQhrEFzU9mHPbsD3ezhG-43">
+          <mxCell parent="dQhrEFzU9mHPbsD3ezhG-1" style="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" vertex="1">
+            <mxGeometry height="44.27" width="319" x="321" y="310" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <UserObject label="&lt;b&gt;[FE-06] Post-Harvest Dispute &amp;amp; Quality Review Management&lt;/b&gt;&lt;br&gt;*(Resolves GAP-02)*" plantUmlId="mm_51" plantUmlBaseStyle="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" plantUmlBaseValue="&lt;b&gt;[FE-06] Post-Harvest Dispute &amp;amp; Quality Review Management&lt;/b&gt;&lt;br&gt;*(Resolves GAP-02)*" id="dQhrEFzU9mHPbsD3ezhG-53">
+          <mxCell parent="dQhrEFzU9mHPbsD3ezhG-1" style="rounded=1;arcSize=10;absoluteArcSize=1;fillColor=#E6FFFA;strokeColor=#181818;strokeWidth=1.5;whiteSpace=wrap;fontColor=#234E52;fontSize=12;align=left;verticalAlign=middle;spacing=0;spacingTop=8;spacingBottom=8;spacingLeft=8;fontStyle=1;fontFamily=Arial;html=1;" vertex="1">
+            <mxGeometry height="44.27" width="409" x="321" y="370" as="geometry" />
+          </mxCell>
+        </UserObject>
+        <mxCell id="dQhrEFzU9mHPbsD3ezhG-64" edge="1" parent="dQhrEFzU9mHPbsD3ezhG-1" source="dQhrEFzU9mHPbsD3ezhG-2" style="endArrow=none;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="dQhrEFzU9mHPbsD3ezhG-13" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="220" y="340" as="sourcePoint" />
+            <mxPoint x="270" y="290" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dQhrEFzU9mHPbsD3ezhG-65" edge="1" parent="dQhrEFzU9mHPbsD3ezhG-1" source="dQhrEFzU9mHPbsD3ezhG-2" style="endArrow=none;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="dQhrEFzU9mHPbsD3ezhG-23" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="210" y="330" as="sourcePoint" />
+            <mxPoint x="260" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dQhrEFzU9mHPbsD3ezhG-66" edge="1" parent="dQhrEFzU9mHPbsD3ezhG-1" source="dQhrEFzU9mHPbsD3ezhG-2" style="endArrow=none;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="dQhrEFzU9mHPbsD3ezhG-33" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="190" y="330" as="sourcePoint" />
+            <mxPoint x="240" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dQhrEFzU9mHPbsD3ezhG-67" edge="1" parent="dQhrEFzU9mHPbsD3ezhG-1" source="dQhrEFzU9mHPbsD3ezhG-2" style="endArrow=none;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="dQhrEFzU9mHPbsD3ezhG-43" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="190" y="360" as="sourcePoint" />
+            <mxPoint x="240" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="BFzwbOwdWS_RQlktCTNF-63" edge="1" parent="dQhrEFzU9mHPbsD3ezhG-1" source="dQhrEFzU9mHPbsD3ezhG-2" style="endArrow=none;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="dQhrEFzU9mHPbsD3ezhG-53" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="160" y="390" as="sourcePoint" />
+            <mxPoint x="210" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

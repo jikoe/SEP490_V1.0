@@ -1,0 +1,175 @@
+{
+  "input": "C:\\Users\\huyng_jgxkbi0\\Downloads\\Report-3_Software Requirement Specification (2).docx",
+  "fonts_by_char_count": {
+    "Times New Roman": 1131,
+    "Roboto Mono": 306,
+    "Gungsuh": 204,
+    "Tahoma": 38,
+    "Arial": 6,
+    "Courier New": 2
+  },
+  "direct_run_formatting_runs": 1449,
+  "direct_paragraph_formatting_paragraphs": 3763,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 10,
+      "text": "CAPSTONE PROJECT REPORT",
+      "style": "normal"
+    },
+    {
+      "para_index": 11,
+      "text": "Report 3 \u2013 Software Requirement Specification",
+      "style": "normal"
+    },
+    {
+      "para_index": 22,
+      "text": "Table of Contents",
+      "style": "normal"
+    },
+    {
+      "para_index": 54,
+      "text": "Entity: Accounts",
+      "style": "normal"
+    },
+    {
+      "para_index": 56,
+      "text": "Entity: Farmers",
+      "style": "normal"
+    },
+    {
+      "para_index": 58,
+      "text": "Entity: Buyers",
+      "style": "normal"
+    },
+    {
+      "para_index": 60,
+      "text": "Entity: Consumers",
+      "style": "normal"
+    },
+    {
+      "para_index": 62,
+      "text": "Entity: BankPartners",
+      "style": "normal"
+    },
+    {
+      "para_index": 67,
+      "text": "Entity: CertificationBodies",
+      "style": "normal"
+    },
+    {
+      "para_index": 69,
+      "text": "Entity: Certifications",
+      "style": "normal"
+    },
+    {
+      "para_index": 71,
+      "text": "Entity: CropSeasons",
+      "style": "normal"
+    },
+    {
+      "para_index": 73,
+      "text": "Entity: FarmingLogs",
+      "style": "normal"
+    },
+    {
+      "para_index": 75,
+      "text": "Entity: Categories",
+      "style": "normal"
+    },
+    {
+      "para_index": 76,
+      "text": "Entity: Products",
+      "style": "normal"
+    },
+    {
+      "para_index": 78,
+      "text": "Entity: ProductBatches",
+      "style": "normal"
+    },
+    {
+      "para_index": 80,
+      "text": "Entity: OfftakeContracts",
+      "style": "normal"
+    },
+    {
+      "para_index": 82,
+      "text": "Entity: Orders",
+      "style": "normal"
+    },
+    {
+      "para_index": 84,
+      "text": "Entity: OrderItems",
+      "style": "normal"
+    },
+    {
+      "para_index": 86,
+      "text": "Entity: FinancialTransactions",
+      "style": "normal"
+    },
+    {
+      "para_index": 88,
+      "text": "Entity: CreditApplications",
+      "style": "normal"
+    }
+  ],
+  "examples": {
+    "direct_run_formatting": [
+      {
+        "para_index": 10,
+        "run_text": "CAPSTONE PROJECT REPORT",
+        "style": "normal"
+      },
+      {
+        "para_index": 11,
+        "run_text": "Report 3 \u2013 Software Requirement Specification",
+        "style": "normal"
+      },
+      {
+        "para_index": 21,
+        "run_text": "\u2013 Hanoi, Aug 2026 \u2013",
+        "style": "normal"
+      },
+      {
+        "para_index": 22,
+        "run_text": "Table of Contents",
+        "style": "normal"
+      },
+      {
+        "para_index": 38,
+        "run_text": "Trigger",
+        "style": "normal"
+      }
+    ],
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 21,
+        "text": "\u2013 Hanoi, Aug 2026 \u2013",
+        "style": "normal"
+      },
+      {
+        "para_index": 22,
+        "text": "Table of Contents",
+        "style": "normal"
+      },
+      {
+        "para_index": 38,
+        "text": "Trigger: Candidate creates an account.  ",
+        "style": "normal"
+      },
+      {
+        "para_index": 39,
+        "text": "End condition: Candidate has seen the final outcome of all applications.",
+        "style": "normal"
+      },
+      {
+        "para_index": 42,
+        "text": "Trigger: HR Manager decides to open a new position and creates a job posting.",
+        "style": "normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}
