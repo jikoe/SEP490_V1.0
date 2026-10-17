@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+.vs/
+.dotnet-cli/
+frontend/node_modules/
+frontend/dist/
+*.user
+.env
+.env.*
+!.env.example

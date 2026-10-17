@@ -1,0 +1,60 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Backend", "Backend", "{E593E113-682D-445D-8BA1-88A269832EA5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.Api", "src\AgriSustain.Api\AgriSustain.Api.csproj", "{A593E113-682D-445D-8BA1-88A269832EA1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.Application", "src\AgriSustain.Application\AgriSustain.Application.csproj", "{B593E113-682D-445D-8BA1-88A269832EA2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.Domain", "src\AgriSustain.Domain\AgriSustain.Domain.csproj", "{C593E113-682D-445D-8BA1-88A269832EA3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.Infrastructure", "src\AgriSustain.Infrastructure\AgriSustain.Infrastructure.csproj", "{D593E113-682D-445D-8BA1-88A269832EA4}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Frontend", "Frontend", "{F593E113-682D-445D-8BA1-88A269832EA6}"
+	ProjectSection(SolutionItems) = preProject
+		frontend\README.md = frontend\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{1593E113-682D-445D-8BA1-88A269832EA7}"
+	ProjectSection(SolutionItems) = preProject
+		tests\README.md = tests\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documentation", "Documentation", "{2593E113-682D-445D-8BA1-88A269832EA8}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		docs\package-map.md = docs\package-map.md
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A593E113-682D-445D-8BA1-88A269832EA1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A593E113-682D-445D-8BA1-88A269832EA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A593E113-682D-445D-8BA1-88A269832EA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A593E113-682D-445D-8BA1-88A269832EA1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B593E113-682D-445D-8BA1-88A269832EA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B593E113-682D-445D-8BA1-88A269832EA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B593E113-682D-445D-8BA1-88A269832EA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B593E113-682D-445D-8BA1-88A269832EA2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C593E113-682D-445D-8BA1-88A269832EA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C593E113-682D-445D-8BA1-88A269832EA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C593E113-682D-445D-8BA1-88A269832EA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C593E113-682D-445D-8BA1-88A269832EA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D593E113-682D-445D-8BA1-88A269832EA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D593E113-682D-445D-8BA1-88A269832EA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D593E113-682D-445D-8BA1-88A269832EA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D593E113-682D-445D-8BA1-88A269832EA4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A593E113-682D-445D-8BA1-88A269832EA1} = {E593E113-682D-445D-8BA1-88A269832EA5}
+		{B593E113-682D-445D-8BA1-88A269832EA2} = {E593E113-682D-445D-8BA1-88A269832EA5}
+		{C593E113-682D-445D-8BA1-88A269832EA3} = {E593E113-682D-445D-8BA1-88A269832EA5}
+		{D593E113-682D-445D-8BA1-88A269832EA4} = {E593E113-682D-445D-8BA1-88A269832EA5}
+	EndGlobalSection
+EndGlobal
