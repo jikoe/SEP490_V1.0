@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="..\AgriSustain.Application\AgriSustain.Application.csproj" />
+    <ProjectReference Include="..\AgriSustain.Infrastructure\AgriSustain.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
