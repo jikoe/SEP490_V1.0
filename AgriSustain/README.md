@@ -1,8 +1,8 @@
 # AgriSustain
 
-Bộ khung backend ASP.NET Core Web API .NET 8 theo Clean Architecture với 4 layer. Application gom code theo chức năng để service, request, response và validator của cùng nghiệp vụ nằm gần nhau.
+Bộ khung ASP.NET Core Web API .NET 8 gồm bốn layer theo [Package_Diagram.drawio](https://app.diagrams.net/#G1mJnzsACg-bGQhl9gV-hjsKAF_qAYStPE). Application chia theo loại thành phần: Services, Interfaces, DTOs, Mappings, Validators và Common.
 
-## Cấu trúc hiện tại
+## Cấu trúc thư mục
 
 ```text
 AgriSustain/
@@ -10,76 +10,41 @@ AgriSustain/
 ├── Directory.Build.props
 ├── global.json
 ├── src/
-│   ├── AgriSustain.Api/                 # Layer 1: HTTP và startup
+│   ├── AgriSustain.Api/
 │   │   ├── Controllers/
-│   │   ├── Middleware/
-│   │   ├── Authorization/
-│   │   ├── Extensions/
-│   │   │   └── ApplicationServiceCollectionExtensions.cs
-│   │   ├── Properties/launchSettings.json
+│   │   ├── Security/
+│   │   ├── Middlewares/
+│   │   ├── Properties/
+│   │   │   └── launchSettings.json
 │   │   ├── appsettings.json
-│   │   └── Program.cs
-│   ├── AgriSustain.Application/         # Layer 2: điều phối nghiệp vụ
-│   │   ├── Features/
-│   │   │   ├── Authentication/
-│   │   │   ├── Profiles/
-│   │   │   ├── Catalog/
-│   │   │   ├── Farming/
-│   │   │   ├── Traceability/
-│   │   │   ├── Orders/
-│   │   │   │   ├── Requests/
-│   │   │   │   ├── Responses/
-│   │   │   │   ├── Validators/
-│   │   │   │   └── README.md
-│   │   │   ├── PreOrders/
-│   │   │   ├── Contracts/
-│   │   │   ├── Payments/
-│   │   │   ├── Subscriptions/
-│   │   │   ├── Verification/
-│   │   │   ├── Promotions/
-│   │   │   ├── Disputes/
-│   │   │   ├── Finance/
-│   │   │   ├── PriceBenchmarks/
-│   │   │   └── Notifications/
-│   │   ├── Abstractions/
-│   │   │   ├── Persistence/
-│   │   │   ├── Identity/
-│   │   │   ├── Payments/
-│   │   │   ├── Notifications/
-│   │   │   ├── Storage/
-│   │   │   ├── Caching/
-│   │   │   ├── Auditing/
-│   │   │   └── Reporting/
+│   │   ├── Program.cs
+│   │   └── AgriSustain.Api.csproj
+│   ├── AgriSustain.Application/
+│   │   ├── Services/
+│   │   ├── Interfaces/
+│   │   ├── DTOs/
+│   │   ├── Mappings/
+│   │   ├── Validators/
 │   │   ├── Common/
-│   │   └── ApplicationAssemblyMarker.cs
-│   ├── AgriSustain.Domain/              # Layer 3: mô hình và quy tắc cốt lõi
+│   │   ├── ApplicationAssemblyMarker.cs
+│   │   └── AgriSustain.Application.csproj
+│   ├── AgriSustain.Domain/
 │   │   ├── Entities/
-│   │   │   ├── Accounts/
-│   │   │   ├── Catalog/
-│   │   │   ├── Farming/
-│   │   │   ├── Orders/
-│   │   │   ├── Contracts/
-│   │   │   ├── Billing/
-│   │   │   └── Engagement/
-│   │   ├── Enums/
-│   │   ├── Exceptions/
-│   │   ├── ValueObjects/
-│   │   └── DomainAssemblyMarker.cs
-│   └── AgriSustain.Infrastructure/      # Layer 4: triển khai kỹ thuật
-│       ├── Persistence/
-│       │   ├── Configurations/
-│       │   ├── Repositories/
-│       │   └── Migrations/
-│       ├── Identity/
-│       ├── Payments/PayOS/
-│       ├── Email/Gmail/
-│       ├── Storage/
-│       ├── Caching/
+│   │   ├── DomainAssemblyMarker.cs
+│   │   └── AgriSustain.Domain.csproj
+│   └── AgriSustain.Infrastructure/
+│       ├── Data/
+│       ├── Repositories/
+│       ├── UnitOfWork/
+│       ├── Payments/
+│       ├── FileStorage/
+│       ├── Email/
 │       ├── Auditing/
-│       ├── BackgroundJobs/
-│       └── DependencyInjection.cs
-├── frontend/                           # Bộ khung React, chưa khởi tạo app
-├── tests/                              # Chưa có test project
+│       ├── BackgroundWorkers/
+│       ├── DependencyInjection.cs
+│       └── AgriSustain.Infrastructure.csproj
+├── frontend/
+├── tests/
 │   ├── Unit/
 │   ├── Integration/
 │   └── Architecture/
@@ -87,9 +52,9 @@ AgriSustain/
     └── package-map.md
 ```
 
-Thư mục chưa có triển khai chứa .gitkeep để lưu trong Git. Orders minh họa cách nhóm file trong một feature; các feature khác chỉ thêm Requests, Responses, Validators khi có code tương ứng.
+Các package chưa có implementation chứa .gitkeep để Git lưu được thư mục. Properties và các file startup/project là thành phần hỗ trợ của .NET. Frontend và tests nằm ngoài bốn layer backend.
 
-## Quy tắc phụ thuộc
+## Hướng phụ thuộc
 
 ```text
 Api            -> Application, Infrastructure
@@ -98,45 +63,64 @@ Infrastructure -> Application, Domain
 Domain         -> không tham chiếu project khác
 ```
 
-- Controller gọi service của Application; không thao tác trực tiếp DbContext, repository implementation hoặc SDK của PayOS/Gmail.
-- Application điều phối use case và gọi interface trong Abstractions. Request/response/validator nằm trong feature tương ứng.
-- Domain giữ entity, value object và quy tắc nghiệp vụ; không dùng HTTP, EF Core hay SDK tích hợp.
-- Infrastructure triển khai interface do Application định nghĩa. DbContext, EF Core mapping, migrations và repository implementation thuộc Persistence.
-- API tham chiếu Infrastructure để gọi AddInfrastructure tại startup. AddApplication đang đặt tại Api/Extensions để Application không cần thêm dependency DI/hosting chỉ cho bộ khung.
-- BackgroundJobs tạo DI scope và gọi Application service; dùng chung quy tắc hết hạn đơn, giải phóng giữ chỗ và xử lý thanh toán với luồng HTTP.
+API tham chiếu Infrastructure để đăng ký DI trong Program.cs. Controller gọi application service thông qua interface, không thao tác trực tiếp repository implementation hoặc DbContext. Application chỉ phụ thuộc interface và Domain; Infrastructure triển khai các interface đó.
 
-## Quy ước triển khai
+React SPA giao tiếp với API qua HTTPS/JSON và Bearer JWT. SQL Server, PayOS/VietQR và Google Gmail API là tài nguyên/dịch vụ ngoài, được truy cập qua Infrastructure.
 
-Ví dụ đặt hàng, các file sau sẽ được tạo khi triển khai:
+## Đặt code theo sơ đồ
+
+| Thư mục | Trách nhiệm |
+| --- | --- |
+| Api/Controllers | HTTP endpoint và payment webhook |
+| Api/Security | Cấu hình authentication, authorization, policy và handler |
+| Api/Middlewares | Xử lý exception và các bước trong HTTP pipeline |
+| Application/Services | Điều phối use case và transaction nghiệp vụ |
+| Application/Interfaces | Hợp đồng application service, repository, Unit of Work và tích hợp |
+| Application/DTOs | Request và response cho use case |
+| Application/Mappings | Chuyển đổi entity và DTO |
+| Application/Validators | Kiểm tra đầu vào trước khi xử lý |
+| Application/Common | Kiểu kết quả, phân trang và thành phần dùng chung |
+| Domain/Entities | Thực thể và hành vi bảo vệ quy tắc nghiệp vụ |
+| Infrastructure/Data | DbContext, EF Core configuration, migrations và seed khi triển khai |
+| Infrastructure/Repositories | Triển khai repository interface |
+| Infrastructure/UnitOfWork | Triển khai Unit of Work và quản lý transaction |
+| Infrastructure/Payments | Adapter PayOS/VietQR |
+| Infrastructure/FileStorage | Lưu ảnh và tài liệu |
+| Infrastructure/Email | Adapter Google Gmail API |
+| Infrastructure/Auditing | Ghi lịch sử hành động |
+| Infrastructure/BackgroundWorkers | Lập lịch và gọi lại application service qua DI scope |
+
+Ví dụ vị trí file khi triển khai đặt hàng:
 
 ```text
 Api/Controllers/OrdersController.cs
-Application/Features/Orders/IOrderService.cs
-Application/Features/Orders/OrderService.cs
-Application/Features/Orders/Requests/CreateOrderRequest.cs
-Application/Features/Orders/Responses/OrderResponse.cs
-Application/Features/Orders/Validators/CreateOrderRequestValidator.cs
-Application/Abstractions/Persistence/IOrderRepository.cs
-Domain/Entities/Orders/Order.cs
-Infrastructure/Persistence/Repositories/OrderRepository.cs
-Infrastructure/Persistence/Configurations/OrderConfiguration.cs
+Application/Services/OrderService.cs
+Application/Interfaces/IOrderService.cs
+Application/Interfaces/IOrderRepository.cs
+Application/Interfaces/IUnitOfWork.cs
+Application/DTOs/CreateOrderRequest.cs
+Application/DTOs/OrderResponse.cs
+Application/Mappings/OrderMappings.cs
+Application/Validators/CreateOrderRequestValidator.cs
+Domain/Entities/Order.cs
+Infrastructure/Data/AppDbContext.cs
+Infrastructure/Repositories/OrderRepository.cs
+Infrastructure/UnitOfWork/UnitOfWork.cs
 ```
 
-Interface của application service như IOrderService nằm cùng feature. Interface truy cập tài nguyên ngoài như IOrderRepository, IPaymentGateway, IEmailSender nằm trong Abstractions. Không bắt buộc CQRS, MediatR hoặc một service cho từng bảng dữ liệu.
-
-Quy tắc của một entity nằm cùng entity/value object liên quan. Chỉ thêm Domain Services/Events khi có nghiệp vụ cần dùng. Common chứa kiểu dùng chung như kết quả xử lý hoặc phân trang, không gom nghiệp vụ của các feature vào đây.
+Các file ví dụ trên chưa được triển khai. Khi số lượng file tăng, có thể nhóm theo nghiệp vụ bên trong từng package mà vẫn giữ các package cấp đầu của sơ đồ.
 
 ## Mở và chạy
 
-Mở AgriSustain.sln trong Visual Studio và chọn AgriSustain.Api làm startup project. TargetFramework net8.0 được cấu hình chung trong Directory.Build.props.
+Mở AgriSustain.sln trong Visual Studio, chọn AgriSustain.Api làm startup project. TargetFramework net8.0 được khai báo chung trong Directory.Build.props.
 
 ```powershell
 dotnet build AgriSustain.sln
 dotnet run --project src/AgriSustain.Api
 ```
 
-Endpoint kiểm tra bộ khung: http://localhost:5179/health.
+Endpoint kiểm tra: http://localhost:5179/health.
 
-API hiện có endpoint health; các hàm đăng ký Application và Infrastructure vẫn là điểm mở rộng trống. Chưa triển khai database, EF Core, JWT, PayOS, Gmail, Redis, background jobs hoặc nghiệp vụ. Frontend và tests vẫn là bộ khung, không thuộc bốn layer backend.
+Program.cs là composition root đăng ký service, mapping, validator và gọi AddInfrastructure. Hiện chưa có application service cần đăng ký; AddInfrastructure vẫn là điểm mở rộng trống. Chưa triển khai EF Core, JWT, PayOS, Gmail hoặc nghiệp vụ. Frontend và tests vẫn là bộ khung.
 
-Xem [package-map.md](docs/package-map.md) để phân chia nghiệp vụ và đối chiếu package Report 4. Workspace hiện giữ frontend cùng backend; việc tách hai repository theo Report 2 là một thay đổi riêng.
+Xem [package-map.md](docs/package-map.md) để đối chiếu từng package với sơ đồ.

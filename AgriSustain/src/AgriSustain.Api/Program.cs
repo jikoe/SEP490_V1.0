@@ -1,10 +1,9 @@
-using AgriSustain.Api.Extensions;
 using AgriSustain.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddApplication();
+// Register Application.Services, mappings and validators here when implemented.
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();

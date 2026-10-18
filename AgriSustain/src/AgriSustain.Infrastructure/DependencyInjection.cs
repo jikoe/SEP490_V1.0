@@ -7,8 +7,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // Register persistence and implementations of Application.Abstractions here.
-        // Register background jobs that invoke Application.Features within a DI scope.
+        // Register Data, Repositories, UnitOfWork and adapters implementing Application.Interfaces.
+        // BackgroundWorkers invoke Application.Services within an appropriate DI scope.
         return services;
     }
 }
