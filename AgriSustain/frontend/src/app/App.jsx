@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import UsersScreen from '../features/administration/UsersScreen';
 import CategoriesScreen from '../features/administration/CategoriesScreen';
 import CheckoutScreen from '../features/orders/CheckoutScreen';
+import ProductListingModerationScreen from '../features/moderation/ProductListingModerationScreen';
 import LoginScreen from '../features/authentication/LoginScreen';
 import { clearSession, getSession, setSession } from '../session/session';
 
 /** Reads only the assigned screen paths; unknown hashes return to the login screen. */
 function readRoute() {
   const path = window.location.hash.slice(1);
-  return /^\/(login|access-denied|administration\/(users|categories)(\/(new|\d+))?|checkout)$/.test(path)
+  return /^\/(login|access-denied|administration\/(users|categories)(\/(new|\d+))?|moderation\/products(\/\d+)?|checkout)$/.test(path)
     ? path : '/login';
 }
 
@@ -17,11 +18,18 @@ function readFixture() {
   return ['admin', 'retail-customer', 'other-retail-customer'].includes(selected) ? selected : null;
 }
 
-function hasAdminRole(role) { return ['Admin', 'SystemAdmin'].includes(role); }
+function normalizeRole(role) {
+  return typeof role === 'string' ? role.replace(/[^a-z0-9]/gi, '').toLowerCase() : '';
+}
+
+function hasAdminRole(role) { return ['admin', 'systemadmin'].includes(normalizeRole(role)); }
+function hasModeratorRole(role) { return normalizeRole(role) === 'contentmoderator'; }
+function hasRetailRole(role) { return normalizeRole(role) === 'retailcustomer'; }
 
 function landingRoute(role) {
   if (hasAdminRole(role)) return '/administration/users';
-  if (role === 'RetailCustomer') return '/checkout';
+  if (hasModeratorRole(role)) return '/moderation/products';
+  if (hasRetailRole(role)) return '/checkout';
   return '/access-denied';
 }
 
@@ -34,8 +42,10 @@ export default function App() {
   const [persistence, setPersistence] = useState(null);
   const [databaseReady, setDatabaseReady] = useState(false);
   const admin = session ? hasAdminRole(session.user.role) : fixture === 'admin';
+  const moderator = session ? hasModeratorRole(session.user.role) : false;
   const activeFixture = session ? (admin ? 'admin' : 'retail-customer') : fixture;
   const screen = route.startsWith('/administration/categories') ? 'categories'
+    : route.startsWith('/moderation/products') ? 'moderation'
     : route === '/checkout' ? 'checkout' : 'users';
 
   useEffect(() => {
@@ -92,30 +102,34 @@ export default function App() {
   }
 
   const unsupportedRole = session && !hasAdminRole(session.user.role)
-    && session.user.role !== 'RetailCustomer';
+    && !hasModeratorRole(session.user.role) && !hasRetailRole(session.user.role);
 
   return <div className="app-shell"><aside className="sidebar">
-    <a className="brand" href={admin ? '#/administration/users' : '#/checkout'}>
+    <a className="brand" href={admin ? '#/administration/users'
+      : moderator ? '#/moderation/products' : '#/checkout'}>
       <span className="brand-icon">✦</span><span>AgriSustain
-        <small>{admin ? 'ADMIN CONSOLE' : 'RETAIL MARKET'}</small></span></a>
-    <p className="nav-label">{admin ? 'QUẢN TRỊ HỆ THỐNG' : 'MUA SẮM'}</p>
+        <small>{admin ? 'ADMIN CONSOLE' : moderator ? 'MODERATION' : 'RETAIL MARKET'}</small></span></a>
+    <p className="nav-label">{admin ? 'QUẢN TRỊ HỆ THỐNG' : moderator ? 'KIỂM DUYỆT' : 'MUA SẮM'}</p>
     <nav className="main-navigation" aria-label="Chức năng">
       {admin ? <><button className={screen === 'users' ? 'selected' : ''}
         onClick={() => navigate('/administration/users')}><span>♙</span>Quản lý người dùng</button>
         <button className={screen === 'categories' ? 'selected' : ''}
           onClick={() => navigate('/administration/categories')}><span>▦</span>Danh mục sản phẩm</button></>
+        : moderator ? <button className={screen === 'moderation' ? 'selected' : ''}
+          onClick={() => navigate('/moderation/products')}><span>✓</span>Kiểm duyệt sản phẩm</button>
         : <button className="selected" onClick={() => navigate('/checkout')}>
           <span>▣</span>Thanh toán đơn bán lẻ</button>}
     </nav><div className="sidebar-bottom"><div className="sidebar-profile">
-      <span className="profile-avatar">{admin ? 'A' : 'K'}</span><div><strong>
+      <span className="profile-avatar">{admin ? 'A' : moderator ? 'M' : 'K'}</span><div><strong>
         {session ? session.user.fullName : admin ? 'SystemAdmin' : 'RetailCustomer'}
       </strong><small>{session ? session.user.role : 'Phiên demo'}</small></div>
     </div><p><span className="status-dot" />{databaseReady ? 'Đã kết nối SQL · EF Core'
       : persistence === 'SqlServer' ? 'Chưa xác nhận kết nối SQL'
         : persistence === 'InMemory' ? 'Dữ liệu trong bộ nhớ' : 'Đang kết nối API'}</p></div>
     </aside><div className="workspace"><header><span className="header-path">
-      {admin ? 'Administration' : 'Consumer Ordering'}<span> / {screen === 'users'
-        ? 'Người dùng' : screen === 'categories' ? 'Danh mục sản phẩm' : 'Checkout'}</span></span>
+      {admin || moderator ? 'Administration' : 'Consumer Ordering'}<span> / {screen === 'users'
+        ? 'Người dùng' : screen === 'categories' ? 'Danh mục sản phẩm'
+          : screen === 'moderation' ? 'Kiểm duyệt sản phẩm' : 'Checkout'}</span></span>
       {session ? <div className="account-actions"><span>{session.user.fullName}</span>
         <button type="button" onClick={logout}>Đăng xuất</button></div>
         : <div className="account-actions"><label className="session-selector">Phiên giả lập
@@ -133,6 +147,7 @@ export default function App() {
       </section> : <>
         {screen === 'users' && <UsersScreen fixture={activeFixture} route={route} navigate={navigate} />}
         {screen === 'categories' && <CategoriesScreen fixture={activeFixture} route={route} navigate={navigate} />}
+        {screen === 'moderation' && <ProductListingModerationScreen route={route} navigate={navigate} />}
         {screen === 'checkout' && <CheckoutScreen fixture={activeFixture} />}
       </>}
     </main><footer>{databaseReady ? 'SQL Server · EF Core' : 'Môi trường phát triển'}
