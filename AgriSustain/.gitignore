@@ -1,0 +1,21 @@
+# Visual Studio / .NET
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Frontend
+**/node_modules/
+**/dist/
+**/build/
+**/.next/
+
+# Cấu hình riêng và mật khẩu
+.env
+.env.*
+!.env.example
+**/appsettings.Development.json
+
+# Log
+*.log
