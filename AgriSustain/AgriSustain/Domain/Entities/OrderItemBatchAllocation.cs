@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -25,7 +25,7 @@ public partial class OrderItemBatchAllocation
 
     public virtual HarvestBatch HarvestBatch { get; set; } = null!;
 
-    public virtual ICollection<InventoryMovement> InventoryMovements { get; set; } = new List<InventoryMovement>();
+    public virtual InventoryMovement? InventoryMovement { get; set; }
 
     public virtual OrderItem OrderItem { get; set; } = null!;
 

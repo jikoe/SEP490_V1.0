@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -29,7 +29,7 @@ public partial class WholesaleBuyerProfile
 
     public virtual ICollection<B2bcontract> B2bcontracts { get; set; } = new List<B2bcontract>();
 
-    public virtual ICollection<B2bsubscription> B2bsubscriptions { get; set; } = new List<B2bsubscription>();
+    public virtual B2bsubscription? B2bsubscription { get; set; }
 
     public virtual User User { get; set; } = null!;
 }

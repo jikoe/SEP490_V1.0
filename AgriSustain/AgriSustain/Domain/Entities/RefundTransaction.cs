@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -27,9 +27,19 @@ public partial class RefundTransaction
 
     public string? GatewayReference { get; set; }
 
+    public long? PaymentInvoiceAllocationId { get; set; }
+
+    public long? ContractDepositAllocationId { get; set; }
+
+    public string RequestKey { get; set; } = null!;
+
+    public virtual ContractDepositAllocation? ContractDepositAllocation { get; set; }
+
     public virtual ContractTerminationRequest? ContractTerminationRequest { get; set; }
 
     public virtual DisputeTicket? DisputeTicket { get; set; }
+
+    public virtual PaymentInvoiceAllocation? PaymentInvoiceAllocation { get; set; }
 
     public virtual PaymentTransaction PaymentTransaction { get; set; } = null!;
 

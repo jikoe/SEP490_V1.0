@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -39,6 +39,8 @@ public partial class Product
 
     public virtual ICollection<ContractLine> ContractLines { get; set; } = new List<ContractLine>();
 
+    public virtual ICollection<CropSeason> CropSeasons { get; set; } = new List<CropSeason>();
+
     public virtual FarmerProfile FarmerProfile { get; set; } = null!;
 
     public virtual ICollection<HarvestBatch> HarvestBatches { get; set; } = new List<HarvestBatch>();
@@ -47,5 +49,5 @@ public partial class Product
 
     public virtual ICollection<PreOrderCampaign> PreOrderCampaigns { get; set; } = new List<PreOrderCampaign>();
 
-    public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
+    public virtual ProductImage? ProductImage { get; set; }
 }

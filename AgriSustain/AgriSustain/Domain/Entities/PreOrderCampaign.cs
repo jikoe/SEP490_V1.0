@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -9,7 +9,7 @@ public partial class PreOrderCampaign
 
     public long ProductId { get; set; }
 
-    public long? CropSeasonId { get; set; }
+    public long CropSeasonId { get; set; }
 
     public string CampaignName { get; set; } = null!;
 
@@ -29,11 +29,13 @@ public partial class PreOrderCampaign
 
     public virtual ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
 
-    public virtual CropSeason? CropSeason { get; set; }
+    public virtual CropSeason CropSeason { get; set; } = null!;
 
     public virtual ICollection<HarvestBatch> HarvestBatches { get; set; } = new List<HarvestBatch>();
 
     public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
+    public virtual ICollection<PreOrderReservation> PreOrderReservations { get; set; } = new List<PreOrderReservation>();
 
     public virtual Product Product { get; set; } = null!;
 }

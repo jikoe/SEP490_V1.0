@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -15,6 +15,8 @@ public partial class OrderItem
 
     public long? ContractLineId { get; set; }
 
+    public string? ProductNameSnapshot { get; set; }
+
     public decimal Quantity { get; set; }
 
     public decimal UnitPriceSnapshot { get; set; }
@@ -27,9 +29,11 @@ public partial class OrderItem
 
     public string ItemStatus { get; set; } = null!;
 
-    public string? ProductNameSnapshot { get; set; }
+    public long? HarvestBatchId { get; set; }
 
     public virtual ContractLine? ContractLine { get; set; }
+
+    public virtual HarvestBatch? HarvestBatch { get; set; }
 
     public virtual ICollection<InvoiceLine> InvoiceLines { get; set; } = new List<InvoiceLine>();
 
@@ -38,6 +42,8 @@ public partial class OrderItem
     public virtual ICollection<PayoutItem> PayoutItems { get; set; } = new List<PayoutItem>();
 
     public virtual PreOrderCampaign? PreOrderCampaign { get; set; }
+
+    public virtual PreOrderReservation? PreOrderReservation { get; set; }
 
     public virtual Product Product { get; set; } = null!;
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -22,6 +22,8 @@ public partial class InvoiceLine
     public virtual Invoice Invoice { get; set; } = null!;
 
     public virtual OrderItem? OrderItem { get; set; }
+
+    public virtual ICollection<PayoutItem> PayoutItems { get; set; } = new List<PayoutItem>();
 
     public virtual ShipmentItem? ShipmentItem { get; set; }
 }

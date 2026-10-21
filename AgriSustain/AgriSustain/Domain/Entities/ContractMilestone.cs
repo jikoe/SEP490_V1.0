@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -31,9 +31,15 @@ public partial class ContractMilestone
 
     public decimal PaidAmount { get; set; }
 
+    public long ContractVersionId { get; set; }
+
     public virtual B2bcontract B2bcontract { get; set; } = null!;
 
+    public virtual ICollection<ContractDepositAllocation> ContractDepositAllocations { get; set; } = new List<ContractDepositAllocation>();
+
     public virtual ContractLine? ContractLine { get; set; }
+
+    public virtual ContractVersion ContractVersion { get; set; } = null!;
 
     public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 

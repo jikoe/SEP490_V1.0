@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -67,11 +67,17 @@ public partial class Order
 
     public string? AddressCatalogVersionSnapshot { get; set; }
 
+    public string CheckoutRequestKey { get; set; } = null!;
+
+    public DateTime? CheckoutCommittedAt { get; set; }
+
     public virtual User BuyerUser { get; set; } = null!;
 
     public virtual ICollection<PaymentTransaction> PaymentTransactions { get; set; } = new List<PaymentTransaction>();
 
-    public virtual RetailCheckoutQuote? RetailQuote { get; set; }
+    public virtual RetailCheckoutQuote? RetailCheckoutQuote { get; set; }
+
+    public virtual ICollection<RewardPointEntry> RewardPointEntries { get; set; } = new List<RewardPointEntry>();
 
     public virtual ICollection<SellerOrder> SellerOrders { get; set; } = new List<SellerOrder>();
 

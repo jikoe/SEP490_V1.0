@@ -58,8 +58,7 @@ public sealed class ProductModerationController : ControllerBase
                 farmerName = product.FarmerProfile.User.FullName,
                 farmName = product.FarmerProfile.FarmName,
                 submittedAt = product.CreatedAt,
-                imageUrl = product.ProductImages.OrderBy(image => image.DisplayOrder)
-                    .Select(image => image.ImageUrl).FirstOrDefault()
+                imageUrl = product.ProductImage != null ? product.ProductImage.ImageUrl : null
             })
             .ToListAsync(cancellationToken);
 
@@ -71,7 +70,7 @@ public sealed class ProductModerationController : ControllerBase
     {
         var product = await _context.Products.AsNoTracking()
             .Include(item => item.Category)
-            .Include(item => item.ProductImages)
+            .Include(item => item.ProductImage)
             .Include(item => item.FarmerProfile).ThenInclude(farmer => farmer.User)
             .Include(item => item.HarvestBatches).ThenInclude(batch => batch.CropSeason)
             .Include(item => item.HarvestBatches).ThenInclude(batch => batch.TraceabilityQrcode)
@@ -102,8 +101,16 @@ public sealed class ProductModerationController : ControllerBase
             name = product.ProductName,
             description = product.Description,
             category = product.Category.CategoryName,
-            images = product.ProductImages.OrderBy(image => image.DisplayOrder)
-                .Select(image => new { image.ImageUrl, image.AltText }),
+            images = product.ProductImage != null
+                ? new[]
+                {
+                    new
+                    {
+                        product.ProductImage.ImageUrl,
+                        product.ProductImage.AltText
+                    }
+                }
+                : Array.Empty<object>(),
             retailPrice = product.BaseRetailPrice,
             wholesalePrice = product.WholesalePrice,
             wholesaleMinQuantity = product.WholesaleMinQuantity,

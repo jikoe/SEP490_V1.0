@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -27,7 +27,15 @@ public partial class CultivationLog
 
     public DateTime RecordedAt { get; set; }
 
+    public long? CorrectsLogId { get; set; }
+
+    public string? CorrectionReason { get; set; }
+
+    public virtual CultivationLog? CorrectsLog { get; set; }
+
     public virtual CropSeason CropSeason { get; set; } = null!;
+
+    public virtual ICollection<CultivationLog> InverseCorrectsLog { get; set; } = new List<CultivationLog>();
 
     public virtual User RecordedByUser { get; set; } = null!;
 }

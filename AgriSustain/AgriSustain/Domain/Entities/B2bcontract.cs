@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -37,7 +37,7 @@ public partial class B2bcontract
 
     public virtual ICollection<ContractMilestone> ContractMilestones { get; set; } = new List<ContractMilestone>();
 
-    public virtual ICollection<ContractTerminationRequest> ContractTerminationRequests { get; set; } = new List<ContractTerminationRequest>();
+    public virtual ContractTerminationRequest? ContractTerminationRequest { get; set; }
 
     public virtual ICollection<ContractVersion> ContractVersions { get; set; } = new List<ContractVersion>();
 

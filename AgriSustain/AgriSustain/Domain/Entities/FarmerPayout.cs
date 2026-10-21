@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -28,6 +28,8 @@ public partial class FarmerPayout
     public DateTime? ApprovedAt { get; set; }
 
     public DateTime? EligibleAt { get; set; }
+
+    public string RequestKey { get; set; } = null!;
 
     public virtual User? ApprovedByUser { get; set; }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -19,11 +19,11 @@ public partial class AuditLog
 
     public string? Reason { get; set; }
 
-    public DateTime OccurredAt { get; set; }
-
     public long? EntityId { get; set; }
 
     public string? TraceId { get; set; }
+
+    public DateTime OccurredAt { get; set; }
 
     public virtual User? PerformedByUser { get; set; }
 }

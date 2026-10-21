@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -20,6 +20,8 @@ public partial class InventoryMovement
     public string? Reason { get; set; }
 
     public DateTime OccurredAt { get; set; }
+
+    public string RequestKey { get; set; } = null!;
 
     public virtual HarvestBatch HarvestBatch { get; set; } = null!;
 

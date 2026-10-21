@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -21,15 +21,15 @@ public partial class DeliveryAddress
 
     public string Ward { get; set; } = null!;
 
-    public bool IsDefault { get; set; }
-
-    public string Status { get; set; } = null!;
-
     public string? ProvinceCode { get; set; }
 
     public string? WardCode { get; set; }
 
     public string? AddressCatalogVersion { get; set; }
+
+    public bool IsDefault { get; set; }
+
+    public string Status { get; set; } = null!;
 
     public virtual User User { get; set; } = null!;
 }

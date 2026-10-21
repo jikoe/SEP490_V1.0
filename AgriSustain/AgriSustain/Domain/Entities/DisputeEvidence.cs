@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -17,7 +17,11 @@ public partial class DisputeEvidence
 
     public DateTime SubmittedAt { get; set; }
 
+    public long? EvidenceRequestId { get; set; }
+
     public virtual DisputeTicket DisputeTicket { get; set; } = null!;
+
+    public virtual DisputeEvidenceRequest? EvidenceRequest { get; set; }
 
     public virtual User SubmittedByUser { get; set; } = null!;
 }

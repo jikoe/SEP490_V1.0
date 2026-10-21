@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -25,11 +25,15 @@ public partial class PayoutItem
 
     public decimal SourceAmountSettled { get; set; }
 
+    public long InvoiceLineId { get; set; }
+
     public virtual CommissionPolicy? CommissionPolicy { get; set; }
 
     public virtual ContractMilestone? ContractMilestone { get; set; }
 
     public virtual FarmerPayout FarmerPayout { get; set; } = null!;
+
+    public virtual InvoiceLine InvoiceLine { get; set; } = null!;
 
     public virtual OrderItem? OrderItem { get; set; }
 }

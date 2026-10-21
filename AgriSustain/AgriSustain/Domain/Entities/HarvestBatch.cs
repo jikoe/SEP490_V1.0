@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -33,11 +33,15 @@ public partial class HarvestBatch
 
     public decimal AvailableQuantity { get; set; }
 
+    public virtual ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
+
     public virtual CropSeason CropSeason { get; set; } = null!;
 
     public virtual ICollection<InventoryMovement> InventoryMovements { get; set; } = new List<InventoryMovement>();
 
     public virtual ICollection<OrderItemBatchAllocation> OrderItemBatchAllocations { get; set; } = new List<OrderItemBatchAllocation>();
+
+    public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
     public virtual PreOrderCampaign? PreOrderCampaign { get; set; }
 

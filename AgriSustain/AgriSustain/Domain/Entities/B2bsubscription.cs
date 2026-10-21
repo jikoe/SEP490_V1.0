@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -22,6 +22,16 @@ public partial class B2bsubscription
     public decimal PriceSnapshot { get; set; }
 
     public DateTime? LastRenewedAt { get; set; }
+
+    public bool UnlocksFarmerDirectContactSnapshot { get; set; }
+
+    public bool CanDownloadContractTemplateSnapshot { get; set; }
+
+    public int? TransactionLimitSnapshot { get; set; }
+
+    public int DurationDaysSnapshot { get; set; }
+
+    public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
 
     public virtual B2bsubscriptionPackage Package { get; set; } = null!;
 

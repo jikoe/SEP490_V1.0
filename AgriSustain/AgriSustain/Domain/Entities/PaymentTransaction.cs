@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -37,13 +37,23 @@ public partial class PaymentTransaction
 
     public DateTime? ReconciledAt { get; set; }
 
+    public string RequestKey { get; set; } = null!;
+
+    public string? ProviderTransactionReference { get; set; }
+
     public virtual B2bcontract? B2bcontract { get; set; }
 
     public virtual B2bsubscription? B2bsubscription { get; set; }
 
+    public virtual ICollection<ContractDepositAllocation> ContractDepositAllocations { get; set; } = new List<ContractDepositAllocation>();
+
     public virtual ContractMilestone? ContractMilestone { get; set; }
 
     public virtual Order? Order { get; set; }
+
+    public virtual ICollection<PaymentGatewayEvent> PaymentGatewayEvents { get; set; } = new List<PaymentGatewayEvent>();
+
+    public virtual ICollection<PaymentInvoiceAllocation> PaymentInvoiceAllocations { get; set; } = new List<PaymentInvoiceAllocation>();
 
     public virtual ICollection<RefundTransaction> RefundTransactions { get; set; } = new List<RefundTransaction>();
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -43,7 +43,11 @@ public partial class User
 
     public virtual ICollection<CultivationLog> CultivationLogs { get; set; } = new List<CultivationLog>();
 
-    public virtual ICollection<DeliveryAddress> DeliveryAddresses { get; set; } = new List<DeliveryAddress>();
+    public virtual DeliveryAddress? DeliveryAddress { get; set; }
+
+    public virtual ICollection<DisputeEvidenceRequest> DisputeEvidenceRequestRequestedByUsers { get; set; } = new List<DisputeEvidenceRequest>();
+
+    public virtual ICollection<DisputeEvidenceRequest> DisputeEvidenceRequestRequestedPartyUsers { get; set; } = new List<DisputeEvidenceRequest>();
 
     public virtual ICollection<DisputeEvidence> DisputeEvidences { get; set; } = new List<DisputeEvidence>();
 
@@ -70,6 +74,8 @@ public partial class User
     public virtual ICollection<RefundTransaction> RefundTransactions { get; set; } = new List<RefundTransaction>();
 
     public virtual ICollection<RetailCheckoutQuote> RetailCheckoutQuotes { get; set; } = new List<RetailCheckoutQuote>();
+
+    public virtual ICollection<RewardPointEntry> RewardPointEntries { get; set; } = new List<RewardPointEntry>();
 
     public virtual WholesaleBuyerProfile? WholesaleBuyerProfile { get; set; }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -36,6 +36,8 @@ public partial class DisputeTicket
     public virtual User? AssignedStaffUser { get; set; }
 
     public virtual B2bcontract? B2bcontract { get; set; }
+
+    public virtual ICollection<DisputeEvidenceRequest> DisputeEvidenceRequests { get; set; } = new List<DisputeEvidenceRequest>();
 
     public virtual ICollection<DisputeEvidence> DisputeEvidences { get; set; } = new List<DisputeEvidence>();
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -11,6 +11,8 @@ public partial class CartItem
 
     public long ProductId { get; set; }
 
+    public long? HarvestBatchId { get; set; }
+
     public long? PreOrderCampaignId { get; set; }
 
     public decimal Quantity { get; set; }
@@ -20,6 +22,8 @@ public partial class CartItem
     public DateTime AddedAt { get; set; }
 
     public virtual Cart Cart { get; set; } = null!;
+
+    public virtual HarvestBatch? HarvestBatch { get; set; }
 
     public virtual PreOrderCampaign? PreOrderCampaign { get; set; }
 

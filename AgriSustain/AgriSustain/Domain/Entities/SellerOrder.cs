@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -10,6 +10,8 @@ public partial class SellerOrder
     public long OrderId { get; set; }
 
     public long FarmerProfileId { get; set; }
+
+    public string? SellerNameSnapshot { get; set; }
 
     public long? B2bcontractId { get; set; }
 
@@ -28,8 +30,6 @@ public partial class SellerOrder
     public DateTime? DeliveredAt { get; set; }
 
     public DateTime? ReceivedAt { get; set; }
-
-    public string? SellerNameSnapshot { get; set; }
 
     public virtual B2bcontract? B2bcontract { get; set; }
 

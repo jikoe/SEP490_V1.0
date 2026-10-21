@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AgriSustain.Domain.Entities;
@@ -26,6 +26,10 @@ public partial class Notification
     public int RetryCount { get; set; }
 
     public string? RelatedRecordType { get; set; }
+
+    public long? RelatedRecordId { get; set; }
+
+    public string? PayloadJson { get; set; }
 
     public virtual User User { get; set; } = null!;
 }
