@@ -1,3 +1,4 @@
+import '../styles/customer-portal.css';
 import React, { useEffect, useState } from 'react';
 import UsersScreen from '../features/Administrator/UsersScreen';
 import CategoriesScreen from '../features/Administrator/CategoriesScreen';
@@ -8,6 +9,11 @@ import FarmerDashboard from '../features/Farmer/FarmerDashboard';
 import WholesaleDashboard from '../features/WholesaleBuyer/WholesaleDashboard';
 import RetailCustomerDashboard from '../features/RetailCustomer/RetailCustomerDashboard';
 import CheckoutScreen from '../features/RetailCustomer/CheckoutScreen';
+import RegisterScreen from '../features/Guest/RegisterScreen';
+import ProfileScreen from '../features/RetailCustomer/ProfileScreen';
+import OrderTrackingScreen from '../features/RetailCustomer/OrderTrackingScreen';
+import CustomerPortalApp from './CustomerPortalApp';
+
 import VerificationDashboard from '../features/Verification Officer/VerificationDashboard';
 import SupportDashboard from '../features/Customer Support/SupportDashboard';
 import PromotionsDashboard from '../features/Promotion Staff/PromotionsDashboard';
@@ -72,6 +78,7 @@ export const ROLE_CONFIGS = {
     landingRoute: '/farmer/dashboard',
     navItems: [
       { key: 'farmer-dash', label: 'Tổng quan nông trại', icon: '📊', path: '/farmer/dashboard' },
+      { key: 'farmer-profile', label: 'Hồ sơ nông hộ & KYC', icon: '🌾', path: '/farmer/profile' },
     ],
   },
   wholesale_buyer: {
@@ -96,7 +103,9 @@ export const ROLE_CONFIGS = {
     landingRoute: '/retail/dashboard',
     navItems: [
       { key: 'retail-dash', label: 'Trang chủ mua sắm', icon: '🏠', path: '/retail/dashboard' },
-      { key: 'checkout', label: 'Thanh toán & Đơn hàng', icon: '🛒', path: '/checkout' },
+      { key: 'checkout', label: 'Thanh toán', icon: '🛒', path: '/checkout' },
+      { key: 'retail-orders', label: 'Đơn hàng của tôi', icon: '📦', path: '/retail/orders' },
+      { key: 'retail-profile', label: 'Hồ sơ cá nhân', icon: '👤', path: '/retail/profile' },
     ],
   },
   verification_officer: {
@@ -424,6 +433,14 @@ export default function App() {
           {route.startsWith('/farmer/dashboard') && <FarmerDashboard navigate={navigate} />}
           {route.startsWith('/wholesale/dashboard') && <WholesaleDashboard navigate={navigate} />}
           {route.startsWith('/retail/dashboard') && <RetailCustomerDashboard navigate={navigate} />}
+          {route.startsWith('/register') && <RegisterScreen navigate={navigate} />}
+          {route.startsWith('/retail/profile') && <ProfileScreen fixture="retail-customer" navigate={navigate} />}
+          {route.startsWith('/farmer/profile') && <ProfileScreen fixture="farmer" navigate={navigate} />}
+          {route.startsWith('/profile') && <ProfileScreen navigate={navigate} />}
+          {route.startsWith('/retail/orders') && <OrderTrackingScreen fixture="retail-customer" navigate={navigate} />}
+          {route.startsWith('/orders') && <OrderTrackingScreen navigate={navigate} />}
+          {route.startsWith('/customer-portal') && <CustomerPortalApp />}
+
           {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} />}
           {route.startsWith('/verification/dashboard') && <VerificationDashboard navigate={navigate} />}
           {route.startsWith('/support/dashboard') && <SupportDashboard navigate={navigate} />}
@@ -438,7 +455,7 @@ export default function App() {
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
              '/retail/dashboard', '/checkout', '/verification/dashboard',
              '/support/dashboard', '/promotions/dashboard', '/finance/dashboard',
-             '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard'].some((p) => route.startsWith(p)) && (
+             '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/customer-portal'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <h2>Đang chuyển hướng về trang làm việc của bạn...</h2>
               <button className="primary" style={{ marginTop: 15 }} onClick={() => navigate(roleConfig.landingRoute)}>
