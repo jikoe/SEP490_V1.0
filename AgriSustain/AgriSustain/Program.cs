@@ -1,7 +1,9 @@
 using AgriSustain.Domain.Entities;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Interfaces.Identity;
+using AgriSustain.Application.Interfaces.Repositories;
 using AgriSustain.Application.Interfaces.Services;
+using AgriSustain.Application.Interfaces.UnitOfWork;
 using AgriSustain.Application.Services;
 using AgriSustain.Application.Services.Authentication;
 using AgriSustain.Application.Services.Orders;
@@ -13,6 +15,8 @@ using AgriSustain.Application.DTOs.Authentication;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.DTOs.Profiles;
 using AgriSustain.Infrastructure.Data.Demo;
+using AgriSustain.Infrastructure.Repositories;
+using AgriSustain.Infrastructure.UnitOfWork;
 using AgriSustain.Api.Security.Authentication;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -33,9 +37,15 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
-// DuND services
+// Standard Repositories and UnitOfWork
 builder.Services.AddSingleton<SqlDemoDependencies>();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
+builder.Services.AddScoped<IOrderTrackingRepository, OrderTrackingRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// DuND Application Services
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
