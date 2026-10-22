@@ -46,150 +46,150 @@ export const ROLE_CONFIGS = {
     key: 'administrator',
     title: 'Administrator',
     portalName: 'ADMIN CONSOLE',
-    portalCategory: 'QUẢN TRỊ HỆ THỐNG',
+    portalCategory: 'QUáº¢N TRá»Š Há»† THá»NG',
     avatar: 'A',
     hasSidebar: true,
     landingRoute: '/administration/dashboard',
     navItems: [
-      { key: 'admin-dash', label: 'Tổng quan hệ thống', icon: '📊', path: '/administration/dashboard' },
-      { key: 'users', label: 'Quản lý người dùng', icon: '♙', path: '/administration/users' },
-      { key: 'categories', label: 'Danh mục sản phẩm', icon: '▦', path: '/administration/categories' },
+      { key: 'admin-dash', label: 'Tá»•ng quan há»‡ thá»‘ng', icon: 'ðŸ“Š', path: '/administration/dashboard' },
+      { key: 'users', label: 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng', icon: 'â™™', path: '/administration/users' },
+      { key: 'categories', label: 'Danh má»¥c sáº£n pháº©m', icon: 'â–¦', path: '/administration/categories' },
     ],
   },
   content_moderator: {
     key: 'content_moderator',
     title: 'Content Moderator',
     portalName: 'MODERATION CONSOLE',
-    portalCategory: 'KIỂM DUYỆT NỘI DUNG',
+    portalCategory: 'KIá»‚M DUYá»†T Ná»˜I DUNG',
     avatar: 'M',
     hasSidebar: true,
     landingRoute: '/moderation/products',
     navItems: [
-      { key: 'moderation', label: 'Kiểm duyệt sản phẩm', icon: '✓', path: '/moderation/products' },
+      { key: 'moderation', label: 'Kiá»ƒm duyá»‡t sáº£n pháº©m', icon: 'âœ“', path: '/moderation/products' },
     ],
   },
   farmer: {
     key: 'farmer',
     title: 'Farmer',
     portalName: 'FARMER PORTAL',
-    portalCategory: 'TRANG TRẠI & NÔNG HỘ',
+    portalCategory: 'TRANG TRáº I & NÃ”NG Há»˜',
     avatar: 'F',
     hasSidebar: true,
     landingRoute: '/farmer/dashboard',
     navItems: [
-      { key: 'farmer-dash', label: 'Tổng quan nông trại', icon: '📊', path: '/farmer/dashboard' },
-      { key: 'farmer-profile', label: 'Hồ sơ nông hộ & KYC', icon: '🌾', path: '/farmer/profile' },
+      { key: 'farmer-dash', label: 'Tá»•ng quan nÃ´ng tráº¡i', icon: 'ðŸ“Š', path: '/farmer/dashboard' },
+      { key: 'farmer-profile', label: 'Há»“ sÆ¡ nÃ´ng há»™ & KYC', icon: 'ðŸŒ¾', path: '/farmer/profile' },
     ],
   },
   wholesale_buyer: {
     key: 'wholesale_buyer',
     title: 'WholesaleBuyer',
     portalName: 'B2B WHOLESALE',
-    portalCategory: 'DOANH NGHIỆP MUA BUÔN',
+    portalCategory: 'DOANH NGHIá»†P MUA BUÃ”N',
     avatar: 'W',
     hasSidebar: true,
     landingRoute: '/wholesale/dashboard',
     navItems: [
-      { key: 'wholesale-dash', label: 'Tổng quan mua buôn', icon: '📊', path: '/wholesale/dashboard' },
+      { key: 'wholesale-dash', label: 'Tá»•ng quan mua buÃ´n', icon: 'ðŸ“Š', path: '/wholesale/dashboard' },
     ],
   },
   retail_customer: {
     key: 'retail_customer',
     title: 'RetailCustomer',
     portalName: 'RETAIL MARKET',
-    portalCategory: 'MUA SẮM TIÊU DÙNG',
+    portalCategory: 'MUA Sáº®M TIÃŠU DÃ™NG',
     avatar: 'C',
-    hasSidebar: false, // Riêng RetailCustomer là không có thanh bên
+    hasSidebar: false, // RiÃªng RetailCustomer lÃ  khÃ´ng cÃ³ thanh bÃªn
     landingRoute: '/retail/dashboard',
     navItems: [
-      { key: 'retail-dash', label: 'Trang chủ mua sắm', icon: '🏠', path: '/retail/dashboard' },
-      { key: 'checkout', label: 'Thanh toán', icon: '🛒', path: '/checkout' },
-      { key: 'retail-orders', label: 'Đơn hàng của tôi', icon: '📦', path: '/retail/orders' },
-      { key: 'retail-profile', label: 'Hồ sơ cá nhân', icon: '👤', path: '/retail/profile' },
+      { key: 'retail-dash', label: 'Trang chá»§ mua sáº¯m', icon: 'ðŸ ', path: '/retail/dashboard' },
+      { key: 'checkout', label: 'Thanh toÃ¡n', icon: 'ðŸ›’', path: '/checkout' },
+      { key: 'retail-orders', label: 'ÄÆ¡n hÃ ng cá»§a tÃ´i', icon: 'ðŸ“¦', path: '/retail/orders' },
+      { key: 'retail-profile', label: 'Há»“ sÆ¡ cÃ¡ nhÃ¢n', icon: 'ðŸ‘¤', path: '/retail/profile' },
     ],
   },
   verification_officer: {
     key: 'verification_officer',
     title: 'Verification Officer',
     portalName: 'QUALITY ASSURANCE',
-    portalCategory: 'THẨM ĐỊNH CHẤT LƯỢNG',
+    portalCategory: 'THáº¨M Äá»ŠNH CHáº¤T LÆ¯á»¢NG',
     avatar: 'V',
     hasSidebar: true,
     landingRoute: '/verification/dashboard',
     navItems: [
-      { key: 'verification-dash', label: 'Thẩm định chất lượng', icon: '📊', path: '/verification/dashboard' },
+      { key: 'verification-dash', label: 'Tháº©m Ä‘á»‹nh cháº¥t lÆ°á»£ng', icon: 'ðŸ“Š', path: '/verification/dashboard' },
     ],
   },
   customer_support: {
     key: 'customer_support',
     title: 'Customer Support',
     portalName: 'CARE & DISPUTES',
-    portalCategory: 'CHĂM SÓC KHÁCH HÀNG',
+    portalCategory: 'CHÄ‚M SÃ“C KHÃCH HÃ€NG',
     avatar: 'S',
     hasSidebar: true,
     landingRoute: '/support/dashboard',
     navItems: [
-      { key: 'support-dash', label: 'Trung tâm hỗ trợ', icon: '📊', path: '/support/dashboard' },
+      { key: 'support-dash', label: 'Trung tÃ¢m há»— trá»£', icon: 'ðŸ“Š', path: '/support/dashboard' },
     ],
   },
   promotion_staff: {
     key: 'promotion_staff',
     title: 'Promotion Staff',
     portalName: 'PROMOTIONS HUB',
-    portalCategory: 'KHUYẾN MẠI & CHIẾN DỊCH',
+    portalCategory: 'KHUYáº¾N Máº I & CHIáº¾N Dá»ŠCH',
     avatar: 'P',
     hasSidebar: true,
     landingRoute: '/promotions/dashboard',
     navItems: [
-      { key: 'promotion-dash', label: 'Chiến dịch khuyến mại', icon: '📊', path: '/promotions/dashboard' },
+      { key: 'promotion-dash', label: 'Chiáº¿n dá»‹ch khuyáº¿n máº¡i', icon: 'ðŸ“Š', path: '/promotions/dashboard' },
     ],
   },
   finance_staff: {
     key: 'finance_staff',
     title: 'Finance Staff',
     portalName: 'FINANCE & PAYOUT',
-    portalCategory: 'TÀI CHÍNH & KẾ TOÁN',
-    avatar: '💰',
+    portalCategory: 'TÃ€I CHÃNH & Káº¾ TOÃN',
+    avatar: 'ðŸ’°',
     hasSidebar: true,
     landingRoute: '/finance/dashboard',
     navItems: [
-      { key: 'finance-dash', label: 'Quản lý tài chính', icon: '📊', path: '/finance/dashboard' },
+      { key: 'finance-dash', label: 'Quáº£n lÃ½ tÃ i chÃ­nh', icon: 'ðŸ“Š', path: '/finance/dashboard' },
     ],
   },
   payment_gateway: {
     key: 'payment_gateway',
     title: 'Payment Gateway',
     portalName: 'GATEWAY CONSOLE',
-    portalCategory: 'CỔNG THANH TOÁN',
-    avatar: '⚡',
+    portalCategory: 'Cá»”NG THANH TOÃN',
+    avatar: 'âš¡',
     hasSidebar: true,
     landingRoute: '/gateway/dashboard',
     navItems: [
-      { key: 'gateway-dash', label: 'Giám sát cổng thanh toán', icon: '📊', path: '/gateway/dashboard' },
+      { key: 'gateway-dash', label: 'GiÃ¡m sÃ¡t cá»•ng thanh toÃ¡n', icon: 'ðŸ“Š', path: '/gateway/dashboard' },
     ],
   },
   gmail_service: {
     key: 'gmail_service',
     title: 'Gmail Notification Service API',
     portalName: 'NOTIFICATION ENGINE',
-    portalCategory: 'DỊCH VỤ THÔNG BÁO',
-    avatar: '✉️',
+    portalCategory: 'Dá»ŠCH Vá»¤ THÃ”NG BÃO',
+    avatar: 'âœ‰ï¸',
     hasSidebar: true,
     landingRoute: '/notifications/dashboard',
     navItems: [
-      { key: 'notifications-dash', label: 'Dịch vụ thông báo', icon: '📊', path: '/notifications/dashboard' },
+      { key: 'notifications-dash', label: 'Dá»‹ch vá»¥ thÃ´ng bÃ¡o', icon: 'ðŸ“Š', path: '/notifications/dashboard' },
     ],
   },
   guest: {
     key: 'guest',
     title: 'Guest',
     portalName: 'GUEST PORTAL',
-    portalCategory: 'KHÁCH VÃNG LAI',
+    portalCategory: 'KHÃCH VÃƒNG LAI',
     avatar: 'G',
     hasSidebar: true,
     landingRoute: '/guest/dashboard',
     navItems: [
-      { key: 'guest-dash', label: 'Khám phá Nông Sản Việt', icon: '✦', path: '/guest/dashboard' },
+      { key: 'guest-dash', label: 'KhÃ¡m phÃ¡ NÃ´ng Sáº£n Viá»‡t', icon: 'âœ¦', path: '/guest/dashboard' },
     ],
   },
 };
@@ -215,7 +215,7 @@ export default function App() {
   const [persistence, setPersistence] = useState(null);
   const [databaseReady, setDatabaseReady] = useState(false);
 
-  // Xác định role hiện tại (ưu tiên session từ DB, nếu không có thì lấy fixture demo)
+  // XÃ¡c Ä‘á»‹nh role hiá»‡n táº¡i (Æ°u tiÃªn session tá»« DB, náº¿u khÃ´ng cÃ³ thÃ¬ láº¥y fixture demo)
   const currentRoleRaw = session ? session.user.role : (fixture ? ROLE_CONFIGS[fixture]?.title : null);
   const roleKey = normalizeRole(currentRoleRaw);
   const roleConfig = ROLE_CONFIGS[roleKey] || ROLE_CONFIGS.guest;
@@ -275,40 +275,44 @@ export default function App() {
     navigate('/login');
   }
 
-  // Nếu chưa đăng nhập và không có phiên demo -> Hiển thị LoginScreen
+  // Náº¿u chÆ°a Ä‘Äƒng nháº­p vÃ  khÃ´ng cÃ³ phiÃªn demo -> Hiá»ƒn thá»‹ LoginScreen
   if (!session && !fixture) {
-    return <LoginScreen onLogin={completeLogin} onDemo={() => enterDemo('guest')} />;
+    // N?u route là /register -> Hi?n th? RegisterScreen cho Guest
+    if (route === '/register') {
+      return <RegisterScreen navigate={navigate} />;
+    }
+    return <LoginScreen onLogin={completeLogin} onDemo={() => enterDemo('guest')} navigate={navigate} />;
   }
 
-  // Xác định tiêu đề hiển thị trên thanh Header Breadcrumbs
-  let currentTitle = 'Bảng điều khiển';
-  if (route.startsWith('/administration/users')) currentTitle = 'Quản lý người dùng';
-  else if (route.startsWith('/administration/categories')) currentTitle = 'Danh mục sản phẩm';
-  else if (route.startsWith('/administration/dashboard')) currentTitle = 'Tổng quan hệ thống';
-  else if (route.startsWith('/moderation/products')) currentTitle = 'Kiểm duyệt sản phẩm';
-  else if (route.startsWith('/farmer/dashboard')) currentTitle = 'Tổng quan nông trại';
-  else if (route.startsWith('/wholesale/dashboard')) currentTitle = 'Tổng quan mua buôn B2B';
-  else if (route.startsWith('/retail/dashboard')) currentTitle = 'Cửa hàng nông sản';
-  else if (route.startsWith('/checkout')) currentTitle = 'Thanh toán & Đơn hàng';
-  else if (route.startsWith('/verification/dashboard')) currentTitle = 'Thẩm định chất lượng';
-  else if (route.startsWith('/support/dashboard')) currentTitle = 'Trung tâm khiếu nại & Tranh chấp';
-  else if (route.startsWith('/promotions/dashboard')) currentTitle = 'Chiến dịch khuyến mại';
-  else if (route.startsWith('/finance/dashboard')) currentTitle = 'Quản lý tài chính & Chi trả';
-  else if (route.startsWith('/gateway/dashboard')) currentTitle = 'Giám sát cổng thanh toán';
-  else if (route.startsWith('/notifications/dashboard')) currentTitle = 'Dịch vụ gửi thông báo';
-  else if (route.startsWith('/guest/dashboard')) currentTitle = 'Khám phá Nông Sản Việt';
+  // XÃ¡c Ä‘á»‹nh tiÃªu Ä‘á» hiá»ƒn thá»‹ trÃªn thanh Header Breadcrumbs
+  let currentTitle = 'Báº£ng Ä‘iá»u khiá»ƒn';
+  if (route.startsWith('/administration/users')) currentTitle = 'Quáº£n lÃ½ ngÆ°á»i dÃ¹ng';
+  else if (route.startsWith('/administration/categories')) currentTitle = 'Danh má»¥c sáº£n pháº©m';
+  else if (route.startsWith('/administration/dashboard')) currentTitle = 'Tá»•ng quan há»‡ thá»‘ng';
+  else if (route.startsWith('/moderation/products')) currentTitle = 'Kiá»ƒm duyá»‡t sáº£n pháº©m';
+  else if (route.startsWith('/farmer/dashboard')) currentTitle = 'Tá»•ng quan nÃ´ng tráº¡i';
+  else if (route.startsWith('/wholesale/dashboard')) currentTitle = 'Tá»•ng quan mua buÃ´n B2B';
+  else if (route.startsWith('/retail/dashboard')) currentTitle = 'Cá»­a hÃ ng nÃ´ng sáº£n';
+  else if (route.startsWith('/checkout')) currentTitle = 'Thanh toÃ¡n & ÄÆ¡n hÃ ng';
+  else if (route.startsWith('/verification/dashboard')) currentTitle = 'Tháº©m Ä‘á»‹nh cháº¥t lÆ°á»£ng';
+  else if (route.startsWith('/support/dashboard')) currentTitle = 'Trung tÃ¢m khiáº¿u náº¡i & Tranh cháº¥p';
+  else if (route.startsWith('/promotions/dashboard')) currentTitle = 'Chiáº¿n dá»‹ch khuyáº¿n máº¡i';
+  else if (route.startsWith('/finance/dashboard')) currentTitle = 'Quáº£n lÃ½ tÃ i chÃ­nh & Chi tráº£';
+  else if (route.startsWith('/gateway/dashboard')) currentTitle = 'GiÃ¡m sÃ¡t cá»•ng thanh toÃ¡n';
+  else if (route.startsWith('/notifications/dashboard')) currentTitle = 'Dá»‹ch vá»¥ gá»­i thÃ´ng bÃ¡o';
+  else if (route.startsWith('/guest/dashboard')) currentTitle = 'KhÃ¡m phÃ¡ NÃ´ng Sáº£n Viá»‡t';
 
-  const userDisplayName = session ? session.user.fullName : (fixture ? `Tài khoản ${roleConfig.title}` : 'Khách truy cập');
-  const userDisplayRole = session ? session.user.role : (fixture ? `Phiên demo (${roleConfig.title})` : 'Demo');
+  const userDisplayName = session ? session.user.fullName : (fixture ? `TÃ i khoáº£n ${roleConfig.title}` : 'KhÃ¡ch truy cáº­p');
+  const userDisplayRole = session ? session.user.role : (fixture ? `PhiÃªn demo (${roleConfig.title})` : 'Demo');
   const userAvatarInitial = session ? session.user.fullName?.charAt(0)?.toUpperCase() : roleConfig.avatar;
 
   return (
     <div className="app-shell">
-      {/* THANH BÊN (SIDEBAR) - Hiển thị cho tất cả role NGOẠI TRỪ RetailCustomer */}
+      {/* THANH BÃŠN (SIDEBAR) - Hiá»ƒn thá»‹ cho táº¥t cáº£ role NGOáº I TRá»ª RetailCustomer */}
       {roleConfig.hasSidebar && (
         <aside className="sidebar">
           <a className="brand" href={`#${roleConfig.landingRoute}`}>
-            <span className="brand-icon">✦</span>
+            <span className="brand-icon">âœ¦</span>
             <span>
               AgriSustain
               <small>{roleConfig.portalName}</small>
@@ -317,7 +321,7 @@ export default function App() {
 
           <p className="nav-label">{roleConfig.portalCategory}</p>
 
-          <nav className="main-navigation" aria-label="Chức năng điều hướng">
+          <nav className="main-navigation" aria-label="Chá»©c nÄƒng Ä‘iá»u hÆ°á»›ng">
             {roleConfig.navItems.map((item) => {
               const isSelected = route === item.path || (item.path !== '/' && route.startsWith(item.path));
               return (
@@ -345,16 +349,16 @@ export default function App() {
             <p>
               <span className="status-dot" />
               {databaseReady
-                ? 'Đã kết nối SQL · EF Core'
+                ? 'ÄÃ£ káº¿t ná»‘i SQL Â· EF Core'
                 : persistence === 'SqlServer'
-                  ? 'Chưa xác nhận kết nối SQL'
-                  : 'Sẵn sàng hoạt động'}
+                  ? 'ChÆ°a xÃ¡c nháº­n káº¿t ná»‘i SQL'
+                  : 'Sáºµn sÃ ng hoáº¡t Ä‘á»™ng'}
             </p>
           </div>
         </aside>
       )}
 
-      {/* VÙNG LÀM VIỆC CHÍNH (WORKSPACE) - Không có sidebar sẽ full-width */}
+      {/* VÃ™NG LÃ€M VIá»†C CHÃNH (WORKSPACE) - KhÃ´ng cÃ³ sidebar sáº½ full-width */}
       <div className={`workspace ${!roleConfig.hasSidebar ? 'no-sidebar' : ''}`}>
         <header>
           {roleConfig.hasSidebar ? (
@@ -363,10 +367,10 @@ export default function App() {
               <span> / {currentTitle}</span>
             </span>
           ) : (
-            /* Header riêng cho RetailCustomer (không có sidebar) */
+            /* Header riÃªng cho RetailCustomer (khÃ´ng cÃ³ sidebar) */
             <div className="retail-brand-area">
               <a className="brand" href={`#${roleConfig.landingRoute}`}>
-                <span className="brand-icon">✦</span>
+                <span className="brand-icon">âœ¦</span>
                 <span>
                   AgriSustain
                   <small>RETAIL MARKET</small>
@@ -393,39 +397,39 @@ export default function App() {
               <>
                 <span style={{ fontSize: 13, color: '#294334', fontWeight: 600 }}>{session.user.fullName}</span>
                 <span className="badge role-badge" style={{ marginLeft: 6 }}>{session.user.role}</span>
-                <button type="button" onClick={logout} style={{ marginLeft: 10 }}>Đăng xuất</button>
+                <button type="button" onClick={logout} style={{ marginLeft: 10 }}>ÄÄƒng xuáº¥t</button>
               </>
             ) : (
               <>
                 <label className="session-selector">
-                  Vai trò demo:
+                  Vai trÃ² demo:
                   <select
-                    aria-label="Chọn vai trò giả lập"
+                    aria-label="Chá»n vai trÃ² giáº£ láº­p"
                     value={fixture || 'guest'}
                     onChange={(event) => enterDemo(event.target.value)}
                   >
-                    <option value="administrator">1. Administrator (Quản trị viên)</option>
-                    <option value="content_moderator">2. Content Moderator (Kiểm duyệt viên)</option>
-                    <option value="farmer">3. Farmer (Nông dân / Trang trại)</option>
-                    <option value="wholesale_buyer">4. WholesaleBuyer (Khách mua buôn B2B)</option>
-                    <option value="retail_customer">5. RetailCustomer (Người mua lẻ - Không sidebar)</option>
-                    <option value="verification_officer">6. Verification Officer (Thẩm định viên)</option>
-                    <option value="customer_support">7. Customer Support (Hỗ trợ khách hàng)</option>
-                    <option value="promotion_staff">8. Promotion Staff (Nhân viên khuyến mại)</option>
-                    <option value="finance_staff">9. Finance Staff (Kế toán & Tài chính)</option>
-                    <option value="payment_gateway">10. Payment Gateway (Cổng thanh toán)</option>
-                    <option value="gmail_service">11. Gmail Notification Service (Thông báo)</option>
-                    <option value="guest">12. Guest (Khách vãng lai)</option>
+                    <option value="administrator">1. Administrator (Quáº£n trá»‹ viÃªn)</option>
+                    <option value="content_moderator">2. Content Moderator (Kiá»ƒm duyá»‡t viÃªn)</option>
+                    <option value="farmer">3. Farmer (NÃ´ng dÃ¢n / Trang tráº¡i)</option>
+                    <option value="wholesale_buyer">4. WholesaleBuyer (KhÃ¡ch mua buÃ´n B2B)</option>
+                    <option value="retail_customer">5. RetailCustomer (NgÆ°á»i mua láº» - KhÃ´ng sidebar)</option>
+                    <option value="verification_officer">6. Verification Officer (Tháº©m Ä‘á»‹nh viÃªn)</option>
+                    <option value="customer_support">7. Customer Support (Há»— trá»£ khÃ¡ch hÃ ng)</option>
+                    <option value="promotion_staff">8. Promotion Staff (NhÃ¢n viÃªn khuyáº¿n máº¡i)</option>
+                    <option value="finance_staff">9. Finance Staff (Káº¿ toÃ¡n & TÃ i chÃ­nh)</option>
+                    <option value="payment_gateway">10. Payment Gateway (Cá»•ng thanh toÃ¡n)</option>
+                    <option value="gmail_service">11. Gmail Notification Service (ThÃ´ng bÃ¡o)</option>
+                    <option value="guest">12. Guest (KhÃ¡ch vÃ£ng lai)</option>
                   </select>
                 </label>
-                <button type="button" onClick={logout}>Đăng nhập</button>
+                <button type="button" onClick={logout}>ÄÄƒng nháº­p</button>
               </>
             )}
           </div>
         </header>
 
         <main key={`${roleKey}-${route}`}>
-          {/* Định tuyến màn hình tương ứng */}
+          {/* Äá»‹nh tuyáº¿n mÃ n hÃ¬nh tÆ°Æ¡ng á»©ng */}
           {route.startsWith('/administration/dashboard') && <AdminDashboard navigate={navigate} />}
           {route.startsWith('/administration/users') && <UsersScreen fixture={fixture} route={route} navigate={navigate} />}
           {route.startsWith('/administration/categories') && <CategoriesScreen fixture={fixture} route={route} navigate={navigate} />}
@@ -450,23 +454,23 @@ export default function App() {
           {route.startsWith('/notifications/dashboard') && <NotificationServiceDashboard navigate={navigate} />}
           {route.startsWith('/guest/dashboard') && <GuestDashboard navigate={navigate} />}
 
-          {/* Fallback nếu đường dẫn không khớp với màn hình nào */}
+          {/* Fallback náº¿u Ä‘Æ°á»ng dáº«n khÃ´ng khá»›p vá»›i mÃ n hÃ¬nh nÃ o */}
           {!['/administration/dashboard', '/administration/users', '/administration/categories',
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
              '/retail/dashboard', '/checkout', '/verification/dashboard',
              '/support/dashboard', '/promotions/dashboard', '/finance/dashboard',
              '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/customer-portal'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <h2>Đang chuyển hướng về trang làm việc của bạn...</h2>
+              <h2>Äang chuyá»ƒn hÆ°á»›ng vá» trang lÃ m viá»‡c cá»§a báº¡n...</h2>
               <button className="primary" style={{ marginTop: 15 }} onClick={() => navigate(roleConfig.landingRoute)}>
-                Vào {roleConfig.portalName}
+                VÃ o {roleConfig.portalName}
               </button>
             </div>
           )}
         </main>
 
         <footer>
-          Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền {roleConfig.title}
+          Ná»n táº£ng AgriSustain Â· Há»‡ sinh thÃ¡i NÃ´ng Sáº£n Viá»‡t Bá»n Vá»¯ng Â· PhÃ¢n quyá»n {roleConfig.title}
         </footer>
       </div>
     </div>
