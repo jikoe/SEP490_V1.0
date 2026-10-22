@@ -143,7 +143,7 @@ export default function RegisterScreen({ navigate }) {
       setOtpModalOpen(false);
       setSuccessNotice(`MSG56: Đăng ký tài khoản thành công cho ${user.fullName || form.fullName}! Thông tin đã được lưu vào cơ sở dữ liệu.`);
       setTimeout(() => {
-        if (navigate) navigate('/profile');
+        if (navigate) navigate('/login'); else window.location.hash = '#/login';
       }, 1200);
     } catch (err) {
       setLoading(false);
@@ -374,7 +374,7 @@ export default function RegisterScreen({ navigate }) {
           Đã có tài khoản AgriSustain?{' '}
           <a
             href="#/profile"
-            onClick={(e) => { e.preventDefault(); navigate('/profile'); }}
+            onClick={(e) => { e.preventDefault(); if (navigate) navigate('/login'); else window.location.hash = '#/login'; }}
             style={{ color: '#1e6546', fontWeight: 700, textDecoration: 'none' }}
           >
             Đăng nhập ngay
