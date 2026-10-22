@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using AgriSustain.Application.Interfaces.Repositories;
+using AgriSustain.Application.DTOs.Authentication;
 
 namespace AgriSustain.Infrastructure.Data.Demo;
 

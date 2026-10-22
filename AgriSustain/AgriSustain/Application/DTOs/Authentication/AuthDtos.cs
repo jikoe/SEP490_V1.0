@@ -23,3 +23,14 @@ public sealed record AuthResponse(
     string Role,
     string? Token,
     string Message);
+
+public sealed record PendingRegistration(
+    string Email,
+    string FullName,
+    string PhoneNumber,
+    string PasswordHash,
+    string Role,
+    string OtpCode,
+    DateTimeOffset OtpExpiresAt,
+    int AttemptCount,
+    DateTimeOffset CreatedAt);

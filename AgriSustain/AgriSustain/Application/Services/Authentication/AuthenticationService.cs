@@ -1,15 +1,18 @@
 using System.Security.Cryptography;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Authentication;
-using AgriSustain.Application.Interfaces.Repositories;
+
 using AgriSustain.Application.Interfaces.Services;
-using AgriSustain.Application.Interfaces.UnitOfWork;
+using AgriSustain.Domain.Entities;
+using AgriSustain.Infrastructure.Data.Demo;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 
 namespace AgriSustain.Application.Services.Authentication;
 
 public sealed class AuthenticationService(
-    IThreeUcUnitOfWork unitOfWork,
+    AgriSustainContext context,
+    SqlDemoDependencies demoStore,
     IValidator<RegisterRequest> registerValidator,
     IValidator<VerifyOtpRequest> verifyOtpValidator,
     IValidator<ResendOtpRequest> resendOtpValidator) : IAuthenticationService
@@ -23,38 +26,35 @@ public sealed class AuthenticationService(
             return Result<string>.FailureResult(error);
         }
 
-        return await unitOfWork.ExecuteAsync(async session =>
+        if (await context.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
         {
-            if (await session.Auth.EmailExistsAsync(request.Email, cancellationToken))
-            {
-                return Result<string>.FailureResult(new Error(
-                    "EMAIL_EXISTS", "Email này đã được sử dụng bởi một tài khoản khác.", "Conflict"));
-            }
+            return Result<string>.FailureResult(new Error(
+                "EMAIL_EXISTS", "Email này đã được sử dụng bởi một tài khoản khác.", "Conflict"));
+        }
 
-            if (await session.Auth.PhoneExistsAsync(request.PhoneNumber, cancellationToken))
-            {
-                return Result<string>.FailureResult(new Error(
-                    "PHONE_EXISTS", "Số điện thoại này đã được sử dụng.", "Conflict"));
-            }
+        if (await context.Users.AnyAsync(u => u.PhoneNumber == request.PhoneNumber, cancellationToken))
+        {
+            return Result<string>.FailureResult(new Error(
+                "PHONE_EXISTS", "Số điện thoại này đã được sử dụng.", "Conflict"));
+        }
 
-            string otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
-            string hash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+        string otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        string hash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
-            var pending = new PendingRegistration(
-                Email: request.Email,
-                FullName: request.FullName,
-                PhoneNumber: request.PhoneNumber,
-                PasswordHash: hash,
-                Role: request.Role,
-                OtpCode: otp,
-                OtpExpiresAt: DateTimeOffset.UtcNow.AddMinutes(5),
-                AttemptCount: 0,
-                CreatedAt: DateTimeOffset.UtcNow);
+        var pending = new PendingRegistration(
+            Email: request.Email,
+            FullName: request.FullName,
+            PhoneNumber: request.PhoneNumber,
+            PasswordHash: hash,
+            Role: request.Role,
+            OtpCode: otp,
+            OtpExpiresAt: DateTimeOffset.UtcNow.AddMinutes(5),
+            AttemptCount: 0,
+            CreatedAt: DateTimeOffset.UtcNow);
 
-            await session.Auth.SavePendingRegistrationAsync(pending, cancellationToken);
+        demoStore.PendingRegistrations[request.Email] = pending;
 
-            return Result<string>.SuccessResult($"Mã xác thực OTP đã được gửi đến {request.Email}. Mã có hiệu lực trong 5 phút. [Demo OTP: {otp}]");
-        }, cancellationToken);
+        return Result<string>.SuccessResult($"Mã xác thực OTP đã được gửi đến {request.Email}. Mã có hiệu lực trong 5 phút. [Demo OTP: {otp}]");
     }
 
     public async Task<Result<AuthResponse>> VerifyOtpAndCompleteRegistrationAsync(
@@ -66,51 +66,78 @@ public sealed class AuthenticationService(
             return Result<AuthResponse>.FailureResult(error);
         }
 
-        return await unitOfWork.ExecuteAsync(async session =>
+        demoStore.PendingRegistrations.TryGetValue(request.Email, out var pending);
+        if (pending == null)
         {
-            PendingRegistration? pending = await session.Auth.FindPendingRegistrationAsync(request.Email, cancellationToken);
-            if (pending == null)
+            return Result<AuthResponse>.FailureResult(new Error(
+                "REGISTRATION_EXPIRED", "Yêu cầu đăng ký không tồn tại hoặc đã hết hạn. Vui lòng đăng ký lại.", "NotFound"));
+        }
+
+        if (DateTimeOffset.UtcNow > pending.OtpExpiresAt)
+        {
+            demoStore.PendingRegistrations.TryRemove(request.Email, out _);
+            return Result<AuthResponse>.FailureResult(new Error(
+                "OTP_EXPIRED", "Mã OTP đã hết hiệu lực. Vui lòng yêu cầu gửi lại mã mới.", "Validation"));
+        }
+
+        if (pending.OtpCode != request.OtpCode)
+        {
+            if (pending.AttemptCount >= 4)
             {
+                demoStore.PendingRegistrations.TryRemove(request.Email, out _);
                 return Result<AuthResponse>.FailureResult(new Error(
-                    "REGISTRATION_EXPIRED", "Yêu cầu đăng ký không tồn tại hoặc đã hết hạn. Vui lòng đăng ký lại.", "NotFound"));
+                    "MAX_ATTEMPTS_EXCEEDED", "Bạn đã nhập sai mã OTP quá 5 lần. Yêu cầu đăng ký đã bị hủy vì lý do bảo mật.", "Validation"));
             }
 
-            if (DateTimeOffset.UtcNow > pending.OtpExpiresAt)
+            demoStore.PendingRegistrations[request.Email] = pending with { AttemptCount = pending.AttemptCount + 1 };
+            return Result<AuthResponse>.FailureResult(new Error(
+                "INVALID_OTP", $"Mã OTP không chính xác. Bạn còn {4 - pending.AttemptCount} lần thử.", "Validation"));
+        }
+
+        var user = new User
+        {
+            Username = pending.Email.Split('@')[0] + "_" + Random.Shared.Next(100, 999),
+            Email = pending.Email,
+            PasswordHash = pending.PasswordHash,
+            FullName = pending.FullName,
+            PhoneNumber = pending.PhoneNumber,
+            Role = pending.Role,
+            Status = "Active",
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow,
+            FailedLoginCount = 0
+        };
+
+        context.Users.Add(user);
+        await context.SaveChangesAsync(cancellationToken);
+
+        if (pending.Role == "Farmer")
+        {
+            var farmerProfile = new FarmerProfile
             {
-                await session.Auth.RemovePendingRegistrationAsync(request.Email, cancellationToken);
-                return Result<AuthResponse>.FailureResult(new Error(
-                    "OTP_EXPIRED", "Mã OTP đã hết hiệu lực. Vui lòng yêu cầu gửi lại mã mới.", "Validation"));
-            }
+                UserId = user.UserId,
+                FarmName = "Nông trại " + pending.FullName,
+                RepresentativeName = pending.FullName,
+                Address = "Chưa cập nhật địa chỉ",
+                ProvinceCode = "01",
+                VerificationStatus = "Pending",
+                ReputationScore = 5.0m
+            };
+            context.FarmerProfiles.Add(farmerProfile);
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
-            if (pending.OtpCode != request.OtpCode)
-            {
-                if (pending.AttemptCount >= 4)
-                {
-                    await session.Auth.RemovePendingRegistrationAsync(request.Email, cancellationToken);
-                    return Result<AuthResponse>.FailureResult(new Error(
-                        "MAX_ATTEMPTS_EXCEEDED", "Bạn đã nhập sai mã OTP quá 5 lần. Yêu cầu đăng ký đã bị hủy vì lý do bảo mật.", "Validation"));
-                }
+        demoStore.PendingRegistrations.TryRemove(request.Email, out _);
 
-                await session.Auth.UpdatePendingRegistrationAsync(
-                    pending with { AttemptCount = pending.AttemptCount + 1 }, cancellationToken);
+        var response = new AuthResponse(
+            UserId: user.UserId,
+            FullName: user.FullName,
+            Email: user.Email,
+            Role: user.Role,
+            Token: $"demo-token-{user.UserId}-{Guid.NewGuid():N}",
+            Message: "Xác thực email thành công! Tài khoản đã được kích hoạt.");
 
-                return Result<AuthResponse>.FailureResult(new Error(
-                    "INVALID_OTP", $"Mã OTP không chính xác. Bạn còn {4 - pending.AttemptCount} lần thử.", "Validation"));
-            }
-
-            var user = await session.Auth.CreateUserFromPendingAsync(pending, cancellationToken);
-            await session.Auth.RemovePendingRegistrationAsync(request.Email, cancellationToken);
-
-            var response = new AuthResponse(
-                UserId: user.UserId,
-                FullName: user.FullName,
-                Email: user.Email,
-                Role: user.Role,
-                Token: $"demo-token-{user.UserId}-{Guid.NewGuid():N}",
-                Message: "Xác thực email thành công! Tài khoản đã được kích hoạt.");
-
-            return Result<AuthResponse>.SuccessResult(response);
-        }, cancellationToken);
+        return Result<AuthResponse>.SuccessResult(response);
     }
 
     public async Task<Result<string>> ResendOtpAsync(
@@ -122,26 +149,21 @@ public sealed class AuthenticationService(
             return Result<string>.FailureResult(error);
         }
 
-        return await unitOfWork.ExecuteAsync(async session =>
+        demoStore.PendingRegistrations.TryGetValue(request.Email, out var pending);
+        if (pending == null)
         {
-            PendingRegistration? pending = await session.Auth.FindPendingRegistrationAsync(request.Email, cancellationToken);
-            if (pending == null)
-            {
-                return Result<string>.FailureResult(new Error(
-                    "NOT_FOUND", "Không tìm thấy phiên đăng ký cho email này. Vui lòng đăng ký lại.", "NotFound"));
-            }
+            return Result<string>.FailureResult(new Error(
+                "NOT_FOUND", "Không tìm thấy phiên đăng ký cho email này. Vui lòng đăng ký lại.", "NotFound"));
+        }
 
-            string newOtp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
-            var renewed = pending with
-            {
-                OtpCode = newOtp,
-                OtpExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5),
-                AttemptCount = 0
-            };
+        string newOtp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        demoStore.PendingRegistrations[request.Email] = pending with
+        {
+            OtpCode = newOtp,
+            OtpExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5),
+            AttemptCount = 0
+        };
 
-            await session.Auth.UpdatePendingRegistrationAsync(renewed, cancellationToken);
-
-            return Result<string>.SuccessResult($"Mã OTP mới đã được gửi lại tới {request.Email}. [Demo OTP: {newOtp}]");
-        }, cancellationToken);
+        return Result<string>.SuccessResult($"Mã OTP mới đã được gửi lại tới {request.Email}. [Demo OTP: {newOtp}]");
     }
 }
