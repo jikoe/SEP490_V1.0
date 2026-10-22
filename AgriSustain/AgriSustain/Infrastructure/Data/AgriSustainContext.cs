@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using AgriSustain.Domain.Entities;
 
-namespace AgriSustain.Domain.Entities;
+namespace AgriSustain.Infrastructure.Data;
 
 public partial class AgriSustainContext : DbContext
 {
@@ -1416,8 +1417,8 @@ public partial class AgriSustainContext : DbContext
             entity.Property(e => e.AltText).HasMaxLength(255);
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
 
-            entity.HasOne(d => d.Product).WithOne(p => p.ProductImage)
-                .HasForeignKey<ProductImage>(d => d.ProductId)
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductImages)
+                .HasForeignKey(d => d.ProductId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ProductImage_Product");
         });
@@ -1853,3 +1854,4 @@ public partial class AgriSustainContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
+

@@ -31,14 +31,15 @@ export async function request(path, { fixture, signal, method = 'GET', body } = 
     signal,
     headers: {
       Authorization: session?.accessToken ? `Bearer ${session.accessToken}` : `Demo ${fixture}`,
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(body === undefined || body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.title || 'Không thể tải dữ liệu. Vui lòng thử lại.');
+    const error = new Error(data.title || data.message || (response.status === 401 ? 'Vui lòng đăng nhập bằng tài khoản thật để sử dụng chức năng.' : 'Không thể tải dữ liệu. Vui lòng thử lại.'));
     error.code = data.code;
+    error.fields = data.errors || {};
     error.status = response.status;
     throw error;
   }
@@ -56,3 +57,4 @@ export function queryString(values) {
   return new URLSearchParams(Object.entries(values).filter(([, value]) =>
     value !== '' && value !== null && value !== undefined)).toString();
 }
+

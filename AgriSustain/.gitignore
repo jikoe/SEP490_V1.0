@@ -18,3 +18,7 @@
 
 # Log
 *.log
+# Locally uploaded files
+AgriSustain/wwwroot/media/
+AgriSustain/private-files/
+
