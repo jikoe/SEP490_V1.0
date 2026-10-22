@@ -73,6 +73,12 @@ export default function LoginScreen({ onLogin, onDemo }) {
             {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
           </button>
         </form>
+        <div style={{ marginTop: 15, textAlign: 'center', fontSize: 14 }}>
+          <span>Chưa có tài khoản? </span>
+          <a href="#/register" style={{ color: '#2e7d32', fontWeight: 600, textDecoration: 'none' }}>
+            Đăng ký ngay
+          </a>
+        </div>
         <button className="login-demo" type="button" onClick={onDemo}>
           Tiếp tục khám phá sản phẩm
         </button>
