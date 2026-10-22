@@ -1,6 +1,3 @@
-// DEMO-AUTH: fixture is a local testing selector, not a login or access token.
-// Authentication team: replace this header with the in-memory Bearer token supplied
-// by your session provider. Do not retain fixture selection in production builds.
 import { getSession } from '../session/session';
 
 export async function login(credentials, { signal } = {}) {
@@ -20,30 +17,25 @@ export async function login(credentials, { signal } = {}) {
 }
 
 /**
- * Sends JSON to the same-origin API with the authorized local fixture selector and optional
- * cancellation. Non-success responses retain the stable error code/status for screen recovery;
- * replace the fixture header with the team session adapter.
+ * Sends JSON to the same-origin API using the existing authenticated session.
  */
-export async function request(path, { fixture, signal, method = 'GET', body } = {}) {
+export async function request(path, { signal, method = 'GET', body } = {}) {
   const session = getSession();
   const response = await fetch(`/api${path}`, {
     method,
     signal,
     headers: {
-      Authorization: session?.accessToken ? `Bearer ${session.accessToken}` : `Demo ${fixture}`,
+      ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.title || 'Không thể tải dữ liệu. Vui lòng thử lại.');
+    const error = new Error(data.message || data.title || 'Không thể tải dữ liệu. Vui lòng thử lại.');
     error.code = data.code;
     error.status = response.status;
     throw error;
-  }
-  if (data && typeof data === 'object' && !Array.isArray(data)) {
-    data.currentActorId = Number(response.headers.get('X-Demo-Actor-Id')) || null;
   }
   return data;
 }

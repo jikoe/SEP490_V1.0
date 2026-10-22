@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
+using AgriSustain.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace AgriSustain.Domain.Entities;
+namespace AgriSustain.Infrastructure.Data;
 
 public partial class AgriSustainContext : DbContext
 {

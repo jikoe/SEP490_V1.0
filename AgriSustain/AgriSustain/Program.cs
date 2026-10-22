@@ -1,6 +1,8 @@
 using AgriSustain.Domain.Entities;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Services;
+using AgriSustain.Infrastructure.Data;
+using AgriSustain.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +14,9 @@ builder.Services.AddDbContext<AgriSustainContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
 builder.Services.AddControllers();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
+builder.Services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
+builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddAuthentication(options =>
 {
@@ -35,6 +40,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.MapGet("/", () => "Hello World!");
 app.UseAuthentication();
 app.UseAuthorization();
