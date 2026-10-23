@@ -9,7 +9,7 @@ import ProductsScreen from '../features/Farmer/ProductsScreen';
 import OrdersScreen from '../features/Farmer/OrdersScreen';
 import CartScreen from '../features/RetailCustomer/CartScreen';
 import WholesaleDashboard from '../features/WholesaleBuyer/WholesaleDashboard';
-import RetailCustomerDashboard from '../features/RetailCustomer/RetailCustomerDashboard';
+import Marketplace from '../features/Marketplace/Marketplace';
 import CheckoutScreen from '../features/RetailCustomer/CheckoutScreen';
 import RegisterScreen from '../features/Guest/RegisterScreen';
 import ProfileScreen from '../features/RetailCustomer/ProfileScreen';
@@ -21,7 +21,6 @@ import SupportDashboard from '../features/Customer Support/SupportDashboard';
 import PromotionsDashboard from '../features/Promotion Staff/PromotionsDashboard';
 import FinanceDashboard from '../features/Finance Staff/FinanceDashboard';
 import GatewayDashboard from '../features/Payment Gateway/GatewayDashboard';
-import GuestDashboard from '../features/Guest/GuestDashboard';
 import LoginScreen from '../features/Guest/LoginScreen';
 import { clearSession, getSession, setSession } from '../session/session';
 
@@ -94,6 +93,7 @@ export const ROLE_CONFIGS = {
     landingRoute: '/wholesale/dashboard',
     navItems: [
       { key: 'wholesale-dash', label: 'Tổng quan mua buôn', icon: '📊', path: '/wholesale/dashboard' },
+      { key: 'marketplace', label: 'Khám phá nông sản', icon: '✦', path: '/marketplace' },
     ],
   },
   retail_customer: {
@@ -103,7 +103,7 @@ export const ROLE_CONFIGS = {
     portalCategory: 'MUA SẮM TIÊU DÙNG',
     avatar: 'C',
     hasSidebar: false, // Riêng RetailCustomer là không có thanh bên
-    landingRoute: '/retail/dashboard',
+    landingRoute: '/marketplace',
     navItems: [
       { key: 'retail-dash', label: 'Trang chủ mua sắm', icon: '🏠', path: '/retail/dashboard' },
       { key: 'cart', label: 'Giỏ hàng', icon: '🛒', path: '/cart' },
@@ -190,16 +190,16 @@ export const ROLE_CONFIGS = {
     portalCategory: 'KHÁCH VÃNG LAI',
     avatar: 'G',
     hasSidebar: true,
-    landingRoute: '/guest/dashboard',
+    landingRoute: '/marketplace',
     navItems: [
-      { key: 'guest-dash', label: 'Khám phá Nông Sản Việt', icon: '✦', path: '/guest/dashboard' },
+      { key: 'guest-dash', label: 'Khám phá Nông Sản Việt', icon: '✦', path: '/marketplace' },
     ],
   },
 };
 
 function readRoute() {
   const path = window.location.hash.slice(1);
-  return path.startsWith('/') ? path : '/login';
+  return path.startsWith('/') ? path : '/marketplace';
 }
 
 function readFixture() {
@@ -222,6 +222,9 @@ export default function App() {
   const currentRoleRaw = session ? session.user.role : (fixture ? ROLE_CONFIGS[fixture]?.title : null);
   const roleKey = normalizeRole(currentRoleRaw);
   const roleConfig = ROLE_CONFIGS[roleKey] || ROLE_CONFIGS.guest;
+  const isMarketplace = route === '/' || route.split('?')[0] === '/marketplace'
+    || route.startsWith('/marketplace/products/')
+    || route.startsWith('/guest/dashboard') || route.startsWith('/retail/dashboard');
 
   useEffect(() => {
     const handleRoute = () => setRoute(readRoute());
@@ -236,6 +239,7 @@ export default function App() {
   }, [session, route, roleConfig]);
 
   useEffect(() => {
+    if (isMarketplace) return;
     const controller = new AbortController();
     fetch('/health', { signal: controller.signal })
       .then((response) => response.json())
@@ -249,7 +253,7 @@ export default function App() {
       })
       .catch(() => setDatabaseReady(false));
     return () => controller.abort();
-  }, []);
+  }, [isMarketplace]);
 
   useEffect(() => {
     if (route === '/farmer/dashboard') navigate('/farmer/products');
@@ -281,6 +285,11 @@ export default function App() {
     setFixture(null);
     sessionStorage.removeItem('agrisustain:demo-fixture');
     navigate('/login');
+  }
+
+  if (isMarketplace) {
+    return <Marketplace route={route} navigate={navigate} session={session}
+      onLogout={logout} accountRoute={roleConfig.landingRoute} />;
   }
 
   // Nếu chưa đăng nhập và không có phiên demo -> Hiển thị LoginScreen
@@ -460,7 +469,6 @@ export default function App() {
           {route.startsWith('/finance/dashboard') && <FinanceDashboard navigate={navigate} />}
           {route.startsWith('/gateway/dashboard') && <GatewayDashboard navigate={navigate} />}
           {route.startsWith('/notifications/dashboard') && <NotificationServiceDashboard navigate={navigate} />}
-          {route.startsWith('/guest/dashboard') && <GuestDashboard navigate={navigate} />}
 
           {/* Fallback nếu đường dẫn không khớp với màn hình nào */}
           {!['/farmer/products', '/farmer/orders', '/cart', '/administration/dashboard', '/administration/users', '/administration/categories',

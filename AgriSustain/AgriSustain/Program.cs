@@ -41,6 +41,9 @@ builder.Services.AddHttpContextAccessor();
 
 // Existing team auth services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
+builder.Services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
+builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 // Standard Repositories and UnitOfWork
