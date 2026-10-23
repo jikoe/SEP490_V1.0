@@ -24,7 +24,10 @@ public sealed class AuthController : ControllerBase
     {
         var result = await _authService.LoginAsync(request, cancellationToken);
         return result is null
-            ? Unauthorized(new { message = "Tên đăng nhập hoặc mật khẩu không đúng." })
+            ? Problem(
+                title: "Đăng nhập thất bại",
+                detail: "Tên đăng nhập hoặc mật khẩu không đúng.",
+                statusCode: StatusCodes.Status401Unauthorized)
             : Ok(result);
     }
 }

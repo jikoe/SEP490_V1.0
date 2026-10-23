@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>AgriSustain-Development-Configuration</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,38 +12,21 @@
     <Content Remove="Test\**" />
     <EmbeddedResource Remove="Test\**" />
     <None Remove="Test\**" />
+    <Compile Remove="Application\**\*.cs" />
+    <Compile Remove="Domain\**\*.cs" />
+    <Compile Remove="Infrastructure\**\*.cs" />
   </ItemGroup>
 
   <ItemGroup>
-	  <PackageReference Include="AutoMapper" Version="16.1.1" />
-	  <PackageReference Include="Microsoft.AspNetCore.OData" Version="8.3.1" />
-	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.28" />
-	  <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
-	  <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.23" />
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.23">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-	  </PackageReference>
-	  <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.23" />
-	  <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.2.3" />
-	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.2.3" />
-	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
-    <Folder Include="Api\Middlewares\" />
-    <Folder Include="Api\Security\" />
-    <Folder Include="Application\DTOs\" />
-    <Folder Include="Application\Mappings\" />
-    <Folder Include="Application\Interfaces\" />
-    <Folder Include="Application\Validators\" />
-    <Folder Include="Application\Services\" />
-    <Folder Include="Infrastructure\Data\" />
-    <Folder Include="Infrastructure\FileStorage\" />
-    <Folder Include="Infrastructure\Email\" />
-    <Folder Include="Infrastructure\Auditing\" />
-    <Folder Include="Infrastructure\BackgroundWorkers\" />
-    <Folder Include="Infrastructure\Payments\" />
-    <Folder Include="Infrastructure\UnitOfWork\" />
-    <Folder Include="Infrastructure\Repositories\" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.28" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.2.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.2.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Application\AgriSustain.Application.csproj" />
+    <ProjectReference Include="Infrastructure\AgriSustain.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

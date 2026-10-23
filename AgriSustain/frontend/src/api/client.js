@@ -12,7 +12,11 @@ export async function login(credentials, { signal } = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.message || 'Không thể đăng nhập. Vui lòng thử lại.');
+    const error = new Error(
+      data.detail
+        || data.title
+        || data.message
+        || `Đăng nhập thất bại (HTTP ${response.status}).`);
     error.status = response.status;
     throw error;
   }

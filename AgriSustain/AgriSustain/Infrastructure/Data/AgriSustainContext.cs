@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
-namespace AgriSustain.Domain.Entities;
+using AgriSustain.Domain.Entities;
+
+namespace AgriSustain.Infrastructure.Data;
 
 public partial class AgriSustainContext : DbContext
 {
@@ -128,10 +130,6 @@ public partial class AgriSustainContext : DbContext
     public virtual DbSet<VoucherRedemption> VoucherRedemptions { get; set; }
 
     public virtual DbSet<WholesaleBuyerProfile> WholesaleBuyerProfiles { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { }
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        //=> optionsBuilder.UseSqlServer("Server=localhost;Database=AgriSustain;UId=sa;pwd=123;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -1705,7 +1703,6 @@ public partial class AgriSustainContext : DbContext
         {
             entity.HasKey(e => e.UserId).HasName("PK__User__1788CC4C1EE96F0D");
 
-            entity.ToTable("User", tb => tb.HasTrigger("TR_User_Validate"));
 
             entity.HasIndex(e => e.Username, "UQ__User__536C85E46FD72E95").IsUnique();
 

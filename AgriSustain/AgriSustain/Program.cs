@@ -1,18 +1,18 @@
-using AgriSustain.Domain.Entities;
-using AgriSustain.Application.Interfaces;
-using AgriSustain.Application.Services;
+﻿using System.Text;
+using AgriSustain.Infrastructure;
+using AgriSustain.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<AgriSustainContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
+var jwtOptions = builder.Configuration
+    .GetSection(JwtOptions.SectionName)
+    .Get<JwtOptions>()
+    ?? throw new InvalidOperationException("JWT settings must be configured.");
+
+builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddControllers();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddProblemDetails();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -26,15 +26,17 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
-        ValidAudience = builder.Configuration["JWT:ValidAudience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]!))
+        ValidIssuer = jwtOptions.ValidIssuer,
+        ValidAudience = jwtOptions.ValidAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtOptions.Secret))
     };
 });
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.MapGet("/", () => "Hello World!");
 app.UseAuthentication();
 app.UseAuthorization();
