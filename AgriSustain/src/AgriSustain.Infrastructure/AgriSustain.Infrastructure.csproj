@@ -1,9 +1,36 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.26" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\AgriSustain.Application\AgriSustain.Application.csproj" />
     <ProjectReference Include="..\AgriSustain.Domain\AgriSustain.Domain.csproj" />
   </ItemGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Auditing\" />
+    <Folder Include="BackgroundWorkers\" />
+    <Folder Include="BackgroundWorkers\Compliance\" />
+    <Folder Include="BackgroundWorkers\Maintenance\" />
+    <Folder Include="BackgroundWorkers\Notifications\" />
+    <Folder Include="BackgroundWorkers\Orders\" />
+    <Folder Include="BackgroundWorkers\Payments\" />
+    <Folder Include="Data\" />
+    <Folder Include="Data\Configurations\" />
+    <Folder Include="Data\Contexts\" />
+    <Folder Include="Data\Migrations\" />
+    <Folder Include="Email\" />
+    <Folder Include="Email\Gmail\" />
+    <Folder Include="FileStorage\" />
+    <Folder Include="Payments\" />
+    <Folder Include="Payments\PayOS\" />
+    <Folder Include="Repositories\" />
+    <Folder Include="UnitOfWork\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Data/Geography/*.json;Data/Geography/LICENSE;Data/Geography/README.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

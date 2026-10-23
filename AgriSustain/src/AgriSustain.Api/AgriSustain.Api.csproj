@@ -1,6 +1,24 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.26">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\AgriSustain.Application\AgriSustain.Application.csproj" />
     <ProjectReference Include="..\AgriSustain.Infrastructure\AgriSustain.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Controllers\" />
+    <Folder Include="Middlewares\" />
+    <Folder Include="Properties\" />
+    <Folder Include="Security\" />
+    <Folder Include="Security\Authentication\" />
+    <Folder Include="Security\Authorization\" />
+    <Folder Include="Security\Authorization\Handlers\" />
+    <Folder Include="Security\Authorization\Requirements\" />
+    <Folder Include="Security\Policies\" />
   </ItemGroup>
 </Project>

@@ -1,2 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <Folder Include="Entities\" />
+    <Folder Include="Entities\Accounts\" />
+    <Folder Include="Entities\Billing\" />
+    <Folder Include="Entities\Catalog\" />
+    <Folder Include="Entities\Contracts\" />
+    <Folder Include="Entities\Engagement\" />
+    <Folder Include="Entities\Farming\" />
+    <Folder Include="Entities\Ordering\" />
+  </ItemGroup>
 </Project>

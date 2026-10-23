@@ -1,5 +1,67 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.11.0" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\AgriSustain.Domain\AgriSustain.Domain.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Common\" />
+    <Folder Include="DTOs\" />
+    <Folder Include="DTOs\Authentication\" />
+    <Folder Include="DTOs\Contracts\" />
+    <Folder Include="DTOs\Disputes\" />
+    <Folder Include="DTOs\Farming\" />
+    <Folder Include="DTOs\Finance\" />
+    <Folder Include="DTOs\Marketplace\" />
+    <Folder Include="DTOs\Moderation\" />
+    <Folder Include="DTOs\Orders\" />
+    <Folder Include="DTOs\PriceBenchmarks\" />
+    <Folder Include="DTOs\Profiles\" />
+    <Folder Include="DTOs\Promotions\" />
+    <Folder Include="DTOs\Subscriptions\" />
+    <Folder Include="DTOs\Traceability\" />
+    <Folder Include="DTOs\Verification\" />
+    <Folder Include="Interfaces\" />
+    <Folder Include="Interfaces\Auditing\" />
+    <Folder Include="Interfaces\Caching\" />
+    <Folder Include="Interfaces\Email\" />
+    <Folder Include="Interfaces\FileStorage\" />
+    <Folder Include="Interfaces\Identity\" />
+    <Folder Include="Interfaces\Payments\" />
+    <Folder Include="Interfaces\Repositories\" />
+    <Folder Include="Interfaces\Services\" />
+    <Folder Include="Interfaces\UnitOfWork\" />
+    <Folder Include="Mappings\" />
+    <Folder Include="Services\" />
+    <Folder Include="Services\Authentication\" />
+    <Folder Include="Services\Contracts\" />
+    <Folder Include="Services\Disputes\" />
+    <Folder Include="Services\Farming\" />
+    <Folder Include="Services\Finance\" />
+    <Folder Include="Services\Marketplace\" />
+    <Folder Include="Services\Moderation\" />
+    <Folder Include="Services\Orders\" />
+    <Folder Include="Services\PriceBenchmarks\" />
+    <Folder Include="Services\Profiles\" />
+    <Folder Include="Services\Promotions\" />
+    <Folder Include="Services\Subscriptions\" />
+    <Folder Include="Services\Traceability\" />
+    <Folder Include="Services\Verification\" />
+    <Folder Include="Validators\" />
+    <Folder Include="Validators\Authentication\" />
+    <Folder Include="Validators\Contracts\" />
+    <Folder Include="Validators\Disputes\" />
+    <Folder Include="Validators\Farming\" />
+    <Folder Include="Validators\Finance\" />
+    <Folder Include="Validators\Marketplace\" />
+    <Folder Include="Validators\Moderation\" />
+    <Folder Include="Validators\Orders\" />
+    <Folder Include="Validators\PriceBenchmarks\" />
+    <Folder Include="Validators\Profiles\" />
+    <Folder Include="Validators\Promotions\" />
+    <Folder Include="Validators\Subscriptions\" />
+    <Folder Include="Validators\Traceability\" />
+    <Folder Include="Validators\Verification\" />
   </ItemGroup>
 </Project>

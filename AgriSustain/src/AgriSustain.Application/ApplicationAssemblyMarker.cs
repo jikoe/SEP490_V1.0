@@ -1,3 +1,5 @@
 namespace AgriSustain.Application;
 
-public static class ApplicationAssemblyMarker { }
+public static class ApplicationAssemblyMarker
+{
+}

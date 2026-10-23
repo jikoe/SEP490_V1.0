@@ -1,126 +1,54 @@
-# AgriSustain
+# AgriSustain Code Structure
 
-Bộ khung ASP.NET Core Web API .NET 8 gồm bốn layer theo [Package_Diagram.drawio](https://app.diagrams.net/#G1mJnzsACg-bGQhl9gV-hjsKAF_qAYStPE). Application chia theo loại thành phần: Services, Interfaces, DTOs, Mappings, Validators và Common.
+ASP.NET Core Web API 8.0 giữ bốn project backend theo Report 4. Hiện có code cho đúng ba UC:
+UC-ADM-03 (trạng thái tài khoản), UC-ADM-05 (danh mục) và UC-RC-02 (checkout bán lẻ),
+cùng giao diện React. Ba UC đọc/ghi SQL Server trong Development; auth, điểm, phí giao và retry key vẫn giả lập theo yêu cầu.
 
-## Cấu trúc thư mục
+Cập nhật EF Core Database First: [cấu hình, lệnh scaffold và cách chạy](docs/ef-core-database-first.md).
+Đã lấy 47 entity từ database `AgriSustain`; [đối chiếu giao diện Report 3](docs/three-uc-srs-screen-review.md).
 
-```text
-AgriSustain/
-├── AgriSustain.sln
-├── Directory.Build.props
-├── global.json
-├── src/
-│   ├── AgriSustain.Api/
-│   │   ├── Controllers/
-│   │   ├── Security/
-│   │   ├── Middlewares/
-│   │   ├── Properties/
-│   │   │   └── launchSettings.json
-│   │   ├── appsettings.json
-│   │   ├── Program.cs
-│   │   └── AgriSustain.Api.csproj
-│   ├── AgriSustain.Application/
-│   │   ├── Services/
-│   │   ├── Interfaces/
-│   │   ├── DTOs/
-│   │   ├── Mappings/
-│   │   ├── Validators/
-│   │   ├── Common/
-│   │   ├── ApplicationAssemblyMarker.cs
-│   │   └── AgriSustain.Application.csproj
-│   ├── AgriSustain.Domain/
-│   │   ├── Entities/
-│   │   ├── DomainAssemblyMarker.cs
-│   │   └── AgriSustain.Domain.csproj
-│   └── AgriSustain.Infrastructure/
-│       ├── Data/
-│       ├── Repositories/
-│       ├── UnitOfWork/
-│       ├── Payments/
-│       ├── FileStorage/
-│       ├── Email/
-│       ├── Auditing/
-│       ├── BackgroundWorkers/
-│       ├── DependencyInjection.cs
-│       └── AgriSustain.Infrastructure.csproj
-├── frontend/
-├── tests/
-│   ├── Unit/
-│   ├── Integration/
-│   └── Architecture/
-└── docs/
-    └── package-map.md
-```
-
-Các package chưa có implementation chứa .gitkeep để Git lưu được thư mục. Properties và các file startup/project là thành phần hỗ trợ của .NET. Frontend và tests nằm ngoài bốn layer backend.
-
-## Hướng phụ thuộc
-
-```text
-Api            -> Application, Infrastructure
-Application    -> Domain
-Infrastructure -> Application, Domain
-Domain         -> không tham chiếu project khác
-```
-
-API tham chiếu Infrastructure để đăng ký DI trong Program.cs. Controller gọi application service thông qua interface, không thao tác trực tiếp repository implementation hoặc DbContext. Application chỉ phụ thuộc interface và Domain; Infrastructure triển khai các interface đó.
-
-React SPA giao tiếp với API qua HTTPS/JSON và Bearer JWT. SQL Server, PayOS/VietQR và Google Gmail API là tài nguyên/dịch vụ ngoài, được truy cập qua Infrastructure.
-
-## Đặt code theo sơ đồ
-
-| Thư mục | Trách nhiệm |
+| Project | Package chính |
 | --- | --- |
-| Api/Controllers | HTTP endpoint và payment webhook |
-| Api/Security | Cấu hình authentication, authorization, policy và handler |
-| Api/Middlewares | Xử lý exception và các bước trong HTTP pipeline |
-| Application/Services | Điều phối use case và transaction nghiệp vụ |
-| Application/Interfaces | Hợp đồng application service, repository, Unit of Work và tích hợp |
-| Application/DTOs | Request và response cho use case |
-| Application/Mappings | Chuyển đổi entity và DTO |
-| Application/Validators | Kiểm tra đầu vào trước khi xử lý |
-| Application/Common | Kiểu kết quả, phân trang và thành phần dùng chung |
-| Domain/Entities | Thực thể và hành vi bảo vệ quy tắc nghiệp vụ |
-| Infrastructure/Data | DbContext, EF Core configuration, migrations và seed khi triển khai |
-| Infrastructure/Repositories | Triển khai repository interface |
-| Infrastructure/UnitOfWork | Triển khai Unit of Work và quản lý transaction |
-| Infrastructure/Payments | Adapter PayOS/VietQR |
-| Infrastructure/FileStorage | Lưu ảnh và tài liệu |
-| Infrastructure/Email | Adapter Google Gmail API |
-| Infrastructure/Auditing | Ghi lịch sử hành động |
-| Infrastructure/BackgroundWorkers | Lập lịch và gọi lại application service qua DI scope |
+| `src/AgriSustain.Api` | `Controllers`, `Security`, `Middlewares` |
+| `src/AgriSustain.Application` | `Services`, `Interfaces`, `DTOs`, `Mappings`, `Validators`, `Common` |
+| `src/AgriSustain.Domain` | `Entities` |
+| `src/AgriSustain.Infrastructure` | `Data`, `Repositories`, `UnitOfWork`, `Payments`, `FileStorage`, `Email`, `Auditing`, `BackgroundWorkers` |
 
-Ví dụ vị trí file khi triển khai đặt hàng:
+`Program.cs` là điểm khởi động và đăng ký DI. Các lớp mở rộng đăng ký Application/Infrastructure đặt ở cấp gốc của project tương ứng; không tạo package `CompositionRoot` hoặc `DependencyInjection` riêng. `Properties` là cấu hình chạy của Visual Studio, không phải package nghiệp vụ.
 
-```text
-Api/Controllers/OrdersController.cs
-Application/Services/OrderService.cs
-Application/Interfaces/IOrderService.cs
-Application/Interfaces/IOrderRepository.cs
-Application/Interfaces/IUnitOfWork.cs
-Application/DTOs/CreateOrderRequest.cs
-Application/DTOs/OrderResponse.cs
-Application/Mappings/OrderMappings.cs
-Application/Validators/CreateOrderRequestValidator.cs
-Domain/Entities/Order.cs
-Infrastructure/Data/AppDbContext.cs
-Infrastructure/Repositories/OrderRepository.cs
-Infrastructure/UnitOfWork/UnitOfWork.cs
-```
+Các nhóm feature đặt trong Services, DTOs và Validators. Domain có Entities, ValueObjects
+và Exceptions thực sự được dùng bởi ba UC.
 
-Các file ví dụ trên chưa được triển khai. Khi số lượng file tăng, có thể nhóm theo nghiệp vụ bên trong từng package mà vẫn giữ các package cấp đầu của sơ đồ.
+## Mở và chạy backend
 
-## Mở và chạy
-
-Mở AgriSustain.sln trong Visual Studio, chọn AgriSustain.Api làm startup project. TargetFramework net8.0 được khai báo chung trong Directory.Build.props.
+Mở `AgriSustain.sln` trong Visual Studio và chọn startup project `AgriSustain.Api`. Cài .NET SDK phù hợp với `global.json`.
 
 ```powershell
-dotnet build AgriSustain.sln
-dotnet run --project src/AgriSustain.Api
+dotnet restore AgriSustain.sln
+npm --prefix frontend ci
+npm --prefix frontend run build
+dotnet run --project src/AgriSustain.Api --configuration Release
 ```
 
-Endpoint kiểm tra: http://localhost:5179/health.
+Mở http://localhost:5179 để dùng giao diện đã build. Health: http://localhost:5179/health.
+Visual Studio: chọn AgriSustain.Api làm startup project, profile Development và F5.
 
-Program.cs là composition root đăng ký service, mapping, validator và gọi AddInfrastructure. Hiện chưa có application service cần đăng ký; AddInfrastructure vẫn là điểm mở rộng trống. Chưa triển khai EF Core, JWT, PayOS, Gmail hoặc nghiệp vụ. Frontend và tests vẫn là bộ khung.
+## Trạng thái triển khai
 
-Xem [package-map.md](docs/package-map.md) để đối chiếu từng package với sơ đồ.
+Logic ba UC đã có trong Domain/Application/API. Có xUnit UT, API/demo integration,
+architecture tests và E2E cho ba màn hình. Selector phiên là fixture, không phải đăng nhập.
+Development mặc định SqlServer qua EF Core: restart giữ dữ liệu SQL. Auth/điểm/retry-key cache vẫn reset
+theo mock; Demo chỉ chạy khi Development và Demo:Enabled bật; chưa có JWT/PayOS thật.
+Xem [seed và chạy SQL](database/demo-data-and-web.md), [luồng theo file](docs/three-uc-file-flows.md)
+và [hướng dẫn/đối chiếu test](docs/three-uc-testing-guide-and-report-review.md).
+
+Theo yêu cầu mới, bản EF/UI chỉ build và kiểm tra nhanh trong lúc chờ duyệt code;
+chưa chạy lại bộ unit/integration/E2E chi tiết. Kết quả test cũ không xác nhận bản này.
+
+- [Hướng dẫn chạy, API, comment và thay từng mock](docs/three-uc-demo-and-integration.md).
+- [16 vấn đề database và giải pháp](docs/database-issues-and-solutions.md).
+- [Database đã cập nhật và bộ SQL](database/README.md).
+- [Kiểm tra code, comment và điểm tích hợp](docs/three-uc-code-review.md).
+- [Tests](tests/README.md).
+
+Xem [docs/package-map.md](docs/package-map.md) để đối chiếu 18 package, hướng phụ thuộc và quy ước namespace.

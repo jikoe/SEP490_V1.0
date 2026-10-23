@@ -4,7 +4,10 @@
 .dotnet-cli/
 frontend/node_modules/
 frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
 *.user
+**/appsettings.Local.json
 .env
 .env.*
 !.env.example
