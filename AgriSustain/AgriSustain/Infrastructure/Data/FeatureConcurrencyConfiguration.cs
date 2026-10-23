@@ -7,6 +7,7 @@ public partial class AgriSustainContext
 {
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        ConfigureUseCaseModel(modelBuilder);
         modelBuilder.Entity<SellerOrder>().Property(x => x.Status).IsConcurrencyToken();
         modelBuilder.Entity<HarvestBatch>().Property(x => x.AvailableQuantity).IsConcurrencyToken();
         modelBuilder.Entity<HarvestBatch>().Property(x => x.ReservedQuantity).IsConcurrencyToken();

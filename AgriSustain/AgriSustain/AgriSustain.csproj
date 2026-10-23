@@ -46,5 +46,12 @@
     <Folder Include="Infrastructure\Repositories\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="Infrastructure/Data/Geography/*.json"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Infrastructure/Data/Geography/LICENSE;Infrastructure/Data/Geography/README.md"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
 

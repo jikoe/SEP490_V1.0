@@ -29,11 +29,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using AgriSustain.Api;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddDbContext<AgriSustainContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("MyCnn")));
+builder.Configuration.AddJsonFile("appsettings.Checkout.json", optional: false)
+    .AddEnvironmentVariables().AddCommandLine(args);
+builder.Services.AddThreeUseCases(builder.Configuration);
 
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter()));
@@ -124,6 +125,11 @@ app.MapGet("/health/database", async (AgriSustainContext database, CancellationT
     bool connected = await database.Database.CanConnectAsync(cancellationToken);
     return connected ? Results.Ok(new { connected }) : Results.Json(new { connected }, statusCode: 503);
 });
+app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/users")
+    || context.Request.Path.StartsWithSegments("/api/categories")
+    || context.Request.Path.StartsWithSegments("/api/checkout"), branch =>
+        branch.UseMiddleware<ExceptionMiddleware>());
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ActiveFeatureAccountMiddleware>();

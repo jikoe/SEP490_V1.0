@@ -219,7 +219,8 @@ export default function App() {
   const [databaseReady, setDatabaseReady] = useState(false);
 
   // Xác định role hiện tại (ưu tiên session từ DB, nếu không có thì lấy fixture demo)
-  const currentRoleRaw = session ? session.user.role : (fixture ? ROLE_CONFIGS[fixture]?.title : null);
+  const isPublicMarketplace = !session && !fixture && route === '/retail/dashboard';
+  const currentRoleRaw = session ? session.user.role : (fixture ? ROLE_CONFIGS[fixture]?.title : (isPublicMarketplace ? ROLE_CONFIGS.retail_customer.title : null));
   const roleKey = normalizeRole(currentRoleRaw);
   const roleConfig = ROLE_CONFIGS[roleKey] || ROLE_CONFIGS.guest;
   const isMarketplace = route === '/' || route.split('?')[0] === '/marketplace'
@@ -270,12 +271,16 @@ export default function App() {
   }
 
   function completeLogin(loginData) {
+    const roleValue = loginData?.user?.role;
+    const targetKey = normalizeRole(roleValue);
+    const targetConfig = ROLE_CONFIGS[targetKey];
+    if (!roleValue || !targetConfig || targetKey === 'guest') {
+      throw new Error('Tài khoản chưa có vai trò hợp lệ để mở đúng khu vực làm việc.');
+    }
     setSession(loginData);
     setCurrentSession(loginData);
     setFixture(null);
     sessionStorage.removeItem('agrisustain:demo-fixture');
-    const targetKey = normalizeRole(loginData?.user?.role);
-    const targetConfig = ROLE_CONFIGS[targetKey] || ROLE_CONFIGS.administrator;
     navigate(targetConfig.landingRoute);
   }
 
@@ -293,7 +298,7 @@ export default function App() {
   }
 
   // Nếu chưa đăng nhập và không có phiên demo -> Hiển thị LoginScreen
-  if (!session && !fixture && route !== '/register') {
+  if (!session && !fixture && route !== '/register' && route !== '/retail/dashboard') {
     return <LoginScreen onLogin={completeLogin} onDemo={() => enterDemo('guest')} />;
   }
 

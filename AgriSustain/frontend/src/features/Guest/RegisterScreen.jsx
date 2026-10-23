@@ -136,14 +136,13 @@ export default function RegisterScreen({ navigate }) {
       }
 
       const user = await res.json();
-      sessionStorage.setItem('agrisustain:current-user', JSON.stringify(user));
-      sessionStorage.setItem('agrisustain:demo-fixture', user.email);
-      window.dispatchEvent(new Event('agrisustain:user-changed'));
+      sessionStorage.removeItem('agrisustain:current-user');
+      sessionStorage.removeItem('agrisustain:demo-fixture');
       setLoading(false);
       setOtpModalOpen(false);
       setSuccessNotice(`MSG56: Đăng ký tài khoản thành công cho ${user.fullName || form.fullName}! Thông tin đã được lưu vào cơ sở dữ liệu.`);
       setTimeout(() => {
-        if (navigate) navigate('/profile');
+        if (navigate) navigate('/login');
       }, 1200);
     } catch (err) {
       setLoading(false);
