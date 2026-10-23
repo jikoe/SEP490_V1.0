@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -14,7 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
+	  <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
 	  <PackageReference Include="AutoMapper" Version="16.1.1" />
+	  <PackageReference Include="FluentValidation" Version="11.11.0" />
 	  <PackageReference Include="Microsoft.AspNetCore.OData" Version="8.3.1" />
 	  <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.28" />
 	  <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
@@ -35,7 +37,6 @@
     <Folder Include="Application\Interfaces\" />
     <Folder Include="Application\Validators\" />
     <Folder Include="Application\Services\" />
-    <Folder Include="Infrastructure\Data\" />
     <Folder Include="Infrastructure\FileStorage\" />
     <Folder Include="Infrastructure\Email\" />
     <Folder Include="Infrastructure\Auditing\" />
@@ -46,3 +47,4 @@
   </ItemGroup>
 
 </Project>
+

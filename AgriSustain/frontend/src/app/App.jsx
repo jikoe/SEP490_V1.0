@@ -1,13 +1,21 @@
+import '../styles/customer-portal.css';
 import React, { useEffect, useState } from 'react';
 import UsersScreen from '../features/Administrator/UsersScreen';
 import CategoriesScreen from '../features/Administrator/CategoriesScreen';
 import AdminDashboard from '../features/Administrator/AdminDashboard';
 import NotificationServiceDashboard from '../features/Gmail Notification Service API/NotificationServiceDashboard';
 import ProductListingModerationScreen from '../features/Content Moderator/ProductListingModerationScreen';
-import FarmerDashboard from '../features/Farmer/FarmerDashboard';
+import ProductsScreen from '../features/Farmer/ProductsScreen';
+import OrdersScreen from '../features/Farmer/OrdersScreen';
+import CartScreen from '../features/RetailCustomer/CartScreen';
 import WholesaleDashboard from '../features/WholesaleBuyer/WholesaleDashboard';
 import Marketplace from '../features/Marketplace/Marketplace';
 import CheckoutScreen from '../features/RetailCustomer/CheckoutScreen';
+import RegisterScreen from '../features/Guest/RegisterScreen';
+import ProfileScreen from '../features/RetailCustomer/ProfileScreen';
+import OrderTrackingScreen from '../features/RetailCustomer/OrderTrackingScreen';
+import CustomerPortalApp from './CustomerPortalApp';
+
 import VerificationDashboard from '../features/Verification Officer/VerificationDashboard';
 import SupportDashboard from '../features/Customer Support/SupportDashboard';
 import PromotionsDashboard from '../features/Promotion Staff/PromotionsDashboard';
@@ -68,9 +76,11 @@ export const ROLE_CONFIGS = {
     portalCategory: 'TRANG TRẠI & NÔNG HỘ',
     avatar: 'F',
     hasSidebar: true,
-    landingRoute: '/farmer/dashboard',
+    landingRoute: '/farmer/products',
     navItems: [
-      { key: 'farmer-dash', label: 'Tổng quan nông trại', icon: '📊', path: '/farmer/dashboard' },
+      { key: 'farmer-products', label: 'Quản lý sản phẩm', icon: '🌾', path: '/farmer/products' },
+      { key: 'farmer-orders', label: 'Xử lý đơn hàng', icon: '📦', path: '/farmer/orders' },
+      { key: 'farmer-profile', label: 'Hồ sơ nông hộ & KYC', icon: '🌾', path: '/farmer/profile' },
     ],
   },
   wholesale_buyer: {
@@ -95,8 +105,10 @@ export const ROLE_CONFIGS = {
     hasSidebar: false, // Riêng RetailCustomer là không có thanh bên
     landingRoute: '/marketplace',
     navItems: [
-      { key: 'retail-dash', label: 'Trang chủ mua sắm', icon: '🏠', path: '/marketplace' },
-      { key: 'checkout', label: 'Thanh toán & Đơn hàng', icon: '🛒', path: '/checkout' },
+      { key: 'retail-dash', label: 'Trang chủ mua sắm', icon: '🏠', path: '/retail/dashboard' },
+      { key: 'cart', label: 'Giỏ hàng', icon: '🛒', path: '/cart' },
+      { key: 'retail-orders', label: 'Đơn hàng của tôi', icon: '📦', path: '/retail/orders' },
+      { key: 'retail-profile', label: 'Hồ sơ cá nhân', icon: '👤', path: '/retail/profile' },
     ],
   },
   verification_officer: {
@@ -243,6 +255,11 @@ export default function App() {
     return () => controller.abort();
   }, [isMarketplace]);
 
+  useEffect(() => {
+    if (route === '/farmer/dashboard') navigate('/farmer/products');
+    else if (route === '/cart/checkout') navigate('/checkout');
+  }, [route]);
+
   function enterDemo(roleKeyName = 'administrator') {
     clearSession();
     setCurrentSession(null);
@@ -276,7 +293,7 @@ export default function App() {
   }
 
   // Nếu chưa đăng nhập và không có phiên demo -> Hiển thị LoginScreen
-  if (!session && !fixture) {
+  if (!session && !fixture && route !== '/register') {
     return <LoginScreen onLogin={completeLogin} onDemo={() => enterDemo('guest')} />;
   }
 
@@ -286,7 +303,9 @@ export default function App() {
   else if (route.startsWith('/administration/categories')) currentTitle = 'Danh mục sản phẩm';
   else if (route.startsWith('/administration/dashboard')) currentTitle = 'Tổng quan hệ thống';
   else if (route.startsWith('/moderation/products')) currentTitle = 'Kiểm duyệt sản phẩm';
-  else if (route.startsWith('/farmer/dashboard')) currentTitle = 'Tổng quan nông trại';
+  else if (route.startsWith('/farmer/products')) currentTitle = 'Quản lý sản phẩm';
+  else if (route.startsWith('/farmer/orders')) currentTitle = 'Xử lý đơn hàng';
+  else if (route.startsWith('/cart')) currentTitle = 'Giỏ hàng';
   else if (route.startsWith('/wholesale/dashboard')) currentTitle = 'Tổng quan mua buôn B2B';
   else if (route.startsWith('/retail/dashboard')) currentTitle = 'Cửa hàng nông sản';
   else if (route.startsWith('/checkout')) currentTitle = 'Thanh toán & Đơn hàng';
@@ -430,9 +449,20 @@ export default function App() {
           {route.startsWith('/administration/users') && <UsersScreen fixture={fixture} route={route} navigate={navigate} />}
           {route.startsWith('/administration/categories') && <CategoriesScreen fixture={fixture} route={route} navigate={navigate} />}
           {route.startsWith('/moderation/products') && <ProductListingModerationScreen route={route} navigate={navigate} />}
-          {route.startsWith('/farmer/dashboard') && <FarmerDashboard navigate={navigate} />}
+          {route.startsWith('/farmer/products') && <ProductsScreen route={route} navigate={navigate} />}
+          {route.startsWith('/farmer/orders') && <OrdersScreen route={route} navigate={navigate} />}
+          {route.startsWith('/cart') && <CartScreen navigate={navigate} />}
           {route.startsWith('/wholesale/dashboard') && <WholesaleDashboard navigate={navigate} />}
-          {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} />}
+          {route.startsWith('/retail/dashboard') && <RetailCustomerDashboard navigate={navigate} />}
+          {route.startsWith('/register') && <RegisterScreen navigate={navigate} />}
+          {route.startsWith('/retail/profile') && <ProfileScreen fixture="retail-customer" navigate={navigate} />}
+          {route.startsWith('/farmer/profile') && <ProfileScreen fixture="farmer" navigate={navigate} />}
+          {route.startsWith('/profile') && <ProfileScreen navigate={navigate} />}
+          {route.startsWith('/retail/orders') && <OrderTrackingScreen fixture="retail-customer" navigate={navigate} />}
+          {route.startsWith('/orders') && <OrderTrackingScreen navigate={navigate} />}
+          {route.startsWith('/customer-portal') && <CustomerPortalApp />}
+
+          {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} navigate={navigate} />}
           {route.startsWith('/verification/dashboard') && <VerificationDashboard navigate={navigate} />}
           {route.startsWith('/support/dashboard') && <SupportDashboard navigate={navigate} />}
           {route.startsWith('/promotions/dashboard') && <PromotionsDashboard navigate={navigate} />}
@@ -441,11 +471,11 @@ export default function App() {
           {route.startsWith('/notifications/dashboard') && <NotificationServiceDashboard navigate={navigate} />}
 
           {/* Fallback nếu đường dẫn không khớp với màn hình nào */}
-          {!['/administration/dashboard', '/administration/users', '/administration/categories',
+          {!['/farmer/products', '/farmer/orders', '/cart', '/administration/dashboard', '/administration/users', '/administration/categories',
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
              '/retail/dashboard', '/checkout', '/verification/dashboard',
              '/support/dashboard', '/promotions/dashboard', '/finance/dashboard',
-             '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard'].some((p) => route.startsWith(p)) && (
+             '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/customer-portal'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <h2>Đang chuyển hướng về trang làm việc của bạn...</h2>
               <button className="primary" style={{ marginTop: 15 }} onClick={() => navigate(roleConfig.landingRoute)}>

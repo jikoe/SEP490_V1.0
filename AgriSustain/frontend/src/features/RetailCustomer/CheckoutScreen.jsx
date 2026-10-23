@@ -11,7 +11,7 @@ const initial = { address: emptyAddress, deliveryMethod: 'Standard', paymentMeth
  * Coordinates the owned checkout context, linked province/ward options, server quote and
  * placement confirmation. Cart editing and QR/payment screens remain external modules.
  */
-export default function CheckoutScreen({ fixture }) {
+export default function CheckoutScreen({ fixture, navigate }) {
   const [context, setContext] = useState(null);
   const [provinces, setProvinces] = useState([]);
   const [wards, setWards] = useState([]);
@@ -123,7 +123,7 @@ export default function CheckoutScreen({ fixture }) {
         setReviewItems([]); setError(''); setMessage(''); setRefresh((value) => value + 1);
       }}>Đóng kết quả</button></div></section>;
 
-  return <section><div className="breadcrumbs"><span>Giỏ hàng</span><span>/</span><span>Thanh toán</span></div>
+  return <section><div className="breadcrumbs"><button type="button" className="text-button" onClick={() => navigate('/cart')}>Giỏ hàng</button><span>/</span><span>Thanh toán</span></div>
     <div className="section-heading"><div><h1>Thanh toán đơn bán lẻ</h1>
       <p className="muted">Kiểm tra sản phẩm, thông tin giao hàng và tổng tiền trước khi đặt.</p>
     </div><span className="step"><strong>01 Xác nhận đơn</strong><span>→ 02 Thanh toán</span></span></div>

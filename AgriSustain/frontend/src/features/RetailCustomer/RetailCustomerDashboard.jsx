@@ -28,9 +28,9 @@ export default function RetailCustomerDashboard({ navigate }) {
             <button
               className="primary"
               style={{ background: '#fff', color: '#165639', borderColor: '#fff', fontWeight: 650, padding: '12px 22px' }}
-              onClick={() => navigate('/checkout')}
+              onClick={() => document.getElementById('retail-featured-products')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
             >
-              🛒 Mua sắm & Thanh toán ngay
+              🛒 Khám phá nông sản
             </button>
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function RetailCustomerDashboard({ navigate }) {
         <h2 style={{ fontSize: 18, marginBottom: 16 }}>Danh mục mùa vụ tuyển chọn</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
           {categories.map((c, i) => (
-            <div key={i} className="panel padded" style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }} onClick={() => navigate('/checkout')}>
+            <div key={i} className="panel padded" style={{ display: 'flex', alignItems: 'center', gap: 14, }}>
               <div style={{ fontSize: 32, width: 50, height: 50, borderRadius: 10, background: c.color, display: 'grid', placeItems: 'center' }}>
                 {c.icon}
               </div>
@@ -91,11 +91,11 @@ export default function RetailCustomerDashboard({ navigate }) {
         </div>
       </div>
 
-      <div className="panel padded">
+      <div id="retail-featured-products" className="panel padded">
         <div className="record-heading" style={{ padding: '0 0 16px' }}>
           <h2>Sản phẩm tươi mới hôm nay</h2>
-          <button className="text-button" onClick={() => navigate('/checkout')}>
-            Xem giỏ hàng & thanh toán →
+          <button className="text-button" onClick={() => navigate('/cart')}>
+            Xem giỏ hàng →
           </button>
         </div>
         <div className="table-wrap">
@@ -122,8 +122,8 @@ export default function RetailCustomerDashboard({ navigate }) {
                   <td><strong style={{ color: '#166e43' }}>{p.price}</strong></td>
                   <td><span className="badge Active">✓ {p.cert}</span></td>
                   <td>
-                    <button className="primary" style={{ padding: '6px 14px', fontSize: 11 }} onClick={() => navigate('/checkout')}>
-                      Đặt hàng
+                    <button className="primary" style={{ padding: '6px 14px', fontSize: 11 }} onClick={() => navigate('/cart')}>
+                      Đến giỏ hàng
                     </button>
                   </td>
                 </tr>
@@ -135,3 +135,4 @@ export default function RetailCustomerDashboard({ navigate }) {
     </div>
   );
 }
+

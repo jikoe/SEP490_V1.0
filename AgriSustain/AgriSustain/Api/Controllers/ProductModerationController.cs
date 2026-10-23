@@ -59,7 +59,7 @@ public sealed class ProductModerationController : ControllerBase
                 farmerName = product.FarmerProfile.User.FullName,
                 farmName = product.FarmerProfile.FarmName,
                 submittedAt = product.CreatedAt,
-                imageUrl = product.ProductImage != null ? product.ProductImage.ImageUrl : null
+                imageUrl = product.ProductImages.OrderByDescending(image => image.IsPrimary).Select(image => image.ImageUrl).FirstOrDefault()
             })
             .ToListAsync(cancellationToken);
 
@@ -71,7 +71,7 @@ public sealed class ProductModerationController : ControllerBase
     {
         var product = await _context.Products.AsNoTracking()
             .Include(item => item.Category)
-            .Include(item => item.ProductImage)
+            .Include(item => item.ProductImages)
             .Include(item => item.FarmerProfile).ThenInclude(farmer => farmer.User)
             .Include(item => item.HarvestBatches).ThenInclude(batch => batch.CropSeason)
             .Include(item => item.HarvestBatches).ThenInclude(batch => batch.TraceabilityQrcode)
@@ -102,16 +102,8 @@ public sealed class ProductModerationController : ControllerBase
             name = product.ProductName,
             description = product.Description,
             category = product.Category.CategoryName,
-            images = product.ProductImage != null
-                ? new[]
-                {
-                    new
-                    {
-                        product.ProductImage.ImageUrl,
-                        product.ProductImage.AltText
-                    }
-                }
-                : Array.Empty<object>(),
+            images = product.ProductImages.OrderBy(image => image.DisplayOrder)
+                .Select(image => new { image.ImageUrl, image.AltText }),
             retailPrice = product.BaseRetailPrice,
             wholesalePrice = product.WholesalePrice,
             wholesaleMinQuantity = product.WholesaleMinQuantity,
@@ -216,3 +208,4 @@ public sealed class ProductModerationController : ControllerBase
 
     public sealed record RejectProductRequest(string? Reason);
 }
+

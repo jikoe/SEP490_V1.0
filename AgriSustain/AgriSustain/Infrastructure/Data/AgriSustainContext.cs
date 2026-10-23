@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AgriSustain.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using AgriSustain.Domain.Entities;
 
 namespace AgriSustain.Infrastructure.Data;
 
@@ -1854,3 +1854,4 @@ public partial class AgriSustainContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
+
