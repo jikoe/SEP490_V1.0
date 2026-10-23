@@ -1703,6 +1703,11 @@ public partial class AgriSustainContext : DbContext
         {
             entity.HasKey(e => e.UserId).HasName("PK__User__1788CC4C1EE96F0D");
 
+            entity.ToTable("User", table =>
+            {
+                table.HasTrigger("TR_User_Validate");
+                table.UseSqlOutputClause(false);
+            });
 
             entity.HasIndex(e => e.Username, "UQ__User__536C85E46FD72E95").IsUnique();
 
