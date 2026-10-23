@@ -373,8 +373,8 @@ export default function RegisterScreen({ navigate }) {
         <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#688273' }}>
           Đã có tài khoản AgriSustain?{' '}
           <a
-            href="#/profile"
-            onClick={(e) => { e.preventDefault(); navigate('/profile'); }}
+            href="#/login"
+            onClick={(e) => { e.preventDefault(); navigate('/login'); }}
             style={{ color: '#1e6546', fontWeight: 700, textDecoration: 'none' }}
           >
             Đăng nhập ngay
