@@ -14,6 +14,16 @@ public sealed class UpdateConsumerProfileValidator : AbstractValidator<UpdateCon
         RuleFor(x => x.PhoneNumber)
             .NotEmpty().WithMessage("Số điện thoại không được để trống.")
             .Matches(@"^0\d{9}$").WithMessage("Số điện thoại phải có 10 chữ số, bắt đầu bằng 0.");
+
+        When(x => !string.IsNullOrWhiteSpace(x.ProvinceCode) || !string.IsNullOrWhiteSpace(x.WardCode)
+            || !string.IsNullOrWhiteSpace(x.AddressDetail), () =>
+        {
+            RuleFor(x => x.ProvinceCode).NotEmpty().WithMessage("Vui lòng chọn tỉnh / thành phố.");
+            RuleFor(x => x.WardCode).NotEmpty().WithMessage("Vui lòng chọn phường / xã.");
+            RuleFor(x => x.AddressDetail)
+                .NotEmpty().WithMessage("Địa chỉ chi tiết không được để trống.")
+                .MaximumLength(255).WithMessage("Địa chỉ chi tiết không quá 255 ký tự.");
+        });
     }
 }
 

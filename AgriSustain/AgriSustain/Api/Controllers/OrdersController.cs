@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AgriSustain.Api.Controllers;
 
 [ApiController]
-[AllowAnonymous]
+[Authorize(Roles = "RetailCustomer")]
 [Route("api/orders")]
 public sealed class OrdersController(IOrderTrackingService service) : ControllerBase
 {

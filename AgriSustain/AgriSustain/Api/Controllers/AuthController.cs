@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Mvc;
 namespace AgriSustain.Api.Controllers;
 
 [ApiController]
-[AllowAnonymous]
 [Route("api/auth")]
 public sealed class AuthController : ControllerBase
 {
@@ -21,6 +20,7 @@ public sealed class AuthController : ControllerBase
         _registrationService = registrationService;
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
@@ -38,18 +38,29 @@ public sealed class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [AllowAnonymous]
     [HttpPost("register")]
     public async Task<IActionResult> Register(
         [FromBody] RegisterRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _registrationService.InitiateRegistrationAsync(request, cancellationToken), HttpContext);
 
+    [AllowAnonymous]
     [HttpPost("verify-otp")]
     public async Task<IActionResult> VerifyOtp(
         [FromBody] VerifyOtpRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _registrationService.VerifyOtpAndCompleteRegistrationAsync(request, cancellationToken), HttpContext);
 
+    [AllowAnonymous]
     [HttpPost("resend-otp")]
     public async Task<IActionResult> ResendOtp(
         [FromBody] ResendOtpRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _registrationService.ResendOtpAsync(request, cancellationToken), HttpContext);
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(
+            await _authService.ChangePasswordAsync(request, cancellationToken),
+            HttpContext);
 }

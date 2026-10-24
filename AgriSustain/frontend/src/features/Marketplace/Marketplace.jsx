@@ -9,7 +9,8 @@ const priceRanges = [
   ['100to200', '100.000đ – 200.000đ'], ['over200', 'Trên 200.000đ'],
 ];
 
-export default function Marketplace({ route, navigate, session, onLogout, accountRoute }) {
+export default function Marketplace({ route, navigate, session, onLogout, accountLinks = [] }) {
+  const canBuy = session?.user.role === 'RetailCustomer';
   const query = route.includes('?') ? `?${route.split('?')[1]}` : '';
   const params = new URLSearchParams(query);
   const productId = route.split('?')[0].match(/^\/marketplace\/products\/(.+)$/)?.[1];
@@ -96,16 +97,19 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
         {keyword && <button type="button" className="mkt-search-clear" aria-label="Xóa tìm kiếm"
           onClick={() => { setKeyword(''); searchInput.current?.focus(); }}><span aria-hidden="true">×</span></button>}
       </form>
-      {!productId && <button type="button" className="mkt-cart-button" aria-label="Giỏ hàng"
-        title="Chức năng giỏ hàng hiện chưa khả dụng." disabled><Icon name="cart" /></button>}
+      {canBuy ? <button type="button" className="mkt-cart-button" aria-label="Giỏ hàng" title="Giỏ hàng"
+        onClick={() => navigate('/cart')}><Icon name="cart" /></button>
+        : !session && <a className="mkt-cart-button" href="#/login" aria-label="Đăng nhập để mua hàng"
+          title="Đăng nhập để mua hàng"><Icon name="cart" /></a>}
       {session ? <details className="mkt-account">
         <summary><Icon name="user" /><span>{session.user.fullName}</span><span>⌄</span></summary>
-        <div><a href={`#${accountRoute}`}>Tài khoản của tôi</a>
+        <div>{accountLinks.map(link => <a key={link.path} href={`#${link.path}`}>{link.label}</a>)}
+          <a href="#/account/password">Đổi mật khẩu</a>
           <button onClick={onLogout}>Đăng xuất</button></div>
       </details> : <a className="mkt-login" href="#/login"><Icon name="user" />Đăng nhập</a>}
     </header>
     {productId ? <ProductDetail key={productId} productId={productId} query={query}
-      reload={reload} />
+      reload={reload} session={session} navigate={navigate} />
       : <main className="mkt-layout">
         <aside className="mkt-sidebar" aria-label="Bộ lọc sản phẩm">
           <h2><Icon name="grid" />Danh mục sản phẩm</h2>

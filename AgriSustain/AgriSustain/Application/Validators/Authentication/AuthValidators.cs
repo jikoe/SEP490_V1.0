@@ -21,12 +21,7 @@ public sealed partial class RegisterRequestValidator : AbstractValidator<Registe
             .EmailAddress().WithMessage("Định dạng email không hợp lệ.")
             .MaximumLength(255).WithMessage("Email không được vượt quá 255 ký tự.");
 
-        RuleFor(x => x.Password)
-            .NotEmpty().WithMessage("Mật khẩu không được để trống.")
-            .MinimumLength(8).WithMessage("Mật khẩu phải có ít nhất 8 ký tự.")
-            .Matches(@"[A-Z]").WithMessage("Mật khẩu phải có ít nhất 1 chữ hoa.")
-            .Matches(@"[a-z]").WithMessage("Mật khẩu phải có ít nhất 1 chữ thường.")
-            .Matches(@"[0-9]").WithMessage("Mật khẩu phải có ít nhất 1 chữ số.");
+        RuleFor(x => x.Password).StrongPassword();
 
         RuleFor(x => x.ConfirmPassword)
             .Equal(x => x.Password).WithMessage("Mật khẩu xác nhận không khớp.");

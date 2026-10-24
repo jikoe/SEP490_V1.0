@@ -16,27 +16,54 @@ export async function login(credentials, { signal } = {}) {
   return data;
 }
 
-/**
- * Sends JSON to the same-origin API using the existing authenticated session.
- */
-export async function request(path, { signal, method = 'GET', body } = {}) {
+/** Sends a request to the same-origin API with the session token, if any. */
+async function send(path, { signal, method = 'GET', body } = {}) {
   const session = getSession();
   const response = await fetch(`/api${path}`, {
     method,
     signal,
     headers: {
       ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      // Uploads let the browser set the multipart boundary.
+      ...(body === undefined || body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     },
     body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));
+  return { response, data };
+}
+
+/**
+ * Sends JSON to the same-origin API using the existing authenticated session. Field errors stay
+ * in `error.fields` for screens that list them separately.
+ */
+export async function request(path, options) {
+  const { response, data } = await send(path, options);
   if (!response.ok) {
     const error = new Error(data.title || data.message || (response.status === 401 ? 'Vui lòng đăng nhập bằng tài khoản thật để sử dụng chức năng.' : 'Không thể tải dữ liệu. Vui lòng thử lại.'));
     error.code = data.code;
     error.fields = data.errors || {};
     error.status = response.status;
     throw error;
+  }
+  return data;
+}
+
+/**
+ * Request contract of UC-ADM-03, UC-ADM-05 and UC-RC-02: requires a signed-in session (a demo
+ * selector never grants access) and folds field errors into the message.
+ */
+export async function requestUseCase(path, options) {
+  if (!getSession()?.accessToken) throw new Error('Vui lòng đăng nhập để sử dụng chức năng này.');
+  const { response, data } = await send(path, options);
+  if (!response.ok) {
+    const fieldMessages = data.errors ? Object.values(data.errors).flat().join(' ') : '';
+    const failure = new Error(fieldMessages || data.title || (response.status === 401
+      ? 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.'
+      : response.status === 403 ? 'Tài khoản không có quyền hoặc đang bị hạn chế.'
+        : 'Không thể hoàn tất thao tác. Vui lòng thử lại.'));
+    failure.code = data.code; failure.status = response.status;
+    throw failure;
   }
   return data;
 }

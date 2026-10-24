@@ -12,6 +12,9 @@ public sealed class OrderTrackingService(
     ICurrentUser currentUser,
     IValidator<OrderQuery> queryValidator) : IOrderTrackingService
 {
+    private static readonly Error s_signInRequired = new(
+        "UNAUTHORIZED", "Vui lòng đăng nhập để xem đơn hàng của bạn.", "Unauthorized");
+
     public async Task<Result<PagedResponse<OrderSummaryDto>>> GetOrderHistoryAsync(
         OrderQuery query, CancellationToken cancellationToken)
     {
@@ -23,8 +26,15 @@ public sealed class OrderTrackingService(
 
         return await unitOfWork.ReadAsync(async uow =>
         {
-            long buyerId = currentUser.UserId ?? 1;
-            var pagedOrders = await uow.Orders.GetOrdersByBuyerAsync(buyerId, query, cancellationToken);
+            if (currentUser.UserId is not long buyerId)
+            {
+                return Result<PagedResponse<OrderSummaryDto>>.FailureResult(s_signInRequired);
+            }
+
+            var pagedOrders = await uow.Orders.GetOrdersByBuyerAsync(
+                buyerId,
+                query,
+                cancellationToken);
             return Result<PagedResponse<OrderSummaryDto>>.SuccessResult(pagedOrders);
         }, cancellationToken);
     }
@@ -33,7 +43,11 @@ public sealed class OrderTrackingService(
         long orderId, CancellationToken cancellationToken) =>
         unitOfWork.ReadAsync(async uow =>
         {
-            long buyerId = currentUser.UserId ?? 1;
+            if (currentUser.UserId is not long buyerId)
+            {
+                return Result<OrderDetailDto>.FailureResult(s_signInRequired);
+            }
+
             var order = await uow.Orders.GetOrderDetailAsync(buyerId, orderId, cancellationToken);
             return order == null
                 ? Result<OrderDetailDto>.FailureResult(new Error(
@@ -45,8 +59,15 @@ public sealed class OrderTrackingService(
         string orderCode, CancellationToken cancellationToken) =>
         unitOfWork.ReadAsync(async uow =>
         {
-            long buyerId = currentUser.UserId ?? 1;
-            var order = await uow.Orders.GetOrderDetailByCodeAsync(buyerId, orderCode, cancellationToken);
+            if (currentUser.UserId is not long buyerId)
+            {
+                return Result<OrderDetailDto>.FailureResult(s_signInRequired);
+            }
+
+            var order = await uow.Orders.GetOrderDetailByCodeAsync(
+                buyerId,
+                orderCode,
+                cancellationToken);
             return order == null
                 ? Result<OrderDetailDto>.FailureResult(new Error(
                     "ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng có mã {orderCode}.", "NotFound"))

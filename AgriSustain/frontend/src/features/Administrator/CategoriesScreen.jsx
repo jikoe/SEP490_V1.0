@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { request, queryString } from '../../api/client';
+import { requestUseCase as request, queryString } from '../../api/client';
 import { Field, Modal, Notice, Pager } from '../../components/ui/Common';
 
 const blank = { name: '', parentId: '', description: '', priority: 0, isActive: true };
 const listRoute = '/administration/categories';
 
-/** Separates Product Category List and Details while retaining the approved image-free contract. */
+/** Presents categories; the application enforces media, reference and archive rules. */
 export default function CategoriesScreen({ fixture, route = listRoute, navigate }) {
   const [draft, setDraft] = useState({ keyword: '', isActive: '', parent: '' });
   const [filters, setFilters] = useState({ page: 1 });
@@ -71,7 +71,9 @@ export default function CategoriesScreen({ fixture, route = listRoute, navigate 
       await request(`/categories${form.id ? `/${form.id}` : ''}`, { fixture,
         method: form.id ? 'PUT' : 'POST', body: { name: form.name.trim(),
           parentId: form.parentId ? Number(form.parentId) : null, description: form.description,
-          priority: Number(form.priority), isActive: form.isActive, confirmed: statusChanged } });
+          priority: Number(form.priority), isActive: form.isActive, confirmed: statusChanged,
+          imageBase64: form.imageChanged ? form.imageBase64 : null,
+          imageContentType: form.imageContentType, removeImage: Boolean(form.removeImage) } });
       setMessage(form.id ? 'Đã cập nhật danh mục.' : 'Đã tạo danh mục.');
       navigate(listRoute); setRefresh((value) => value + 1);
     } catch (failure) { setError(failure.message); }
@@ -85,15 +87,18 @@ export default function CategoriesScreen({ fixture, route = listRoute, navigate 
     try {
       await request(`/categories/${pending.item.id}/${pending.action}`, {
         fixture, method: 'POST', body: { confirmed: true } });
-      setMessage(pending.action === 'delete' ? 'Đã xóa danh mục.' : 'Đã cập nhật trạng thái danh mục.');
-      if (pending.action === 'delete') navigate(listRoute);
+      setMessage(['delete', 'archive'].includes(pending.action)
+        ? 'Đã xử lý danh mục; các tham chiếu lịch sử được giữ lại nếu có.'
+        : 'Đã cập nhật trạng thái danh mục.');
+      if (['delete', 'archive'].includes(pending.action)) navigate(listRoute);
       setPending(null); setRefresh((value) => value + 1);
     } catch (failure) { setError(failure.message); }
     finally { setBusy(false); }
   }
   const confirmation = pending && <Modal title="Xác nhận thay đổi danh mục"
     onClose={() => { if (!busy) setPending(null); }}><p>{pending.action === 'delete'
-      ? 'Xóa danh mục chưa có sản phẩm? Các liên kết còn lại sẽ được kiểm tra trước khi xóa.'
+      ? 'Xóa danh mục không có tham chiếu; danh mục có lịch sử sẽ được lưu trữ. Sản phẩm đang hoạt động sẽ chặn thao tác.'
+      : pending.action === 'archive' ? 'Lưu trữ danh mục và giữ lại tham chiếu lịch sử?'
       : `Xác nhận ${pending.action === 'activate' ? 'kích hoạt' : 'ẩn / khóa'} danh mục?`}</p>
     <p><strong>{pending.item.name}</strong></p><Notice error>{error}</Notice>
     <div className="modal-actions"><button disabled={busy} onClick={() => setPending(null)}>Hủy</button>
@@ -113,10 +118,32 @@ export default function CategoriesScreen({ fixture, route = listRoute, navigate 
           {form.originalIsActive ? 'Hoạt động' : 'Ẩn / khóa'}</span>
         <dl className="details category-facts"><dt>Sản phẩm liên kết</dt><dd>{form.productCount}</dd>
           <dt>Danh mục cha</dt><dd>{form.parentName || 'Danh mục gốc'}</dd></dl>
-        {form.productCount > 0 && <p className="muted">Danh mục có sản phẩm chỉ được ẩn hoặc khóa.</p>}
+        {form.productCount > 0 && <p className="muted">Server sẽ kiểm tra sản phẩm hoạt động và lịch sử trước khi xóa hoặc lưu trữ.</p>}
       </>}</aside><div className="category-fields"><fieldset disabled={busy}>
-      <Field label="Tên danh mục *"><input required minLength={2} maxLength={100} value={form.name}
+      <Field label="Tên danh mục *"><input required maxLength={150} value={form.name}
         placeholder="Nhập tên danh mục sản phẩm" onChange={(event) => change('name', event.target.value)} /></Field>
+      <Field label="Ảnh danh mục"><input type="file" accept="image/png,image/jpeg"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          if (file.size > 5 * 1024 * 1024 || !['image/png', 'image/jpeg'].includes(file.type)) {
+            setError('Chỉ nhận PNG/JPEG tối đa 5 MB.'); return;
+          }
+          try {
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result).split(',')[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            setForm((old) => ({ ...old, imageBase64: base64, imageContentType: file.type,
+              imageChanged: true, removeImage: false })); setError('');
+          } catch { setError('Không thể đọc ảnh. Vui lòng chọn lại.'); }
+        }} /></Field>
+      {form.imageBase64 && !form.removeImage && <div><img alt="Ảnh danh mục" width="120"
+        src={`data:${form.imageContentType};base64,${form.imageBase64}`} />
+        <button type="button" onClick={() => setForm((old) => ({ ...old,
+          imageBase64: null, imageChanged: false, removeImage: true }))}>Bỏ ảnh</button></div>}
       <Field label="Danh mục cha"><select value={form.parentId}
         onChange={(event) => change('parentId', event.target.value)}>
         <option value="">Không có — Danh mục gốc</option>{parents.filter((item) => item.isActive && item.id !== form.id)
@@ -164,8 +191,9 @@ export default function CategoriesScreen({ fixture, route = listRoute, navigate 
         <td><div className="actions"><button onClick={() => navigate(`${listRoute}/${item.id}`)}>Chi tiết / Sửa</button>
           <button onClick={() => prepare(item, item.isActive ? 'deactivate' : 'activate')}>
             {item.isActive ? 'Ẩn / khóa' : 'Kích hoạt'}</button>
-          <button className="danger-link" disabled={item.productCount > 0}
-            title={item.productCount > 0 ? 'Có sản phẩm: chỉ được ẩn hoặc khóa' : 'Xóa danh mục'}
+          <button onClick={() => prepare(item, 'archive')}>Lưu trữ</button>
+          <button className="danger-link"
+            title="Server kiểm tra sản phẩm hoạt động và tham chiếu lịch sử"
             onClick={() => prepare(item, 'delete')}>Xóa</button></div></td></tr>)}
       </tbody></table>{loading && <p className="empty" role="status">Đang tải danh mục…</p>}
       {!loading && !result.items.length && !error && <p className="empty">Không tìm thấy kết quả phù hợp.</p>}

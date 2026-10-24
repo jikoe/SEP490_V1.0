@@ -14,6 +14,7 @@ import CheckoutScreen from '../features/RetailCustomer/CheckoutScreen';
 import RegisterScreen from '../features/Guest/RegisterScreen';
 import ProfileScreen from '../features/RetailCustomer/ProfileScreen';
 import OrderTrackingScreen from '../features/RetailCustomer/OrderTrackingScreen';
+import ChangePasswordScreen from '../features/authentication/ChangePasswordScreen';
 import CustomerPortalApp from './CustomerPortalApp';
 
 import VerificationDashboard from '../features/Verification Officer/VerificationDashboard';
@@ -211,6 +212,8 @@ function navigate(path) {
   window.location.hash = path;
 }
 
+const marketplacePaths = ['/marketplace', '/retail/dashboard', '/guest/dashboard'];
+
 export default function App() {
   const [session, setCurrentSession] = useState(getSession);
   const [fixture, setFixture] = useState(readFixture);
@@ -219,7 +222,8 @@ export default function App() {
   const [databaseReady, setDatabaseReady] = useState(false);
 
   // Xác định role hiện tại (ưu tiên session từ DB, nếu không có thì lấy fixture demo)
-  const currentRoleRaw = session ? session.user.role : (fixture ? ROLE_CONFIGS[fixture]?.title : null);
+  const isPublicMarketplace = !session && !fixture && route === '/retail/dashboard';
+  const currentRoleRaw = session ? session.user.role : (fixture ? ROLE_CONFIGS[fixture]?.title : (isPublicMarketplace ? ROLE_CONFIGS.retail_customer.title : null));
   const roleKey = normalizeRole(currentRoleRaw);
   const roleConfig = ROLE_CONFIGS[roleKey] || ROLE_CONFIGS.guest;
   const isMarketplace = route === '/' || route.split('?')[0] === '/marketplace'
@@ -270,12 +274,16 @@ export default function App() {
   }
 
   function completeLogin(loginData) {
+    const roleValue = loginData?.user?.role;
+    const targetKey = normalizeRole(roleValue);
+    const targetConfig = ROLE_CONFIGS[targetKey];
+    if (!roleValue || !targetConfig || targetKey === 'guest') {
+      throw new Error('Tài khoản chưa có vai trò hợp lệ để mở đúng khu vực làm việc.');
+    }
     setSession(loginData);
     setCurrentSession(loginData);
     setFixture(null);
     sessionStorage.removeItem('agrisustain:demo-fixture');
-    const targetKey = normalizeRole(loginData?.user?.role);
-    const targetConfig = ROLE_CONFIGS[targetKey] || ROLE_CONFIGS.administrator;
     navigate(targetConfig.landingRoute);
   }
 
@@ -287,13 +295,21 @@ export default function App() {
     navigate('/login');
   }
 
+  /** Keeps the header in sync after UC-AUTH-03 saves a new display name. */
+  function updateSessionUser(profile) {
+    if (!session) return;
+    const next = { ...session, user: { ...session.user, fullName: profile.fullName } };
+    setSession(next);
+    setCurrentSession(next);
+  }
+
   if (isMarketplace) {
-    return <Marketplace route={route} navigate={navigate} session={session}
-      onLogout={logout} accountRoute={roleConfig.landingRoute} />;
+    return <Marketplace route={route} navigate={navigate} session={session} onLogout={logout}
+      accountLinks={roleConfig.navItems.filter((item) => !marketplacePaths.includes(item.path))} />;
   }
 
   // Nếu chưa đăng nhập và không có phiên demo -> Hiển thị LoginScreen
-  if (!session && !fixture && route !== '/register') {
+  if (!session && !fixture && route !== '/register' && route !== '/retail/dashboard') {
     return <LoginScreen onLogin={completeLogin} onDemo={() => enterDemo('guest')} />;
   }
 
@@ -309,6 +325,10 @@ export default function App() {
   else if (route.startsWith('/wholesale/dashboard')) currentTitle = 'Tổng quan mua buôn B2B';
   else if (route.startsWith('/retail/dashboard')) currentTitle = 'Cửa hàng nông sản';
   else if (route.startsWith('/checkout')) currentTitle = 'Thanh toán & Đơn hàng';
+  else if (route.startsWith('/retail/orders') || route.startsWith('/orders')) currentTitle = 'Đơn hàng của tôi';
+  else if (route.startsWith('/farmer/profile')) currentTitle = 'Hồ sơ nông hộ & KYC';
+  else if (route.startsWith('/retail/profile') || route.startsWith('/profile')) currentTitle = 'Hồ sơ cá nhân';
+  else if (route.startsWith('/account/password')) currentTitle = 'Đổi mật khẩu';
   else if (route.startsWith('/verification/dashboard')) currentTitle = 'Thẩm định chất lượng';
   else if (route.startsWith('/support/dashboard')) currentTitle = 'Trung tâm khiếu nại & Tranh chấp';
   else if (route.startsWith('/promotions/dashboard')) currentTitle = 'Chiến dịch khuyến mại';
@@ -412,7 +432,8 @@ export default function App() {
               <>
                 <span style={{ fontSize: 13, color: '#294334', fontWeight: 600 }}>{session.user.fullName}</span>
                 <span className="badge role-badge" style={{ marginLeft: 6 }}>{session.user.role}</span>
-                <button type="button" onClick={logout} style={{ marginLeft: 10 }}>Đăng xuất</button>
+                <button type="button" onClick={() => navigate('/account/password')} style={{ marginLeft: 10 }}>Đổi mật khẩu</button>
+                <button type="button" onClick={logout} style={{ marginLeft: 6 }}>Đăng xuất</button>
               </>
             ) : (
               <>
@@ -453,13 +474,13 @@ export default function App() {
           {route.startsWith('/farmer/orders') && <OrdersScreen route={route} navigate={navigate} />}
           {route.startsWith('/cart') && <CartScreen navigate={navigate} />}
           {route.startsWith('/wholesale/dashboard') && <WholesaleDashboard navigate={navigate} />}
-          {route.startsWith('/retail/dashboard') && <RetailCustomerDashboard navigate={navigate} />}
           {route.startsWith('/register') && <RegisterScreen navigate={navigate} />}
-          {route.startsWith('/retail/profile') && <ProfileScreen fixture="retail-customer" navigate={navigate} />}
-          {route.startsWith('/farmer/profile') && <ProfileScreen fixture="farmer" navigate={navigate} />}
-          {route.startsWith('/profile') && <ProfileScreen navigate={navigate} />}
-          {route.startsWith('/retail/orders') && <OrderTrackingScreen fixture="retail-customer" navigate={navigate} />}
-          {route.startsWith('/orders') && <OrderTrackingScreen navigate={navigate} />}
+          {['/retail/profile', '/farmer/profile', '/profile'].some((p) => route.startsWith(p))
+            && <ProfileScreen session={session} navigate={navigate} onProfileSaved={updateSessionUser} />}
+          {(route.startsWith('/retail/orders') || route.startsWith('/orders'))
+            && <OrderTrackingScreen navigate={navigate} />}
+          {route.startsWith('/account/password') && <ChangePasswordScreen session={session}
+            navigate={navigate} backRoute={roleConfig.landingRoute} />}
           {route.startsWith('/customer-portal') && <CustomerPortalApp />}
 
           {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} navigate={navigate} />}
@@ -475,7 +496,7 @@ export default function App() {
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
              '/retail/dashboard', '/checkout', '/verification/dashboard',
              '/support/dashboard', '/promotions/dashboard', '/finance/dashboard',
-             '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/customer-portal'].some((p) => route.startsWith(p)) && (
+             '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/account/password', '/customer-portal'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <h2>Đang chuyển hướng về trang làm việc của bạn...</h2>
               <button className="primary" style={{ marginTop: 15 }} onClick={() => navigate(roleConfig.landingRoute)}>

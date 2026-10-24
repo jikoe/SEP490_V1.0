@@ -22,6 +22,7 @@ export default function RegisterScreen({ navigate }) {
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [otpError, setOtpError] = useState(null);
   const [otpCountdown, setOtpCountdown] = useState(300);
+  const [otpInfo, setOtpInfo] = useState('');
   const [successNotice, setSuccessNotice] = useState(null);
 
   function handleChange(field, value) {
@@ -79,6 +80,8 @@ export default function RegisterScreen({ navigate }) {
         throw new Error(data.title || data.message || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
       }
 
+      // The server reply states where the OTP was sent (and, in this build, the demo code).
+      setOtpInfo(await res.json().catch(() => ''));
       setLoading(false);
       setOtpModalOpen(true);
       setOtpDigits(['', '', '', '', '', '']);
@@ -136,14 +139,13 @@ export default function RegisterScreen({ navigate }) {
       }
 
       const user = await res.json();
-      sessionStorage.setItem('agrisustain:current-user', JSON.stringify(user));
-      sessionStorage.setItem('agrisustain:demo-fixture', user.email);
-      window.dispatchEvent(new Event('agrisustain:user-changed'));
+      sessionStorage.removeItem('agrisustain:current-user');
+      sessionStorage.removeItem('agrisustain:demo-fixture');
       setLoading(false);
       setOtpModalOpen(false);
       setSuccessNotice(`MSG56: Đăng ký tài khoản thành công cho ${user.fullName || form.fullName}! Thông tin đã được lưu vào cơ sở dữ liệu.`);
       setTimeout(() => {
-        if (navigate) navigate('/profile');
+        if (navigate) navigate('/login');
       }, 1200);
     } catch (err) {
       setLoading(false);
@@ -162,9 +164,11 @@ export default function RegisterScreen({ navigate }) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.title || 'Không thể gửi lại mã OTP.');
       }
-      alert('Mã OTP xác thực mới (123456) đã được gửi lại vào email của bạn.');
+      setOtpInfo(await res.json().catch(() => 'Mã OTP mới đã được gửi lại vào email của bạn.'));
+      setOtpDigits(['', '', '', '', '', '']);
+      setOtpError(null);
     } catch (err) {
-      alert(err.message);
+      setOtpError(err.message);
     }
   }
 
@@ -442,9 +446,9 @@ export default function RegisterScreen({ navigate }) {
             </div>
 
             <div style={{ textAlign: 'center', fontSize: 13, color: '#688273', marginBottom: 24 }}>
-              <div style={{ marginBottom: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: 8, display: 'inline-block' }}>
-                💡 <span style={{ color: '#166534', fontWeight: 600 }}>Mã OTP thử nghiệm hệ thống:</span> <strong style={{ color: '#15803d', fontSize: 15, letterSpacing: 1.5 }}>123456</strong>
-              </div>
+              {otpInfo && <div role="status" style={{ marginBottom: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: 8, display: 'inline-block', color: '#166534' }}>
+                💡 {otpInfo}
+              </div>}
               <div>Mã OTP có hiệu lực trong: <strong style={{ color: '#d9534f' }}>05:00</strong></div>
               <div style={{ marginTop: 8 }}>
                 Chưa nhận được mã?{' '}

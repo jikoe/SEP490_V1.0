@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { request, queryString } from '../../api/client';
+import { requestUseCase as request, queryString } from '../../api/client';
 import { Field, Modal, Notice, Pager, VerificationBadge, initials, localTime,
   statusLabel } from '../../components/ui/Common';
 
