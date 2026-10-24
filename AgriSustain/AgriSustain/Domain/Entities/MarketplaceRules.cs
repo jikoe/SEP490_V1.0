@@ -8,7 +8,7 @@ public static class MarketplaceRules
         product.ApprovalStatus == "Approved"
         && product.IsPublished
         && product.Category.IsActive
-        && product.FarmerProfile.VerificationStatus == "Verified"
+        && product.FarmerProfile.VerificationStatus == "Approved"
         && product.FarmerProfile.User.Status == "Active";
 
     public static Expression<Func<HarvestBatch, bool>> AvailableBatch(DateOnly today) => batch =>

@@ -10,7 +10,7 @@ public sealed record UserProfileResponse(
     string? AvatarUrl,
     string? Gender,
     DateOnly? BirthDate,
-    int RewardPoints,
+    long RewardPoints,
     DeliveryAddressDto? DeliveryAddress,
     FarmerProfileDto? FarmerProfile);
 

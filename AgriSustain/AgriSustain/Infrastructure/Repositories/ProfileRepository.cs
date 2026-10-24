@@ -47,6 +47,11 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             user.FarmerProfile.ApprovedAt,
             user.FarmerProfile.RejectReason);
 
+        long rewardPoints = await db.RewardPointEntries
+            .Where(entry => entry.UserId == userId)
+            .SumAsync(entry => entry.AvailableDelta ?? 0, cancellationToken);
+
+        // The User table has no gender/birth-date columns, so these are not reported.
         return new UserProfileResponse(
             UserId: user.UserId,
             FullName: user.FullName,
@@ -55,9 +60,9 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             Role: user.Role,
             Status: user.Status,
             AvatarUrl: user.AvatarUrl,
-            Gender: "Nam",
-            BirthDate: new DateOnly(1990, 1, 1),
-            RewardPoints: 120,
+            Gender: null,
+            BirthDate: null,
+            RewardPoints: rewardPoints,
             DeliveryAddress: addressDto,
             FarmerProfile: farmerDto);
     }
@@ -74,7 +79,11 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
         user.FullName = request.FullName;
         user.PhoneNumber = request.PhoneNumber;
 
-        if (!string.IsNullOrWhiteSpace(request.AddressDetail) || !string.IsNullOrWhiteSpace(request.ProvinceCity))
+        // The service has already normalized the address against the checkout catalog.
+        if (!string.IsNullOrWhiteSpace(request.ProvinceCode)
+            && request.ProvinceCity is { } province
+            && request.Ward is { } ward
+            && request.AddressDetail is { } detail)
         {
             var address = user.DeliveryAddress;
             if (address == null)
@@ -82,30 +91,20 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
                 address = new DeliveryAddress
                 {
                     UserId = user.UserId,
-                    RecipientName = request.FullName,
-                    RecipientPhone = request.PhoneNumber,
-                    ProvinceCity = request.ProvinceCity ?? "Hà Nội",
-                    District = request.District,
-                    Ward = request.Ward ?? "Dịch Vọng Hậu",
-                    AddressDetail = request.AddressDetail ?? "Chưa rõ",
-                    ProvinceCode = request.ProvinceCode,
-                    WardCode = request.WardCode,
                     IsDefault = true,
                     Status = "Active"
                 };
                 db.DeliveryAddresses.Add(address);
             }
-            else
-            {
-                address.RecipientName = request.FullName;
-                address.RecipientPhone = request.PhoneNumber;
-                if (!string.IsNullOrWhiteSpace(request.ProvinceCity)) address.ProvinceCity = request.ProvinceCity;
-                if (!string.IsNullOrWhiteSpace(request.District)) address.District = request.District;
-                if (!string.IsNullOrWhiteSpace(request.Ward)) address.Ward = request.Ward;
-                if (!string.IsNullOrWhiteSpace(request.AddressDetail)) address.AddressDetail = request.AddressDetail;
-                if (!string.IsNullOrWhiteSpace(request.ProvinceCode)) address.ProvinceCode = request.ProvinceCode;
-                if (!string.IsNullOrWhiteSpace(request.WardCode)) address.WardCode = request.WardCode;
-            }
+
+            address.RecipientName = request.FullName;
+            address.RecipientPhone = request.PhoneNumber;
+            address.ProvinceCity = province;
+            address.District = null;
+            address.Ward = ward;
+            address.AddressDetail = detail;
+            address.ProvinceCode = request.ProvinceCode;
+            address.WardCode = request.WardCode;
         }
 
         await db.SaveChangesAsync(cancellationToken);

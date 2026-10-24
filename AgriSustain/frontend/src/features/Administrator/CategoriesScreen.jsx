@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { request, queryString } from '../../api/threeUseCases';
+import { requestUseCase as request, queryString } from '../../api/client';
 import { Field, Modal, Notice, Pager } from '../../components/ui/Common';
 
 const blank = { name: '', parentId: '', description: '', priority: 0, isActive: true };

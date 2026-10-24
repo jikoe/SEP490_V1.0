@@ -65,10 +65,11 @@ export function ProductCard({ product, query }) {
       <Rating product={product} />
       {product.region && <p className="mkt-region"><Icon name="pin" />{product.region}</p>}
       <Price product={product} />
-      <button type="button" className="mkt-primary" disabled
-        title="Chức năng giỏ hàng hiện chưa khả dụng.">
-        <Icon name="cart" />{product.availableQuantity < 1 ? 'Hết hàng' : 'Thêm vào giỏ'}
-      </button>
+      {/* Cart lines are per harvest batch, which is chosen on the detail page. */}
+      {product.availableQuantity < 1
+        ? <button type="button" className="mkt-primary" disabled><Icon name="cart" />Hết hàng</button>
+        : <a className="mkt-primary" href={`#/marketplace/products/${product.id}${query}`}>
+          <Icon name="cart" />Chọn lô & mua</a>}
     </div>
   </article>;
 }

@@ -1,15 +1,18 @@
 using AgriSustain.Application.Common;
+using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.DTOs.Profiles;
 using AgriSustain.Application.Interfaces.Identity;
 using AgriSustain.Application.Interfaces.Services;
 using AgriSustain.Application.Interfaces.UnitOfWork;
 using FluentValidation;
+using IAddressCatalog = AgriSustain.Application.Interfaces.IAddressCatalog;
 
 namespace AgriSustain.Application.Services.Profiles;
 
 public sealed class ProfileService(
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
+    IAddressCatalog addressCatalog,
     IValidator<UpdateConsumerProfileRequest> consumerValidator,
     IValidator<UpdateFarmerProfileRequest> farmerValidator) : IProfileService
 {
@@ -48,6 +51,32 @@ public sealed class ProfileService(
         if (error != null)
         {
             return Result<UserProfileResponse>.FailureResult(error);
+        }
+
+        // Saved addresses use the same province/ward catalog as checkout so they can prefill it.
+        if (!string.IsNullOrWhiteSpace(request.ProvinceCode))
+        {
+            var address = addressCatalog.Normalize(new CheckoutAddress(
+                request.FullName,
+                request.PhoneNumber,
+                request.ProvinceCode,
+                "",
+                null,
+                request.WardCode ?? "",
+                "",
+                request.AddressDetail ?? ""));
+            if (address == null)
+            {
+                return Result<UserProfileResponse>.FailureResult(new Error("ADDRESS_INVALID",
+                    "Tỉnh/thành hoặc phường/xã không hợp lệ. Vui lòng chọn lại địa chỉ."));
+            }
+
+            request = request with
+            {
+                ProvinceCity = address.Province,
+                District = null,
+                Ward = address.Ward
+            };
         }
 
         return await unitOfWork.ExecuteAsync(async uow =>

@@ -39,10 +39,7 @@ public sealed class CartPricingService(IOptions<QuantityOptions> options, TimePr
     }
 
     public decimal UnitPrice(Product product, decimal quantity) =>
-        product.WholesaleMinQuantity is > 1 && product.WholesalePrice is > 0
-            && product.WholesalePrice <= product.BaseRetailPrice
-            && quantity >= product.WholesaleMinQuantity
-                ? product.WholesalePrice.Value : product.BaseRetailPrice;
+        RetailPricing.UnitPrice(product, quantity);
 
     public CartResponse Calculate(Cart? cart, IReadOnlyList<string>? messages = null,
         bool canProceed = false)

@@ -13,54 +13,6 @@ const date = (value) => value ? new Intl.DateTimeFormat('vi-VN', {
 const safeUrl = (value) => typeof value === 'string'
   && /^(https?:\/\/|\/(?!\/))/.test(value) ? value : '';
 
-const demoProducts = [
-  {
-    id: 90001, name: 'Hữu cơ Đà Lạt', category: 'Rau củ hữu cơ', emoji: '🥬',
-    submittedAt: '2026-10-20T01:42:00Z', retailPrice: 45000, unit: 'kg', quantity: 120,
-    description: 'Rau củ tươi được canh tác theo hướng hữu cơ, thu hoạch và đóng gói trong ngày.',
-    farmer: { fullName: 'Nguyễn Thị Mai', email: 'mai.nguyen@example.test', phoneNumber: '+84 912 345 678' },
-    farm: { farmName: 'Nông trại Xanh Đà Lạt', address: 'Xuân Thọ, Đà Lạt, Lâm Đồng',
-      productionScale: '2,5 ha', verificationStatus: 'Approved' },
-    harvest: [{ batchCode: 'DL-VEG-261018-A', estimatedHarvestDate: '2026-10-18',
-      season: 'Vụ thu đông 2026', cropVariety: 'Rau củ hữu cơ', harvestYield: 120,
-      qualityNotes: 'Thu hoạch vào sáng sớm, đóng gói trong ngày.' }],
-    traceability: [{ batchCode: 'DL-VEG-261018-A', plantingDate: '20/08/2026',
-      growingPractices: 'Canh tác theo hướng hữu cơ, không sử dụng thuốc trừ sâu tổng hợp.',
-      certificates: ['VietGAP', 'Chứng nhận cơ sở hữu cơ'] }],
-    certificates: ['VietGAP', 'Chứng nhận cơ sở hữu cơ'],
-  },
-  {
-    id: 90002, name: 'Cam sành Vĩnh Long', category: 'Trái cây', emoji: '🍊',
-    submittedAt: '2026-10-20T00:15:00Z', retailPrice: 38000, unit: 'kg', quantity: 300,
-    description: 'Cam sành tuyển chọn từ vườn Tân Phú, phân loại theo kích cỡ trước khi đóng thùng.',
-    farmer: { fullName: 'Trần Văn Hùng', email: 'hung.tran@example.test', phoneNumber: '+84 938 111 222' },
-    farm: { farmName: 'Vườn cam Tân Phú', address: 'Tân Phú, Tam Bình, Vĩnh Long',
-      productionScale: '1,8 ha', verificationStatus: 'Approved' },
-    harvest: [{ batchCode: 'VL-ORG-261022-B', estimatedHarvestDate: '2026-10-22',
-      season: 'Vụ cam 2026', cropVariety: 'Cam sành', harvestYield: 300,
-      qualityNotes: 'Phân loại theo kích cỡ trước khi đóng thùng.' }],
-    traceability: [{ batchCode: 'VL-ORG-261022-B', plantingDate: '15/03/2023',
-      growingPractices: 'Sử dụng phân bón hữu cơ và quy trình quản lý dịch hại tổng hợp.',
-      certificates: ['VietGAP'] }],
-    certificates: ['VietGAP'],
-  },
-  {
-    id: 90003, name: 'Gạo ST25 mùa mới', category: 'Ngũ cốc', emoji: '🌾',
-    submittedAt: '2026-10-19T09:30:00Z', retailPrice: 32000, unit: 'kg', quantity: 800,
-    description: 'Gạo thơm ST25 từ vùng trồng lúa Sóc Trăng, ghi nhật ký canh tác theo mùa vụ.',
-    farmer: { fullName: 'Lê Minh Phúc', email: 'phuc.le@example.test', phoneNumber: '+84 979 555 010' },
-    farm: { farmName: 'Hợp tác xã Lúa thơm Sóc Trăng', address: 'Mỹ Xuyên, Sóc Trăng',
-      productionScale: '12 ha', verificationStatus: 'Approved' },
-    harvest: [{ batchCode: 'ST25-SOC-261015-C', estimatedHarvestDate: '2026-10-15',
-      season: 'Vụ mùa 2026', cropVariety: 'ST25', harvestYield: 800,
-      qualityNotes: 'Lúa được sấy trong vòng 12 giờ sau thu hoạch.' }],
-    traceability: [{ batchCode: 'ST25-SOC-261015-C', plantingDate: '10/06/2026',
-      growingPractices: 'Sản xuất theo quy trình giảm phát thải, ghi nhật ký canh tác.',
-      certificates: [] }],
-    certificates: [],
-  },
-];
-
 function statusLabel(status) {
   if (status === 'Approved') return 'Đã duyệt';
   if (status === 'Rejected') return 'Đã từ chối';
@@ -93,29 +45,13 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [demoDecisions, setDemoDecisions] = useState({});
 
-  const query = keyword.toLocaleLowerCase('vi');
-  const filteredDemoProducts = demoProducts.filter((product) =>
-    !query || [product.name, product.category, product.farmer.fullName, product.farm.farmName]
-      .some((value) => value.toLocaleLowerCase('vi').includes(query)));
-  const visibleDemoProducts = filteredDemoProducts.filter((product) => {
-    const status = demoDecisions[product.id]?.status || 'Pending';
-    return activeTab === 'Pending' ? status === 'Pending' : status !== 'Pending';
-  }).map((product) => ({
-    ...product,
-    status: demoDecisions[product.id]?.status || 'Pending',
-    demo: true,
-  }));
-  const visibleProducts = [...lists[activeTab].items, ...visibleDemoProducts];
+  const visibleProducts = lists[activeTab].items;
   const selectedProductId = routeProductId
     ?? (visibleProducts.some((product) => product.id === selectedId)
       ? selectedId : visibleProducts[0]?.id ?? null);
-  const selectedIsDemo = demoProducts.some((product) => product.id === selectedProductId);
-  const pendingCount = lists.Pending.total + filteredDemoProducts.filter((product) =>
-    !demoDecisions[product.id] || demoDecisions[product.id].status === 'Pending').length;
-  const reviewedCount = lists.Reviewed.total + filteredDemoProducts.filter((product) =>
-    ['Approved', 'Rejected'].includes(demoDecisions[product.id]?.status)).length;
+  const pendingCount = lists.Pending.total;
+  const reviewedCount = lists.Reviewed.total;
   const activeStatus = detail?.moderationStatus || detail?.status || 'Pending';
 
   useEffect(() => {
@@ -143,19 +79,6 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
       setDetailLoading(false);
       return undefined;
     }
-    const demoProduct = demoProducts.find((product) => product.id === selectedProductId);
-    if (demoProduct) {
-      const decision = demoDecisions[selectedProductId];
-      setDetail({
-        ...demoProduct,
-        images: [],
-        demo: true,
-        moderationStatus: decision?.status || 'Pending',
-        rejectionReason: decision?.reason || '',
-      });
-      setDetailLoading(false);
-      return undefined;
-    }
     const controller = new AbortController();
     setDetail(null);
     setDetailLoading(true);
@@ -166,7 +89,7 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
       })
       .finally(() => { if (!controller.signal.aborted) setDetailLoading(false); });
     return () => controller.abort();
-  }, [selectedProductId, refresh, demoDecisions]);
+  }, [selectedProductId, refresh]);
 
   function selectTab(tab) {
     setActiveTab(tab);
@@ -182,8 +105,7 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
     setReason('');
     setActionError('');
     setActiveImage(0);
-    if (!product.demo) navigate(`${listRoute}/${product.id}`);
-    else if (routeProductId) navigate(`${listRoute}/${product.id}`);
+    navigate(`${listRoute}/${product.id}`);
   }
 
   function search(event) {
@@ -201,27 +123,14 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
     setBusy(true);
     setActionError('');
     try {
-      if (selectedIsDemo) {
-        setDemoDecisions((current) => ({
-          ...current,
-          [selectedProductId]: {
-            status: action === 'approve' ? 'Approved' : 'Rejected',
-            reason: action === 'reject' ? reason.trim() : '',
-          },
-        }));
-        setNotification(action === 'approve'
-          ? `Đã duyệt "${detail.name}". (Demo) Thông báo kết quả được mô phỏng cho nông dân ${detail.farmer.fullName}.`
-          : `Đã từ chối "${detail.name}". (Demo) Thông báo kết quả được mô phỏng cho nông dân ${detail.farmer.fullName}.`);
-      } else {
-        await request(`/moderation/products/${selectedProductId}/${action}`, {
-          method: 'POST',
-          ...(action === 'reject' ? { body: { reason: reason.trim() } } : {}),
-        });
-        setNotification(action === 'approve'
-          ? `Đã duyệt "${detail.name}" và gửi thông báo cho nông dân.`
-          : `Đã từ chối "${detail.name}" và gửi thông báo cho nông dân.`);
-        setRefresh((value) => value + 1);
-      }
+      await request(`/moderation/products/${selectedProductId}/${action}`, {
+        method: 'POST',
+        ...(action === 'reject' ? { body: { reason: reason.trim() } } : {}),
+      });
+      setNotification(action === 'approve'
+        ? `Đã duyệt "${detail.name}" và gửi thông báo cho nông dân.`
+        : `Đã từ chối "${detail.name}" và gửi thông báo cho nông dân.`);
+      setRefresh((value) => value + 1);
       setReason('');
       setActiveTab('Reviewed');
       if (routeProductId) navigate(listRoute);
@@ -275,20 +184,19 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
           : 'Các hồ sơ bạn đã duyệt hoặc từ chối sẽ xuất hiện tại đây.'}</p>
       </div> : <div className="moderation-workspace">
         <aside className="moderation-queue" aria-label="Danh sách tin đăng">
-          {visibleProducts.map((product) => <button key={`${product.demo ? 'demo-' : ''}${product.id}`}
+          {visibleProducts.map((product) => <button key={product.id}
             type="button" onClick={() => selectProduct(product)}
             aria-current={product.id === selectedProductId ? 'true' : undefined}
             className={`moderation-queue-card ${product.id === selectedProductId ? 'selected' : ''}`}>
             <div className="moderation-queue-image">
-              {product.demo ? <span>{product.emoji}</span>
-                : <ProductThumbnail src={product.imageUrl} name={product.name} />}
+              <ProductThumbnail src={product.imageUrl} name={product.name} />
             </div>
             <div className="moderation-queue-copy">
               <span className={`moderation-status ${product.status}`}>
-                {statusLabel(product.status)}{product.demo ? ' · Demo' : ''}
+                {statusLabel(product.status)}
               </span>
               <strong>{product.name}</strong>
-              <span>{product.demo ? product.farmer.fullName : product.farmerName}</span>
+              <span>{product.farmerName}</span>
               <small>{date(product.submittedAt)}</small>
             </div>
           </button>)}
@@ -306,11 +214,11 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
           {detailLoading && <p className="empty" role="status">Đang tải chi tiết hồ sơ…</p>}
           {detail && <article className="moderation-detail">
             <div className="moderation-detail-heading">
-              <div><p>{detail.demo ? `PRD-DEMO-${detail.id}` : `MÃ SẢN PHẨM #${detail.id}`}</p>
+              <div><p>{`MÃ SẢN PHẨM #${detail.id}`}</p>
                 <h2>{detail.name}</h2><span>Gửi duyệt {date(detail.submittedAt)}
                   {' · '}{detail.category}</span></div>
               <span className={`moderation-status ${activeStatus}`}>
-                {statusLabel(activeStatus)}{detail.demo ? ' · Demo' : ''}
+                {statusLabel(activeStatus)}
               </span>
             </div>
             <div className="moderation-detail-body">
@@ -318,9 +226,7 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
                 <div className="moderation-gallery">
                   <div className="moderation-gallery-main">{images.length
                     ? <img src={images[activeImage] || images[0]} alt={`${detail.name} - ảnh ${activeImage + 1}`} />
-                    : detail.demo
-                      ? <span className="moderation-gallery-emoji" aria-label={detail.name}>{detail.emoji}</span>
-                      : <span className="moderation-gallery-placeholder">Chưa có ảnh sản phẩm</span>}
+                    : <span className="moderation-gallery-placeholder">Chưa có ảnh sản phẩm</span>}
                   </div>
                   {images.length > 1 && <div className="moderation-gallery-thumbs">
                     {images.map((image, index) => <button type="button" key={image}
@@ -407,6 +313,5 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
           </article>}
         </div>
       </div>}
-    <p className="moderation-demo-note">Sản phẩm có nhãn Demo và quyết định demo chỉ tồn tại trong phiên hiện tại.</p>
   </section>;
 }

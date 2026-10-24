@@ -11,7 +11,11 @@ public sealed class ActiveFeatureAccountMiddleware(RequestDelegate next)
     {
         bool feature = context.Request.Path.StartsWithSegments("/api/farmer")
             || context.Request.Path.StartsWithSegments("/api/cart")
-            || context.Request.Path.StartsWithSegments("/api/files");
+            || context.Request.Path.StartsWithSegments("/api/files")
+            || context.Request.Path.StartsWithSegments("/api/profile")
+            || context.Request.Path.StartsWithSegments("/api/orders")
+            || context.Request.Path.StartsWithSegments("/api/moderation")
+            || context.Request.Path.StartsWithSegments("/api/auth/change-password");
         if (feature && context.User.Identity?.IsAuthenticated == true)
         {
             string? identifier = context.User.FindFirstValue(ClaimTypes.NameIdentifier);

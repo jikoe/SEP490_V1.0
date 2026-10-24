@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { request } from '../../api/threeUseCases';
+import { requestUseCase as request } from '../../api/client';
 import { Field, Modal, Notice, localTime, money } from '../../components/ui/Common';
 
 const emptyAddress = { recipientName: '', phone: '', provinceCode: '', province: '',
@@ -168,6 +168,7 @@ export default function CheckoutScreen({ navigate }) {
           </React.Fragment>)}
       </dl></>}
       <Notice>{order.message}</Notice>
+      <button className="primary" onClick={() => navigate('/retail/orders')}>Theo dõi đơn hàng</button>
       <button onClick={() => navigate('/cart')}>Xem giỏ hàng còn lại</button>
     </div></section>;
 

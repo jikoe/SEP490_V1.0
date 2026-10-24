@@ -1,10 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Auth;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Interfaces.Identity;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
+using FluentValidation;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -19,15 +22,21 @@ public sealed class AuthService : IAuthService
     private readonly AgriSustainContext _context;
     private readonly IPasswordHasher<User> _passwordHasher;
     private readonly IConfiguration _configuration;
+    private readonly ICurrentUser _currentUser;
+    private readonly IValidator<ChangePasswordRequest> _changePasswordValidator;
 
     public AuthService(
         AgriSustainContext context,
         IPasswordHasher<User> passwordHasher,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ICurrentUser currentUser,
+        IValidator<ChangePasswordRequest> changePasswordValidator)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _configuration = configuration;
+        _currentUser = currentUser;
+        _changePasswordValidator = changePasswordValidator;
     }
 
     public async Task<LoginResponseDto?> LoginAsync(
@@ -55,12 +64,7 @@ public sealed class AuthService : IAuthService
             user.FailedLoginCount = 0;
         }
 
-        var identityHash = user.PasswordHash.StartsWith("AQAAAA", StringComparison.Ordinal);
-        var verification = identityHash
-            ? _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password)
-            : BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash)
-                ? PasswordVerificationResult.SuccessRehashNeeded
-                : PasswordVerificationResult.Failed;
+        var verification = VerifyPassword(user, request.Password);
         if (verification == PasswordVerificationResult.Failed)
         {
             user.FailedLoginCount++;
@@ -73,7 +77,7 @@ public sealed class AuthService : IAuthService
 
         user.FailedLoginCount = 0;
         user.LockedUntil = null;
-        if (!identityHash || verification == PasswordVerificationResult.SuccessRehashNeeded)
+        if (verification == PasswordVerificationResult.SuccessRehashNeeded)
             user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -107,4 +111,51 @@ public sealed class AuthService : IAuthService
             expiresAt,
             new AuthenticatedUserDto(user.UserId, user.Username, user.Email, user.FullName, user.Role));
     }
+
+    public async Task<Result<string>> ChangePasswordAsync(
+        ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var error = await RequestValidation.CheckAsync(
+            _changePasswordValidator,
+            request,
+            cancellationToken);
+        if (error != null)
+        {
+            return Result<string>.FailureResult(error);
+        }
+
+        var userId = _currentUser.UserId;
+        var user = userId is null
+            ? null
+            : await _context.Users.SingleOrDefaultAsync(
+                candidate => candidate.UserId == userId,
+                cancellationToken);
+        if (user is null || user.Status != "Active")
+        {
+            return Result<string>.FailureResult(new Error(
+                "UNAUTHORIZED",
+                "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.",
+                "Unauthorized"));
+        }
+
+        if (VerifyPassword(user, request.CurrentPassword) == PasswordVerificationResult.Failed)
+        {
+            return Result<string>.FailureResult(new Error(
+                "INVALID_CURRENT_PASSWORD", "Mật khẩu hiện tại không chính xác."));
+        }
+
+        user.PasswordHash = _passwordHasher.HashPassword(user, request.NewPassword);
+        await _context.SaveChangesAsync(cancellationToken);
+        return Result<string>.SuccessResult(
+            "Đổi mật khẩu thành công. Hãy dùng mật khẩu mới cho lần đăng nhập sau.");
+    }
+
+    // BCrypt hashes from seed/registration are migrated to the Identity format on next success.
+    private PasswordVerificationResult VerifyPassword(User user, string password) =>
+        user.PasswordHash.StartsWith("AQAAAA", StringComparison.Ordinal)
+            ? _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password)
+            : BCrypt.Net.BCrypt.Verify(password, user.PasswordHash)
+                ? PasswordVerificationResult.SuccessRehashNeeded
+                : PasswordVerificationResult.Failed;
 }

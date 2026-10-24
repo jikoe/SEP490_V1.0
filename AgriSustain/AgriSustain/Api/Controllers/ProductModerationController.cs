@@ -1,4 +1,4 @@
-    using System.Security.Claims;
+using System.Security.Claims;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -97,6 +97,7 @@ public sealed class ProductModerationController : ControllerBase
         return Ok(new
         {
             id = product.ProductId,
+            submittedAt = product.CreatedAt,
             moderationStatus = product.ApprovalStatus,
             rejectionReason = product.RejectionReason,
             name = product.ProductName,
