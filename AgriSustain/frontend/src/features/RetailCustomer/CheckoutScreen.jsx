@@ -1,234 +1,543 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { request } from '../../api/client';
-import { Field, Modal, Notice, localTime, money, ProductThumbnail } from '../../components/ui/Common';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { requestUseCase as request } from '../../api/client';
+import { Modal, Notice, localTime, money } from '../../components/ui/Common';
+import './checkout.css';
 
-const emptyAddress = { recipientName: '', phone: '', province: '', ward: '', detail: '',
-  provinceCode: '', wardCode: '', catalogVersion: '' };
+const emptyAddress = { recipientName: '', phone: '', provinceCode: '', province: '',
+  districtCode: '', district: '', wardCode: '', ward: '', detail: '', catalogVersion: '' };
 const initial = { address: emptyAddress, deliveryMethod: 'Standard', paymentMethod: 'PayOS',
   voucherCode: '', points: 0, notes: '' };
+// Written only after the buyer confirms. The older keys were written on every quote, so they are
+// dropped rather than resumed: resuming them could place an order nobody confirmed.
+const attemptStorage = 'agrisustain:checkout-placement';
+const quoteStorage = 'agrisustain:checkout-placement-quote';
+const legacyStorage = ['agrisustain:checkout-attempt', 'agrisustain:checkout-quote'];
+const phonePattern = /^(0[35789][0-9]{8}|\+84[35789][0-9]{8})$/;
+const addressErrors = ['ADDRESS_INVALID', 'VALIDATION'];
+const shippingErrors = ['SHIPPING_RATE_UNAVAILABLE', 'MSG117'];
+const methods = [
+  { value: 'Standard', title: 'Giao tiêu chuẩn', desc: 'Hãng rẻ nhất cho từng kiện' },
+  { value: 'FreshExpress', title: 'Giao nhanh nông sản', desc: 'Dịch vụ Nhanh / Hỏa tốc' },
+];
+const payments = [
+  { value: 'PayOS', title: 'PayOS', desc: 'Chuyển khoản qua cổng PayOS' },
+  { value: 'VietQR', title: 'VietQR', desc: 'Quét mã bằng ứng dụng ngân hàng' },
+];
+
+const trustedCatalog = 'goship-v2';
+
+/** Compares place names without administrative prefixes ("Thành phố Hà Nội" = "Hà Nội"). */
+function placeKey(name = '') {
+  return name.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim()
+    .replace(/^(thành phố|tỉnh|tp\.?|quận|huyện|thị xã|thị trấn|phường|xã)\s+/u, '');
+}
+
+function findPlace(options, code, name) {
+  const byCode = code && options.find((item) => item.code === code);
+  if (byCode) return byCode;
+  const key = placeKey(name);
+  const matches = key ? options.filter((item) => placeKey(item.name) === key) : [];
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function readJson(key) {
+  try { return JSON.parse(sessionStorage.getItem(key) || 'null'); } catch { return null; }
+}
+
+function voucherTitle(voucher) {
+  return voucher.discountType === 'Percentage'
+    ? `Giảm ${voucher.discountValue}%${voucher.maxDiscountAmount ? ` tối đa ${money(voucher.maxDiscountAmount)}` : ''}`
+    : `Giảm ${money(voucher.discountValue)}`;
+}
 
 /**
- * Coordinates the owned checkout context, linked province/ward options, server quote and
- * placement confirmation. Cart editing and QR/payment screens remain external modules.
+ * Server quotes determine prices. A quote is requested automatically once the address is complete;
+ * the placement key is persisted only after the buyer confirms, so a reload can resume an
+ * ambiguous placement without creating a second order.
  */
-export default function CheckoutScreen({ fixture }) {
+export default function CheckoutScreen({ navigate }) {
   const [context, setContext] = useState(null);
   const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [districtLoading, setDistrictLoading] = useState(false);
+  const [districtError, setDistrictError] = useState('');
+  const [districtRefresh, setDistrictRefresh] = useState(0);
   const [wards, setWards] = useState([]);
+  const [wardLoading, setWardLoading] = useState(false);
+  const [wardError, setWardError] = useState('');
+  const [wardRefresh, setWardRefresh] = useState(0);
   const [form, setForm] = useState(initial);
+  const [savedIndex, setSavedIndex] = useState(-1);
+  const [voucherInput, setVoucherInput] = useState('');
+  const [voucherOpen, setVoucherOpen] = useState(false);
+  const voucherRef = useRef(null);
+  const voucherToggleRef = useRef(null);
+  const voucherInputRef = useRef(null);
   const [quote, setQuote] = useState(null);
-  const [reviewItems, setReviewItems] = useState([]);
+  const [quotedFor, setQuotedFor] = useState('');
+  const [quoteError, setQuoteError] = useState(null);
+  const [quoting, setQuoting] = useState(false);
+  const [quoteRefresh, setQuoteRefresh] = useState(0);
+  const [feeCache, setFeeCache] = useState({ area: '', fees: {} });
   const [order, setOrder] = useState(null);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
+  const [placeError, setPlaceError] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [recovering, setRecovering] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(0);
   const [confirm, setConfirm] = useState(false);
-  const key = useRef(crypto.randomUUID());
+  const inFlight = useRef(false);
+
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    Promise.all([request('/checkout', { fixture, signal: controller.signal }),
-      request('/checkout/provinces', { fixture, signal: controller.signal })])
-      .then(async ([data, provinceOptions]) => {
-      setProvinces(provinceOptions);
-      setContext(data); setReviewItems(data.selectedItems || []);
-      const values = { ...initial, address: data.addresses[0] || { ...emptyAddress } };
-      setForm(values);
-      if (data.items.some((item) => item.selected) && data.addresses.length) {
-        const preview = await request('/checkout/quotes', { fixture, method: 'POST', body: values,
-          signal: controller.signal });
-        setQuote(preview); setReviewItems(preview.lines); setForm(preview.input);
-      }
-    }).catch((failure) => { if (failure.name !== 'AbortError') setError(failure.message); })
+    Promise.all([request('/checkout', { signal: controller.signal }),
+      request('/checkout/provinces', { signal: controller.signal })])
+      .then(([data, catalog]) => {
+        setContext(data); setProvinces(catalog);
+        if (data.addresses.length) {
+          setSavedIndex(0);
+          setForm({ ...initial, address: savedAddress(data.addresses[0], catalog) });
+        }
+      })
+      .catch((failure) => { if (failure.name !== 'AbortError') setLoadError(failure.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [fixture, refresh]);
+  }, []);
 
-  // Load linked wards from the same bundled catalog validated by the backend.
+  // A confirmed placement whose response never arrived is resumed with the same request key.
+  useEffect(() => {
+    if (loading) return;
+    legacyStorage.forEach((key) => sessionStorage.removeItem(key));
+    if (readJson(attemptStorage)) {
+      setRecovering(true);
+      void place(true);
+    }
+  }, [loading]);
+
+  // Abort obsolete requests when the province changes so districts stay linked to their parent.
   useEffect(() => {
     const controller = new AbortController();
-    setWards([]);
-    if (form.address.provinceCode) {
-      request(`/checkout/provinces/${form.address.provinceCode}/wards`, {
-        fixture, signal: controller.signal }).then(setWards).catch((failure) => {
-        if (failure.name !== 'AbortError') setError(failure.message);
+    const provinceCode = form.address.provinceCode;
+    setDistricts([]); setDistrictError(''); setDistrictLoading(Boolean(provinceCode));
+    if (provinceCode) {
+      request(`/checkout/provinces/${encodeURIComponent(provinceCode)}/districts`, {
+        signal: controller.signal,
+      }).then((options) => {
+        if (controller.signal.aborted) return;
+        setDistricts(options);
+        setForm((old) => {
+          if (old.address.provinceCode !== provinceCode
+            || (!old.address.districtCode && !old.address.district)) return old;
+          const selected = findPlace(options, old.address.districtCode, old.address.district);
+          return selected ? { ...old, address: { ...old.address, districtCode: selected.code,
+            district: selected.name } }
+            : { ...old, address: { ...old.address, districtCode: '', district: '',
+              wardCode: '', ward: '', catalogVersion: '' } };
+        });
+      }).catch((failure) => {
+        if (failure.name !== 'AbortError') setDistrictError(failure.message);
+      }).finally(() => {
+        if (!controller.signal.aborted) setDistrictLoading(false);
       });
     }
     return () => controller.abort();
-  }, [fixture, form.address.provinceCode]);
+  }, [form.address.provinceCode, districtRefresh]);
+
+  // Wards follow the selected district the same way.
+  useEffect(() => {
+    const controller = new AbortController();
+    const districtCode = form.address.districtCode;
+    setWards([]); setWardError(''); setWardLoading(Boolean(districtCode));
+    if (districtCode) {
+      request(`/checkout/districts/${encodeURIComponent(districtCode)}/wards`, {
+        signal: controller.signal,
+      }).then((options) => {
+        if (controller.signal.aborted) return;
+        setWards(options);
+        setForm((old) => {
+          if (old.address.districtCode !== districtCode
+            || (!old.address.wardCode && !old.address.ward)) return old;
+          const selected = findPlace(options, old.address.wardCode, old.address.ward);
+          return { ...old, address: { ...old.address, wardCode: selected?.code || '',
+            ward: selected?.name || '', catalogVersion: '' } };
+        });
+      }).catch((failure) => {
+        if (failure.name !== 'AbortError') setWardError(failure.message);
+      }).finally(() => {
+        if (!controller.signal.aborted) setWardLoading(false);
+      });
+    }
+    return () => controller.abort();
+  }, [form.address.districtCode, wardRefresh]);
 
   /**
-   * Changes one checkout field and invalidates the accepted quote, requiring a new server
-   * calculation before placement. A new draft receives a new local demo retry key.
+   * Only addresses saved against the Goship catalog carry usable codes. Older ones (bundled
+   * two-level catalog, seed data) are matched by name level by level: province here, district and
+   * ward in the effects above once their lists load.
    */
-  function update(keyName, value) {
-    setForm((old) => ({ ...old, [keyName]: value })); setQuote(null); setError('');
-    key.current = crypto.randomUUID();
+  function savedAddress(saved, catalog = provinces) {
+    const values = { ...emptyAddress, ...saved, catalogVersion: '' };
+    const trusted = saved.catalogVersion === trustedCatalog;
+    const province = findPlace(catalog, trusted ? values.provinceCode : '', values.province);
+    if (!province) {
+      return { ...values, provinceCode: '', province: '', districtCode: '', district: '',
+        wardCode: '', ward: '' };
+    }
+    return { ...values, provinceCode: province.code, province: province.name,
+      districtCode: trusted ? values.districtCode : '', wardCode: trusted ? values.wardCode : '' };
   }
-  /**
-   * Updates recipient/contact/detail input through the shared quote-invalidation path; it never
-   * computes prices or claims administrative validity on the client.
-   */
-  function address(keyName, value) {
-    update('address', { ...form.address, [keyName]: value });
-  }
-  /**
-   * Requests a new server quote, accepts its normalized address and cleaned voucher input, and
-   * displays feedback without reserving inventory.
-   */
-  async function preview(event) {
-    event.preventDefault(); setBusy(true); setError(''); setMessage(''); setQuote(null);
-    try {
-      const data = await request('/checkout/quotes', { fixture, method: 'POST',
-        body: { ...form, points: Number(form.points) } });
-      setQuote(data); setReviewItems(data.lines); setForm(data.input); setMessage(data.warning || 'Đã tính lại tổng tiền hiện tại.');
-    } catch (failure) { setError(failure.message); }
-    finally { setBusy(false); }
-  }
-  /**
-   * Submits only the confirmed quote and provisional demo retry key; preserves the key on
-   * network failure and invalidates rejected stale quotes. No payment provider is called.
-   */
-  async function place() {
-    setBusy(true); setError('');
-    try {
-      // DEMO-INTEGRATION: preserve this key after timeouts/network failures; retries
-      // are idempotent inside this DEMO process only. DB-06 remains undecided; SQL
-      // does not yet store this key. A real handoff needs the team's durable
-      // checkout-attempt state; no cart CRUD or payment module is implemented here.
-      const placed = await request('/checkout/orders', { fixture, method: 'POST',
-        body: { quoteId: quote.id, requestKey: key.current, confirmed: true } });
-      setOrder(placed); setConfirm(false);
-    } catch (failure) {
-      setError(failure.message);
-      if (['MSG88', 'MSG116', 'MSG117', 'MSG118', 'QUOTE_EXPIRED'].includes(failure.code)) {
-        setQuote(null); setConfirm(false);
+
+  const recipient = form.address;
+  const areaReady = Boolean(recipient.provinceCode && recipient.districtCode)
+    && !districtLoading && !wardLoading
+    && districts.some((item) => item.code === recipient.districtCode)
+    && wards.some((item) => item.code === recipient.wardCode);
+  const recipientReady = recipient.recipientName.trim().length >= 2
+    && phonePattern.test(recipient.phone.trim()) && recipient.detail.trim().length > 0;
+  const quoteReady = areaReady && recipientReady && Boolean(context?.selectedItems.length);
+  const body = useMemo(() => ({ ...form, voucherCode: form.voucherCode || null,
+    points: Math.max(0, Math.floor(Number(form.points) || 0)) }), [form]);
+  const formKey = JSON.stringify(body);
+  const areaKey = `${recipient.provinceCode}|${recipient.districtCode}|${recipient.wardCode}`;
+  const fresh = Boolean(quote) && quotedFor === formKey;
+
+  // Quotes refresh automatically (debounced) whenever an input that affects the price changes.
+  useEffect(() => {
+    if (!quoteReady || order) return undefined;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setQuoting(true);
+      try {
+        const next = await request('/checkout/quotes', { method: 'POST', body,
+          signal: controller.signal });
+        setQuote(next); setQuotedFor(formKey); setQuoteError(null);
+        setFeeCache((old) => ({ area: areaKey, fees: { ...(old.area === areaKey ? old.fees : {}),
+          [body.deliveryMethod]: next.deliveryFee } }));
+      } catch (failure) {
+        if (failure.name === 'AbortError') return;
+        setQuote(null); setQuotedFor(formKey);
+        setQuoteError({ code: failure.code, message: failure.message });
+      } finally {
+        if (!controller.signal.aborted) setQuoting(false);
       }
-    } finally { setBusy(false); }
+    }, 500);
+    return () => { clearTimeout(timer); controller.abort(); setQuoting(false); };
+  }, [formKey, quoteReady, quoteRefresh, order]);
+
+  function update(name, value) {
+    setForm((old) => ({ ...old, [name]: value }));
+    setPlaceError(null);
   }
 
-  if (order) return <section><p className="eyebrow">UC-RC-02 · KẾT QUẢ ĐẶT HÀNG</p>
-    <div className="success-panel"><div className="success-icon">✓</div>
-      <h1>Đã tạo đơn hàng</h1><p>Đơn đang chờ thanh toán. Hàng đã được giữ và sản phẩm đã đặt
-        được xóa khỏi giỏ.</p><dl className="details"><dt>Mã đơn</dt><dd className="order-code">
-        {order.code}</dd><dt>Trạng thái</dt><dd>Chờ thanh toán</dd><dt>Tổng tiền</dt>
-        <dd><strong>{money(order.total)}</strong></dd><dt>Hạn giữ hàng</dt>
-        <dd>{localTime(order.reservationExpiresAt)}</dd></dl>
-      <Notice>{order.message}</Notice><p className="muted">
-        Tích hợp thanh toán QR đang chờ module của nhóm. Chưa có giao dịch thanh toán nào được gửi.
-      </p><button onClick={() => { setOrder(null); setQuote(null); setContext(null);
-        // Reload the remaining SQL cart instead of displaying already-ordered cached products.
-        setReviewItems([]); setError(''); setMessage(''); setRefresh((value) => value + 1);
-      }}>Đóng kết quả</button></div></section>;
+  /** Any manual edit means the form no longer matches the highlighted saved address. */
+  function changeAddress(patch) {
+    setForm((old) => ({ ...old, address: { ...old.address, ...patch } }));
+    setSavedIndex(-1); setPlaceError(null);
+  }
 
-  return <section><div className="breadcrumbs"><span>Giỏ hàng</span><span>/</span><span>Thanh toán</span></div>
-    <div className="section-heading"><div><h1>Thanh toán đơn bán lẻ</h1>
-      <p className="muted">Kiểm tra sản phẩm, thông tin giao hàng và tổng tiền trước khi đặt.</p>
-    </div><span className="step"><strong>01 Xác nhận đơn</strong><span>→ 02 Thanh toán</span></span></div>
-    <Notice error>{error}</Notice><Notice>{message}</Notice>
-    {loading ? <p className="empty" role="status">Đang chuẩn bị thông tin checkout…</p>
-      : <form onSubmit={preview} className="checkout-grid"><div className="checkout-main">
-        <section className="panel"><div className="record-heading"><h2>Sản phẩm đã chọn</h2>
-          <span className="count">{reviewItems.length} sản phẩm</span></div>
-          <div className="table-wrap checkout-items-wrap"><table className="checkout-items-table">
-            <thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
-            <tbody>{reviewItems.map((line) => <tr key={line.cartItemId}><td><div className="name-cell">
-              <ProductThumbnail src={line.imageUrl} name={line.productName} /><div>
-                <strong>{line.productName}</strong><small>{line.sellerName}</small>
-                <small>{line.allocations.length ? line.allocations.map((item) =>
-                  `${item.batchCode}: ${item.quantity} ${line.unit}`).join(' · ')
-                  : 'Lô hàng được kiểm tra khi tính lại đơn'}</small></div></div></td>
-              <td>{line.quantity} {line.unit}</td><td>{money(line.unitPrice)}</td>
-              <td><strong>{money(line.subtotal)}</strong></td></tr>)}</tbody></table></div>
-          {!reviewItems.length && <p className="empty">Chưa có sản phẩm được chọn để thanh toán.</p>}
-          {!quote && reviewItems.length > 0 && <p className="quote-hint">Thông tin sản phẩm gần nhất.
-            Chọn “Tính lại tổng tiền” để kiểm tra giá và tồn kho trước khi đặt.</p>}
-        </section><fieldset disabled={busy}><section className="panel padded"><h2>Địa chỉ giao hàng</h2>
-          {context?.addresses.length > 0 && <Field label="Chọn địa chỉ đã lưu">
-            <select value={context.addresses.findIndex((saved) => saved.recipientName === form.address.recipientName
-              && saved.phone === form.address.phone && saved.detail === form.address.detail
-              && saved.provinceCode === form.address.provinceCode && saved.wardCode === form.address.wardCode)}
-              onChange={(event) => update('address', event.target.value === '-1'
-                ? { ...emptyAddress } : context.addresses[Number(event.target.value)])}>
-              {context.addresses.map((saved, index) => <option key={index} value={index}>
-                {saved.recipientName} · {saved.detail} · {saved.province}</option>)}
-              <option value="-1">Nhập địa chỉ khác</option></select></Field>}
-          <div className="form-grid"><Field label="Tên người nhận *"><input required minLength={2}
-            maxLength={100} value={form.address.recipientName}
-            onChange={(event) => address('recipientName', event.target.value)} /></Field>
-          <Field label="Số điện thoại *"><input required type="tel" maxLength={20} value={form.address.phone}
-            onChange={(event) => address('phone', event.target.value)} /></Field>
-          <Field label="Tỉnh / thành phố *"><select required value={form.address.provinceCode}
-            onChange={(event) => update('address', { ...form.address, provinceCode: event.target.value,
-              province: provinces.find((item) => item.code === event.target.value)?.name || '',
-              ward: '', wardCode: '', catalogVersion: '' })}><option value="">Chọn tỉnh / thành phố</option>
-            {provinces.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
-          </select></Field><Field label="Phường / xã *"><select required disabled={!wards.length}
-            value={form.address.wardCode} onChange={(event) => update('address', { ...form.address,
-              wardCode: event.target.value, ward: wards.find((item) => item.code === event.target.value)?.name || '' })}>
-              <option value="">Chọn phường / xã</option>{wards.map((item) =>
-                <option key={item.code} value={item.code}>{item.name}</option>)}</select></Field></div>
-          <Field label="Địa chỉ chi tiết *"><textarea required maxLength={255} rows={2}
-            placeholder="Số nhà, tên đường và hướng dẫn giao hàng"
-            value={form.address.detail} onChange={(event) => address('detail', event.target.value)} /></Field>
-          <h3 className="form-subheading">Phương thức giao hàng</h3><div className="delivery-options">
-            {['Standard', 'FreshExpress'].map((method) => <label key={method}
-              className={`choice-card ${form.deliveryMethod === method ? 'chosen' : ''}`}>
-              <input type="radio" name="deliveryMethod" value={method} checked={form.deliveryMethod === method}
-                onChange={() => update('deliveryMethod', method)} /><span><strong>{method === 'Standard'
-                ? 'Giao hàng tiêu chuẩn' : 'Giao nhanh nông sản tươi'}</strong>
-                <small>{form.deliveryMethod === method && quote ? `Phí giao: ${money(quote.deliveryFee)}`
-                  : 'Phí được tính lại theo địa chỉ và nhà cung cấp'}</small>
-                <small>Thời gian giao dự kiến: chờ đơn vị vận chuyển xác nhận</small></span>
-            </label>)}
-          </div></section><section className="panel padded"><h2>Phương thức thanh toán</h2>
-            <div className="payment-options">{['PayOS', 'VietQR'].map((method) => <label key={method}
-              className={`choice-card ${form.paymentMethod === method ? 'chosen' : ''}`}>
-              <input type="radio" name="paymentMethod" value={method} checked={form.paymentMethod === method}
-                onChange={() => update('paymentMethod', method)} /><span><strong>{method}</strong>
-                <small>Tiếp tục thanh toán sau khi tạo đơn</small></span></label>)}</div>
-            <Field label="Ghi chú đơn hàng"><textarea maxLength={300} rows={2} value={form.notes || ''}
-              placeholder="Yêu cầu giao hàng (không bắt buộc)"
-              onChange={(event) => update('notes', event.target.value)} /></Field>
-          </section></fieldset></div><aside className="checkout-summary"><div className="panel padded summary">
-          <h2>Tóm tắt đơn hàng</h2><fieldset disabled={busy}><Field label="Mã voucher">
-            <input maxLength={100} list="checkout-vouchers" value={form.voucherCode || ''}
-              placeholder="Nhập hoặc chọn voucher" onChange={(event) => update('voucherCode', event.target.value)} />
-          </Field><datalist id="checkout-vouchers">{context?.voucherCodes.map((code) =>
-            <option value={code} key={code} />)}</datalist>
-          <button type="submit" className="voucher-apply" disabled={busy || !reviewItems.length}>Áp dụng voucher</button>
-          {quote?.voucherDiscount > 0 && <p className="applied-voucher">✓ Đã áp dụng {quote.input.voucherCode}</p>}
-          <div className="points-heading"><strong>Điểm thưởng</strong><span>
-            {context?.availablePoints ?? 0} điểm khả dụng</span></div>
-          <Field label="Điểm muốn sử dụng"><input type="number" min={0} step={1}
-            max={context?.availablePoints || 0} value={form.points}
-            onChange={(event) => update('points', event.target.value)} /></Field>
-          </fieldset><div className="price-lines"><p><span>Tiền sản phẩm</span><span>
-            {quote ? money(quote.subtotal) : 'Chưa tính'}</span></p><p><span>Phí giao hàng</span>
-            <span>{quote ? money(quote.deliveryFee) : 'Chưa tính'}</span></p><p><span>Giảm voucher</span>
-            <span>{quote ? `−${money(quote.voucherDiscount)}` : '—'}</span></p><p><span>Giảm điểm thưởng</span>
-            <span>{quote ? `−${money(quote.pointsDiscount)}` : '—'}</span></p><p className="total">
-            <strong>Tổng thanh toán</strong><strong>{quote ? money(quote.total) : 'Chưa tính'}</strong></p></div>
-          {quote && <small>Bản tính giá có hiệu lực đến {localTime(quote.expiresAt)}.</small>}
-          <button type="submit" className="full" disabled={busy || !reviewItems.length}>
-            {busy ? 'Đang xử lý…' : 'Tính lại tổng tiền'}</button>
-          <button type="button" className="primary full" disabled={busy || !quote}
-            onClick={() => setConfirm(true)}>Đặt hàng</button>
-          <button type="button" className="text-button full" disabled={busy} onClick={() => {
-            // DEMO-HANDOFF (UC-RC-01 owner): replace with the team's cart route. Do not
-            // implement cart CRUD here or claim navigation succeeded before integration.
-            setMessage('Liên kết đến giỏ hàng đang chờ tích hợp UC-RC-01. Chưa có đơn được tạo.');
-          }}>Trở về giỏ hàng</button></div>
-          <p className="subtle">Chỉ giữ hàng sau khi đặt đơn thành công.</p></aside></form>}
-    {confirm && quote && <Modal title="Xác nhận đặt đơn bán lẻ"
-      onClose={() => { if (!busy) setConfirm(false); }}><p>Đặt đơn với tổng tiền <strong>
-        {money(quote.total)}</strong> và giữ hàng để tiếp tục thanh toán?</p><p>
-        Người nhận: {form.address.recipientName} · {form.address.phone}</p>
-      <Notice error>{error}</Notice><div className="modal-actions"><button disabled={busy}
-        onClick={() => setConfirm(false)}>Kiểm tra lại</button><button className="primary"
-        disabled={busy} onClick={place}>{busy ? 'Đang tạo đơn…' : 'Xác nhận đặt hàng'}</button></div>
-    </Modal>}
-  </section>;
+  function address(name, value) {
+    changeAddress({ [name]: value });
+  }
+
+  function pickSaved(index) {
+    setSavedIndex(index); setPlaceError(null);
+    setForm((old) => ({ ...old, address: index < 0 ? emptyAddress
+      : savedAddress(context.addresses[index]) }));
+    // Re-run the lookups even when the province/district code did not change.
+    setDistrictRefresh((value) => value + 1); setWardRefresh((value) => value + 1);
+  }
+
+  function closeVouchers() {
+    setVoucherOpen(false);
+    voucherToggleRef.current?.focus();
+  }
+
+  function applyVoucher(code) {
+    const next = code.trim();
+    setVoucherInput(next);
+    update('voucherCode', next);
+    if (voucherOpen) closeVouchers();
+  }
+
+  // The voucher panel opens with the code box focused and closes on a click outside it.
+  useEffect(() => {
+    if (!voucherOpen) return undefined;
+    voucherInputRef.current?.focus();
+    const closeOnOutside = (event) => {
+      if (!voucherRef.current?.contains(event.target)) setVoucherOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutside);
+    return () => document.removeEventListener('mousedown', closeOnOutside);
+  }, [voucherOpen]);
+
+  async function place(retry = false) {
+    if (inFlight.current) return;
+    let pending = retry ? readJson(attemptStorage) : null;
+    if (!pending) {
+      if (retry) { setRecovering(false); return; }
+      if (!fresh) return;
+      pending = { quoteId: quote.id, requestKey: crypto.randomUUID(), confirmed: true };
+      sessionStorage.setItem(attemptStorage, JSON.stringify(pending));
+      sessionStorage.setItem(quoteStorage, JSON.stringify(quote));
+    }
+    inFlight.current = true; setBusy(true); setPlaceError(null);
+    try {
+      const result = await request('/checkout/orders', { method: 'POST', body: pending });
+      const placedQuote = readJson(quoteStorage);
+      if (placedQuote) setQuote(placedQuote);
+      setOrder(result); setConfirm(false);
+      sessionStorage.removeItem(attemptStorage); sessionStorage.removeItem(quoteStorage);
+    } catch (failure) {
+      // Without an HTTP status the outcome is unknown: keep the key so "Thử lại" stays idempotent.
+      const unknown = !failure.status;
+      if (!unknown) { sessionStorage.removeItem(attemptStorage); sessionStorage.removeItem(quoteStorage); }
+      setPlaceError({ message: failure.message, retry: unknown });
+      if (['MSG88', 'MSG118', 'QUOTE_EXPIRED'].includes(failure.code)) {
+        setConfirm(false); setQuoteRefresh((value) => value + 1);
+      }
+    } finally { inFlight.current = false; setBusy(false); setRecovering(false); }
+  }
+
+  const lines = (fresh ? quote.lines : null) || context?.selectedItems || [];
+  const parcels = useMemo(() => {
+    const groups = new Map();
+    lines.forEach((line) => {
+      if (!groups.has(line.farmerId)) groups.set(line.farmerId, { farmerId: line.farmerId,
+        sellerName: line.sellerName, lines: [] });
+      groups.get(line.farmerId).lines.push(line);
+    });
+    return [...groups.values()];
+  }, [lines]);
+  const subtotal = lines.reduce((sum, line) => sum + line.subtotal, 0);
+  const fees = feeCache.area === areaKey ? feeCache.fees : {};
+  const vouchers = context?.vouchers || [];
+  const quoteMessage = quoteError?.message;
+  const addressMessage = addressErrors.includes(quoteError?.code) ? quoteMessage : '';
+  const shippingMessage = shippingErrors.includes(quoteError?.code) ? quoteMessage : '';
+  const summaryMessage = quoteError && !addressMessage && !shippingMessage ? quoteMessage : '';
+
+  function methodPrice(method) {
+    if (!areaReady) return 'Nhập địa chỉ';
+    if (fees[method] !== undefined) return money(fees[method]);
+    return form.deliveryMethod === method && quoting ? 'Đang tính…' : 'Chọn để xem phí';
+  }
+
+  if (order) return <section className="co-page"><div className="co-wrap">
+    <h1>Đặt hàng thành công</h1>
+    <div className="co-card"><h2>Thông tin đơn hàng</h2>
+      <dl className="details"><dt>Mã đơn</dt><dd>{order.code}</dd>
+        <dt>Trạng thái</dt><dd>{order.status}</dd>
+        <dt>Người nhận</dt><dd>{quote?.input.address.recipientName}</dd>
+        <dt>Số điện thoại</dt><dd>{quote?.input.address.phone}</dd>
+        <dt>Địa chỉ</dt><dd>{quote && `${quote.input.address.detail}, ${quote.input.address.ward}, ${quote.input.address.district}, ${quote.input.address.province}`}</dd>
+        <dt>Vận chuyển</dt><dd>{quote?.input.deliveryMethod === 'Standard' ? 'Giao tiêu chuẩn (Goship)' : 'Giao nhanh nông sản (Goship)'}</dd>
+        <dt>Ngày giao dự kiến</dt><dd>{quote && new Date(quote.expectedDeliveryAt).toLocaleDateString('vi-VN')}</dd>
+        <dt>Phương thức thanh toán</dt><dd>{order.paymentMethod}</dd>
+        <dt>Hạn giữ hàng</dt><dd>{localTime(order.reservationExpiresAt)}</dd>
+        <dt><strong>Số tiền cần thanh toán</strong></dt><dd><strong>{money(order.total)}</strong></dd></dl>
+      <Notice>{order.message}</Notice>
+      <div className="co-actions">
+        <button className="primary" onClick={() => navigate('/retail/orders')}>Theo dõi đơn hàng</button>
+        <button onClick={() => navigate('/cart')}>Xem giỏ hàng còn lại</button>
+      </div>
+    </div></div></section>;
+
+  return <section className="co-page"><div className="co-wrap">
+    <div>
+      <nav className="co-crumbs" aria-label="Đường dẫn"><button type="button" className="text-button"
+        onClick={() => navigate('/cart')}>Giỏ hàng</button><span aria-hidden="true">/</span><span>Thanh toán</span></nav>
+      <h1>Thanh toán</h1>
+      {context && <p className="co-sub">{lines.length} sản phẩm từ {parcels.length} nông trại · mỗi nông trại gửi một kiện riêng qua Goship</p>}
+    </div>
+    <Notice error>{loadError}</Notice>
+    {recovering && <Notice>Đang kiểm tra kết quả đơn hàng bạn vừa gửi…</Notice>}
+    {loading ? <p role="status">Đang tải checkout…</p> : context && <div className="co-layout">
+      <div className="co-main">
+        <fieldset className="co-card" disabled={busy}>
+          <legend className="co-head"><span className="co-num">1</span>Giao đến</legend>
+          {context.addresses.length > 0 && <div className="co-chips">
+            {context.addresses.map((saved, index) => <button key={index} type="button"
+              className="co-chip" aria-pressed={savedIndex === index} onClick={() => pickSaved(index)}>
+              <strong>{saved.recipientName} · {saved.phone}</strong>
+              <span>{[saved.detail, saved.ward, saved.district, saved.province].filter(Boolean).join(', ')}</span>
+            </button>)}
+            <button type="button" className="co-chip co-chip-add" aria-pressed={savedIndex === -1}
+              onClick={() => pickSaved(-1)}>+ Địa chỉ mới</button>
+          </div>}
+          <div className="co-grid-2">
+            <label className="co-field">Tên người nhận *<input required minLength={2} maxLength={100}
+              value={recipient.recipientName} onChange={(e) => address('recipientName', e.target.value)} /></label>
+            <label className="co-field">Số điện thoại *<input required type="tel" value={recipient.phone}
+              onChange={(e) => address('phone', e.target.value)} />
+              {recipient.phone && !phonePattern.test(recipient.phone.trim())
+                && <small className="co-hint-error">Số di động Việt Nam gồm 10 số, ví dụ 0912345678.</small>}</label>
+          </div>
+          <div className="co-grid-3">
+            <label className="co-field">Tỉnh / thành phố *<select required value={recipient.provinceCode}
+              onChange={(e) => changeAddress({ provinceCode: e.target.value,
+                province: provinces.find((item) => item.code === e.target.value)?.name || '',
+                districtCode: '', district: '', wardCode: '', ward: '', catalogVersion: '' })}>
+              <option value="">Chọn tỉnh / thành phố</option>{provinces.map((item) =>
+                <option key={item.code} value={item.code}>{item.name}</option>)}</select></label>
+            <label className="co-field">Quận / huyện *<select required value={recipient.districtCode}
+              disabled={!recipient.provinceCode || districtLoading || !districts.length}
+              onChange={(e) => changeAddress({ districtCode: e.target.value,
+                district: districts.find((item) => item.code === e.target.value)?.name || '',
+                wardCode: '', ward: '', catalogVersion: '' })}>
+              <option value="">{districtLoading ? 'Đang tải…'
+                : !recipient.provinceCode ? 'Chọn tỉnh trước' : 'Chọn quận / huyện'}</option>
+              {districts.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+            </select></label>
+            <label className="co-field">Phường / xã *<select required value={recipient.wardCode}
+              disabled={!recipient.districtCode || wardLoading || !wards.length}
+              onChange={(e) => changeAddress({ wardCode: e.target.value,
+                ward: wards.find((item) => item.code === e.target.value)?.name || '', catalogVersion: '' })}>
+              <option value="">{wardLoading ? 'Đang tải…'
+                : !recipient.districtCode ? 'Chọn quận trước' : 'Chọn phường / xã'}</option>
+              {wards.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+            </select></label>
+          </div>
+          {!provinces.length && <Notice error>Không tải được danh sách tỉnh / thành phố. Vui lòng tải lại trang.</Notice>}
+          {districtError && <div className="co-inline-error"><span>{districtError}</span><button type="button"
+            onClick={() => setDistrictRefresh((value) => value + 1)}>Tải lại quận / huyện</button></div>}
+          {wardError && <div className="co-inline-error"><span>{wardError}</span><button type="button"
+            onClick={() => setWardRefresh((value) => value + 1)}>Tải lại phường / xã</button></div>}
+          <label className="co-field">Số nhà, tên đường *<input required maxLength={255} value={recipient.detail}
+            onChange={(e) => address('detail', e.target.value)} placeholder="Ví dụ: Số 12 Nguyễn Trãi" /></label>
+          <Notice error>{addressMessage}</Notice>
+        </fieldset>
+
+        <fieldset className="co-card" disabled={busy}>
+          <legend className="co-head"><span className="co-num">2</span>Hình thức giao
+            <span className="co-head-hint">Giá từ Goship theo địa chỉ</span></legend>
+          <div className="co-grid-2">
+            {methods.map((method) => <button key={method.value} type="button" className="co-choice"
+              aria-pressed={form.deliveryMethod === method.value}
+              onClick={() => update('deliveryMethod', method.value)}>
+              <span className="co-choice-row"><span className="co-choice-title">{method.title}</span>
+                <span className="co-choice-price">{methodPrice(method.value)}</span></span>
+              <span className="co-choice-desc">{method.desc}</span>
+            </button>)}
+          </div>
+          {fresh && <p className="co-muted">Dự kiến giao: {new Date(quote.expectedDeliveryAt).toLocaleDateString('vi-VN')}</p>}
+          <Notice error>{shippingMessage}</Notice>
+        </fieldset>
+
+        <section className="co-card">
+          <h2 className="co-head"><span className="co-num">3</span>Kiện hàng</h2>
+          {parcels.map((parcel, index) => <div key={parcel.farmerId} className="co-parcel">
+            <div className="co-parcel-head"><strong>{parcel.sellerName}</strong>
+              <span>Kiện {index + 1} · phí giao <strong>{fresh && quote.sellerDeliveryFees
+                ? money(quote.sellerDeliveryFees[parcel.farmerId] ?? 0) : '—'}</strong></span></div>
+            {parcel.lines.map((line) => <div key={line.cartItemId} className="co-item">
+              {line.imageUrl ? <img className="co-thumb" src={line.imageUrl} alt="" />
+                : <span className="co-thumb" aria-hidden="true" />}
+              <div className="co-item-name"><span>{line.productName}</span>
+                <small>{line.quantity} {line.unit} × {money(line.unitPrice)}</small></div>
+              <span className="co-item-price">{money(line.subtotal)}</span>
+            </div>)}
+          </div>)}
+          {!lines.length && <p>Chưa có sản phẩm được chọn. Hãy cập nhật giỏ hàng.</p>}
+        </section>
+
+        <fieldset className="co-card" disabled={busy}>
+          <legend className="co-head"><span className="co-num">4</span>Thanh toán</legend>
+          <div className="co-grid-2">
+            {payments.map((payment) => <button key={payment.value} type="button" className="co-choice"
+              aria-pressed={form.paymentMethod === payment.value}
+              onClick={() => update('paymentMethod', payment.value)}>
+              <span className="co-choice-title">{payment.title}</span>
+              <span className="co-choice-desc">{payment.desc}</span>
+            </button>)}
+          </div>
+          <label className="co-field">Ghi chú cho người bán (không bắt buộc)<textarea maxLength={300} rows={2}
+            value={form.notes || ''} onChange={(e) => update('notes', e.target.value)}
+            placeholder="Ví dụ: gọi trước khi giao" /></label>
+        </fieldset>
+      </div>
+
+      <aside className="co-aside"><div className="co-card">
+        <h2 className="co-head">Tóm tắt đơn hàng</h2>
+        <fieldset className="co-plain" disabled={busy}>
+          <div className="co-voucher-picker" ref={voucherRef}
+            onKeyDown={(e) => { if (e.key === 'Escape' && voucherOpen) { e.stopPropagation(); closeVouchers(); } }}>
+            <span className="co-label" id="co-voucher-label">Voucher</span>
+            <div className="co-voucher-row">
+              <button type="button" ref={voucherToggleRef} className="co-voucher-field"
+                aria-labelledby="co-voucher-label co-voucher-value" aria-expanded={voucherOpen}
+                aria-controls="co-voucher-panel" onClick={() => (voucherOpen ? closeVouchers() : setVoucherOpen(true))}>
+                <span id="co-voucher-value">{form.voucherCode
+                  ? <><strong>{form.voucherCode}</strong>{fresh && quote.voucherDiscount > 0
+                    ? ` · −${money(quote.voucherDiscount)}` : ''}</>
+                  : <span className="co-placeholder">Chọn hoặc nhập mã voucher</span>}</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+                  style={{ transform: voucherOpen ? 'rotate(180deg)' : 'none' }}><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+              {form.voucherCode && <button type="button" className="text-button"
+                onClick={() => applyVoucher('')}>Bỏ</button>}
+            </div>
+            {voucherOpen && <div id="co-voucher-panel" className="co-voucher-panel" role="group"
+              aria-label="Chọn voucher">
+              <div className="co-voucher-entry">
+                <label className="co-field">Nhập mã voucher<input ref={voucherInputRef} maxLength={100}
+                  value={voucherInput} placeholder="Ví dụ: WELCOME10"
+                  onChange={(e) => setVoucherInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(voucherInput); } }} /></label>
+                <button type="button" className="co-btn-outline" disabled={!voucherInput.trim()
+                  || voucherInput.trim() === form.voucherCode} onClick={() => applyVoucher(voucherInput)}>Áp dụng</button>
+              </div>
+              <span className="co-label">Voucher dành cho bạn</span>
+              {vouchers.length ? <div className="co-vouchers">
+                {vouchers.map((voucher) => <button key={voucher.code} type="button"
+                  className="co-voucher" aria-pressed={voucher.code === form.voucherCode}
+                  disabled={!voucher.eligible && voucher.code !== form.voucherCode}
+                  onClick={() => applyVoucher(voucher.code === form.voucherCode ? '' : voucher.code)}>
+                  <span className="co-voucher-top"><strong>{voucher.code}</strong><span>{voucherTitle(voucher)}</span></span>
+                  <small>
+                    {voucher.minOrderAmount > 0 ? `Đơn từ ${money(voucher.minOrderAmount)}` : 'Không yêu cầu tối thiểu'}
+                    {voucher.farmName ? ` · chỉ cho ${voucher.farmName}` : ''}
+                    {` · HSD ${new Date(voucher.endDate).toLocaleDateString('vi-VN')}`}
+                  </small>
+                  {!voucher.eligible && <small className="co-hint-error">Chưa đủ giá trị đơn tối thiểu</small>}
+                </button>)}
+              </div> : <p className="co-muted">Hiện chưa có voucher phù hợp với giỏ hàng.</p>}
+            </div>}
+          </div>
+          {fresh && quote.warning && <Notice error>{quote.warning}</Notice>}
+          <div className="co-points">
+            <label className="co-field">Điểm thưởng ({context.availablePoints} khả dụng)
+              <input type="number" min={0} max={context.availablePoints} step={1} value={form.points}
+                onChange={(e) => update('points', e.target.value)} /></label>
+            <button type="button" className="co-btn-outline" disabled={!context.availablePoints}
+              onClick={() => update('points', context.availablePoints)}>Dùng hết</button>
+          </div>
+        </fieldset>
+        <dl className="co-lines">
+          <dt>Tiền hàng</dt><dd>{money(fresh ? quote.subtotal : subtotal)}</dd>
+          <dt>Phí giao ({parcels.length} kiện)</dt><dd>{fresh ? money(quote.deliveryFee) : '—'}</dd>
+          <dt>Giảm voucher</dt><dd>{fresh ? `−${money(quote.voucherDiscount)}` : '—'}</dd>
+          <dt>Giảm điểm</dt><dd>{fresh ? `−${money(quote.pointsDiscount)}` : '—'}</dd>
+        </dl>
+        <div className="co-total"><span>Tổng thanh toán</span>
+          <span>{fresh ? money(quote.total) : quoting ? 'Đang tính…' : '—'}</span></div>
+        {!quoteReady && <p className="co-muted">Điền đủ người nhận, số điện thoại và địa chỉ để tính phí giao và tổng tiền.</p>}
+        <Notice error>{summaryMessage}</Notice>
+        <button type="button" className="co-btn-primary" disabled={busy || !fresh || quoting}
+          onClick={() => setConfirm(true)}>{fresh ? `Đặt hàng · ${money(quote.total)}` : 'Đặt hàng'}</button>
+        {placeError && <div className="co-inline-error"><span>{placeError.message}</span>
+          {placeError.retry && <button type="button" disabled={busy} onClick={() => place(true)}>Thử lại</button>}</div>}
+        {fresh && <p className="co-muted">Giá giữ đến {localTime(quote.expiresAt)}. Sau khi đặt, hàng được giữ để bạn hoàn tất thanh toán.</p>}
+        <button type="button" className="text-button co-back" onClick={() => navigate('/cart')}>← Quay lại giỏ hàng</button>
+      </div></aside>
+    </div>}
+    {confirm && fresh && <Modal title="Xác nhận đặt đơn bán lẻ"
+      onClose={() => { if (!busy) setConfirm(false); }}>
+      <p>Đặt đơn {money(quote.total)} giao đến {recipient.recipientName} ({recipient.phone}) và giữ hàng để thanh toán?</p>
+      {placeError && <Notice error>{placeError.message}</Notice>}
+      <div className="co-actions">
+        <button disabled={busy} onClick={() => setConfirm(false)}>Kiểm tra lại</button>
+        <button className="primary" disabled={busy} onClick={() => place()}>Xác nhận đặt hàng</button>
+      </div></Modal>}
+  </div></section>;
 }

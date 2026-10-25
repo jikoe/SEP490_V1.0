@@ -5,11 +5,13 @@ VisualStudioVersion = 17.14.37314.3 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain", "AgriSustain\AgriSustain.csproj", "{AFDE0201-193F-46D3-9A9A-775E978B86D9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.Domain", "AgriSustain\Domain\AgriSustain.Domain.csproj", "{5B6D9890-EA8D-4D93-9EA7-2EC34D01A37D}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{E6DEBC94-6F1A-4F68-AED6-2E7F42451853}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.Application", "AgriSustain\Application\AgriSustain.Application.csproj", "{C71997C5-A527-420A-B4C4-957223FF44F3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.IntegrationTests", "tests\Integration\AgriSustain.IntegrationTests.csproj", "{E5D3696D-12EE-4EC7-BB4E-DD58DE0DF56C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.Infrastructure", "AgriSustain\Infrastructure\AgriSustain.Infrastructure.csproj", "{88CAB3A0-53D8-4D94-9A5F-271D4620C297}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.UnitTests", "tests\Unit\AgriSustain.UnitTests.csproj", "{2CA8255B-5AB1-403D-ACA4-3A64C4CEE980}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AgriSustain.ArchitectureTests", "tests\Architecture\AgriSustain.ArchitectureTests.csproj", "{0F5AFE89-7035-4B98-85BD-3B163880A162}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,23 +23,28 @@ Global
 		{AFDE0201-193F-46D3-9A9A-775E978B86D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AFDE0201-193F-46D3-9A9A-775E978B86D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AFDE0201-193F-46D3-9A9A-775E978B86D9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5B6D9890-EA8D-4D93-9EA7-2EC34D01A37D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5B6D9890-EA8D-4D93-9EA7-2EC34D01A37D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5B6D9890-EA8D-4D93-9EA7-2EC34D01A37D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5B6D9890-EA8D-4D93-9EA7-2EC34D01A37D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C71997C5-A527-420A-B4C4-957223FF44F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C71997C5-A527-420A-B4C4-957223FF44F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C71997C5-A527-420A-B4C4-957223FF44F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C71997C5-A527-420A-B4C4-957223FF44F3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{88CAB3A0-53D8-4D94-9A5F-271D4620C297}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{88CAB3A0-53D8-4D94-9A5F-271D4620C297}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{88CAB3A0-53D8-4D94-9A5F-271D4620C297}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{88CAB3A0-53D8-4D94-9A5F-271D4620C297}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5D3696D-12EE-4EC7-BB4E-DD58DE0DF56C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5D3696D-12EE-4EC7-BB4E-DD58DE0DF56C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5D3696D-12EE-4EC7-BB4E-DD58DE0DF56C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5D3696D-12EE-4EC7-BB4E-DD58DE0DF56C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2CA8255B-5AB1-403D-ACA4-3A64C4CEE980}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2CA8255B-5AB1-403D-ACA4-3A64C4CEE980}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2CA8255B-5AB1-403D-ACA4-3A64C4CEE980}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2CA8255B-5AB1-403D-ACA4-3A64C4CEE980}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0F5AFE89-7035-4B98-85BD-3B163880A162}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F5AFE89-7035-4B98-85BD-3B163880A162}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0F5AFE89-7035-4B98-85BD-3B163880A162}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0F5AFE89-7035-4B98-85BD-3B163880A162}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {999FCF75-2F81-4949-AA2F-7CBF7BE34243}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{E5D3696D-12EE-4EC7-BB4E-DD58DE0DF56C} = {E6DEBC94-6F1A-4F68-AED6-2E7F42451853}
+		{2CA8255B-5AB1-403D-ACA4-3A64C4CEE980} = {E6DEBC94-6F1A-4F68-AED6-2E7F42451853}
+		{0F5AFE89-7035-4B98-85BD-3B163880A162} = {E6DEBC94-6F1A-4F68-AED6-2E7F42451853}
 	EndGlobalSection
 EndGlobal

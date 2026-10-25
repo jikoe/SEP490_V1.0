@@ -1,8 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using AgriSustain.Api.Auth;
 using AgriSustain.Application.DTOs.Auth;
+using AgriSustain.Application.DTOs.Authentication;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Interfaces.Services;
+using AgriSustain.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,20 +15,28 @@ namespace AgriSustain.Api.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IAuthenticationService _registrationService;
     private readonly RevokedTokenStore _revokedTokenStore;
 
-    public AuthController(IAuthService authService, RevokedTokenStore revokedTokenStore)
+    public AuthController(
+        IAuthService authService,
+        IAuthenticationService registrationService,
+        RevokedTokenStore revokedTokenStore)
     {
         _authService = authService;
+        _registrationService = registrationService;
         _revokedTokenStore = revokedTokenStore;
     }
 
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<IActionResult> Login(
-        [FromBody] LoginRequestDto request,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto request, CancellationToken cancellationToken)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         var result = await _authService.LoginAsync(request, cancellationToken);
         return result.Status switch
         {
@@ -51,8 +61,10 @@ public sealed class AuthController : ControllerBase
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        var tokenId = User.FindFirstValue(JwtRegisteredClaimNames.Jti);
-        var expiration = User.FindFirstValue(JwtRegisteredClaimNames.Exp);
+        var tokenId = User.FindFirstValue(JwtRegisteredClaimNames.Jti)
+            ?? User.FindFirstValue(ClaimTypes.SerialNumber);
+        var expiration = User.FindFirstValue(JwtRegisteredClaimNames.Exp)
+            ?? User.FindFirstValue(ClaimTypes.Expiration);
         if (string.IsNullOrWhiteSpace(tokenId)
             || !long.TryParse(expiration, out var expirationTimestamp))
         {
@@ -67,4 +79,30 @@ public sealed class AuthController : ControllerBase
             DateTimeOffset.FromUnixTimeSeconds(expirationTimestamp));
         return NoContent();
     }
+
+    [AllowAnonymous]
+    [HttpPost("register")]
+    public async Task<IActionResult> Register(
+        [FromBody] RegisterRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _registrationService.InitiateRegistrationAsync(request, cancellationToken), HttpContext);
+
+    [AllowAnonymous]
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp(
+        [FromBody] VerifyOtpRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _registrationService.VerifyOtpAndCompleteRegistrationAsync(request, cancellationToken), HttpContext);
+
+    [AllowAnonymous]
+    [HttpPost("resend-otp")]
+    public async Task<IActionResult> ResendOtp(
+        [FromBody] ResendOtpRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _registrationService.ResendOtpAsync(request, cancellationToken), HttpContext);
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(
+            await _authService.ChangePasswordAsync(request, cancellationToken),
+            HttpContext);
 }

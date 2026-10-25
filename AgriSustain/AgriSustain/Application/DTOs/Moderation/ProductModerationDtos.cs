@@ -18,6 +18,7 @@ public sealed record ProductModerationListDto(
 
 public sealed record ProductModerationDetailDto(
     long Id,
+    DateTime SubmittedAt,
     string ModerationStatus,
     string? RejectionReason,
     string Name,

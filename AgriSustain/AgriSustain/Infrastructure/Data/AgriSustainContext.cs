@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-
 using AgriSustain.Domain.Entities;
 
 namespace AgriSustain.Infrastructure.Data;
@@ -130,6 +129,10 @@ public partial class AgriSustainContext : DbContext
     public virtual DbSet<VoucherRedemption> VoucherRedemptions { get; set; }
 
     public virtual DbSet<WholesaleBuyerProfile> WholesaleBuyerProfiles { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) { }
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        //=> optionsBuilder.UseSqlServer("Server=localhost;Database=AgriSustain;UId=sa;pwd=123;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -600,6 +603,9 @@ public partial class AgriSustainContext : DbContext
                 .IsUnicode(false);
             entity.Property(e => e.AddressDetail).HasMaxLength(500);
             entity.Property(e => e.District).HasMaxLength(100);
+            entity.Property(e => e.DistrictCode)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.ProvinceCity).HasMaxLength(100);
             entity.Property(e => e.ProvinceCode)
                 .HasMaxLength(20)
@@ -1028,6 +1034,10 @@ public partial class AgriSustainContext : DbContext
                 .HasMaxLength(20)
                 .IsUnicode(false);
             entity.Property(e => e.ProvinceNameSnapshot).HasMaxLength(100);
+            entity.Property(e => e.DistrictCodeSnapshot)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.DistrictNameSnapshot).HasMaxLength(100);
             entity.Property(e => e.RecipientNameSnapshot).HasMaxLength(150);
             entity.Property(e => e.RecipientPhoneSnapshot)
                 .HasMaxLength(20)
@@ -1414,8 +1424,8 @@ public partial class AgriSustainContext : DbContext
             entity.Property(e => e.AltText).HasMaxLength(255);
             entity.Property(e => e.ImageUrl).HasMaxLength(500);
 
-            entity.HasOne(d => d.Product).WithOne(p => p.ProductImage)
-                .HasForeignKey<ProductImage>(d => d.ProductId)
+            entity.HasOne(d => d.Product).WithMany(p => p.ProductImages)
+                .HasForeignKey(d => d.ProductId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_ProductImage_Product");
         });
@@ -1703,11 +1713,7 @@ public partial class AgriSustainContext : DbContext
         {
             entity.HasKey(e => e.UserId).HasName("PK__User__1788CC4C1EE96F0D");
 
-            entity.ToTable("User", table =>
-            {
-                table.HasTrigger("TR_User_Validate");
-                table.UseSqlOutputClause(false);
-            });
+            entity.ToTable("User", tb => tb.HasTrigger("TR_User_Validate"));
 
             entity.HasIndex(e => e.Username, "UQ__User__536C85E46FD72E95").IsUnique();
 
@@ -1855,3 +1861,4 @@ public partial class AgriSustainContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
+

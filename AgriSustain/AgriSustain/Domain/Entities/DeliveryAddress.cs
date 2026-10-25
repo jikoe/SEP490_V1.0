@@ -19,6 +19,8 @@ public partial class DeliveryAddress
 
     public string? District { get; set; }
 
+    public string? DistrictCode { get; set; }
+
     public string Ward { get; set; } = null!;
 
     public string? ProvinceCode { get; set; }

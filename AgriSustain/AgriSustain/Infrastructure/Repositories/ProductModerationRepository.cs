@@ -49,7 +49,9 @@ public sealed class ProductModerationRepository : IProductModerationRepository
                 product.FarmerProfile.User.FullName,
                 product.FarmerProfile.FarmName,
                 product.CreatedAt,
-                product.ProductImage == null ? null : product.ProductImage.ImageUrl))
+                product.ProductImages.OrderByDescending(image => image.IsPrimary)
+                    .ThenBy(image => image.DisplayOrder)
+                    .Select(image => image.ImageUrl).FirstOrDefault()))
             .ToListAsync(cancellationToken);
 
         return (total, items);
@@ -61,7 +63,7 @@ public sealed class ProductModerationRepository : IProductModerationRepository
     {
         var product = await _context.Products.AsNoTracking()
             .Include(item => item.Category)
-            .Include(item => item.ProductImage)
+            .Include(item => item.ProductImages)
             .Include(item => item.FarmerProfile)
                 .ThenInclude(farmer => farmer.User)
             .Include(item => item.HarvestBatches)
@@ -90,19 +92,15 @@ public sealed class ProductModerationRepository : IProductModerationRepository
 
         return new ProductModerationDetailDto(
             product.ProductId,
+            product.CreatedAt,
             product.ApprovalStatus,
             product.RejectionReason,
             product.ProductName,
             product.Description,
             product.Category.CategoryName,
-            product.ProductImage is null
-                ? Array.Empty<ProductModerationImageDto>()
-                : new[]
-                {
-                    new ProductModerationImageDto(
-                        product.ProductImage.ImageUrl,
-                        product.ProductImage.AltText)
-                },
+            product.ProductImages.OrderBy(image => image.DisplayOrder)
+                .Select(image => new ProductModerationImageDto(image.ImageUrl, image.AltText))
+                .ToList(),
             product.BaseRetailPrice,
             product.WholesalePrice,
             product.WholesaleMinQuantity,

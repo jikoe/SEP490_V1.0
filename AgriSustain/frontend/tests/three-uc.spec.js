@@ -32,10 +32,10 @@ test('authenticated user can log out to the home page', async ({ page }) => {
   await page.locator('.login-form input').nth(0).fill('logout-test');
   await page.locator('.login-form input').nth(1).fill('password');
   await page.locator('.login-submit').click();
-  await page.locator('summary').click();
-  await page.locator('.account-menu-panel button').click();
+  await page.locator('.mkt-account summary').click();
+  await page.locator('.mkt-account button').click();
 
-  await expect(page.locator('.guest-dashboard h1')).toBeVisible();
+  await expect(page.locator('.marketplace')).toBeVisible();
   await expect(page.getByRole('status').filter({ hasText: 'Đăng xuất thành công.' })).toBeVisible();
   expect(logoutRequestSeen).toBe(true);
 });
@@ -49,11 +49,12 @@ test('UC-ADM-03: cancel and confirm a status change', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Hủy' }).click();
   await expect(row.getByText('Hoạt động', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Tạm ngưng' }).click();
-  await page.getByLabel('Lý do *', { exact: true }).fill('Kiểm tra chức năng theo SRS');
+  await page.getByLabel('Lý do *', { exact: true }).selectOption('Khác');
+  await page.getByLabel('Ghi rõ lý do *', { exact: true }).fill('Kiểm tra chức năng theo SRS');
   await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
   await expect(row.getByText('Tạm ngưng', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Kích hoạt lại' }).click();
-  await page.getByLabel('Lý do *', { exact: true }).fill('Hoàn tất kiểm tra');
+  await page.getByLabel('Lý do *', { exact: true }).selectOption('Tạm ngưng nhầm');
   await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
   await expect(row.getByText('Hoạt động', { exact: true })).toBeVisible();
 });
