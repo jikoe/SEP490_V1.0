@@ -23,6 +23,26 @@ export async function login(credentials, { signal } = {}) {
   return data;
 }
 
+export async function logout() {
+  const session = getSession();
+  if (!session?.accessToken) {
+    throw new Error('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+  }
+
+  const response = await fetch('/api/auth/logout', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(
+      data.detail
+        || data.title
+        || data.message
+        || `Đăng xuất thất bại (HTTP ${response.status}).`);
+  }
+}
+
 /**
  * Sends JSON to the same-origin API with the authorized local fixture selector and optional
  * cancellation. Non-success responses retain the stable error code/status for screen recovery;

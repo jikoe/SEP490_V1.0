@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using AgriSustain.Api.Auth;
 using AgriSustain.Infrastructure;
 using AgriSustain.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,6 +12,8 @@ var jwtOptions = builder.Configuration
     ?? throw new InvalidOperationException("JWT settings must be configured.");
 
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<RevokedTokenStore>();
 builder.Services.AddControllers();
 builder.Services.AddProblemDetails();
 builder.Services.AddAuthentication(options =>
@@ -30,6 +33,23 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtOptions.ValidAudience,
         IssuerSigningKey = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(jwtOptions.Secret))
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = context =>
+        {
+            var tokenId = context.Principal?.FindFirst(
+                System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Jti)?.Value;
+            if (tokenId is not null
+                && context.HttpContext.RequestServices
+                    .GetRequiredService<RevokedTokenStore>()
+                    .IsRevoked(tokenId))
+            {
+                context.Fail("This session has been terminated.");
+            }
+
+            return Task.CompletedTask;
+        }
     };
 });
 builder.Services.AddAuthorization();

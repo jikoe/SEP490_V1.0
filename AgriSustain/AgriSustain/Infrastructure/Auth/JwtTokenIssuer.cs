@@ -24,6 +24,7 @@ public sealed class JwtTokenIssuer : ITokenIssuer
         var expiresAt = issuedAt.Add(TokenLifetime);
         var claims = new[]
         {
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
             new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Email, user.Email),

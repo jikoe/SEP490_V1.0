@@ -5,6 +5,41 @@ async function openDemo(page) {
   await page.getByRole('button', { name: 'Tiếp tục với bản demo' }).click();
 }
 
+test('authenticated user can log out to the home page', async ({ page }) => {
+  let logoutRequestSeen = false;
+  await page.route('**/api/auth/login', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      accessToken: 'test-token',
+      expiresAtUtc: '2026-10-25T18:00:00Z',
+      user: {
+        id: 1,
+        username: 'logout-test',
+        email: 'logout-test@example.com',
+        fullName: 'Logout Test',
+        role: 'RetailCustomer',
+      },
+    }),
+  }));
+  await page.route('**/api/auth/logout', (route) => {
+    logoutRequestSeen = route.request().method() === 'POST'
+      && route.request().headers().authorization === 'Bearer test-token';
+    return route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/#/login');
+  await page.locator('.login-form input').nth(0).fill('logout-test');
+  await page.locator('.login-form input').nth(1).fill('password');
+  await page.locator('.login-submit').click();
+  await page.locator('summary').click();
+  await page.locator('.account-menu-panel button').click();
+
+  await expect(page.locator('.guest-dashboard h1')).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Đăng xuất thành công.' })).toBeVisible();
+  expect(logoutRequestSeen).toBe(true);
+});
+
 test('UC-ADM-03: cancel and confirm a status change', async ({ page }) => {
   await openDemo(page);
   const row = page.getByRole('row').filter({ hasText: 'Quản trị viên dự phòng' });
