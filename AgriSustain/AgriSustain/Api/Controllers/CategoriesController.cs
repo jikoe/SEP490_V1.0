@@ -7,7 +7,6 @@ namespace AgriSustain.Api.Controllers;
 
 [Authorize(Policy = "Administrator")]
 [Route("api/categories")]
-[RequestSizeLimit(7_100_000)]
 public sealed class CategoriesController(IAdministrationService service) : UseCaseControllerBase
 {
     [HttpGet]
@@ -39,11 +38,12 @@ public sealed class CategoriesController(IAdministrationService service) : UseCa
         return Respond(await service.SaveCategoryAsync(id, request, cancellationToken));
     }
 
-    [HttpPost("{id:long}/{action}")]
-    public async Task<IActionResult> Change(long id, string action, ConfirmationRequest request,
+    // "action" is a reserved MVC route value, so the operation segment needs its own name.
+    [HttpPost("{id:long}/{operation:regex(^(activate|deactivate|delete|archive)$)}")]
+    public async Task<IActionResult> Change(long id, string operation, ConfirmationRequest request,
         CancellationToken cancellationToken)
     {
-        return Respond(await service.ChangeCategoryAsync(id, action, request.Confirmed,
+        return Respond(await service.ChangeCategoryAsync(id, operation, request.Confirmed,
             cancellationToken));
     }
 }

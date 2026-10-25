@@ -25,8 +25,7 @@ public interface IAdministrationRepository
 
     Task<CategoryDto?> GetCategoryAsync(long id, CancellationToken cancellationToken);
 
-    Task<bool> CategoryNameExistsAsync(string name, long? parentId, long exceptId,
-        CancellationToken cancellationToken);
+    Task<bool> CategoryNameExistsAsync(string name, long exceptId, CancellationToken cancellationToken);
 
     Task<bool> HasActiveProductsAsync(long categoryId, CancellationToken cancellationToken);
 

@@ -97,9 +97,9 @@ public sealed class MarketplaceRepository(AgriSustainContext context) : IMarketp
         var products = PublicProducts();
         var categories = await products.GroupBy(product => new
             {
-                product.CategoryId, product.Category.CategoryName, product.Category.Priority
+                product.CategoryId, product.Category.CategoryName
             })
-            .OrderBy(group => group.Key.Priority).ThenBy(group => group.Key.CategoryId)
+            .OrderBy(group => group.Key.CategoryName).ThenBy(group => group.Key.CategoryId)
             .Select(group => new FilterOption(
                 group.Key.CategoryId, group.Key.CategoryName, group.Count()))
             .ToListAsync(cancellationToken);

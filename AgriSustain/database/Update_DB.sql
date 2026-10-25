@@ -155,8 +155,6 @@ BEGIN
 EXEC(N'CREATE TABLE [CategorySettings] (
     [CategoryId] bigint NOT NULL,
     [IsArchived] bit NOT NULL,
-    [ImageBytes] varbinary(max) NULL,
-    [ImageContentType] nvarchar(30) NULL,
     CONSTRAINT [PK_CategorySettings] PRIMARY KEY ([CategoryId]),
     CONSTRAINT [FK_CategorySettings_Category_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES [Category] ([CategoryId]) ON DELETE CASCADE
 );');
@@ -164,10 +162,6 @@ INSERT @NewTables VALUES (N'CategorySettings');
 END;
 ELSE
 BEGIN
-IF COL_LENGTH(N'dbo.[CategorySettings]', N'ImageBytes') IS NULL
-EXEC(N'ALTER TABLE dbo.[CategorySettings] ADD [ImageBytes] varbinary(max) NULL;');
-IF COL_LENGTH(N'dbo.[CategorySettings]', N'ImageContentType') IS NULL
-EXEC(N'ALTER TABLE dbo.[CategorySettings] ADD [ImageContentType] nvarchar(30) NULL;');
 IF COL_LENGTH(N'dbo.[CategorySettings]', N'IsArchived') IS NULL
 EXEC(N'ALTER TABLE dbo.[CategorySettings] ADD [IsArchived] bit NULL;');
 END;
@@ -306,6 +300,7 @@ EXEC(N'CREATE TABLE [DeliveryAddress] (
     [District] nvarchar(100) NULL,
     [Ward] nvarchar(100) NOT NULL,
     [ProvinceCode] varchar(20) NULL,
+    [DistrictCode] varchar(20) NULL,
     [WardCode] varchar(20) NULL,
     [AddressCatalogVersion] varchar(100) NULL,
     [IsDefault] bit NOT NULL,
@@ -329,6 +324,8 @@ IF COL_LENGTH(N'dbo.[DeliveryAddress]', N'ProvinceCity') IS NULL
 EXEC(N'ALTER TABLE dbo.[DeliveryAddress] ADD [ProvinceCity] nvarchar(100) NULL;');
 IF COL_LENGTH(N'dbo.[DeliveryAddress]', N'ProvinceCode') IS NULL
 EXEC(N'ALTER TABLE dbo.[DeliveryAddress] ADD [ProvinceCode] varchar(20) NULL;');
+IF COL_LENGTH(N'dbo.[DeliveryAddress]', N'DistrictCode') IS NULL
+EXEC(N'ALTER TABLE dbo.[DeliveryAddress] ADD [DistrictCode] varchar(20) NULL;');
 IF COL_LENGTH(N'dbo.[DeliveryAddress]', N'RecipientName') IS NULL
 EXEC(N'ALTER TABLE dbo.[DeliveryAddress] ADD [RecipientName] nvarchar(150) NULL;');
 IF COL_LENGTH(N'dbo.[DeliveryAddress]', N'RecipientPhone') IS NULL
@@ -733,6 +730,8 @@ EXEC(N'CREATE TABLE [Order] (
     [RedeemedPoints] int NULL,
     [ProvinceCodeSnapshot] varchar(20) NULL,
     [ProvinceNameSnapshot] nvarchar(100) NULL,
+    [DistrictCodeSnapshot] varchar(20) NULL,
+    [DistrictNameSnapshot] nvarchar(100) NULL,
     [WardCodeSnapshot] varchar(20) NULL,
     [WardNameSnapshot] nvarchar(100) NULL,
     [AddressDetailSnapshot] nvarchar(255) NULL,
@@ -789,6 +788,10 @@ IF COL_LENGTH(N'dbo.[Order]', N'ProvinceCodeSnapshot') IS NULL
 EXEC(N'ALTER TABLE dbo.[Order] ADD [ProvinceCodeSnapshot] varchar(20) NULL;');
 IF COL_LENGTH(N'dbo.[Order]', N'ProvinceNameSnapshot') IS NULL
 EXEC(N'ALTER TABLE dbo.[Order] ADD [ProvinceNameSnapshot] nvarchar(100) NULL;');
+IF COL_LENGTH(N'dbo.[Order]', N'DistrictCodeSnapshot') IS NULL
+EXEC(N'ALTER TABLE dbo.[Order] ADD [DistrictCodeSnapshot] varchar(20) NULL;');
+IF COL_LENGTH(N'dbo.[Order]', N'DistrictNameSnapshot') IS NULL
+EXEC(N'ALTER TABLE dbo.[Order] ADD [DistrictNameSnapshot] nvarchar(100) NULL;');
 IF COL_LENGTH(N'dbo.[Order]', N'RecipientNameSnapshot') IS NULL
 EXEC(N'ALTER TABLE dbo.[Order] ADD [RecipientNameSnapshot] nvarchar(150) NULL;');
 IF COL_LENGTH(N'dbo.[Order]', N'RecipientPhoneSnapshot') IS NULL
@@ -2846,6 +2849,8 @@ BEGIN TRY
         (N'Order', N'RedeemedPoints', N'int NULL'),
         (N'Order', N'ProvinceCodeSnapshot', N'varchar(20) NULL'),
         (N'Order', N'ProvinceNameSnapshot', N'nvarchar(100) NULL'),
+        (N'Order', N'DistrictCodeSnapshot', N'varchar(20) NULL'),
+        (N'Order', N'DistrictNameSnapshot', N'nvarchar(100) NULL'),
         (N'Order', N'WardCodeSnapshot', N'varchar(20) NULL'),
         (N'Order', N'WardNameSnapshot', N'nvarchar(100) NULL'),
         (N'Order', N'AddressDetailSnapshot', N'nvarchar(255) NULL'),
@@ -2853,6 +2858,7 @@ BEGIN TRY
         (N'SellerOrder', N'SellerNameSnapshot', N'nvarchar(200) NULL'),
         (N'OrderItem', N'ProductNameSnapshot', N'nvarchar(255) NULL'),
         (N'DeliveryAddress', N'ProvinceCode', N'varchar(20) NULL'),
+        (N'DeliveryAddress', N'DistrictCode', N'varchar(20) NULL'),
         (N'DeliveryAddress', N'WardCode', N'varchar(20) NULL'),
         (N'DeliveryAddress', N'AddressCatalogVersion', N'varchar(100) NULL'),
         (N'VoucherRedemption', N'ExpiresAt', N'datetime2 NULL'),
@@ -3103,14 +3109,17 @@ IF COL_LENGTH(N'dbo.Order', N'CheckoutRequestKey') IS NULL
     OR OBJECT_ID(N'dbo.RetailCheckoutQuote', N'U') IS NULL
     THROW 51001, 'Checkout schema differs from the scaffolded model. Review before deployment.', 1;
 
+-- Categories are flat: names must be unique across the whole table before parents are cleared.
 IF EXISTS
 (
-    SELECT ParentCategoryId, CategoryName
+    SELECT CategoryName
     FROM dbo.Category
-    GROUP BY ParentCategoryId, CategoryName
+    GROUP BY CategoryName
     HAVING COUNT(*) > 1
 )
-    THROW 51002, 'Duplicate sibling category names must be resolved before migration.', 1;
+    THROW 51002, 'Duplicate category names must be resolved before flattening categories.', 1;
+
+UPDATE dbo.Category SET ParentCategoryId = NULL WHERE ParentCategoryId IS NOT NULL;
 
 IF OBJECT_ID(N'dbo.CategorySettings', N'U') IS NULL
 BEGIN
@@ -3118,18 +3127,21 @@ BEGIN
     (
         CategoryId BIGINT NOT NULL,
         IsArchived BIT NOT NULL CONSTRAINT DF_CategorySettings_IsArchived DEFAULT 0,
-        ImageBytes VARBINARY(MAX) NULL,
-        ImageContentType NVARCHAR(30) NULL,
         CONSTRAINT PK_CategorySettings PRIMARY KEY (CategoryId),
         CONSTRAINT FK_CategorySettings_Category FOREIGN KEY (CategoryId)
-            REFERENCES dbo.Category(CategoryId) ON DELETE CASCADE,
-        CONSTRAINT CK_CategorySettings_ImageSize CHECK
-            (ImageBytes IS NULL OR DATALENGTH(ImageBytes) <= 5242880),
-        CONSTRAINT CK_CategorySettings_ImageType CHECK
-            ((ImageBytes IS NULL AND ImageContentType IS NULL)
-            OR (ImageBytes IS NOT NULL AND ImageContentType IN (N'image/png', N'image/jpeg')))
+            REFERENCES dbo.Category(CategoryId) ON DELETE CASCADE
     );
 END;
+
+-- Category images are no longer supported; remove the columns and their checks from older databases.
+IF OBJECT_ID(N'dbo.CK_CategorySettings_ImageSize', N'C') IS NOT NULL
+    EXEC(N'ALTER TABLE dbo.CategorySettings DROP CONSTRAINT CK_CategorySettings_ImageSize;');
+IF OBJECT_ID(N'dbo.CK_CategorySettings_ImageType', N'C') IS NOT NULL
+    EXEC(N'ALTER TABLE dbo.CategorySettings DROP CONSTRAINT CK_CategorySettings_ImageType;');
+IF COL_LENGTH(N'dbo.CategorySettings', N'ImageBytes') IS NOT NULL
+    EXEC(N'ALTER TABLE dbo.CategorySettings DROP COLUMN ImageBytes;');
+IF COL_LENGTH(N'dbo.CategorySettings', N'ImageContentType') IS NOT NULL
+    EXEC(N'ALTER TABLE dbo.CategorySettings DROP COLUMN ImageContentType;');
 
 IF NOT EXISTS
 (
@@ -3374,7 +3386,7 @@ INSERT dbo.[Category] ([ParentCategoryId], [CategoryName], [Description], [Prior
 VALUES (NULL, N'Cây Công Nghiệp & Đồ Uống', N'Cà phê, hồ tiêu, trà và nguyên liệu pha chế', 4, 1);
 INSERT @Map_Category VALUES (4, CONVERT(BIGINT, SCOPE_IDENTITY()));
 INSERT dbo.[Category] ([ParentCategoryId], [CategoryName], [Description], [Priority], [IsActive])
-VALUES ((SELECT NewId FROM @Map_Category WHERE SeedId = 1), N'Rau Ăn Lá Thủy Canh', N'Rau xà lách, cải bó xôi trồng nhà màng Đà Lạt', 5, 1);
+VALUES (NULL, N'Rau Ăn Lá Thủy Canh', N'Rau xà lách, cải bó xôi trồng nhà màng Đà Lạt', 5, 1);
 INSERT @Map_Category VALUES (5, CONVERT(BIGINT, SCOPE_IDENTITY()));
 DECLARE @Map_Product TABLE (SeedId INT PRIMARY KEY, NewId BIGINT NOT NULL);
 INSERT dbo.[Product] ([CategoryId], [FarmerProfileId], [ProductName], [Description], [Unit], [OriginProvince], [BaseRetailPrice], [WholesaleMinQuantity], [WholesalePrice], [ApprovalStatus], [IsPublished])

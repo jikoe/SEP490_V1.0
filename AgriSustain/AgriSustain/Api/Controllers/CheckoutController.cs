@@ -20,10 +20,16 @@ public sealed class CheckoutController(
     public IActionResult Areas() => Ok(service.GetAreas());
 
     [HttpGet("provinces")]
-    public IActionResult Provinces() => Ok(addresses.GetProvinces());
+    public async Task<IActionResult> Provinces(CancellationToken cancellationToken) =>
+        Ok(await addresses.GetProvincesAsync(cancellationToken));
 
-    [HttpGet("provinces/{code}/wards")]
-    public IActionResult Wards(string code) => Ok(addresses.GetWards(code));
+    [HttpGet("provinces/{code}/districts")]
+    public async Task<IActionResult> Districts(string code, CancellationToken cancellationToken) =>
+        Ok(await addresses.GetDistrictsAsync(code, cancellationToken));
+
+    [HttpGet("districts/{code}/wards")]
+    public async Task<IActionResult> Wards(string code, CancellationToken cancellationToken) =>
+        Ok(await addresses.GetWardsAsync(code, cancellationToken));
 
     [HttpPost("quotes")]
     public async Task<IActionResult> Quote(CheckoutRequest request,

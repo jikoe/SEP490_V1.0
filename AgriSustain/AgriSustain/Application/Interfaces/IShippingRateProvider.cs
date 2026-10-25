@@ -2,7 +2,7 @@ using AgriSustain.Application.DTOs.Checkout;
 
 namespace AgriSustain.Application.Interfaces;
 
-public interface IGhtkShippingRateProvider
+public interface IShippingRateProvider
 {
     int EstimatedDeliveryDays(string deliveryMethod);
 

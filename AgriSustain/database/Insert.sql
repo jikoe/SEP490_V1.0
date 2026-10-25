@@ -208,7 +208,7 @@ INSERT dbo.[Category] ([ParentCategoryId], [CategoryName], [Description], [Prior
 VALUES (NULL, N'Cây Công Nghiệp & Đồ Uống', N'Cà phê, hồ tiêu, trà và nguyên liệu pha chế', 4, 1);
 INSERT @Map_Category VALUES (4, CONVERT(BIGINT, SCOPE_IDENTITY()));
 INSERT dbo.[Category] ([ParentCategoryId], [CategoryName], [Description], [Priority], [IsActive])
-VALUES ((SELECT NewId FROM @Map_Category WHERE SeedId = 1), N'Rau Ăn Lá Thủy Canh', N'Rau xà lách, cải bó xôi trồng nhà màng Đà Lạt', 5, 1);
+VALUES (NULL, N'Rau Ăn Lá Thủy Canh', N'Rau xà lách, cải bó xôi trồng nhà màng Đà Lạt', 5, 1);
 INSERT @Map_Category VALUES (5, CONVERT(BIGINT, SCOPE_IDENTITY()));
 DECLARE @Map_Product TABLE (SeedId INT PRIMARY KEY, NewId BIGINT NOT NULL);
 INSERT dbo.[Product] ([CategoryId], [FarmerProfileId], [ProductName], [Description], [Unit], [OriginProvince], [BaseRetailPrice], [WholesaleMinQuantity], [WholesalePrice], [ApprovalStatus], [IsPublished])

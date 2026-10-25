@@ -38,12 +38,13 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         {
             query = query.Where(x => x.Role == search.Role);
         }
+        var rows = WithAccountStatus(query);
         if (!string.IsNullOrWhiteSpace(search.Status))
         {
-            query = query.Where(x => x.Status == search.Status);
+            rows = rows.Where(x => x.AccountStatus == search.Status);
         }
-        var total = await query.CountAsync(cancellationToken);
-        var items = await ProjectUsers(query.OrderBy(x => x.UserId)
+        var total = await rows.CountAsync(cancellationToken);
+        var items = await ProjectUsers(rows.OrderBy(x => x.User.UserId)
             .Skip((search.Page - 1) * search.PageSize).Take(search.PageSize), actorId, now)
             .ToListAsync(cancellationToken);
         return new Page<UserDto>(items, total, search.Page, search.PageSize, actorId);
@@ -52,8 +53,8 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
     public Task<UserDto?> GetUserAsync(long id, long actorId, DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        return ProjectUsers(context.Users.AsNoTracking().Where(x => x.UserId == id), actorId, now)
-            .SingleOrDefaultAsync(cancellationToken);
+        return ProjectUsers(WithAccountStatus(context.Users.AsNoTracking()
+            .Where(x => x.UserId == id)), actorId, now).SingleOrDefaultAsync(cancellationToken);
     }
 
     public Task<Category?> FindCategoryAsync(long id, CancellationToken cancellationToken)
@@ -80,51 +81,32 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
             .Any(settings => settings.CategoryId == x.CategoryId && settings.IsArchived));
         if (!string.IsNullOrWhiteSpace(search.Keyword))
         {
-            query = query.Where(x => x.CategoryName.Contains(search.Keyword));
+            var keyword = search.Keyword.Trim();
+            query = query.Where(x => x.CategoryName.Contains(keyword));
         }
         if (search.IsActive.HasValue)
         {
             query = query.Where(x => x.IsActive == search.IsActive);
         }
-        if (search.RootOnly)
-        {
-            query = query.Where(x => x.ParentCategoryId == null);
-        }
-        else if (search.ParentId.HasValue)
-        {
-            query = query.Where(x => x.ParentCategoryId == search.ParentId);
-        }
         var total = await query.CountAsync(cancellationToken);
-        var items = await ProjectCategories(query.OrderBy(x => x.Priority).ThenBy(x => x.CategoryId)
+        var items = await ProjectCategories(query.OrderBy(x => x.CategoryName).ThenBy(x => x.CategoryId)
             .Skip((search.Page - 1) * search.PageSize).Take(search.PageSize))
             .ToListAsync(cancellationToken);
         return new Page<CategoryDto>(items, total, search.Page, search.PageSize);
     }
 
-    public async Task<CategoryDto?> GetCategoryAsync(long id, CancellationToken cancellationToken)
+    public Task<CategoryDto?> GetCategoryAsync(long id, CancellationToken cancellationToken)
     {
-        var category = await ProjectCategories(context.Categories.AsNoTracking()
-            .Where(x => x.CategoryId == id)).SingleOrDefaultAsync(cancellationToken);
-        if (category is null)
-        {
-            return null;
-        }
-        var media = await context.CategorySettings.AsNoTracking()
-            .Where(x => x.CategoryId == id).Select(x => new { x.ImageBytes, x.ImageContentType })
+        return ProjectCategories(context.Categories.AsNoTracking().Where(x => x.CategoryId == id))
             .SingleOrDefaultAsync(cancellationToken);
-        return category with
-        {
-            ImageBase64 = media?.ImageBytes is null ? null
-                : Convert.ToBase64String(media.ImageBytes),
-            ImageContentType = media?.ImageContentType
-        };
     }
 
-    public Task<bool> CategoryNameExistsAsync(string name, long? parentId, long exceptId,
+    /// <summary>Names are unique across all categories; case-insensitivity follows the CI collation.</summary>
+    public Task<bool> CategoryNameExistsAsync(string name, long exceptId,
         CancellationToken cancellationToken)
     {
-        return context.Categories.AnyAsync(x => x.CategoryId != exceptId
-            && x.ParentCategoryId == parentId && x.CategoryName == name, cancellationToken);
+        return context.Categories.AnyAsync(x => x.CategoryId != exceptId && x.CategoryName == name,
+            cancellationToken);
     }
 
     public Task<bool> HasActiveProductsAsync(long categoryId, CancellationToken cancellationToken)
@@ -136,6 +118,7 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
     public async Task<bool> HasCategoryReferencesAsync(long categoryId,
         CancellationToken cancellationToken)
     {
+        // Legacy child rows may remain until Update_DB.sql flattens them; their FK still blocks deletion.
         return await context.Products.AnyAsync(x => x.CategoryId == categoryId, cancellationToken)
             || await context.Categories.AnyAsync(x => x.ParentCategoryId == categoryId,
                 cancellationToken)
@@ -159,29 +142,62 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
 
     public void AddAudit(AuditLog audit) => context.AuditLogs.Add(audit);
 
-    private static IQueryable<UserDto> ProjectUsers(IQueryable<User> query, long actorId,
+    /// <summary>
+    /// Derives the SRS account status: Farmer/WholesaleBuyer stay Pending until KYC is Approved
+    /// (Rejected when declined); staff and retail accounts are Active unless suspended.
+    /// </summary>
+    private static IQueryable<AccountRow> WithAccountStatus(IQueryable<User> query)
+    {
+        return query.Select(x => new AccountRow
+        {
+            User = x,
+            AccountStatus = x.Status == "Suspended" ? "Suspended"
+                : x.Role == "Farmer" ? (x.FarmerProfile == null ? "Pending"
+                    : x.FarmerProfile.VerificationStatus == "Approved" ? "Active"
+                    : x.FarmerProfile.VerificationStatus == "Rejected" ? "Rejected" : "Pending")
+                : x.Role == "WholesaleBuyer" ? (x.WholesaleBuyerProfile == null ? "Pending"
+                    : x.WholesaleBuyerProfile.VerificationStatus == "Approved" ? "Active"
+                    : x.WholesaleBuyerProfile.VerificationStatus == "Rejected" ? "Rejected"
+                    : "Pending")
+                : "Active"
+        });
+    }
+
+    private static IQueryable<UserDto> ProjectUsers(IQueryable<AccountRow> query, long actorId,
         DateTimeOffset now)
     {
-        return query.Select(x => new UserDto(x.UserId, x.FullName,
-            x.FarmerProfile != null ? x.FarmerProfile.FarmName
-                : x.WholesaleBuyerProfile != null ? x.WholesaleBuyerProfile.CompanyName : null,
-            x.Email, x.PhoneNumber, x.Role, x.Status,
-            x.FarmerProfile != null ? x.FarmerProfile.VerificationStatus
-                : x.WholesaleBuyerProfile != null ? x.WholesaleBuyerProfile.VerificationStatus
-                : x.IsEmailVerified ? "Verified" : "NotVerified",
-            new DateTimeOffset(DateTime.SpecifyKind(x.CreatedAt, DateTimeKind.Utc)),
-            x.LockedUntil > now.UtcDateTime,
-            x.LockedUntil == null ? null : new DateTimeOffset(
-                DateTime.SpecifyKind(x.LockedUntil.Value, DateTimeKind.Utc)),
-            x.FailedLoginCount, actorId));
+        return query.Select(row => new UserDto(row.User.UserId, row.User.FullName,
+            row.User.FarmerProfile != null ? row.User.FarmerProfile.FarmName
+                : row.User.WholesaleBuyerProfile != null
+                    ? row.User.WholesaleBuyerProfile.CompanyName : null,
+            row.User.Email, row.User.PhoneNumber, row.User.Role, row.AccountStatus,
+            row.User.Role == "Farmer" ? (row.User.FarmerProfile != null
+                    ? row.User.FarmerProfile.VerificationStatus : "NotSubmitted")
+                : row.User.Role == "WholesaleBuyer" ? (row.User.WholesaleBuyerProfile != null
+                    ? row.User.WholesaleBuyerProfile.VerificationStatus : "NotSubmitted")
+                : null,
+            new DateTimeOffset(DateTime.SpecifyKind(row.User.CreatedAt, DateTimeKind.Utc)),
+            row.User.LockedUntil > now.UtcDateTime,
+            row.User.LockedUntil == null ? null : new DateTimeOffset(
+                DateTime.SpecifyKind(row.User.LockedUntil.Value, DateTimeKind.Utc)),
+            row.User.FailedLoginCount,
+            // Mirrors User.CanBeSuspended so the rule stays translatable to SQL.
+            row.User.Role == "Farmer" || row.User.Role == "WholesaleBuyer"
+                || row.User.Role == "RetailCustomer",
+            actorId));
+    }
+
+    private sealed class AccountRow
+    {
+        public User User { get; init; } = null!;
+
+        public string AccountStatus { get; init; } = "";
     }
 
     private IQueryable<CategoryDto> ProjectCategories(IQueryable<Category> query)
     {
-        return query.Select(x => new CategoryDto(x.CategoryId, x.CategoryName, x.ParentCategoryId,
-            x.ParentCategory == null ? null : x.ParentCategory.CategoryName, x.Description,
-            x.Priority, x.IsActive, x.Products.Count,
-            context.CategorySettings.Any(s => s.CategoryId == x.CategoryId && s.IsArchived),
-            null, null));
+        return query.Select(x => new CategoryDto(x.CategoryId, x.CategoryName, x.Description,
+            x.IsActive, x.Products.Count,
+            context.CategorySettings.Any(s => s.CategoryId == x.CategoryId && s.IsArchived)));
     }
 }

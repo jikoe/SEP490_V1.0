@@ -7,6 +7,19 @@ const labels = { suspend: 'Tạm ngưng tài khoản', activate: 'Kích hoạt t
 const roles = ['RetailCustomer', 'Farmer', 'WholesaleBuyer', 'SystemAdmin', 'VerificationOfficer',
   'ContentModerator', 'CustomerSupport', 'PromotionStaff', 'FinanceStaff'];
 const listRoute = '/administration/users';
+const otherReason = 'Khác';
+const reasons = {
+  suspend: ['Vi phạm điều khoản sử dụng', 'Gian lận hoặc lừa đảo trong giao dịch',
+    'Đăng sản phẩm giả, kém chất lượng hoặc sai nguồn gốc', 'Nhiều khiếu nại chưa được giải quyết',
+    'Nghi ngờ tài khoản bị chiếm quyền', 'Theo yêu cầu của chủ tài khoản', otherReason],
+  activate: ['Đã khắc phục vi phạm', 'Kháng nghị được chấp nhận', 'Đã xác minh lại chủ tài khoản',
+    'Tạm ngưng nhầm', otherReason],
+};
+/** Builds the audited reason: a preset label, or "Khác: <note>" when no preset fits. */
+function reasonText(action, { choice, note }) {
+  if (!reasons[action]) return note.trim();
+  return choice === otherReason ? `${otherReason}: ${note.trim()}` : choice;
+}
 
 /** Implements the separate User List and User Details screens described in SRS III.4.1. */
 export default function UsersScreen({ fixture, route = listRoute, navigate }) {
@@ -20,7 +33,7 @@ export default function UsersScreen({ fixture, route = listRoute, navigate }) {
   const [message, setMessage] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [pending, setPending] = useState(null);
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState({ choice: '', note: '' });
   const [busy, setBusy] = useState(false);
   const userId = /^\/administration\/users\/\d+$/.test(route) ? Number(route.split('/').at(-1)) : null;
   useEffect(() => {
@@ -46,23 +59,29 @@ export default function UsersScreen({ fixture, route = listRoute, navigate }) {
     event.preventDefault(); setFilters({ ...draft, page: 1 }); setMessage('');
   }
   /** Opens the existing UC action confirmation without writing or fabricating audit information. */
-  function prepare(user, action) { setReason(''); setPending({ user, action }); setError(''); }
+  function prepare(user, action) {
+    setReason({ choice: '', note: '' }); setPending({ user, action }); setError('');
+  }
   /** Submits a confirmed status/unlock action and refreshes the list and dedicated detail read model. */
   async function change(event) {
-    event.preventDefault(); setBusy(true); setError('');
+    event.preventDefault(); setError('');
+    if (reason.choice === otherReason && !reason.note.trim()) {
+      setError('Vui lòng ghi rõ lý do.'); return;
+    }
+    setBusy(true);
     try {
       await request(`/users/${pending.user.id}/status-actions`, { fixture, method: 'POST',
-        body: { action: pending.action, reason, confirmed: true } });
+        body: { action: pending.action, reason: reasonText(pending.action, reason), confirmed: true } });
       setMessage(`${labels[pending.action]} thành công.`);
       setPending(null); setRefresh((value) => value + 1);
     } catch (failure) { setError(failure.message); }
     finally { setBusy(false); }
   }
-  /** Renders only state-eligible actions; verified actor identity hides self-action controls. */
+  /** Renders only state- and role-eligible actions; verified actor identity hides self-action controls. */
   function buttons(user) {
     const actorId = detail?.currentActorId ?? result.currentActorId;
     return <div className="actions">{user.id !== actorId && <>
-      {user.status === 'Active' && <button className="danger-link" type="button"
+      {user.canSuspend && user.status !== 'Suspended' && <button className="danger-link" type="button"
         onClick={() => prepare(user, 'suspend')}>Tạm ngưng</button>}
       {user.status === 'Suspended' && <button type="button"
         onClick={() => prepare(user, 'activate')}>Kích hoạt</button>}
@@ -74,9 +93,15 @@ export default function UsersScreen({ fixture, route = listRoute, navigate }) {
     <p>Xác nhận {labels[pending.action].toLowerCase()} <strong>{pending.user.organizationName
       || pending.user.name}</strong>?</p>
     {pending.action === 'suspend' && <p className="muted">Tài khoản sẽ mất quyền truy cập cho đến khi được kích hoạt lại.</p>}
-    <Field label={pending.action === 'unlock' ? 'Ghi chú (không bắt buộc)' : 'Lý do *'}>
-      <textarea autoFocus required={pending.action !== 'unlock'} maxLength={500} value={reason}
-        onChange={(event) => setReason(event.target.value)} /></Field>
+    {reasons[pending.action] ? <><Field label="Lý do *"><select autoFocus required value={reason.choice}
+      onChange={(event) => setReason((old) => ({ ...old, choice: event.target.value }))}>
+      <option value="">Chọn lý do</option>{reasons[pending.action].map((item) =>
+        <option value={item} key={item}>{item}</option>)}</select></Field>
+      {reason.choice === otherReason && <Field label="Ghi rõ lý do *"><textarea required
+        maxLength={480} value={reason.note}
+        onChange={(event) => setReason((old) => ({ ...old, note: event.target.value }))} /></Field>}</>
+      : <Field label="Ghi chú (không bắt buộc)"><textarea autoFocus maxLength={500} value={reason.note}
+        onChange={(event) => setReason((old) => ({ ...old, note: event.target.value }))} /></Field>}
     <Notice error>{error}</Notice><div className="modal-actions"><button type="button"
       disabled={busy} onClick={() => setPending(null)}>Hủy</button><button
       className={pending.action === 'suspend' ? 'danger' : 'primary'} disabled={busy}>

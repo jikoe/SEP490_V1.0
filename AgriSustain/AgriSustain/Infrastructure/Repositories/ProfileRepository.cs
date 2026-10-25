@@ -28,6 +28,7 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             defaultAddress.Ward,
             defaultAddress.AddressDetail,
             defaultAddress.ProvinceCode,
+            defaultAddress.DistrictCode,
             defaultAddress.WardCode,
             defaultAddress.IsDefault);
 
@@ -100,11 +101,13 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             address.RecipientName = request.FullName;
             address.RecipientPhone = request.PhoneNumber;
             address.ProvinceCity = province;
-            address.District = null;
+            address.District = request.District;
             address.Ward = ward;
             address.AddressDetail = detail;
             address.ProvinceCode = request.ProvinceCode;
+            address.DistrictCode = request.DistrictCode;
             address.WardCode = request.WardCode;
+            address.AddressCatalogVersion = request.CatalogVersion;
         }
 
         await db.SaveChangesAsync(cancellationToken);

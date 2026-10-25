@@ -14,11 +14,12 @@ test('UC-ADM-03: cancel and confirm a status change', async ({ page }) => {
   await page.getByRole('dialog').getByRole('button', { name: 'Hủy' }).click();
   await expect(row.getByText('Hoạt động', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Tạm ngưng' }).click();
-  await page.getByLabel('Lý do *', { exact: true }).fill('Kiểm tra chức năng theo SRS');
+  await page.getByLabel('Lý do *', { exact: true }).selectOption('Khác');
+  await page.getByLabel('Ghi rõ lý do *', { exact: true }).fill('Kiểm tra chức năng theo SRS');
   await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
   await expect(row.getByText('Tạm ngưng', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Kích hoạt lại' }).click();
-  await page.getByLabel('Lý do *', { exact: true }).fill('Hoàn tất kiểm tra');
+  await page.getByLabel('Lý do *', { exact: true }).selectOption('Tạm ngưng nhầm');
   await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
   await expect(row.getByText('Hoạt động', { exact: true })).toBeVisible();
 });

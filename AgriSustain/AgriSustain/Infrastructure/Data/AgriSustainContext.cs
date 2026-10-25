@@ -603,6 +603,9 @@ public partial class AgriSustainContext : DbContext
                 .IsUnicode(false);
             entity.Property(e => e.AddressDetail).HasMaxLength(500);
             entity.Property(e => e.District).HasMaxLength(100);
+            entity.Property(e => e.DistrictCode)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.ProvinceCity).HasMaxLength(100);
             entity.Property(e => e.ProvinceCode)
                 .HasMaxLength(20)
@@ -1031,6 +1034,10 @@ public partial class AgriSustainContext : DbContext
                 .HasMaxLength(20)
                 .IsUnicode(false);
             entity.Property(e => e.ProvinceNameSnapshot).HasMaxLength(100);
+            entity.Property(e => e.DistrictCodeSnapshot)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.DistrictNameSnapshot).HasMaxLength(100);
             entity.Property(e => e.RecipientNameSnapshot).HasMaxLength(150);
             entity.Property(e => e.RecipientPhoneSnapshot)
                 .HasMaxLength(20)

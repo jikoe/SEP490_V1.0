@@ -32,7 +32,10 @@ public sealed class AuthController : ControllerBase
         var result = await _authService.LoginAsync(request, cancellationToken);
         if (result == null)
         {
-            return Unauthorized(new { message = "Invalid email or password." });
+            return Problem(
+                title: "Đăng nhập thất bại",
+                detail: "Tên đăng nhập hoặc mật khẩu không đúng.",
+                statusCode: StatusCodes.Status401Unauthorized);
         }
 
         return Ok(result);

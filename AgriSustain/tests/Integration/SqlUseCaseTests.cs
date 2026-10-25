@@ -5,7 +5,6 @@ using AgriSustain.Application.Services.Administration;
 using AgriSustain.Application.Services.Checkout;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
-using AgriSustain.Infrastructure.Data.Geography;
 using AgriSustain.Infrastructure.Repositories;
 using AgriSustain.Infrastructure.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -145,20 +144,73 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SaveCategory_DuplicateSibling_IsRejected()
+    public async Task ChangeAccount_SuspendStaff_IsRejectedWithoutAudit()
+    {
+        var staff = new User { Username = "officer-test", Email = "officer@example.test",
+            FullName = "Officer Test", PasswordHash = "test-only", Role = "VerificationOfficer",
+            Status = "Active", CreatedAt = _clock.GetUtcNow().UtcDateTime };
+        _context.Users.Add(staff);
+        await _context.SaveChangesAsync();
+        var result = await Admin().ChangeAccountAsync(staff.UserId,
+            new AccountActionRequest("suspend", "Test reason", true), default);
+        Assert.Equal("ROLE_NOT_SUSPENDABLE", result.Error?.Code);
+        Assert.Equal("Active", (await _context.Users.AsNoTracking()
+            .SingleAsync(x => x.UserId == staff.UserId)).Status);
+        Assert.Empty(await _context.AuditLogs.ToListAsync());
+    }
+
+    [Fact]
+    public async Task SearchUsers_AccountStatus_DerivesFromKyc()
+    {
+        var farm = await _context.FarmerProfiles.SingleAsync();
+        farm.VerificationStatus = "Pending";
+        await _context.SaveChangesAsync();
+        var pending = await Admin().SearchUsersAsync(new UserSearch(Status: "Pending"), default);
+        Assert.Equal(3, Assert.Single(pending.Value!.Items).Id);
+        var active = await Admin().SearchUsersAsync(new UserSearch(Status: "Active"), default);
+        Assert.Equal(new long[] { 1, 2 }, active.Value!.Items.Select(x => x.Id));
+        Assert.All(active.Value.Items, x => Assert.Null(x.VerificationStatus));
+        Assert.False(active.Value.Items[0].CanSuspend);
+        Assert.True(active.Value.Items[1].CanSuspend);
+    }
+
+    [Theory]
+    [InlineData("Test produce")]
+    [InlineData("  TEST PRODUCE ")]
+    public async Task SaveCategory_DuplicateName_IsRejectedCaseInsensitively(string name)
     {
         var result = await Admin().SaveCategoryAsync(null,
-            new CategoryRequest("Test produce", null, null, 0, true, false), default);
+            new CategoryRequest(name, null, true, false), default);
         Assert.Equal("CATEGORY_DUPLICATE", result.Error?.Code);
         Assert.Equal(1, await _context.Categories.CountAsync());
     }
 
     [Fact]
-    public async Task SaveCategory_ParentCycle_IsRejected()
+    public async Task SaveCategory_LegacyChild_IsFlattenedOnUpdate()
     {
-        var result = await Admin().SaveCategoryAsync(1,
-            new CategoryRequest("Test produce", 1, null, 0, true, false), default);
-        Assert.Equal("CATEGORY_CYCLE", result.Error?.Code);
+        var child = new Category { CategoryName = "Test child", ParentCategoryId = 1, IsActive = true };
+        _context.Categories.Add(child);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        var update = await Admin().SaveCategoryAsync(child.CategoryId,
+            new CategoryRequest("Test child", "Updated", true, false), default);
+        Assert.True(update.IsSuccess);
+        var saved = await _context.Categories.AsNoTracking()
+            .SingleAsync(x => x.CategoryId == child.CategoryId);
+        Assert.Null(saved.ParentCategoryId);
+        Assert.Equal("Updated", saved.Description);
+    }
+
+    [Fact]
+    public async Task DeleteCategory_Unused_RemovesCategoryAndWritesAudit()
+    {
+        var created = await Admin().SaveCategoryAsync(null,
+            new CategoryRequest("Test unused", null, true, false), default);
+        Assert.True(created.IsSuccess, created.Error?.Message);
+        var result = await Admin().ChangeCategoryAsync(created.Value!.Id, "delete", true, default);
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.False(await _context.Categories.AnyAsync(x => x.CategoryId == created.Value.Id));
+        Assert.Contains(await _context.AuditLogs.ToListAsync(), x => x.Action == "delete");
     }
 
     [Fact]
@@ -194,11 +246,11 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     public async Task Quote_UnsupportedAddress_PreservesCart()
     {
         var input = Input();
-        // A real catalog ward (Xã Ngọc Hồi, Hà Nội) outside the configured delivery areas;
+        // A catalog ward outside the configured delivery areas;
         // unknown codes fail earlier with ADDRESS_INVALID.
         var result = await Checkout().QuoteAsync(input with
         {
-            Address = input.Address with { WardCode = "523", Ward = "Xã Ngọc Hồi" }
+            Address = input.Address with { WardCode = "20", Ward = "Phường Trương Định" }
         }, default);
         Assert.Equal("MSG117", result.Error?.Code);
         Assert.Single(await _context.CartItems.ToListAsync());
@@ -312,17 +364,17 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         var policy = new CheckoutPolicy
         {
             PointValueVnd = 1, MaximumPointDiscountPercent = 50,
-            Areas = [new DeliveryArea("11", "Thành phố Hà Nội", "", "267",
-                "Xã Minh Châu", 10000, 20000, 2, 1)]
+            Areas = [new DeliveryArea("100000", "Hà Nội", "Quận Hai Bà Trưng", "19",
+                "Phường Quỳnh Lôi", 10000, 20000, 2, 1)]
         };
         return new CheckoutService(new CheckoutRepository(database),
             new AdministrationRepository(database), new SqlUnitOfWork(database), new TestActor(userId),
-            _clock, policy, new VietnamAddressCatalog(), new PolicyShippingRateProvider(policy));
+            _clock, policy, new TestAddressCatalog(), new PolicyShippingRateProvider(policy));
     }
 
     private static CheckoutRequest Input() => new(new CheckoutAddress("Test Customer",
-        "0912345678", "11", "Thành phố Hà Nội", "", "267", "Xã Minh Châu",
-        "Test delivery address"), "Standard", "PayOS", null, 0, null);
+        "0912345678", "100000", "Hà Nội", "100300", "Quận Hai Bà Trưng", "19",
+        "Phường Quỳnh Lôi", "Test delivery address"), "Standard", "PayOS", null, 0, null);
 
     private static PlaceOrderRequest Placement(CheckoutQuoteDto quote)
     {
@@ -331,8 +383,52 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
 
     private sealed record TestActor(long UserId) : IActorContext;
 
+    /// <summary>Offline stand-in for the Goship city/district/ward catalog.</summary>
+    private sealed class TestAddressCatalog : IAddressCatalog
+    {
+        private static readonly ProvinceOption[] Provinces = [new("100000", "Hà Nội")];
+
+        private static readonly DistrictOption[] Districts =
+        [
+            new("100300", "100000", "Quận Hai Bà Trưng"), new("101500", "100000", "Quận Hà Đông")
+        ];
+
+        private static readonly WardOption[] Wards =
+        [
+            new("19", "100300", "Phường Quỳnh Lôi"), new("20", "100300", "Phường Trương Định")
+        ];
+
+        public Task<IReadOnlyList<ProvinceOption>> GetProvincesAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ProvinceOption>>(Provinces);
+
+        public Task<IReadOnlyList<DistrictOption>> GetDistrictsAsync(string provinceCode,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<DistrictOption>>(
+            Districts.Where(x => x.ProvinceCode == provinceCode).ToList());
+
+        public Task<IReadOnlyList<WardOption>> GetWardsAsync(string districtCode,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<WardOption>>(
+            Wards.Where(x => x.DistrictCode == districtCode).ToList());
+
+        public Task<CheckoutAddress?> NormalizeAsync(CheckoutAddress address,
+            CancellationToken cancellationToken)
+        {
+            var province = Provinces.SingleOrDefault(x => x.Code == address.ProvinceCode);
+            var district = Districts.SingleOrDefault(x => x.Code == address.DistrictCode
+                && x.ProvinceCode == address.ProvinceCode);
+            var ward = Wards.SingleOrDefault(x => x.Code == address.WardCode
+                && x.DistrictCode == address.DistrictCode);
+            return Task.FromResult(province is null || district is null || ward is null ? null
+                : address with
+                {
+                    Province = province.Name, District = district.Name, Ward = ward.Name,
+                    CatalogVersion = "test"
+                });
+        }
+    }
+
     private sealed class PolicyShippingRateProvider(CheckoutPolicy policy)
-        : IGhtkShippingRateProvider
+        : IShippingRateProvider
     {
         public int EstimatedDeliveryDays(string deliveryMethod) => deliveryMethod == "Standard"
             ? policy.Areas[0].StandardDays : policy.Areas[0].ExpressDays;
@@ -344,7 +440,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
                 && x.WardCode == request.Recipient.WardCode);
             decimal? fee = area is null ? null : request.DeliveryMethod == "Standard"
                 ? area.StandardFee : area.ExpressFee;
-            // Like GHTK, an address outside the served areas is "not supported" (MSG117);
+            // Like Goship with no matching service, an address outside the served areas is "not supported" (MSG117);
             // null is reserved for an unavailable carrier.
             return Task.FromResult<ShippingRateResult?>(
                 new ShippingRateResult(area is not null, fee));

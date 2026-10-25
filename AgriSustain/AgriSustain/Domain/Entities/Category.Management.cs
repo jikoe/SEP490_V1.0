@@ -2,16 +2,16 @@ namespace AgriSustain.Domain.Entities;
 
 public partial class Category
 {
-    public void UpdateDetails(string name, long? parentId, string? description, int priority)
+    /// <summary>Categories are flat: hierarchy and display priority are no longer managed.</summary>
+    public void UpdateDetails(string name, string? description)
     {
-        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 150 || priority < 0)
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 150)
         {
             throw new ArgumentException("Invalid category details.");
         }
         CategoryName = name.Trim();
-        ParentCategoryId = parentId;
+        ParentCategoryId = null;
         Description = description;
-        Priority = priority;
     }
 
     public void SetAvailability(bool isActive)

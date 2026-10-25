@@ -1,6 +1,5 @@
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Infrastructure.Data;
-using AgriSustain.Infrastructure.Data.Geography;
 using AgriSustain.Infrastructure.Repositories;
 using AgriSustain.Infrastructure.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +18,6 @@ public static class DependencyInjection
         services.AddScoped<ICheckoutRepository, CheckoutRepository>();
         services.AddScoped<IUseCaseUnitOfWork, SqlUnitOfWork>();
         services.AddSingleton<IPersistenceErrorClassifier, PersistenceErrorClassifier>();
-        services.AddSingleton<IAddressCatalog, VietnamAddressCatalog>();
         return services;
     }
 }

@@ -21,7 +21,7 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
     {
         var farm = await GetFarmerAsync(userId, cancellationToken);
         var categories = await context.Categories.AsNoTracking().Where(x => x.IsActive)
-            .OrderBy(x => x.Priority).ThenBy(x => x.CategoryId)
+            .OrderBy(x => x.CategoryName).ThenBy(x => x.CategoryId)
             .Select(x => new CategoryOption(x.CategoryId, x.CategoryName))
             .ToListAsync(cancellationToken);
         return new ProductOptions(farm?.VerificationStatus == "Approved",

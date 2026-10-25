@@ -2,12 +2,18 @@ using AgriSustain.Application.DTOs.Checkout;
 
 namespace AgriSustain.Application.Interfaces;
 
+/// <summary>Three-level address catalog (province, district, ward) used by checkout.</summary>
 public interface IAddressCatalog
 {
-    IReadOnlyList<ProvinceOption> GetProvinces();
+    Task<IReadOnlyList<ProvinceOption>> GetProvincesAsync(CancellationToken cancellationToken);
 
-    IReadOnlyList<WardOption> GetWards(string provinceCode);
+    Task<IReadOnlyList<DistrictOption>> GetDistrictsAsync(string provinceCode,
+        CancellationToken cancellationToken);
 
-    /// <summary>Returns a trusted snapshot, or null for invalid province/ward codes.</summary>
-    CheckoutAddress? Normalize(CheckoutAddress address);
+    Task<IReadOnlyList<WardOption>> GetWardsAsync(string districtCode,
+        CancellationToken cancellationToken);
+
+    /// <summary>Returns a trusted snapshot, or null for invalid province/district/ward codes.</summary>
+    Task<CheckoutAddress?> NormalizeAsync(CheckoutAddress address,
+        CancellationToken cancellationToken);
 }

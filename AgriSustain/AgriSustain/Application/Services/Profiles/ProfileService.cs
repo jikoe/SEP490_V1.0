@@ -53,29 +53,31 @@ public sealed class ProfileService(
             return Result<UserProfileResponse>.FailureResult(error);
         }
 
-        // Saved addresses use the same province/ward catalog as checkout so they can prefill it.
+        // Saved addresses use the same province/district/ward catalog as checkout so they can prefill it.
         if (!string.IsNullOrWhiteSpace(request.ProvinceCode))
         {
-            var address = addressCatalog.Normalize(new CheckoutAddress(
+            var address = await addressCatalog.NormalizeAsync(new CheckoutAddress(
                 request.FullName,
                 request.PhoneNumber,
                 request.ProvinceCode,
                 "",
-                null,
+                request.DistrictCode ?? "",
+                "",
                 request.WardCode ?? "",
                 "",
-                request.AddressDetail ?? ""));
+                request.AddressDetail ?? ""), cancellationToken);
             if (address == null)
             {
                 return Result<UserProfileResponse>.FailureResult(new Error("ADDRESS_INVALID",
-                    "Tỉnh/thành hoặc phường/xã không hợp lệ. Vui lòng chọn lại địa chỉ."));
+                    "Tỉnh/thành, quận/huyện hoặc phường/xã không hợp lệ. Vui lòng chọn lại địa chỉ."));
             }
 
             request = request with
             {
                 ProvinceCity = address.Province,
-                District = null,
-                Ward = address.Ward
+                District = address.District,
+                Ward = address.Ward,
+                CatalogVersion = address.CatalogVersion
             };
         }
 
