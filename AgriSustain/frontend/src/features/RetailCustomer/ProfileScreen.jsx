@@ -16,6 +16,7 @@ function toForm(profile) {
     fullName: profile.fullName || '',
     phoneNumber: profile.phoneNumber || '',
     provinceCode: address?.provinceCode || '',
+    districtCode: address?.districtCode || '',
     wardCode: address?.wardCode || '',
     addressDetail: address?.addressDetail || '',
     farmName: farm?.farmName || '',
@@ -30,13 +31,14 @@ function toForm(profile) {
 
 /**
  * UC-AUTH-03: Manage Profile Screen (SCR-11). Reads and saves the signed-in account through
- * /api/profile; the RetailCustomer delivery address uses the checkout province/ward catalog so it
+ * /api/profile; the RetailCustomer delivery address uses the checkout province/district/ward catalog so it
  * can prefill UC-RC-02.
  */
 export default function ProfileScreen({ session, navigate, onProfileSaved }) {
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState(null);
   const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
   const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(Boolean(session));
   const [saving, setSaving] = useState(false);
@@ -69,17 +71,30 @@ export default function ProfileScreen({ session, navigate, onProfileSaved }) {
 
   useEffect(() => {
     const provinceCode = form?.provinceCode;
-    setWards([]);
+    setDistricts([]);
     if (!isRetail || !provinceCode) return undefined;
     const controller = new AbortController();
-    request(`/checkout/provinces/${encodeURIComponent(provinceCode)}/wards`, { signal: controller.signal })
-      .then(setWards)
+    request(`/checkout/provinces/${encodeURIComponent(provinceCode)}/districts`, { signal: controller.signal })
+      .then(setDistricts)
       .catch((failure) => { if (failure.name !== 'AbortError') setError(failure.message); });
     return () => controller.abort();
   }, [isRetail, form?.provinceCode]);
 
+  useEffect(() => {
+    const districtCode = form?.districtCode;
+    setWards([]);
+    if (!isRetail || !districtCode) return undefined;
+    const controller = new AbortController();
+    request(`/checkout/districts/${encodeURIComponent(districtCode)}/wards`, { signal: controller.signal })
+      .then(setWards)
+      .catch((failure) => { if (failure.name !== 'AbortError') setError(failure.message); });
+    return () => controller.abort();
+  }, [isRetail, form?.districtCode]);
+
   function handleChange(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value, ...(field === 'provinceCode' ? { wardCode: '' } : {}) }));
+    const reset = field === 'provinceCode' ? { districtCode: '', wardCode: '' }
+      : field === 'districtCode' ? { wardCode: '' } : {};
+    setForm((prev) => ({ ...prev, [field]: value, ...reset }));
     setNotice('');
     setError('');
   }
@@ -90,9 +105,10 @@ export default function ProfileScreen({ session, navigate, onProfileSaved }) {
     if (!/^0\d{9}$/.test(form.phoneNumber.trim())) {
       setError('Số điện thoại phải có 10 chữ số, bắt đầu bằng 0.'); return;
     }
-    const hasAddress = form.provinceCode || form.wardCode || form.addressDetail.trim();
-    if (isRetail && hasAddress && (!form.provinceCode || !form.wardCode || !form.addressDetail.trim())) {
-      setError('Vui lòng nhập đầy đủ tỉnh / thành, phường / xã và địa chỉ chi tiết.'); return;
+    const hasAddress = form.provinceCode || form.districtCode || form.wardCode || form.addressDetail.trim();
+    if (isRetail && hasAddress && (!form.provinceCode || !form.districtCode || !form.wardCode
+      || !form.addressDetail.trim())) {
+      setError('Vui lòng nhập đầy đủ tỉnh / thành, quận / huyện, phường / xã và địa chỉ chi tiết.'); return;
     }
 
     setSaving(true);
@@ -115,6 +131,7 @@ export default function ProfileScreen({ session, navigate, onProfileSaved }) {
           phoneNumber: form.phoneNumber.trim(),
           ...(isRetail && hasAddress ? {
             provinceCode: form.provinceCode,
+            districtCode: form.districtCode,
             wardCode: form.wardCode,
             addressDetail: form.addressDetail.trim(),
           } : {}),
@@ -277,10 +294,17 @@ export default function ProfileScreen({ session, navigate, onProfileSaved }) {
                     {provinces.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
                   </select>
                 </Field>
+                <Field label="Quận / Huyện">
+                  <select value={form.districtCode} disabled={saving || !form.provinceCode || !districts.length}
+                    onChange={(e) => handleChange('districtCode', e.target.value)}>
+                    <option value="">{form.provinceCode ? 'Chọn quận / huyện' : 'Chọn tỉnh / thành phố trước'}</option>
+                    {districts.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+                  </select>
+                </Field>
                 <Field label="Phường / Xã">
-                  <select value={form.wardCode} disabled={saving || !form.provinceCode || !wards.length}
+                  <select value={form.wardCode} disabled={saving || !form.districtCode || !wards.length}
                     onChange={(e) => handleChange('wardCode', e.target.value)}>
-                    <option value="">{form.provinceCode ? 'Chọn phường / xã' : 'Chọn tỉnh / thành phố trước'}</option>
+                    <option value="">{form.districtCode ? 'Chọn phường / xã' : 'Chọn quận / huyện trước'}</option>
                     {wards.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
                   </select>
                 </Field>

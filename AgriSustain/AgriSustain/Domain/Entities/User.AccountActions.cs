@@ -13,9 +13,16 @@ public partial class User
         return LockedUntil > now.UtcDateTime;
     }
 
+    /// <summary>Only marketplace accounts can be suspended; staff and admin accounts stay active.</summary>
+    public bool CanBeSuspended => Role is "Farmer" or "WholesaleBuyer" or "RetailCustomer";
+
     public void Suspend(string reason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        if (!CanBeSuspended)
+        {
+            throw new InvalidOperationException("Only marketplace accounts can be suspended.");
+        }
         if (Status != "Active")
         {
             throw new InvalidOperationException("Only active accounts can be suspended.");

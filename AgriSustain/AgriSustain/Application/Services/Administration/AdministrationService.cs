@@ -73,6 +73,11 @@ public sealed class AdministrationService(
             return UseCaseResult<UserDto>.Failure("SELF_ACTION", "Không thể thao tác tài khoản của mình.",
                 "Forbidden");
         }
+        if (request.Action == "suspend" && !user.CanBeSuspended)
+        {
+            return UseCaseResult<UserDto>.Failure("ROLE_NOT_SUSPENDABLE",
+                "Chỉ tạm ngưng tài khoản Nông dân, Người mua B2B hoặc Người mua lẻ.", "Conflict");
+        }
         var eligible = request.Action switch
         {
             "suspend" => user.Status == "Active",
@@ -133,11 +138,6 @@ public sealed class AdministrationService(
             return UseCaseResult<CategoryDto>.Validation(validation.Errors.GroupBy(x => x.PropertyName)
                 .ToDictionary(x => x.Key, x => x.Select(error => error.ErrorMessage).ToArray()));
         }
-        var image = DecodeImage(request);
-        if (!image.IsSuccess)
-        {
-            return UseCaseResult<CategoryDto>.Failure("INVALID_IMAGE", image.Error!.Message);
-        }
         await using var transaction = await unitOfWork.BeginAsync(cancellationToken);
         if (!await IsAdministratorAsync(cancellationToken))
         {
@@ -160,37 +160,14 @@ public sealed class AdministrationService(
         {
             return Invalid<CategoryDto>();
         }
-        if (await repository.CategoryNameExistsAsync(request.Name.Trim(), request.ParentId,
-            id ?? 0, cancellationToken))
+        if (await repository.CategoryNameExistsAsync(request.Name.Trim(), id ?? 0, cancellationToken))
         {
             return UseCaseResult<CategoryDto>.Failure("CATEGORY_DUPLICATE",
-                "Tên danh mục đã tồn tại trong cùng danh mục cha.", "Conflict");
-        }
-        var parentId = request.ParentId;
-        var visited = new HashSet<long> { id ?? 0 };
-        while (parentId.HasValue)
-        {
-            if (!visited.Add(parentId.Value))
-            {
-                return UseCaseResult<CategoryDto>.Failure("CATEGORY_CYCLE", "Danh mục cha tạo vòng lặp.");
-            }
-            var parent = await repository.FindCategoryAsync(parentId.Value, cancellationToken);
-            if (parent is null || !parent.IsActive
-                || (await repository.GetCategorySettingsAsync(parentId.Value,
-                    cancellationToken)).IsArchived)
-            {
-                return UseCaseResult<CategoryDto>.Failure("CATEGORY_PARENT", "Danh mục cha không hợp lệ.");
-            }
-            parentId = parent.ParentCategoryId;
+                "Tên danh mục đã tồn tại.", "Conflict");
         }
         var before = CategorySnapshot(category, settings);
-        category.UpdateDetails(
-            request.Name, request.ParentId, request.Description, request.Priority);
+        category.UpdateDetails(request.Name, request.Description);
         category.SetAvailability(request.IsActive);
-        if (request.ImageBase64 is not null || request.RemoveImage)
-        {
-            settings.SetImage(image.Value, image.Value is null ? null : request.ImageContentType);
-        }
         if (!id.HasValue)
         {
             repository.AddCategory(category, settings);
@@ -277,38 +254,8 @@ public sealed class AdministrationService(
     {
         return JsonSerializer.Serialize(new
         {
-            category.CategoryName, category.ParentCategoryId, category.Description,
-            category.Priority, category.IsActive, settings.IsArchived,
-            HasImage = settings.ImageBytes is not null
+            category.CategoryName, category.Description, category.IsActive, settings.IsArchived
         });
-    }
-
-    private static UseCaseResult<byte[]?> DecodeImage(CategoryRequest request)
-    {
-        if (request.ImageBase64 is null)
-        {
-            return UseCaseResult<byte[]?>.Success(null);
-        }
-        byte[] bytes;
-        try
-        {
-            bytes = Convert.FromBase64String(request.ImageBase64);
-        }
-        catch (FormatException)
-        {
-            return UseCaseResult<byte[]?>.Failure("INVALID_IMAGE", "Ảnh không đúng định dạng base64.");
-        }
-        var png = bytes.Length >= 24
-            && bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
-        var jpeg = bytes.Length >= 4 && bytes[0] == 255 && bytes[1] == 216
-            && bytes[2] == 255 && bytes[^2] == 255 && bytes[^1] == 217;
-        if (bytes.Length > 5 * 1024 * 1024
-            || !(png && request.ImageContentType == "image/png"
-                || jpeg && request.ImageContentType == "image/jpeg"))
-        {
-            return UseCaseResult<byte[]?>.Failure("INVALID_IMAGE", "Chỉ nhận PNG/JPEG tối đa 5 MB.");
-        }
-        return UseCaseResult<byte[]?>.Success(bytes);
     }
 
     private static bool ValidPage(int page, int size) => page > 0 && size is > 0 and <= 100;

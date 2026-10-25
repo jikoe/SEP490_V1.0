@@ -17,7 +17,7 @@ public sealed class CheckoutService(
     TimeProvider clock,
     CheckoutPolicy policy,
     IAddressCatalog addressCatalog,
-    IGhtkShippingRateProvider shippingRates) : ICheckoutService
+    IShippingRateProvider shippingRates) : ICheckoutService
 {
     public async Task<UseCaseResult<CheckoutContextDto>> GetContextAsync(
         CancellationToken cancellationToken)
@@ -33,12 +33,25 @@ public sealed class CheckoutService(
             items.Where(x => x.ProductId == item.ProductId).Sum(x => x.Quantity)))).ToList();
         return UseCaseResult<CheckoutContextDto>.Success(new CheckoutContextDto(lines,
             addresses.Select(x => new CheckoutAddress(x.RecipientName, x.RecipientPhone,
-                x.ProvinceCode ?? "", x.ProvinceCity, x.District ?? "", x.WardCode ?? "", x.Ward,
-                x.AddressDetail, x.AddressCatalogVersion ?? "")).ToList(),
+                x.ProvinceCode ?? "", x.ProvinceCity, x.DistrictCode ?? "", x.District ?? "",
+                x.WardCode ?? "", x.Ward, x.AddressDetail, x.AddressCatalogVersion ?? "")).ToList(),
             await repository.PointsAsync(actor.UserId, cancellationToken),
             vouchers.Where(x => x.FarmerProfileId is null
                 || lines.Any(line => line.FarmerId == x.FarmerProfileId))
-                .Select(x => x.VoucherCode).ToList()));
+                .Select(x => VoucherOption(x, lines)).ToList()));
+    }
+
+    private static VoucherOption VoucherOption(Voucher voucher, IReadOnlyList<CheckoutLine> lines)
+    {
+        // Same base as CalculateAsync: a farm voucher only counts that farm's lines.
+        var farmLines = voucher.FarmerProfileId is long farmerId
+            ? lines.Where(x => x.FarmerId == farmerId).ToList() : lines;
+        var subtotal = farmLines.Sum(x => x.Subtotal);
+        return new VoucherOption(voucher.VoucherCode, voucher.DiscountType, voucher.DiscountValue,
+            voucher.MaxDiscountAmount, voucher.MinOrderAmount, voucher.EndDate,
+            voucher.FarmerProfileId,
+            voucher.FarmerProfileId is null ? null : farmLines.FirstOrDefault()?.SellerName,
+            subtotal > 0 && subtotal >= voucher.MinOrderAmount);
     }
 
     public IReadOnlyList<DeliveryArea> GetAreas() => policy.Areas;
@@ -177,11 +190,12 @@ public sealed class CheckoutService(
                 .GroupBy(x => x.PropertyName)
                 .ToDictionary(x => x.Key, x => x.Select(error => error.ErrorMessage).ToArray()));
         }
-        var normalizedAddress = addressCatalog.Normalize(request.Address);
+        var normalizedAddress = await addressCatalog.NormalizeAsync(request.Address,
+            cancellationToken);
         if (normalizedAddress is null)
         {
             return UseCaseResult<CheckoutQuoteDto>.Failure("ADDRESS_INVALID",
-                "Tỉnh/thành hoặc phường/xã không hợp lệ. Vui lòng chọn lại địa chỉ.");
+                "Tỉnh/thành, quận/huyện hoặc phường/xã không hợp lệ. Vui lòng chọn lại địa chỉ.");
         }
         var input = request with
         {
@@ -284,12 +298,12 @@ public sealed class CheckoutService(
                 if (shippingRate is null)
                 {
                     return UseCaseResult<CheckoutQuoteDto>.Failure("SHIPPING_RATE_UNAVAILABLE",
-                        "Chưa thể tính phí GHTK. Vui lòng kiểm tra cấu hình kết nối, địa chỉ lấy hàng của nông trại và đơn vị tính khối lượng.");
+                        "Chưa thể tính phí Goship. Vui lòng kiểm tra cấu hình kết nối, địa chỉ lấy hàng của nông trại và đơn vị tính khối lượng.");
                 }
                 if (!shippingRate.IsSupported || shippingRate.Fee is null)
                 {
                     return UseCaseResult<CheckoutQuoteDto>.Failure("MSG117",
-                        "GHTK chưa hỗ trợ giao đến địa chỉ này.");
+                        "Goship chưa có dịch vụ phù hợp để giao đến địa chỉ này.");
                 }
                 deliveryFee += shippingRate.Fee.Value;
                 sellerDeliveryFees[sellerLines.Key] = shippingRate.Fee.Value;
@@ -360,9 +374,11 @@ public sealed class CheckoutService(
             BuyerUserId = actor.UserId, OrderCode = $"RC-{Guid.NewGuid():N}", OrderType = "Retail",
             OrderDate = now.UtcDateTime,
             ExpectedDeliveryDate = quote.ExpectedDeliveryAt.UtcDateTime,
-            ShippingAddress = $"{address.Detail}, {address.Ward}, {address.Province}",
+            ShippingAddress =
+                $"{address.Detail}, {address.Ward}, {address.District}, {address.Province}",
             RecipientNameSnapshot = address.RecipientName, RecipientPhoneSnapshot = address.Phone,
             ProvinceCodeSnapshot = address.ProvinceCode, ProvinceNameSnapshot = address.Province,
+            DistrictCodeSnapshot = address.DistrictCode, DistrictNameSnapshot = address.District,
             WardCodeSnapshot = address.WardCode, WardNameSnapshot = address.Ward,
             AddressDetailSnapshot = address.Detail,
             AddressCatalogVersionSnapshot = address.CatalogVersion,

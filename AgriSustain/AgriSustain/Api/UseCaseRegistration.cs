@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using AgriSustain.Api.Security;
 using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.Interfaces;
@@ -19,24 +20,37 @@ public static class UseCaseRegistration
         var connection = configuration.GetConnectionString("MyCnn")
             ?? throw new InvalidOperationException("Configure ConnectionStrings:MyCnn.");
         services.AddInfrastructure(connection);
-        services.AddOptions<GhtkOptions>().Bind(configuration.GetSection("Ghtk"))
-            .Validate(options => !options.Enabled ||
-                Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var baseUri)
+        services.AddOptions<GoshipOptions>().Bind(configuration.GetSection("Goship"))
+            .Validate(options => Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var baseUri)
                 && (baseUri.Scheme == Uri.UriSchemeHttps || baseUri.IsLoopback)
-                && !string.IsNullOrWhiteSpace(options.Token)
-                && !string.IsNullOrWhiteSpace(options.ClientSource)
-                && options.EstimatedStandardDeliveryDays >= 1
-                && options.EstimatedFreshExpressDeliveryDays >= 1
-                && options.PickupLocations.Count > 0,
-                "Invalid GHTK shipping configuration.")
+                && (!options.Enabled
+                    || !string.IsNullOrWhiteSpace(options.AccessToken)
+                    && options.EstimatedStandardDeliveryDays >= 1
+                    && options.EstimatedFreshExpressDeliveryDays >= 1
+                    && options.ParcelLength > 0 && options.ParcelWidth > 0
+                    && options.ParcelHeight > 0
+                    && options.PickupLocations.Count > 0
+                    && options.PickupLocations.Values.All(pickup =>
+                        !string.IsNullOrWhiteSpace(pickup.City)
+                        && !string.IsNullOrWhiteSpace(pickup.District))),
+                "Invalid Goship shipping configuration.")
             .ValidateOnStart();
-        services.AddHttpClient<IGhtkShippingRateProvider, GhtkShippingRateProvider>(
-            (provider, client) =>
+        services.AddMemoryCache();
+        services.AddHttpClient<GoshipClient>((provider, client) =>
+        {
+            var options = provider.GetRequiredService<IOptions<GoshipOptions>>().Value;
+            // A trailing slash keeps relative paths such as "rates" under /api/v2/.
+            client.BaseAddress = new Uri(options.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute);
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+            if (!string.IsNullOrWhiteSpace(options.AccessToken))
             {
-                var options = provider.GetRequiredService<IOptions<GhtkOptions>>().Value;
-                client.BaseAddress = new Uri(options.BaseUrl, UriKind.Absolute);
-                client.Timeout = TimeSpan.FromSeconds(15);
-            });
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", options.AccessToken);
+            }
+        });
+        services.AddScoped<IAddressCatalog, GoshipAddressCatalog>();
+        services.AddScoped<IShippingRateProvider, GoshipShippingRateProvider>();
         services.AddOptions<CheckoutPolicy>().Bind(configuration.GetSection("Checkout"))
             .Validate(policy => policy.QuoteMinutes is >= 1 and <= 60
                 && policy.ReservationMinutes is >= 1 and <= 120

@@ -16,7 +16,7 @@ public sealed class CheckoutValidator : AbstractValidator<CheckoutRequest>
                 .WithMessage("Số điện thoại di động Việt Nam không hợp lệ.");
             RuleFor(x => x.Address.Detail).NotEmpty().MaximumLength(255);
             RuleFor(x => x.Address.ProvinceCode).NotEmpty().MaximumLength(20);
-            RuleFor(x => x.Address.District).MaximumLength(100);
+            RuleFor(x => x.Address.DistrictCode).NotEmpty().MaximumLength(20);
             RuleFor(x => x.Address.WardCode).NotEmpty().MaximumLength(20);
         });
         RuleFor(x => x.DeliveryMethod).Must(x => x is "Standard" or "FreshExpress");

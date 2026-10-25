@@ -98,15 +98,8 @@ CREATE TABLE dbo.[User] (
 CREATE TABLE dbo.[CategorySettings] (
     [CategoryId] bigint NOT NULL,
     [IsArchived] bit NOT NULL CONSTRAINT [DF_CategorySettings_IsArchived] DEFAULT 0,
-    [ImageBytes] varbinary(max) NULL,
-    [ImageContentType] nvarchar(30) NULL,
     CONSTRAINT [PK_CategorySettings] PRIMARY KEY ([CategoryId]),
-    CONSTRAINT [FK_CategorySettings_Category_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES dbo.[Category] ([CategoryId]) ON DELETE CASCADE,
-    CONSTRAINT [CK_CategorySettings_ImageSize] CHECK ([ImageBytes] IS NULL OR DATALENGTH([ImageBytes]) <= 5242880),
-    CONSTRAINT [CK_CategorySettings_ImageType] CHECK (
-        ([ImageBytes] IS NULL AND [ImageContentType] IS NULL)
-        OR ([ImageBytes] IS NOT NULL AND [ImageContentType] IS NOT NULL
-            AND [ImageContentType] IN (N'image/png', N'image/jpeg')))
+    CONSTRAINT [FK_CategorySettings_Category_CategoryId] FOREIGN KEY ([CategoryId]) REFERENCES dbo.[Category] ([CategoryId]) ON DELETE CASCADE
 );
 
 CREATE TABLE dbo.[CommissionPolicy] (
@@ -168,6 +161,7 @@ CREATE TABLE dbo.[DeliveryAddress] (
     [District] nvarchar(100) NULL,
     [Ward] nvarchar(100) NOT NULL,
     [ProvinceCode] varchar(20) NULL,
+    [DistrictCode] varchar(20) NULL,
     [WardCode] varchar(20) NULL,
     [AddressCatalogVersion] varchar(100) NULL,
     [IsDefault] bit NOT NULL,
@@ -345,6 +339,8 @@ CREATE TABLE dbo.[Order] (
     [RedeemedPoints] int NULL,
     [ProvinceCodeSnapshot] varchar(20) NULL,
     [ProvinceNameSnapshot] nvarchar(100) NULL,
+    [DistrictCodeSnapshot] varchar(20) NULL,
+    [DistrictNameSnapshot] nvarchar(100) NULL,
     [WardCodeSnapshot] varchar(20) NULL,
     [WardNameSnapshot] nvarchar(100) NULL,
     [AddressDetailSnapshot] nvarchar(255) NULL,
@@ -1313,7 +1309,7 @@ INSERT dbo.[Category] ([ParentCategoryId], [CategoryName], [Description], [Prior
 VALUES (NULL, N'Cây Công Nghiệp & Đồ Uống', N'Cà phê, hồ tiêu, trà và nguyên liệu pha chế', 4, 1);
 INSERT @Map_Category VALUES (4, CONVERT(BIGINT, SCOPE_IDENTITY()));
 INSERT dbo.[Category] ([ParentCategoryId], [CategoryName], [Description], [Priority], [IsActive])
-VALUES ((SELECT NewId FROM @Map_Category WHERE SeedId = 1), N'Rau Ăn Lá Thủy Canh', N'Rau xà lách, cải bó xôi trồng nhà màng Đà Lạt', 5, 1);
+VALUES (NULL, N'Rau Ăn Lá Thủy Canh', N'Rau xà lách, cải bó xôi trồng nhà màng Đà Lạt', 5, 1);
 INSERT @Map_Category VALUES (5, CONVERT(BIGINT, SCOPE_IDENTITY()));
 DECLARE @Map_Product TABLE (SeedId INT PRIMARY KEY, NewId BIGINT NOT NULL);
 INSERT dbo.[Product] ([CategoryId], [FarmerProfileId], [ProductName], [Description], [Unit], [OriginProvince], [BaseRetailPrice], [WholesaleMinQuantity], [WholesalePrice], [ApprovalStatus], [IsPublished])
@@ -1333,19 +1329,19 @@ VALUES ((SELECT NewId FROM @Map_Category WHERE SeedId = 4), (SELECT NewId FROM @
 INSERT @Map_Product VALUES (5, CONVERT(BIGINT, SCOPE_IDENTITY()));
 DECLARE @Map_ProductImage TABLE (SeedId INT PRIMARY KEY, NewId BIGINT NOT NULL);
 INSERT dbo.[ProductImage] ([ProductId], [ImageUrl], [DisplayOrder], [IsPrimary], [AltText])
-VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 1), N'https://cdn.agrisustain.vn/products/xalach-1.jpg', 1, 1, N'Ảnh chính Xà lách thủy tinh Đà Lạt');
+VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 1), N'/media/img/xalach-1.jpg', 1, 1, N'Ảnh chính Xà lách thủy tinh Đà Lạt');
 INSERT @Map_ProductImage VALUES (1, CONVERT(BIGINT, SCOPE_IDENTITY()));
 INSERT dbo.[ProductImage] ([ProductId], [ImageUrl], [DisplayOrder], [IsPrimary], [AltText])
-VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 2), N'https://cdn.agrisustain.vn/products/xoai-1.jpg', 1, 1, N'Ảnh chính Xoài Cát Hòa Lộc');
+VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 2), N'/media/img/xoai-1.jpg', 1, 1, N'Ảnh chính Xoài Cát Hòa Lộc');
 INSERT @Map_ProductImage VALUES (2, CONVERT(BIGINT, SCOPE_IDENTITY()));
 INSERT dbo.[ProductImage] ([ProductId], [ImageUrl], [DisplayOrder], [IsPrimary], [AltText])
-VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 3), N'https://cdn.agrisustain.vn/products/gaost25-1.jpg', 1, 1, N'Ảnh chính Gạo ST25 sinh thái');
+VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 3), N'/media/img/gaost25-1.jpg', 1, 1, N'Ảnh chính Gạo ST25 sinh thái');
 INSERT @Map_ProductImage VALUES (3, CONVERT(BIGINT, SCOPE_IDENTITY()));
 INSERT dbo.[ProductImage] ([ProductId], [ImageUrl], [DisplayOrder], [IsPrimary], [AltText])
-VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 4), N'https://cdn.agrisustain.vn/products/cam-1.jpg', 1, 1, N'Ảnh chính Cam hữu cơ Hưng Yên');
+VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 4), N'/media/img/cam-1.jpg', 1, 1, N'Ảnh chính Cam hữu cơ Hưng Yên');
 INSERT @Map_ProductImage VALUES (4, CONVERT(BIGINT, SCOPE_IDENTITY()));
 INSERT dbo.[ProductImage] ([ProductId], [ImageUrl], [DisplayOrder], [IsPrimary], [AltText])
-VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 5), N'https://cdn.agrisustain.vn/products/caphe-1.jpg', 1, 1, N'Ảnh chính Cà phê Robusta Honey');
+VALUES ((SELECT NewId FROM @Map_Product WHERE SeedId = 5), N'/media/img/caphe-1.jpg', 1, 1, N'Ảnh chính Cà phê Robusta Honey');
 INSERT @Map_ProductImage VALUES (5, CONVERT(BIGINT, SCOPE_IDENTITY()));
 UPDATE dbo.Product SET IsPublished = 1 WHERE ProductId IN (SELECT NewId FROM @Map_Product WHERE SeedId IN (1, 2, 3, 4, 5));
 DECLARE @Map_CropSeason TABLE (SeedId INT PRIMARY KEY, NewId BIGINT NOT NULL);

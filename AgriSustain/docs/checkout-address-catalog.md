@@ -1,54 +1,36 @@
 # Danh mục địa chỉ checkout
 
-Checkout sử dụng JSON đóng gói từ `adminvsrm/vndata_hanhchinh`, gồm 34 tỉnh/thành và
-3.321 phường/xã. Nguồn, giấy phép và checksum nằm tại
-`AgriSustain/Infrastructure/Data/Geography/README.md`. Không gọi GitHub trong request.
+Checkout dùng địa chỉ 3 cấp (tỉnh/thành → quận/huyện → phường/xã) lấy trực tiếp từ API
+địa giới của Goship, để mã gửi sang API báo giá (`address_to.city`, `address_to.district`)
+luôn khớp với danh mục của hãng. Bộ JSON 2 cấp đóng gói trước đây đã được gỡ bỏ.
 
 ## API
 
 Các endpoint giữ policy JWT `RetailCustomer` của checkout:
 
-| Endpoint | Response |
-| --- | --- |
-| `GET /api/checkout/provinces` | Array `{ code, name }` của toàn bộ tỉnh/thành |
-| `GET /api/checkout/provinces/{code}/wards` | Array `{ code, provinceCode, name }` thuộc tỉnh đã chọn; mã tỉnh không có trả `[]` |
-| `GET /api/checkout/areas` | Cấu hình vùng phục vụ và phí giao hàng hiện có, không dùng làm danh mục hành chính |
+| Endpoint | Gọi Goship | Response |
+| --- | --- | --- |
+| `GET /api/checkout/provinces` | `GET /cities` | Array `{ code, name }` |
+| `GET /api/checkout/provinces/{code}/districts` | `GET /cities/{code}/districts` | Array `{ code, provinceCode, name }` |
+| `GET /api/checkout/districts/{code}/wards` | `GET /districts/{code}/wards` | Array `{ code, districtCode, name }` |
+| `GET /api/checkout/areas` | – | Cấu hình `Checkout:Areas` (không dùng làm danh mục) |
 
-Mã địa giới là string của bộ dữ liệu; không suy ra mã hãng vận chuyển. Frontend chọn
-tỉnh/thành rồi phường/xã, nhập địa chỉ chi tiết; không yêu cầu quận/huyện.
-`CheckoutAddress.District` giữ lại để tương thích payload cũ, nhưng không bắt buộc và
-được chuẩn hóa thành chuỗi rỗng khi tính quote.
+Kết quả được cache trong bộ nhớ theo `Goship:CatalogCacheHours` (mặc định 24 giờ).
+Phản hồi lỗi hoặc rỗng không được cache; endpoint trả `[]` khi Goship không phản hồi.
+Mã phường của Goship là số, được chuyển thành chuỗi.
 
-Khi quote hoặc revalidate lúc đặt đơn, backend kiểm tra cặp `provinceCode`/`wardCode`
-trong JSON. Mã sai hoặc phường không thuộc tỉnh trả `ADDRESS_INVALID`. Backend lấy
-tên tỉnh/phường từ catalog, tính `catalogVersion` bằng SHA-256 của hai file JSON nối
-theo thứ tự province rồi ward; không tin tên hoặc phiên bản do client gửi.
-Đơn hàng lưu bản sao mã, tên, chi tiết và phiên bản địa chỉ trong SQL hiện có.
+## Chuẩn hóa
 
-## Vùng phục vụ
+Khi quote, revalidate lúc đặt đơn hoặc lưu địa chỉ hồ sơ, backend kiểm tra
+`provinceCode` → `districtCode` → `wardCode` thuộc đúng cấp cha. Sai mã hoặc sai quan hệ
+trả `ADDRESS_INVALID`. Tên tỉnh/quận/phường lấy từ Goship, không tin tên do client gửi.
+`catalogVersion` cố định là `goship-v2` để địa chỉ trong snapshot quote vẫn bằng địa chỉ
+chuẩn hóa lại lúc đặt đơn.
 
-Danh mục địa giới độc lập với `Checkout:Areas`. Chọn được một địa chỉ không có nghĩa
-địa chỉ đó được phục vụ. Quote vẫn yêu cầu vùng cấu hình khớp `provinceCode` và
-`wardCode`, dùng phí/số ngày từ cấu hình; không còn đối chiếu quận/huyện cũ.
-Mỗi cặp mã chỉ được cấu hình một lần.
+Đơn hàng lưu bản sao mã, tên tỉnh/quận/phường, chi tiết và phiên bản địa chỉ
+(`DistrictCodeSnapshot`, `DistrictNameSnapshot` được thêm bởi
+`database/20261025_goship_three_level_address.sql`). `DeliveryAddress.DistrictCode` lưu mã
+quận của địa chỉ mặc định.
 
-`Areas: []` vẫn cho phép dropdown hiển thị toàn bộ danh mục nhưng quote trả `MSG117`
-vì chưa có chính sách giao hàng. Không tự thêm phí hay mặc định miễn phí/toàn quốc.
-
-Ví dụ cấu trúc một vùng (phí/số ngày phải được dự án xác định trước khi sử dụng):
-
-```text
-ProvinceCode: "11"
-Province: "Thành phố Hà Nội"
-District: ""
-WardCode: "267"
-Ward: "Xã Minh Châu"
-StandardFee / ExpressFee: phí mỗi farm theo chính sách dự án
-StandardDays / ExpressDays: số ngày giao theo chính sách dự án
-```
-
-JSON được copy vào output build và publish. Sau khi cập nhật bộ dữ liệu cần triển khai
-lại và khởi động lại backend; catalog được nạp một lần trong singleton.
-Địa chỉ đã lưu có mã không còn hợp lệ cần được người dùng chọn lại trên checkout.
-
-Lần tích hợp này không chạy test theo yêu cầu người dùng.
+Địa chỉ đã lưu theo danh mục cũ (không có mã quận Goship) cần được người dùng chọn lại
+trên checkout hoặc trang hồ sơ.

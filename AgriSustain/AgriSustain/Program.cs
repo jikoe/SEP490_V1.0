@@ -29,7 +29,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using AgriSustain.Api;
+using AgriSustain.Infrastructure.Auth;
 
+AgriSustain.Api.DotEnv.Load(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Checkout.json", optional: false)
     .AddEnvironmentVariables().AddCommandLine(args);
@@ -40,6 +42,21 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 
 // Existing team auth services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
+builder.Services.AddScoped<IProductModerationRepository, ProductModerationRepository>();
+builder.Services.AddScoped<IProductModerationService, ProductModerationService>();
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .Validate(options => !string.IsNullOrWhiteSpace(options.ValidIssuer),
+        "JWT:ValidIssuer must be configured.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.ValidAudience),
+        "JWT:ValidAudience must be configured.")
+    .Validate(options => !string.IsNullOrWhiteSpace(options.Secret)
+        && Encoding.UTF8.GetByteCount(options.Secret) >= 32,
+        "JWT:Secret must contain at least 32 UTF-8 bytes.")
+    .ValidateOnStart();
 builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
 builder.Services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
 builder.Services.AddProblemDetails();

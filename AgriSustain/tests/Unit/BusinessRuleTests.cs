@@ -36,6 +36,28 @@ public sealed class BusinessRuleTests
         Assert.False(actor.CanBeManagedBy(actor));
     }
 
+    [Theory]
+    [InlineData("Farmer", true)]
+    [InlineData("WholesaleBuyer", true)]
+    [InlineData("RetailCustomer", true)]
+    [InlineData("SystemAdmin", false)]
+    [InlineData("VerificationOfficer", false)]
+    public void Suspend_Role_OnlyMarketplaceAccounts(string role, bool expected)
+    {
+        var user = new User { Role = role, Status = "Active" };
+        Assert.Equal(expected, user.CanBeSuspended);
+        if (expected)
+        {
+            user.Suspend("reason");
+            Assert.Equal("Suspended", user.Status);
+        }
+        else
+        {
+            Assert.Throws<InvalidOperationException>(() => user.Suspend("reason"));
+            Assert.Equal("Active", user.Status);
+        }
+    }
+
     [Fact]
     public void Activate_PendingAccount_DoesNotBypassApproval()
     {
@@ -101,15 +123,19 @@ public sealed class BusinessRuleTests
     public async Task ValidateCheckout_Phone_EnforcesVietnameseMobileFormat(string phone, bool expected)
     {
         var input = new CheckoutRequest(new CheckoutAddress("Recipient", phone, "TEST",
-            "Province", "District", "W", "Ward", "Test address"), "Standard", "PayOS", null, 0, null);
+            "Province", "D", "District", "W", "Ward", "Test address"), "Standard", "PayOS", null, 0, null);
         Assert.Equal(expected, (await new CheckoutValidator().ValidateAsync(input)).IsValid);
     }
 
-    [Fact]
-    public async Task ValidateCategory_InvalidPriorityAndDescription_IsRejected()
+    [Theory]
+    [InlineData("Name", 501, false)]
+    [InlineData("", 0, false)]
+    [InlineData("Name", 500, true)]
+    public async Task ValidateCategory_NameAndDescription_EnforcesLimits(string name,
+        int descriptionLength, bool expected)
     {
-        var input = new CategoryRequest("Name", null, new string('a', 501), -1, true, false);
-        Assert.False((await new CategoryValidator().ValidateAsync(input)).IsValid);
+        var input = new CategoryRequest(name, new string('a', descriptionLength), true, false);
+        Assert.Equal(expected, (await new CategoryValidator().ValidateAsync(input)).IsValid);
     }
 
     [Fact]
@@ -123,6 +149,7 @@ public sealed class BusinessRuleTests
         Assert.Contains("UX_Order_Quote", script);
         Assert.Contains("UX_Category_Parent_Name", script);
         Assert.Contains("CREATE TABLE [CategorySettings]", script);
+        Assert.DoesNotContain("ImageBytes", script);
         Assert.Contains("AvailableDelta", script);
         Assert.True(context.Model.FindEntityType(typeof(HarvestBatch))!
             .FindProperty(nameof(HarvestBatch.AvailableQuantity))!.IsConcurrencyToken);

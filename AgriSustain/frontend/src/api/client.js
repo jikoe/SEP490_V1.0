@@ -9,7 +9,8 @@ export async function login(credentials, { signal } = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data.message || 'Không thể đăng nhập. Vui lòng thử lại.');
+    const error = new Error(data.detail || data.title || data.message
+      || `Đăng nhập thất bại (HTTP ${response.status}).`);
     error.status = response.status;
     throw error;
   }
@@ -40,7 +41,7 @@ async function send(path, { signal, method = 'GET', body } = {}) {
 export async function request(path, options) {
   const { response, data } = await send(path, options);
   if (!response.ok) {
-    const error = new Error(data.title || data.message || (response.status === 401 ? 'Vui lòng đăng nhập bằng tài khoản thật để sử dụng chức năng.' : 'Không thể tải dữ liệu. Vui lòng thử lại.'));
+    const error = new Error(data.detail || data.title || data.message || (response.status === 401 ? 'Vui lòng đăng nhập bằng tài khoản thật để sử dụng chức năng.' : 'Không thể tải dữ liệu. Vui lòng thử lại.'));
     error.code = data.code;
     error.fields = data.errors || {};
     error.status = response.status;

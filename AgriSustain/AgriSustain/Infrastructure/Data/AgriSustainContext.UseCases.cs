@@ -24,10 +24,10 @@ public partial class AgriSustainContext
             entity.ToTable("CategorySettings");
             entity.HasKey(x => x.CategoryId);
             entity.Property(x => x.CategoryId).ValueGeneratedNever();
-            entity.Property(x => x.ImageContentType).HasMaxLength(30);
             entity.HasOne(x => x.Category).WithOne()
                 .HasForeignKey<CategorySettings>(x => x.CategoryId);
         });
+        // Categories are flat (ParentCategoryId is always NULL), so this enforces global name uniqueness.
         modelBuilder.Entity<Category>().HasIndex(x => new { x.ParentCategoryId, x.CategoryName })
             .IsUnique().HasDatabaseName("UX_Category_Parent_Name").HasFilter(null);
 

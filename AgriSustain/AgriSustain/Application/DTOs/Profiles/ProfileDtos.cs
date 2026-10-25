@@ -23,6 +23,7 @@ public sealed record DeliveryAddressDto(
     string Ward,
     string AddressDetail,
     string? ProvinceCode,
+    string? DistrictCode,
     string? WardCode,
     bool IsDefault);
 
@@ -52,7 +53,9 @@ public sealed record UpdateConsumerProfileRequest(
     string? Ward,
     string? AddressDetail,
     string? ProvinceCode,
-    string? WardCode);
+    string? WardCode,
+    string? DistrictCode = null,
+    string? CatalogVersion = null);
 
 public sealed record UpdateFarmerProfileRequest(
     string FullName,
