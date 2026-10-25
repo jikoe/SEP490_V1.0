@@ -1,6 +1,6 @@
 import '../styles/customer-portal.css';
 import React, { useEffect, useState } from 'react';
-import { logout as logoutSession } from '../api/client';
+import { backendUrl, logout as logoutSession } from '../api/client';
 import { Notice } from '../components/ui/Common';
 import UsersScreen from '../features/Administrator/UsersScreen';
 import CategoriesScreen from '../features/Administrator/CategoriesScreen';
@@ -250,12 +250,12 @@ export default function App() {
   useEffect(() => {
     if (isMarketplace) return;
     const controller = new AbortController();
-    fetch('/health', { signal: controller.signal })
+    fetch(backendUrl('/health'), { signal: controller.signal })
       .then((response) => response.json())
       .then(async (health) => {
         setPersistence(health.persistence);
         if (health.persistence === 'SqlServer') {
-          const response = await fetch('/health/database', { signal: controller.signal });
+          const response = await fetch(backendUrl('/health/database'), { signal: controller.signal });
           const readiness = await response.json().catch(() => ({}));
           setDatabaseReady(response.ok && readiness.connected === true);
         }
@@ -506,7 +506,7 @@ export default function App() {
           </div>
         </header>
 
-        <main key={`${roleKey}-${route}`}>
+        <main key={roleKey}>
           {/* Định tuyến màn hình tương ứng */}
           {route.startsWith('/administration/dashboard') && <AdminDashboard navigate={navigate} />}
           {route.startsWith('/administration/users') && <UsersScreen fixture={fixture} route={route} navigate={navigate} />}

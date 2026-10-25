@@ -63,6 +63,13 @@ builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
 builder.Services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDevelopment", policy =>
+        policy.WithOrigins("http://127.0.0.1:5173", "http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
 
 // Standard Repositories and UnitOfWork
 builder.Services.AddSingleton<SqlDemoDependencies>();
@@ -163,6 +170,7 @@ app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/users")
     || context.Request.Path.StartsWithSegments("/api/checkout"), branch =>
         branch.UseMiddleware<ExceptionMiddleware>());
 
+app.UseCors("FrontendDevelopment");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ActiveFeatureAccountMiddleware>();

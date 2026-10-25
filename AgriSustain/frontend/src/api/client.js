@@ -1,7 +1,13 @@
 import { getSession } from '../session/session';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
+export function backendUrl(path) {
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 export async function login(credentials, { signal } = {}) {
-  const response = await fetch('/api/auth/login', {
+  const response = await fetch(backendUrl('/api/auth/login'), {
     method: 'POST',
     signal,
     headers: { 'Content-Type': 'application/json' },
@@ -23,7 +29,7 @@ export async function logout() {
     throw new Error('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
   }
 
-  const response = await fetch('/api/auth/logout', {
+  const response = await fetch(backendUrl('/api/auth/logout'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${session.accessToken}` },
   });
@@ -39,7 +45,7 @@ export async function logout() {
 /** Sends a request to the same-origin API with the session token, if any. */
 async function send(path, { signal, method = 'GET', body } = {}) {
   const session = getSession();
-  const response = await fetch(`/api${path}`, {
+  const response = await fetch(backendUrl(`/api${path}`), {
     method,
     signal,
     headers: {

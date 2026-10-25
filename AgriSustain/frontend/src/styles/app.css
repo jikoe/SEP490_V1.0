@@ -305,6 +305,8 @@ button.danger:hover:not(:disabled) { background: #bd3333; }
 .moderation-detail-heading h2 { margin: 5px 0; color: #172c22; font-size: 21px; overflow-wrap: anywhere; }
 .moderation-detail-heading > div > span { color: #78867e; font-size: 10px; }
 .moderation-detail-heading > .moderation-status { margin-top: 2px; }
+.moderation-review-meta { margin: 0; padding: 8px 22px; border-bottom: 1px solid #e8ede9;
+  color: #66746c; font-size: 10px; }
 .moderation-detail-body { display: grid; gap: 21px; padding: 20px 22px; }
 .moderation-section-title { margin: 0 0 11px; color: #202f27; font-size: 13px; font-weight: 700; }
 .moderation-gallery { display: grid; grid-template-columns: minmax(0,1fr) 74px; gap: 10px; }
@@ -337,6 +339,7 @@ button.danger:hover:not(:disabled) { background: #bd3333; }
 .moderation-certificates { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .moderation-certificates span { padding: 5px 9px; border: 1px solid #cce8d4; border-radius: 20px;
   background: #eff9f1; color: #277243; font-size: 10px; }
+.moderation-certificates span.unverified { border-color: #ead9b4; background: #fff8e8; color: #8a641a; }
 .moderation-muted { margin: 5px 0 0; color: #829087; font-size: 10px; }
 .moderation-rejection { padding: 12px 14px; border: 1px solid #f2c8c3; border-radius: 10px;
   background: #fff3f1; color: #8f352e; font-size: 11px; }
@@ -358,6 +361,9 @@ button.danger:hover:not(:disabled) { background: #bd3333; }
 .moderation-empty h2 { margin: 14px 0 5px; color: #283b30; font-size: 16px; }
 .moderation-empty p, .moderation-demo-note { color: #7f8d84; font-size: 10px; }
 .moderation-empty p { margin: 0; }
+.moderation-confirmation { min-width: min(420px, 75vw); color: #37473e; font-size: 12px; }
+.moderation-confirmation-reason { padding: 11px; border-radius: 8px; background: #f5f7f6; overflow-wrap: anywhere; }
+.moderation-confirmation > p:last-of-type { color: #718078; }
 .moderation-demo-note { margin: 17px 0 0; text-align: center; }
 @media (max-width: 980px) {
   .moderation-workspace { grid-template-columns: minmax(235px, .75fr) minmax(0,1.25fr); gap: 13px; }

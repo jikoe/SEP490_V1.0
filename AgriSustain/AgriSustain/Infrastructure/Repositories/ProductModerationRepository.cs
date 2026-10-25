@@ -36,23 +36,69 @@ public sealed class ProductModerationRepository : IProductModerationRepository
         }
 
         var total = await products.CountAsync(cancellationToken);
-        var items = await products
-            .OrderBy(product => product.CreatedAt)
-            .ThenBy(product => product.ProductId)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(product => new ProductModerationListItemDto(
-                product.ProductId,
-                product.ProductName,
-                product.ApprovalStatus,
-                product.Category.CategoryName,
-                product.FarmerProfile.User.FullName,
-                product.FarmerProfile.FarmName,
-                product.CreatedAt,
-                product.ProductImages.OrderByDescending(image => image.IsPrimary)
-                    .ThenBy(image => image.DisplayOrder)
-                    .Select(image => image.ImageUrl).FirstOrDefault()))
-            .ToListAsync(cancellationToken);
+        List<ProductModerationListItemDto> items;
+        if (status == "Reviewed")
+        {
+            var reviewedProducts = products.Select(product => new
+            {
+                Product = product,
+                Decision = _context.AuditLogs.AsNoTracking()
+                    .Where(log => log.EntityType == "Product"
+                        && log.EntityId == product.ProductId
+                        && (log.Action == "ApproveProduct" || log.Action == "RejectProduct"))
+                    .OrderByDescending(log => log.OccurredAt)
+                    .ThenByDescending(log => log.AuditLogId)
+                    .Select(log => new
+                    {
+                        log.OccurredAt,
+                        ReviewerName = log.PerformedByUser == null
+                            ? null : log.PerformedByUser.FullName
+                    })
+                    .FirstOrDefault()
+            });
+            items = await reviewedProducts
+                .OrderByDescending(item => item.Decision == null
+                    ? item.Product.CreatedAt : item.Decision.OccurredAt)
+                .ThenByDescending(item => item.Product.ProductId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(item => new ProductModerationListItemDto(
+                    item.Product.ProductId,
+                    item.Product.ProductName,
+                    item.Product.ApprovalStatus,
+                    item.Product.Category.CategoryName,
+                    item.Product.FarmerProfile.User.FullName,
+                    item.Product.FarmerProfile.FarmName,
+                    item.Product.CreatedAt,
+                    item.Product.ProductImages.OrderByDescending(image => image.IsPrimary)
+                        .ThenBy(image => image.DisplayOrder)
+                        .Select(image => image.ImageUrl).FirstOrDefault(),
+                    item.Decision == null ? null : item.Decision.OccurredAt,
+                    item.Decision == null ? null : item.Decision.ReviewerName))
+                .ToListAsync(cancellationToken);
+        }
+        else
+        {
+            items = await products
+                .OrderBy(product => product.CreatedAt)
+                .ThenBy(product => product.ProductId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(product => new ProductModerationListItemDto(
+                    product.ProductId,
+                    product.ProductName,
+                    product.ApprovalStatus,
+                    product.Category.CategoryName,
+                    product.FarmerProfile.User.FullName,
+                    product.FarmerProfile.FarmName,
+                    product.CreatedAt,
+                    product.ProductImages.OrderByDescending(image => image.IsPrimary)
+                        .ThenBy(image => image.DisplayOrder)
+                        .Select(image => image.ImageUrl).FirstOrDefault(),
+                    null,
+                    null))
+                .ToListAsync(cancellationToken);
+        }
 
         return (total, items);
     }
@@ -68,6 +114,7 @@ public sealed class ProductModerationRepository : IProductModerationRepository
                 .ThenInclude(farmer => farmer.User)
             .Include(item => item.HarvestBatches)
                 .ThenInclude(batch => batch.CropSeason)
+                    .ThenInclude(season => season.CultivationLogs)
             .Include(item => item.HarvestBatches)
                 .ThenInclude(batch => batch.TraceabilityQrcode)
             .SingleOrDefaultAsync(item => item.ProductId == productId, cancellationToken);
@@ -88,6 +135,19 @@ public sealed class ProductModerationRepository : IProductModerationRepository
                 certificate.DocumentUrl,
                 certificate.VerificationStatus))
             .ToListAsync(cancellationToken);
+        var decision = await _context.AuditLogs.AsNoTracking()
+            .Where(log => log.EntityType == "Product"
+                && log.EntityId == product.ProductId
+                && (log.Action == "ApproveProduct" || log.Action == "RejectProduct"))
+            .OrderByDescending(log => log.OccurredAt)
+            .ThenByDescending(log => log.AuditLogId)
+            .Select(log => new
+            {
+                log.OccurredAt,
+                ReviewerName = log.PerformedByUser == null
+                    ? null : log.PerformedByUser.FullName
+            })
+            .FirstOrDefaultAsync(cancellationToken);
         var batches = product.HarvestBatches.ToList();
 
         return new ProductModerationDetailDto(
@@ -125,7 +185,14 @@ public sealed class ProductModerationRepository : IProductModerationRepository
                 batch.ExpirationDate,
                 batch.QualityNotes,
                 batch.CropSeason.SeasonName,
-                batch.CropSeason.CropVariety))
+                batch.CropSeason.CropVariety,
+                batch.CropSeason.PlantingDate,
+                batch.Status,
+                string.Join("; ", batch.CropSeason.CultivationLogs
+                    .OrderBy(log => log.ActionDate)
+                    .Select(log => string.IsNullOrWhiteSpace(log.DetailDescription)
+                        ? log.ActionType
+                        : $"{log.ActionType}: {log.DetailDescription}"))))
                 .ToList(),
             batches
                 .Where(batch => batch.TraceabilityQrcode is not null)
@@ -135,7 +202,9 @@ public sealed class ProductModerationRepository : IProductModerationRepository
                     batch.TraceabilityQrcode.QrcontentString,
                     batch.TraceabilityQrcode.IsRevoked))
                 .ToList(),
-            certificates);
+            certificates,
+            decision?.OccurredAt,
+            decision?.ReviewerName);
     }
 
     public Task<Product?> GetForModerationAsync(
@@ -150,6 +219,11 @@ public sealed class ProductModerationRepository : IProductModerationRepository
     public void AddNotification(Notification notification)
     {
         _context.Notifications.Add(notification);
+    }
+
+    public void AddAudit(AuditLog audit)
+    {
+        _context.AuditLogs.Add(audit);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken)

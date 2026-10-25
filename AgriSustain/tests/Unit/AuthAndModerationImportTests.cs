@@ -123,7 +123,7 @@ public sealed class AuthAndModerationImportTests
     public async Task Approval_publishes_product_and_notifies_its_farmer()
     {
         var repository = new Moderation { Product = NewProduct() };
-        var result = await new ProductModerationService(repository, new Clock())
+        var result = await new ProductModerationService(repository, new Actor(), new Clock())
             .ModerateAsync(9, true, null, default);
 
         Assert.Equal(ProductModerationOutcome.Success, result);
@@ -132,14 +132,41 @@ public sealed class AuthAndModerationImportTests
         var notification = Assert.Single(repository.Notifications);
         Assert.Equal(42, notification.UserId);
         Assert.Equal(Now.UtcDateTime, notification.SentAt);
+        var audit = Assert.Single(repository.Audits);
+        Assert.Equal(7, audit.PerformedByUserId);
+        Assert.Equal("Product", audit.EntityType);
+        Assert.Equal(9, audit.EntityId);
+        Assert.Equal("ApproveProduct", audit.Action);
+        Assert.Equal("Pending", audit.OldValue);
+        Assert.Equal("Approved", audit.NewValue);
+        Assert.Equal(Now.UtcDateTime, audit.OccurredAt);
+        Assert.Equal("moderation-test-trace", audit.TraceId);
         Assert.Equal(1, repository.Saves);
+    }
+
+    [Theory]
+    [InlineData("Pending")]
+    [InlineData("Rejected")]
+    public async Task Approval_is_blocked_when_farmer_is_not_verified(string verificationStatus)
+    {
+        var repository = new Moderation { Product = NewProduct() };
+        repository.Product.FarmerProfile.VerificationStatus = verificationStatus;
+
+        var result = await new ProductModerationService(repository, new Actor(), new Clock())
+            .ModerateAsync(9, true, null, default);
+
+        Assert.Equal(ProductModerationOutcome.FarmerNotVerified, result);
+        Assert.Equal("Pending", repository.Product.ApprovalStatus);
+        Assert.False(repository.Product.IsPublished);
+        Assert.Equal(0, repository.Saves);
+        Assert.Empty(repository.Notifications);
     }
 
     [Fact]
     public async Task Rejection_records_trimmed_reason_and_keeps_product_unpublished()
     {
         var repository = new Moderation { Product = NewProduct() };
-        var result = await new ProductModerationService(repository, new Clock())
+        var result = await new ProductModerationService(repository, new Actor(), new Clock())
             .ModerateAsync(9, false, "  Thiếu thông tin nguồn gốc  ", default);
 
         Assert.Equal(ProductModerationOutcome.Success, result);
@@ -147,6 +174,11 @@ public sealed class AuthAndModerationImportTests
         Assert.False(repository.Product.IsPublished);
         Assert.Equal("Thiếu thông tin nguồn gốc", repository.Product.RejectionReason);
         Assert.Contains("Thiếu thông tin nguồn gốc", Assert.Single(repository.Notifications).Content);
+        var audit = Assert.Single(repository.Audits);
+        Assert.Equal("RejectProduct", audit.Action);
+        Assert.Equal("Pending", audit.OldValue);
+        Assert.Equal("Rejected", audit.NewValue);
+        Assert.Equal("Thiếu thông tin nguồn gốc", audit.Reason);
     }
 
     [Theory]
@@ -156,13 +188,14 @@ public sealed class AuthAndModerationImportTests
     public async Task Rejection_without_reason_never_changes_product(string? reason)
     {
         var repository = new Moderation { Product = NewProduct() };
-        var result = await new ProductModerationService(repository, new Clock())
+        var result = await new ProductModerationService(repository, new Actor(), new Clock())
             .ModerateAsync(9, false, reason, default);
 
         Assert.Equal(ProductModerationOutcome.InvalidReason, result);
         Assert.Equal("Pending", repository.Product.ApprovalStatus);
         Assert.Equal(0, repository.Saves);
         Assert.Empty(repository.Notifications);
+        Assert.Empty(repository.Audits);
     }
 
     [Fact]
@@ -170,13 +203,14 @@ public sealed class AuthAndModerationImportTests
     {
         var repository = new Moderation { Product = NewProduct() };
         repository.Product.ApprovalStatus = "Approved";
-        var result = await new ProductModerationService(repository, new Clock())
+        var result = await new ProductModerationService(repository, new Actor(), new Clock())
             .ModerateAsync(9, false, "A different decision", default);
 
         Assert.Equal(ProductModerationOutcome.Conflict, result);
         Assert.Equal("Approved", repository.Product.ApprovalStatus);
         Assert.Equal(0, repository.Saves);
         Assert.Empty(repository.Notifications);
+        Assert.Empty(repository.Audits);
     }
 
     private static User NewUser() => new()
@@ -189,7 +223,7 @@ public sealed class AuthAndModerationImportTests
     private static Product NewProduct() => new()
     {
         ProductId = 9, ProductName = "Nông sản kiểm thử", ApprovalStatus = "Pending",
-        FarmerProfile = new FarmerProfile { UserId = 42 }
+        FarmerProfile = new FarmerProfile { UserId = 42, VerificationStatus = "Approved" }
     };
 
     // Login uses the imported repository; this context is never opened by these tests.
@@ -204,6 +238,12 @@ public sealed class AuthAndModerationImportTests
     private sealed class Clock : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => Now;
+    }
+
+    private sealed class Actor : IActorContext
+    {
+        public long UserId => 7;
+        public string? TraceId => "moderation-test-trace";
     }
 
     private sealed class CurrentUser : ICurrentUser
@@ -237,6 +277,7 @@ public sealed class AuthAndModerationImportTests
     {
         public Product Product { get; init; } = null!;
         public List<Notification> Notifications { get; } = [];
+        public List<AuditLog> Audits { get; } = [];
         public int Saves { get; private set; }
         public Task<(int Total, IReadOnlyList<ProductModerationListItemDto> Items)> GetListAsync(
             string status, string? keyword, int page, int pageSize, CancellationToken token) =>
@@ -245,6 +286,7 @@ public sealed class AuthAndModerationImportTests
             Task.FromResult<ProductModerationDetailDto?>(null);
         public Task<Product?> GetForModerationAsync(long id, CancellationToken token) =>
             Task.FromResult<Product?>(Product);
+        public void AddAudit(AuditLog audit) => Audits.Add(audit);
         public void AddNotification(Notification notification) => Notifications.Add(notification);
         public Task SaveChangesAsync(CancellationToken token) { Saves++; return Task.CompletedTask; }
     }

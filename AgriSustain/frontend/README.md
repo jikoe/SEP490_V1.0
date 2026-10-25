@@ -21,6 +21,10 @@ dotnet user-secrets set "ConnectionStrings:MyCnn" "<your-sql-server-connection-s
 dotnet user-secrets set "JWT:Secret" "<random-secret-at-least-32-bytes>" --project ..\AgriSustain\AgriSustain.csproj
 ```
 
+Frontend development gọi API trực tiếp theo `VITE_API_BASE_URL` trong `.env.development.local`
+(mẫu: `.env.example`). Khởi động lại Vite sau khi thay đổi file env; backend cho phép CORS từ
+các origin `localhost:5173` và `127.0.0.1:5173`.
+
 Trang đăng nhập dùng username/email và mật khẩu BCrypt trong bảng `User`. API cấp JWT tại
 `POST /api/auth/login`; logout xác thực và thu hồi token tại `POST /api/auth/logout`.
 Token được giữ trong sessionStorage nên vẫn đăng nhập khi tải lại trang; bị xóa khi đóng tab,
