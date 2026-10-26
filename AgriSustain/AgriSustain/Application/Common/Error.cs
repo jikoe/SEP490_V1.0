@@ -1,3 +1,7 @@
 namespace AgriSustain.Application.Common;
 
-public sealed record Error(string Code, string Message, string Kind = "Validation");
+public sealed record Error(
+    string Code,
+    string Message,
+    string Kind = "Validation",
+    Dictionary<string, string[]>? FieldErrors = null);

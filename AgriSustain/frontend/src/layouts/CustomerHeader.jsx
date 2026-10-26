@@ -115,7 +115,7 @@ export default function CustomerHeader({ currentRoute, navigate, user, onSwitchR
                       navigate('/profile');
                     }}
                   >
-                    👤 Hồ sơ & Sổ địa chỉ (SCR-11)
+                    👤 Hồ sơ & Sổ địa chỉ
                   </a>
                   <a
                     href="#/orders"
@@ -125,7 +125,7 @@ export default function CustomerHeader({ currentRoute, navigate, user, onSwitchR
                       navigate('/orders');
                     }}
                   >
-                    📦 Lịch sử & Đơn mua (SCR-16)
+                    📦 Lịch sử & Đơn mua
                   </a>
                   <a
                     href="#/register"
@@ -135,7 +135,7 @@ export default function CustomerHeader({ currentRoute, navigate, user, onSwitchR
                       navigate('/register');
                     }}
                   >
-                    ✍ Tạo tài khoản mới (SCR-07)
+                    ✍ Tạo tài khoản mới
                   </a>
                   <div className="menu-divider" />
                   <div className="menu-role-switch">

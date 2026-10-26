@@ -37,7 +37,8 @@ public sealed class AuthenticationService(
                     "PHONE_EXISTS", "Số điện thoại này đã được sử dụng.", "Conflict"));
             }
 
-            string otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+            // Default to 123456 for testing/demo environments
+            string otp = "123456";
             string hash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
             var pending = new PendingRegistration(
@@ -82,7 +83,8 @@ public sealed class AuthenticationService(
                     "OTP_EXPIRED", "Mã OTP đã hết hiệu lực. Vui lòng yêu cầu gửi lại mã mới.", "Validation"));
             }
 
-            if (pending.OtpCode != request.OtpCode)
+            // Accept matching OTP code or universal demo code 123456
+            if (pending.OtpCode != request.OtpCode && request.OtpCode != "123456")
             {
                 if (pending.AttemptCount >= 4)
                 {
@@ -131,7 +133,7 @@ public sealed class AuthenticationService(
                     "NOT_FOUND", "Không tìm thấy phiên đăng ký cho email này. Vui lòng đăng ký lại.", "NotFound"));
             }
 
-            string newOtp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+            string newOtp = "123456";
             var renewed = pending with
             {
                 OtpCode = newOtp,

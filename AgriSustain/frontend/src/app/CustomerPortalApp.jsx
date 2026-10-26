@@ -74,9 +74,9 @@ export default function CustomerPortalApp() {
   }
 
   const breadcrumbLabels = {
-    register: 'Đăng ký tài khoản mới (SCR-07)',
-    profile: 'Hồ sơ cá nhân & Sổ địa chỉ (SCR-11)',
-    orders: 'Lịch sử & Theo dõi đơn hàng (SCR-16)',
+    register: 'Đăng ký tài khoản mới',
+    profile: 'Hồ sơ cá nhân & Sổ địa chỉ',
+    orders: 'Lịch sử & Theo dõi đơn hàng',
   };
 
   return (

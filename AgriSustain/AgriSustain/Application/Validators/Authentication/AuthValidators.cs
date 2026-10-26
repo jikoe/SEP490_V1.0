@@ -14,7 +14,7 @@ public sealed partial class RegisterRequestValidator : AbstractValidator<Registe
 
         RuleFor(x => x.PhoneNumber)
             .NotEmpty().WithMessage("Số điện thoại không được để trống.")
-            .Matches(@"^0\d{9}$").WithMessage("Số điện thoại không hợp lệ (cần 10 chữ số, bắt đầu bằng 0).");
+            .Matches(@"^0\d{9}$").WithMessage("Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).");
 
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email không được để trống.")

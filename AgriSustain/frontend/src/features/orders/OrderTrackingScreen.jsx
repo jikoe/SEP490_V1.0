@@ -185,7 +185,7 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 }}>
         <div>
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: '#1e6546' }}>
-            THEO DÕI ĐƠN HÀNG (SCR-16 / UC-RC-04)
+            THEO DÕI ĐƠN HÀNG
           </span>
           <h1 style={{ fontSize: 26, margin: '4px 0 6px', color: '#1b4332', fontWeight: 800 }}>
             Lịch sử & Theo dõi chi tiết đơn hàng
@@ -227,7 +227,7 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 18 }}>💡</span>
             <span style={{ fontSize: 13, color: '#166534' }}>
-              Đang hiển thị <strong>3 đơn hàng mẫu</strong> phục vụ kiểm thử tính năng Tra cứu hành trình & Mã lô thu hoạch (UC-RC-04).
+              Đang hiển thị <strong>3 đơn hàng mẫu</strong> phục vụ kiểm thử tính năng Tra cứu hành trình & Mã lô thu hoạch.
             </span>
           </div>
           <button
@@ -320,7 +320,7 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
                 setIsDemoView(true);
               }}
             >
-              🌱 Xem 3 đơn hàng mẫu để kiểm thử tính năng Tra cứu & Lô nông sản (UC-RC-04)
+              🌱 Xem 3 đơn hàng mẫu để kiểm thử tính năng Tra cứu & Lô nông sản
             </button>
           </div>
         ) : filteredOrders.length === 0 ? (
@@ -525,7 +525,7 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
                         style={{ padding: '8px 14px', borderRadius: 8, fontSize: 12.5, background: '#1e6546' }}
                         onClick={() => setReviewModalOpen(true)}
                       >
-                        ⭐ Đánh giá (UC-RC-05)
+                        ⭐ Đánh giá sản phẩm
                       </button>
                     )}
 
@@ -534,7 +534,7 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
                       style={{ padding: '8px 12px', borderRadius: 8, fontSize: 12, color: '#b23b3b', borderColor: '#ecd3cd' }}
                       onClick={() => setComplaintModalOpen(true)}
                     >
-                      Khiếu nại (UC-RC-06)
+                      Báo cáo khiếu nại
                     </button>
                   </div>
                 </div>
@@ -544,13 +544,37 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
         )}
       </div>
 
-      {/* 1. Modal Chi Tiết Đơn Hàng (UC-RC-04 / SCR-16) */}
+      {/* 1. Modal Chi Tiết Đơn Hàng */}
       {selectedOrder && (
         <Modal
           open={Boolean(selectedOrder)}
           onClose={() => setSelectedOrder(null)}
           title={`Chi tiết đơn hàng #${selectedOrder.orderCode}`}
         >
+          {/* Nút Quay lại danh sách đơn hàng (Back to list) */}
+          <div style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              className="back-to-list-btn"
+              onClick={() => setSelectedOrder(null)}
+              style={{
+                background: '#edf6f0',
+                border: '1px solid #cce3d4',
+                color: '#1e6546',
+                fontWeight: 700,
+                fontSize: 13,
+                borderRadius: 8,
+                padding: '8px 14px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              ← Quay lại danh sách đơn hàng
+            </button>
+          </div>
+
           {/* Timeline vận chuyển */}
           <div style={{ background: '#f5faf7', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
             <h4 style={{ margin: '0 0 14px', fontSize: 13, color: '#1e6546' }}>HÀNH TRÌNH VẬN CHUYỂN</h4>
@@ -600,9 +624,27 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
             </div>
           </div>
 
-          <div className="modal-actions">
-            <button type="button" onClick={() => setSelectedOrder(null)}>
-              Đóng cửa sổ
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => setSelectedOrder(null)}
+              style={{
+                padding: '10px 18px',
+                borderRadius: 8,
+                fontWeight: 600,
+                color: '#1e6546',
+                borderColor: '#cce3d4',
+              }}
+            >
+              ← Quay lại danh sách đơn hàng
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => setSelectedOrder(null)}
+              style={{ background: '#1e6546', padding: '10px 22px', borderRadius: 8 }}
+            >
+              Đóng
             </button>
           </div>
         </Modal>
@@ -629,7 +671,7 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
               <strong>Vị trí khu đất:</strong> <span>{selectedBatch.farmPlot}</span>
               <strong>Ngày thu hoạch:</strong> <span>{selectedBatch.harvestDate}</span>
               <strong>Tiêu chuẩn canh tác:</strong> <span style={{ color: '#1e6546', fontWeight: 700 }}>VietGAP · Không thuốc trừ sâu BVTV</span>
-              <strong>Nhật ký tưới bón:</strong> <span>Đã được Verification Officer thẩm định (UC-VO-01)</span>
+              <strong>Nhật ký tưới bón:</strong> <span>Đã được thẩm định VietGAP</span>
             </div>
           </div>
 
@@ -643,10 +685,10 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
               style={{ background: '#1e6546' }}
               onClick={() => {
                 setTraceModalOpen(false);
-                alert(`Chuyển đến trang toàn cảnh Tra cứu nguồn gốc chi tiết (SCR-TRC-01) cho mã lô ${selectedBatch.harvestBatchCode}`);
+                alert(`Chuyển đến trang toàn cảnh Tra cứu nguồn gốc chi tiết cho mã lô ${selectedBatch.harvestBatchCode}`);
               }}
             >
-              Xem Chi Tiết Đầy Đủ (SCR-TRC-01) →
+              Xem Chi Tiết Đầy Đủ →
             </button>
           </div>
         </Modal>
@@ -656,7 +698,7 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
       {reviewModalOpen && (
         <Modal
           onClose={() => setReviewModalOpen(false)}
-          title="Đánh giá sản phẩm nông sản (UC-RC-05)"
+          title="Đánh giá sản phẩm nông sản"
         >
           <p className="muted" style={{ fontSize: 13 }}>
             Đánh giá của bạn sẽ được gửi tới Content Moderator kiểm duyệt trước khi hiển thị công khai.
@@ -681,7 +723,7 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
               style={{ background: '#1e6546' }}
               onClick={() => {
                 setReviewModalOpen(false);
-                setToastMessage('MSG48: Đánh giá của bạn đã được gửi thành công và đang chờ Content Moderator duyệt (UC-CM-02)!');
+                setToastMessage('MSG48: Đánh giá của bạn đã được gửi thành công và đang chờ duyệt nội dung!');
                 setTimeout(() => setToastMessage(null), 4000);
               }}
             >
@@ -691,11 +733,11 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
         </Modal>
       )}
 
-      {/* 4. Modal Khiếu nại (UC-RC-06) */}
+      {/* 4. Modal Báo cáo khiếu nại */}
       {complaintModalOpen && (
         <Modal
           onClose={() => setComplaintModalOpen(false)}
-          title="Gửi yêu cầu khiếu nại đơn hàng (UC-RC-06)"
+          title="Gửi yêu cầu khiếu nại đơn hàng"
         >
           <p className="muted" style={{ fontSize: 13 }}>
             Khiếu nại sẽ được chuyển đến bộ phận Chăm sóc khách hàng (Customer Support - UC-CS-01) để xử lý trong 24h.

@@ -83,11 +83,45 @@ export function Modal({ title, children, onClose }) {
  * Links a stable generated label ID to its single child control, preserving an explicit child ID
  * when supplied so forms and accessibility locators remain consistent.
  */
-export function Field({ label, children, ...props }) {
+export function Field({ label, children, error, hint, className = '', ...props }) {
   const generatedId = useId();
-  const id = children.props.id || generatedId;
-  return <div className="field" {...props}><label htmlFor={id}>{label}</label>
-    {React.cloneElement(children, { id })}</div>;
+  const id = children?.props?.id || generatedId;
+  return (
+    <div className={`field ${error ? 'has-error' : ''} ${className}`.trim()} {...props}>
+      {label && <label htmlFor={id}>{label}</label>}
+      {children && React.cloneElement(children, { id, 'aria-invalid': Boolean(error) })}
+      {error && (
+        <span
+          className="field-error"
+          role="alert"
+          style={{
+            color: '#dc2626',
+            fontSize: '12px',
+            marginTop: '5px',
+            display: 'block',
+            fontWeight: 500,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </span>
+      )}
+      {hint && !error && (
+        <span
+          className="field-hint"
+          style={{
+            color: '#557262',
+            fontSize: '11.5px',
+            marginTop: '4px',
+            display: 'block',
+            lineHeight: 1.4,
+          }}
+        >
+          {hint}
+        </span>
+      )}
+    </div>
+  );
 }
 
 /** Returns readable initials for the read-only avatar without requiring a new database field. */
