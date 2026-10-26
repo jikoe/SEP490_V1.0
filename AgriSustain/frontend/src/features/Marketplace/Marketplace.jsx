@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { request } from '../../api/client';
+import { Notice } from '../../components/ui/Common';
 import ProductDetail from './ProductDetail';
 import { Icon, ProductCard } from './MarketplaceUi';
 import './marketplace.css';
@@ -9,7 +10,16 @@ const priceRanges = [
   ['100to200', '100.000đ – 200.000đ'], ['over200', 'Trên 200.000đ'],
 ];
 
-export default function Marketplace({ route, navigate, session, onLogout, accountLinks = [] }) {
+export default function Marketplace({
+  route,
+  navigate,
+  session,
+  onLogout,
+  logoutMessage,
+  logoutError,
+  logoutBusy,
+  accountLinks = [],
+}) {
   const canBuy = session?.user.role === 'RetailCustomer';
   const query = route.includes('?') ? `?${route.split('?')[1]}` : '';
   const params = new URLSearchParams(query);
@@ -166,12 +176,13 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
         <summary><Icon name="user" /><span>{session.user.fullName}</span><span>⌄</span></summary>
         <div>{accountLinks.map(link => <a key={link.path} href={`#${link.path}`}>{link.label}</a>)}
           <a href="#/account/password">Đổi mật khẩu</a>
-          <button onClick={onLogout}>Đăng xuất</button></div>
+          {logoutError && <Notice error>{logoutError}</Notice>}
+          <button onClick={onLogout} disabled={logoutBusy}>
+            {logoutBusy ? 'Đang đăng xuất…' : 'Đăng xuất'}
+          </button></div>
       </details> : <a className="mkt-login" href="#/login"><Icon name="user" />Đăng nhập</a>}
     </header>
-    {cartError && <p className="mkt-cart-error" role="alert">{cartError}{' '}
-      <button type="button" disabled={adding}
-        onClick={() => setReload(value => value + 1)}>Tải lại giỏ hàng</button></p>}
+    <Notice>{logoutMessage}</Notice>
     {productId ? <ProductDetail key={productId} productId={productId} query={query}
       reload={reload} session={session} onAdd={addToCart} adding={adding} />
       : <main className="mkt-layout">

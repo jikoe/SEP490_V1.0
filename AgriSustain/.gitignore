@@ -1,24 +1,36 @@
-# Visual Studio / .NET
+﻿# Visual Studio / .NET
 .vs/
 **/bin/
 **/obj/
 *.user
 *.suo
+TestResults/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
 # Frontend
 **/node_modules/
 **/dist/
 **/build/
 **/.next/
+**/playwright-report/
+**/test-results/
 
 # Cấu hình riêng và mật khẩu
 .env
 .env.*
 !.env.example
+**/appsettings.Local.json
+**/appsettings.*.local.json
 
 # Log
 *.log
-# Locally uploaded files
-AgriSustain/wwwroot/media/
-AgriSustain/private-files/
+
+# File upload local
+**/wwwroot/media/
+**/private-files/
 

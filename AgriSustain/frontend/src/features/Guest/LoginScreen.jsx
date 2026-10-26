@@ -16,7 +16,7 @@ function DecorativeBranch({ className }) {
   </svg>;
 }
 
-export default function LoginScreen({ onLogin, onDemo }) {
+export default function LoginScreen({ onLogin, onDemo, navigate }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -75,7 +75,15 @@ export default function LoginScreen({ onLogin, onDemo }) {
         </form>
         <div style={{ marginTop: 15, textAlign: 'center', fontSize: 14 }}>
           <span>Chưa có tài khoản? </span>
-          <a href="#/register" style={{ color: '#2e7d32', fontWeight: 600, textDecoration: 'none' }}>
+          <a
+            href="#/register"
+            onClick={(e) => {
+              e.preventDefault();
+              if (navigate) navigate('/register');
+              else window.location.hash = '#/register';
+            }}
+            style={{ color: '#2e7d32', fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}
+          >
             Đăng ký ngay
           </a>
         </div>

@@ -12,12 +12,24 @@ React SPA tiếng Việt cho UC-ADM-03, UC-ADM-05 và UC-RC-02 theo Report 3/4.
 - `src/components/ui`, `layouts`, `hooks`, `types`, `assets`, `styles`: thành phần dùng chung.
 
 Tại thư mục frontend: `npm ci`, rồi `npm run dev`. API cần chạy tại localhost:5179;
-giao diện phát triển ở http://127.0.0.1:5173. Trang đầu là đăng nhập bằng username/email
-và mật khẩu BCrypt trong bảng `User`; cấu hình local đang trỏ SQL Server instance `TU`,
-cơ sở dữ liệu `AgriSustain`. API cấp JWT tại
-`POST /api/auth/login`. Token được giữ trong sessionStorage nên vẫn đăng nhập khi tải lại trang; bị xóa khi đóng tab, hết hạn
-hoặc đăng xuất. BCrypt được xác thực rồi nâng cấp sang ASP.NET Identity hash sau lần đăng nhập
-thành công đầu tiên. Tài khoản bị khóa 15 phút sau 5 lần nhập sai liên tiếp.
+giao diện phát triển ở http://127.0.0.1:5173. Trước khi chạy API, cấu hình
+`ConnectionStrings:MyCnn` và `JWT:Secret` bằng User Secrets hoặc biến môi trường;
+JWT secret cần tối thiểu 32 byte UTF-8. Ví dụ chạy từ thư mục frontend:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:MyCnn" "<your-sql-server-connection-string>" --project ..\AgriSustain\AgriSustain.csproj
+dotnet user-secrets set "JWT:Secret" "<random-secret-at-least-32-bytes>" --project ..\AgriSustain\AgriSustain.csproj
+```
+
+Frontend development gọi API trực tiếp theo `VITE_API_BASE_URL` trong `.env.development.local`
+(mẫu: `.env.example`). Khởi động lại Vite sau khi thay đổi file env; backend cho phép CORS từ
+các origin `localhost:5173` và `127.0.0.1:5173`.
+
+Trang đăng nhập dùng username/email và mật khẩu BCrypt trong bảng `User`. API cấp JWT tại
+`POST /api/auth/login`; logout xác thực và thu hồi token tại `POST /api/auth/logout`.
+Token được giữ trong sessionStorage nên vẫn đăng nhập khi tải lại trang; bị xóa khi đóng tab,
+hết hạn hoặc đăng xuất. BCrypt được xác thực rồi nâng cấp sang ASP.NET Identity hash sau lần
+đăng nhập thành công đầu tiên. Tài khoản bị khóa tạm thời 15 phút sau 5 lần nhập sai liên tiếp.
 Nút “Tiếp tục với bản demo” giữ lại bộ chọn fixture cục bộ, không phải đăng nhập thật.
 `npm run build` tạo dist để API cũng phục vụ
 giao diện tại http://localhost:5179. `npm run test:e2e` chạy Edge headless với server riêng.

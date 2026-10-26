@@ -25,12 +25,15 @@ internal static class ApiResults
         {
             Status = status,
             Title = result.Error?.Message ?? result.Message,
-            Extensions = { ["code"] = result.Error?.Code ?? "ERROR", ["traceId"] = context.TraceIdentifier }
         };
 
-        if (result.Error?.Fields is { } fields)
+        problem.Extensions["code"] = result.Error?.Code ?? "ERROR";
+        problem.Extensions["traceId"] = context.TraceIdentifier;
+
+        // Include field-level validation errors if available
+        if (result.Error?.FieldErrors is { Count: > 0 } fieldErrors)
         {
-            problem.Extensions["errors"] = fields;
+            problem.Extensions["errors"] = fieldErrors;
         }
 
         return new ObjectResult(problem) { StatusCode = status };
