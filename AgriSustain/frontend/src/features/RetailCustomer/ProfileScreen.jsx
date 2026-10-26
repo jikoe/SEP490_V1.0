@@ -33,33 +33,44 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
     : (window.location.hash.includes('/farmer') || fixture === 'farmer');
   const roleName = isFarmer ? 'Farmer' : (activeUser?.role || 'RetailCustomer');
 
-  // 2. Initial state: Empty defaults for newly registered users so they can update themselves
-  const [profile, setProfile] = useState({
-    fullName: activeUser?.fullName || '',
-    phoneNumber: activeUser?.phoneNumber || '',
-    email: activeUser?.email || '',
-    gender: '', // Default empty: '-- Chọn giới tính --'
-    birthDate: '', // Default empty
-    rewardPoints: 0,
-    // Delivery address fields (Default empty for new accounts)
-    recipientName: '',
-    recipientPhone: '',
-    provinceCity: '',
-    district: '',
-    ward: '',
-    addressDetail: '',
-    isDefault: false,
-    // Farmer specific fields
-    farmName: isFarmer ? (activeUser?.fullName ? `Trang trại ${activeUser.fullName}` : '') : '',
-    representativeName: activeUser?.fullName || '',
-    productionScale: '',
-    cultivationZone: '',
-    businessLicenseNumber: '',
-    gpsCoordinates: '',
-    farmAddress: '',
-    verificationStatus: 'NotSubmitted',
-    reputationScore: 5.0,
-    rejectReason: null,
+  // 2. Initial state: Read saved cache from localStorage for the active user if exists
+  const [profile, setProfile] = useState(() => {
+    let cached = null;
+    try {
+      const email = activeUser?.email;
+      if (email) {
+        const raw = localStorage.getItem('agrisustain:profile:' + email);
+        if (raw) cached = JSON.parse(raw);
+      }
+    } catch {}
+
+    return {
+      fullName: cached?.fullName || activeUser?.fullName || '',
+      phoneNumber: cached?.phoneNumber || activeUser?.phoneNumber || '',
+      email: activeUser?.email || '',
+      gender: cached?.gender || '',
+      birthDate: cached?.birthDate || '',
+      rewardPoints: 0,
+      // Delivery address fields
+      recipientName: cached?.recipientName || '',
+      recipientPhone: cached?.recipientPhone || '',
+      provinceCity: cached?.provinceCity || '',
+      district: cached?.district || '',
+      ward: cached?.ward || '',
+      addressDetail: cached?.addressDetail || '',
+      isDefault: Boolean(cached?.isDefault),
+      // Farmer specific fields
+      farmName: cached?.farmName || (isFarmer ? (activeUser?.fullName ? `Trang trại ${activeUser.fullName}` : '') : ''),
+      representativeName: cached?.representativeName || activeUser?.fullName || '',
+      productionScale: cached?.productionScale || '',
+      cultivationZone: cached?.cultivationZone || '',
+      businessLicenseNumber: cached?.businessLicenseNumber || '',
+      gpsCoordinates: cached?.gpsCoordinates || '',
+      farmAddress: cached?.farmAddress || '',
+      verificationStatus: 'NotSubmitted',
+      reputationScore: 5.0,
+      rejectReason: null,
+    };
   });
 
   const [saving, setSaving] = useState(false);
@@ -116,34 +127,42 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         const res = await fetch('/api/profile', {
           headers: { Authorization: authHeader },
         });
+        // Read cache to fill fields that backend does not store (like gender, birthDate)
+        const emailKey = activeUser?.email || '';
+        let cached = null;
+        try {
+          const raw = localStorage.getItem('agrisustain:profile:' + emailKey);
+          if (raw) cached = JSON.parse(raw);
+        } catch {}
+
         if (res.ok) {
           const data = await res.json();
           if (!cancelled && data) {
             setProfile((prev) => ({
               ...prev,
-              fullName: data.fullName || activeUser?.fullName || prev.fullName,
-              phoneNumber: data.phoneNumber || activeUser?.phoneNumber || prev.phoneNumber,
+              fullName: data.fullName || cached?.fullName || activeUser?.fullName || prev.fullName,
+              phoneNumber: data.phoneNumber || cached?.phoneNumber || activeUser?.phoneNumber || prev.phoneNumber,
               email: data.email || activeUser?.email || prev.email,
-              gender: data.gender || '',
-              birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : '',
+              gender: data.gender || cached?.gender || prev.gender || '',
+              birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : (cached?.birthDate || prev.birthDate || ''),
               rewardPoints: data.rewardPoints ?? 0,
-              // Address (empty if user has not added any delivery address)
-              recipientName: data.deliveryAddress?.recipientName || '',
-              recipientPhone: data.deliveryAddress?.recipientPhone || '',
-              provinceCity: data.deliveryAddress?.provinceCity || '',
-              district: data.deliveryAddress?.district || '',
-              ward: data.deliveryAddress?.ward || '',
-              addressDetail: data.deliveryAddress?.addressDetail || '',
-              isDefault: Boolean(data.deliveryAddress?.isDefault),
+              // Address
+              recipientName: data.deliveryAddress?.recipientName || cached?.recipientName || '',
+              recipientPhone: data.deliveryAddress?.recipientPhone || cached?.recipientPhone || '',
+              provinceCity: data.deliveryAddress?.provinceCity || cached?.provinceCity || '',
+              district: data.deliveryAddress?.district || cached?.district || '',
+              ward: data.deliveryAddress?.ward || cached?.ward || '',
+              addressDetail: data.deliveryAddress?.addressDetail || cached?.addressDetail || '',
+              isDefault: data.deliveryAddress ? Boolean(data.deliveryAddress.isDefault) : Boolean(cached?.isDefault),
               // Farmer specific data
-              farmName: data.farmerProfile?.farmName || prev.farmName,
-              representativeName: data.farmerProfile?.representativeName || prev.representativeName,
-              productionScale: data.farmerProfile?.productionScale || '',
-              cultivationZone: data.farmerProfile?.cultivationZone || '',
-              businessLicenseNumber: data.farmerProfile?.businessLicenseNumber || '',
-              gpsCoordinates: data.farmerProfile?.gpsCoordinates || data.farmerProfile?.gpscoordinates || '',
-              farmAddress: data.farmerProfile?.address || '',
-              verificationStatus: data.farmerProfile?.verificationStatus || 'NotSubmitted',
+              farmName: data.farmerProfile?.farmName || cached?.farmName || prev.farmName,
+              representativeName: data.farmerProfile?.representativeName || cached?.representativeName || prev.representativeName,
+              productionScale: data.farmerProfile?.productionScale || cached?.productionScale || '',
+              cultivationZone: data.farmerProfile?.cultivationZone || cached?.cultivationZone || '',
+              businessLicenseNumber: data.farmerProfile?.businessLicenseNumber || cached?.businessLicenseNumber || '',
+              gpsCoordinates: data.farmerProfile?.gpsCoordinates || data.farmerProfile?.gpscoordinates || cached?.gpsCoordinates || '',
+              farmAddress: data.farmerProfile?.address || cached?.farmAddress || '',
+              verificationStatus: data.farmerProfile?.verificationStatus || cached?.verificationStatus || 'NotSubmitted',
               reputationScore: data.farmerProfile?.reputationScore ?? 5.0,
               rejectReason: data.farmerProfile?.rejectReason || null,
             }));
@@ -260,6 +279,33 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         throw new Error(data.title || data.message || 'Cập nhật hồ sơ thất bại.');
       }
 
+      // Persist full profile to localStorage by email so it survives reloads (F5)
+      try {
+        const emailKey = profile.email || activeUser?.email;
+        if (emailKey) {
+          localStorage.setItem('agrisustain:profile:' + emailKey, JSON.stringify({
+            fullName: profile.fullName.trim(),
+            phoneNumber: profile.phoneNumber.trim(),
+            gender: profile.gender || '',
+            birthDate: profile.birthDate || '',
+            recipientName: profile.recipientName || '',
+            recipientPhone: profile.recipientPhone || '',
+            provinceCity: profile.provinceCity || '',
+            district: profile.district || '',
+            ward: profile.ward || '',
+            addressDetail: profile.addressDetail || '',
+            isDefault: Boolean(profile.isDefault),
+            farmName: profile.farmName || '',
+            representativeName: profile.representativeName || '',
+            productionScale: profile.productionScale || '',
+            cultivationZone: profile.cultivationZone || '',
+            businessLicenseNumber: profile.businessLicenseNumber || '',
+            gpsCoordinates: profile.gpsCoordinates || '',
+            farmAddress: profile.farmAddress || '',
+          }));
+        }
+      } catch {}
+
       // Sync to parent session and storage
       if (onProfileSaved) {
         onProfileSaved({ fullName: profile.fullName.trim() });
@@ -270,6 +316,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
           const s = JSON.parse(raw);
           if (s?.user) {
             s.user.fullName = profile.fullName.trim();
+            s.user.phoneNumber = profile.phoneNumber.trim();
             sessionStorage.setItem('agrisustain:session', JSON.stringify(s));
           }
         }
@@ -277,6 +324,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         if (rawUser) {
           const u = JSON.parse(rawUser);
           u.fullName = profile.fullName.trim();
+          u.phoneNumber = profile.phoneNumber.trim();
           sessionStorage.setItem('agrisustain:current-user', JSON.stringify(u));
         }
         window.dispatchEvent(new Event('agrisustain:user-changed'));
