@@ -904,8 +904,8 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       </div>
 
       {/* Modal Change Password */}
+      {passwordModalOpen && (
       <Modal
-        open={passwordModalOpen}
         onClose={() => setPasswordModalOpen(false)}
         title="Đổi Mật Khẩu & Bảo Mật"
       >
@@ -979,6 +979,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
           </div>
         </form>
       </Modal>
+      )}
     </div>
   );
 }
