@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { request } from '../../api/client';
 import ProductDetail from './ProductDetail';
+import SupplierFilter from './SupplierFilter';
 import { Icon, ProductCard } from './MarketplaceUi';
 import './marketplace.css';
 
@@ -13,6 +14,9 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
   const canBuy = session?.user.role === 'RetailCustomer';
   const query = route.includes('?') ? `?${route.split('?')[1]}` : '';
   const params = new URLSearchParams(query);
+  const categoryId = params.get('categoryId') || '';
+  const supplierId = params.get('supplierId') || '';
+  const seasonScope = `${categoryId}|${supplierId}`;
   const productId = route.split('?')[0].match(/^\/marketplace\/products\/(.+)$/)?.[1];
   const queryKeyword = params.get('keyword') || '';
   const [keyword, setKeyword] = useState(queryKeyword);
@@ -22,7 +26,52 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
   const [catalogue, setCatalogue] = useState(null);
   const [error, setError] = useState('');
   const [filtersError, setFiltersError] = useState('');
+  const [filtersScope, setFiltersScope] = useState('');
+  const [filtersLoading, setFiltersLoading] = useState(true);
   const [reload, setReload] = useState(0);
+  const [cart, setCart] = useState(null);
+  const [cartError, setCartError] = useState('');
+  const [cartNotice, setCartNotice] = useState(null);
+  const [adding, setAdding] = useState(false);
+  const addInProgress = useRef(false);
+  const cartRequest = useRef(null);
+
+  useEffect(() => {
+    if (!cartNotice) return;
+    const timer = setTimeout(() => setCartNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [cartNotice]);
+
+  useEffect(() => {
+    if (!canBuy) { setCart(null); return; }
+    const controller = new AbortController();
+    cartRequest.current = controller;
+    setCartError('');
+    request('/cart', { signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setCart(result); })
+      .catch(failure => { if (failure.name !== 'AbortError') setCartError(failure.message); });
+    return () => controller.abort();
+  }, [canBuy, session, reload]);
+
+  async function addToCart(id, quantity) {
+    if (!session) throw new Error('Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.');
+    if (!canBuy) throw new Error('Chỉ tài khoản khách lẻ có thể thêm sản phẩm vào giỏ hàng.');
+    if (addInProgress.current) throw new Error('Đang thêm sản phẩm, vui lòng chờ.');
+    addInProgress.current = true;
+    setAdding(true);
+    cartRequest.current?.abort();
+    try {
+      const result = await request('/cart/items', { method: 'POST', body: { productId: id, quantity } });
+      cartRequest.current?.abort();
+      setCart(result);
+      setCartError('');
+      setCartNotice({ message: result.messages.join(' ') || 'Đã thêm sản phẩm vào giỏ hàng.' });
+      return result;
+    } finally {
+      addInProgress.current = false;
+      setAdding(false);
+    }
+  }
 
   useEffect(() => { setKeyword(queryKeyword); }, [queryKeyword]);
   useEffect(() => {
@@ -39,11 +88,29 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
   useEffect(() => {
     const controller = new AbortController();
     setFiltersError('');
-    request('/marketplace/filters', { signal: controller.signal })
-      .then(result => setFilters(result.data))
-      .catch(err => { if (err.name !== 'AbortError') setFiltersError(err.message); });
+    setFiltersLoading(true);
+    const scope = new URLSearchParams();
+    if (categoryId) scope.set('categoryId', categoryId);
+    if (supplierId) scope.set('supplierId', supplierId);
+    request(`/marketplace/filters${scope.size ? `?${scope}` : ''}`, { signal: controller.signal })
+      .then(result => {
+        if (!controller.signal.aborted) { setFilters(result.data); setFiltersScope(seasonScope); }
+      })
+      .catch(err => { if (err.name !== 'AbortError') setFiltersError(err.message); })
+      .finally(() => { if (!controller.signal.aborted) setFiltersLoading(false); });
     return () => controller.abort();
-  }, [reload]);
+  }, [categoryId, supplierId, seasonScope, reload]);
+
+  const seasonsReady = filters && filtersScope === seasonScope && !filtersLoading && !filtersError;
+  useEffect(() => {
+    const next = new URLSearchParams(query);
+    const selected = next.get('cropSeasonId');
+    if (productId || !seasonsReady || !selected
+      || filters.seasons.some(item => String(item.id) === selected)) return;
+    next.delete('cropSeasonId');
+    next.delete('page');
+    navigate(`/marketplace${next.size ? `?${next}` : ''}`);
+  }, [productId, seasonsReady, filters, query, navigate]);
   useEffect(() => {
     if (productId) return;
     const controller = new AbortController();
@@ -74,6 +141,16 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
   }
 
   const totalProducts = filters?.categories.reduce((total, item) => total + item.count, 0) || 0;
+  const filterLabels = { keyword: 'Từ khóa', categoryId: 'Danh mục', supplierId: 'Nhà cung cấp',
+    cropSeasonId: 'Mùa vụ', region: 'Địa phương', certifications: 'Chứng nhận',
+    priceRanges: 'Khoảng giá', minRating: 'Đánh giá tối thiểu', minPrice: 'Giá từ', maxPrice: 'Giá đến' };
+  const namedOptions = { categoryId: filters?.categories, supplierId: filters?.suppliers,
+    cropSeasonId: filters?.seasons };
+  const activeFilters = [...params].filter(([key]) => filterLabels[key]).map(([key, value]) => ({
+    key, value, label: filterLabels[key], text: namedOptions[key]?.find(item => String(item.id) === value)?.name
+      || (key === 'priceRanges' ? priceRanges.find(([id]) => id === value)?.[1] : null) || value,
+  }));
+  const cartQuantity = cart?.items.reduce((total, item) => total + item.quantity, 0);
   const pages = catalogue ? Math.max(1, Math.ceil(catalogue.total / catalogue.pageSize)) : 1;
   const currentPage = catalogue?.page || 1;
   const pageNumbers = [...new Set([1,
@@ -81,6 +158,10 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
       .filter(page => page > 1 && page < pages), pages])];
 
   return <div className="marketplace">
+    {cartNotice && <div className="mkt-cart-toast" role="status">
+      <Icon name="check" /><span>{cartNotice.message}</span>
+      <button type="button" aria-label="Đóng thông báo" onClick={() => setCartNotice(null)}>×</button>
+    </div>}
     <header className="mkt-header">
       <a className="mkt-brand" href="#/marketplace"><Icon /><span>Nông Sản Việt</span></a>
       <p className="mkt-slogan">Nền tảng nông sản Việt – Kết nối nông dân, bền vững tương lai</p>
@@ -97,8 +178,11 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
         {keyword && <button type="button" className="mkt-search-clear" aria-label="Xóa tìm kiếm"
           onClick={() => { setKeyword(''); searchInput.current?.focus(); }}><span aria-hidden="true">×</span></button>}
       </form>
-      {canBuy ? <button type="button" className="mkt-cart-button" aria-label="Giỏ hàng" title="Giỏ hàng"
-        onClick={() => navigate('/cart')}><Icon name="cart" /></button>
+      {canBuy ? <button type="button" className="mkt-cart-button"
+        aria-label={cartQuantity == null ? 'Giỏ hàng' : `Giỏ hàng, ${cartQuantity.toLocaleString('vi-VN')} sản phẩm`}
+        title="Giỏ hàng" onClick={() => navigate('/cart')}><Icon name="cart" />
+        {cartQuantity != null && <span className="mkt-cart-count" aria-hidden="true">
+          {cartQuantity.toLocaleString('vi-VN')}</span>}</button>
         : !session && <a className="mkt-cart-button" href="#/login" aria-label="Đăng nhập để mua hàng"
           title="Đăng nhập để mua hàng"><Icon name="cart" /></a>}
       {session ? <details className="mkt-account">
@@ -108,8 +192,11 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
           <button onClick={onLogout}>Đăng xuất</button></div>
       </details> : <a className="mkt-login" href="#/login"><Icon name="user" />Đăng nhập</a>}
     </header>
+    {cartError && <p className="mkt-cart-error" role="alert">{cartError}{' '}
+      <button type="button" disabled={adding}
+        onClick={() => setReload(value => value + 1)}>Tải lại giỏ hàng</button></p>}
     {productId ? <ProductDetail key={productId} productId={productId} query={query}
-      reload={reload} session={session} navigate={navigate} />
+      reload={reload} session={session} onAdd={addToCart} adding={adding} />
       : <main className="mkt-layout">
         <aside className="mkt-sidebar" aria-label="Bộ lọc sản phẩm">
           <h2><Icon name="grid" />Danh mục sản phẩm</h2>
@@ -136,11 +223,10 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
             <label className="mkt-checkbox" key={type}><input type="checkbox"
               checked={params.getAll('certifications').includes(type)}
               onChange={() => toggleFilter('certifications', type)} />{type}</label>)}</fieldset>
-          <label className="mkt-field">Nhà cung cấp<select value={params.get('supplierId') || ''}
-            onChange={event => updateFilters({ supplierId: event.target.value })}>
-            <option value="">Tất cả nhà cung cấp</option>{filters?.suppliers.map(item =>
-              <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+          <SupplierFilter options={filters?.suppliers || []} value={supplierId}
+            onChange={value => updateFilters({ supplierId: value })} />
           <label className="mkt-field">Mùa vụ<select value={params.get('cropSeasonId') || ''}
+            disabled={!seasonsReady}
             onChange={event => updateFilters({ cropSeasonId: event.target.value })}>
             <option value="">Tất cả mùa vụ</option>{filters?.seasons.map(item =>
               <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
@@ -153,16 +239,16 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
           <section className="mkt-hero">
             <div><h1>Nông sản Việt<br />Tươi ngon từ nông trại đến bàn ăn</h1>
               <p>Sản phẩm chất lượng – Người nông dân được hỗ trợ –<br />Cộng đồng phát triển bền vững</p>
-              <a className="mkt-primary" href="#mkt-products" onClick={event => {
-                event.preventDefault(); document.getElementById('mkt-products')?.scrollIntoView({ behavior: 'smooth' });
-              }}>Khám phá ngay <Icon name="arrow" /></a></div>
+            </div>
             <div className="mkt-hero-art" aria-hidden="true"><Icon /><Icon /><Icon /></div>
           </section>
-          {filters?.categories.length > 0 && <nav className="mkt-category-strip" aria-label="Danh mục nhanh">
-            {filters.categories.map(category => <button key={category.id}
-              onClick={() => updateFilters({ categoryId: category.id })}>
-              <Icon /><span>{category.name}</span></button>)}
-          </nav>}
+          {activeFilters.length > 0 && <section className="mkt-active-filters" aria-label="Bộ lọc đang áp dụng">
+            <strong>Đang lọc:</strong>
+            {activeFilters.map(({ key, value, label, text }) => <button type="button" key={`${key}-${value}`}
+              aria-label={`Bỏ ${label}: ${text}`} onClick={() => updateFilters({
+                [key]: params.getAll(key).filter(item => item !== value),
+              })}>{label}: {text} <span aria-hidden="true">×</span></button>)}
+          </section>}
           <section id="mkt-products" aria-busy={!catalogue && !error}>
             <div className="mkt-results-heading"><h2><Icon />{query ? 'Kết quả tìm kiếm' : 'Sản phẩm nổi bật'}</h2>
               <label>Sắp xếp<select value={params.get('sort') || 'newest'}
@@ -180,7 +266,8 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
                   <button onClick={() => navigate('/marketplace')}>Xóa bộ lọc</button></div>
                   : <><p className="mkt-result-count" role="status">{catalogue.total} sản phẩm</p>
                     <div className="mkt-product-grid">{catalogue.items.map(product =>
-                      <ProductCard key={product.id} product={product} query={query} />)}</div></>}
+                      <ProductCard key={product.id} product={product} query={query}
+                        onAdd={addToCart} adding={adding} session={session} />)}</div></>}
             {catalogue && catalogue.total > 0 && <div className="mkt-pagination">
               <nav aria-label="Phân trang"><button aria-label="Trang trước" disabled={currentPage <= 1}
                 onClick={() => updateFilters({ page: currentPage - 1 })}>‹</button>

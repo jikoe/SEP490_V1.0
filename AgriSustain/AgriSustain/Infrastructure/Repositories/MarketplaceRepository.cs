@@ -92,7 +92,7 @@ public sealed class MarketplaceRepository(AgriSustainContext context) : IMarketp
     }
 
     public async Task<MarketplaceFiltersResponse> GetFiltersAsync(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, long? categoryId = null, long? supplierId = null)
     {
         var products = PublicProducts();
         var categories = await products.GroupBy(product => new
@@ -111,11 +111,40 @@ public sealed class MarketplaceRepository(AgriSustainContext context) : IMarketp
             .Select(group => new FilterOption(
                 group.Key.FarmerProfileId, group.Key.FarmName, group.Count()))
             .ToListAsync(cancellationToken);
-        var seasons = await context.CropSeasons.AsNoTracking()
-            .Where(season => products.Any(product => product.ProductId == season.ProductId))
+        var seasonProducts = products;
+        if (categoryId.HasValue)
+        {
+            seasonProducts = seasonProducts.Where(product => product.CategoryId == categoryId);
+        }
+        if (supplierId.HasValue)
+        {
+            seasonProducts = seasonProducts.Where(product => product.FarmerProfileId == supplierId);
+        }
+
+        var availableBatches = context.HarvestBatches.Where(MarketplaceRules.AvailableBatch(Today));
+        var seasonRows = await context.CropSeasons.AsNoTracking()
+            .Where(season => seasonProducts.Any(product => product.ProductId == season.ProductId))
+            .Where(season => availableBatches.Any(batch => batch.CropSeasonId == season.CropSeasonId
+                && batch.ProductId == season.ProductId))
             .OrderByDescending(season => season.PlantingDate)
-            .Select(season => new FilterOption(season.CropSeasonId, season.SeasonName, 1))
+            .ThenBy(season => season.CropSeasonId)
+            .Select(season => new
+            {
+                season.CropSeasonId, season.SeasonName, season.PlantingDate,
+                season.Product.ProductName, season.Product.FarmerProfile.FarmName
+            })
             .ToListAsync(cancellationToken);
+        var seasons = seasonRows.Select(season =>
+        {
+            string name = season.SeasonName;
+            string year = season.PlantingDate.Year.ToString();
+            if (season.PlantingDate.Year > 1 && !name.Contains(year, StringComparison.Ordinal))
+            {
+                name += $" · {year}";
+            }
+            return new FilterOption(season.CropSeasonId,
+                $"{name} · {season.ProductName} – {season.FarmName}", 1);
+        }).ToArray();
         var regions = await products.Where(product => product.OriginProvince != null)
             .Select(product => product.OriginProvince!).Distinct().OrderBy(region => region)
             .ToListAsync(cancellationToken);
