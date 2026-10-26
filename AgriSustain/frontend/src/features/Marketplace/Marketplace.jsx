@@ -183,6 +183,9 @@ export default function Marketplace({
       </details> : <a className="mkt-login" href="#/login"><Icon name="user" />Đăng nhập</a>}
     </header>
     <Notice>{logoutMessage}</Notice>
+    {cartError && <p className="mkt-cart-error" role="alert">{cartError}{' '}
+      <button type="button" disabled={adding}
+        onClick={() => setReload(value => value + 1)}>Tải lại giỏ hàng</button></p>}
     {productId ? <ProductDetail key={productId} productId={productId} query={query}
       reload={reload} session={session} onAdd={addToCart} adding={adding} />
       : <main className="mkt-layout">

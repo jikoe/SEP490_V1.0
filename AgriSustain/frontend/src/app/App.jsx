@@ -1,5 +1,5 @@
 import '../styles/customer-portal.css';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { backendUrl, logout as logoutSession } from '../api/client';
 import { Notice } from '../components/ui/Common';
 import UsersScreen from '../features/Administrator/UsersScreen';
