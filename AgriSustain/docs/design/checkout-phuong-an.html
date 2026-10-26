@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout – phương án thiết kế</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #1e6546; --primary-hover: #164c35; --ink: #213b32; --ink-2: #3d5a4c; --muted: #52695c;
+  --bg: #f5f7f4; --card: #ffffff; --line: #dce6e0; --line-soft: #e3ebe6; --field: #c9d6ce;
+  --soft: #edf6f0; --soft-2: #f1f6f2; --warn-bg: #fff6e5; --warn-ink: #7a4b00;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif; color: var(--ink); background: #e9eee9; }
+a { color: var(--primary); } a:hover { color: var(--primary-hover); }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* Option switcher */
+.switcher { position: sticky; top: 0; z-index: 10; background: #ffffff; border-bottom: 1px solid var(--line); }
+.switcher-inner { max-width: 1180px; margin: 0 auto; padding: 12px 24px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.switcher strong { margin-right: 8px; font-size: 14px; }
+.tab { min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--field); background: #fff; cursor: pointer; font-size: 14px; }
+.tab[aria-selected="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.option { display: none; } .option.active { display: block; }
+.option-intro { max-width: 1180px; margin: 20px auto 0; padding: 0 24px; font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+.option-intro b { color: var(--ink); }
+
+/* Shared page pieces */
+.page { background: var(--bg); padding: 28px 24px 48px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.crumbs { display: flex; gap: 8px; font-size: 13px; color: var(--muted); }
+h1 { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.01em; }
+.sub { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
+.layout { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.main { flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.aside { flex: 1 1 340px; min-width: 0; position: sticky; top: 76px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.card-head { display: flex; align-items: center; gap: 12px; }
+.card-head h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.card-head .hint { margin-left: auto; font-size: 12px; color: var(--muted); }
+.num { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; }
+.field input, .field select, .field textarea { height: 44px; border: 1px solid var(--field); border-radius: 8px; padding: 0 12px; font-size: 15px; background: #fff; }
+.field textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.choice { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; padding: 15px 16px; border-radius: 12px; border: 1px solid var(--field); background: #fff; cursor: pointer; min-height: 44px; }
+.choice[aria-pressed="true"] { border: 2px solid var(--primary); background: var(--soft); padding: 14px 15px; }
+.choice .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; }
+.choice .title { font-size: 15px; font-weight: 600; }
+.choice .price { font-size: 15px; font-weight: 700; }
+.choice .desc { font-size: 13px; color: var(--ink-2); }
+.chip-address { text-align: left; padding: 12px 16px; border-radius: 10px; border: 2px solid var(--primary); background: var(--soft); cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.chip-add { padding: 12px 16px; border-radius: 10px; border: 1px dashed #9db5a7; background: #fff; color: var(--primary); font-weight: 600; cursor: pointer; min-height: 44px; }
+.parcel { border: 1px solid var(--line-soft); border-radius: 12px; overflow: hidden; }
+.parcel-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 12px 16px; background: var(--soft-2); font-size: 13px; }
+.parcel-head span:last-child { color: var(--ink-2); }
+.item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+.thumb { width: 52px; height: 52px; border-radius: 10px; flex-shrink: 0; }
+.item-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.item-name span:first-child { font-size: 15px; font-weight: 500; }
+.item-name span:last-child { font-size: 13px; color: var(--muted); }
+.item-price { font-size: 15px; font-weight: 600; }
+.summary { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.summary h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.voucher { display: flex; gap: 8px; align-items: flex-end; }
+.voucher .field { flex: 1; }
+.btn-outline { height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--primary); background: #fff; color: var(--primary); font-weight: 600; cursor: pointer; }
+.points { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--bg); font-size: 14px; }
+.points input { width: 20px; height: 20px; accent-color: var(--primary); }
+.lines { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 10px; column-gap: 12px; font-size: 14px; }
+.lines dt { color: var(--ink-2); } .lines dd { margin: 0; text-align: right; }
+.total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.total span:first-child { font-size: 15px; font-weight: 600; }
+.total span:last-child { font-size: 24px; font-weight: 700; color: var(--primary); }
+.btn-primary { min-height: 52px; border-radius: 10px; border: none; background: var(--primary); color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; padding: 0 20px; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-ghost { min-height: 52px; border-radius: 10px; border: 1px solid var(--field); background: #fff; font-size: 15px; font-weight: 500; cursor: pointer; padding: 0 20px; }
+.fine { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.links { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: var(--warn-bg); color: var(--warn-ink); font-size: 13px; line-height: 1.5; }
+
+/* Option B: stepper */
+.steps { display: flex; gap: 0; background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.step { flex: 1; display: flex; align-items: center; gap: 10px; padding: 16px 18px; font-size: 14px; color: var(--muted); border-right: 1px solid var(--line-soft); }
+.step:last-child { border-right: none; }
+.step .dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--field); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+.step.done { color: var(--ink); } .step.done .dot { background: var(--primary); border-color: var(--primary); color: #fff; }
+.step.current { color: var(--ink); font-weight: 600; background: var(--soft); } .step.current .dot { border-color: var(--primary); color: var(--primary); }
+.recap { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 16px; border-radius: 10px; background: var(--soft-2); font-size: 14px; }
+.recap b { display: block; margin-bottom: 2px; }
+.step-panel { display: none; } .step-panel.active { display: flex; }
+.nav-row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.mini-items { display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.mini-items div { display: flex; justify-content: space-between; gap: 12px; }
+.mini-items small { display: block; color: var(--muted); font-size: 12px; }
+
+/* Option C: mobile */
+.phone-stage { background: var(--bg); padding: 32px 16px 48px; display: flex; justify-content: center; }
+.phone { width: 390px; max-width: 100%; height: 844px; background: var(--bg); border: 10px solid #1d2a24; border-radius: 44px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.phone-top { background: #fff; padding: 18px 16px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+.icon-btn { width: 44px; height: 44px; border-radius: 50%; border: none; background: var(--bg); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.phone-top h1 { font-size: 18px; }
+.phone-body { flex: 1; overflow-y: auto; padding: 14px 14px 160px; display: flex; flex-direction: column; gap: 12px; }
+.m-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.m-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.m-label { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.m-change { background: none; border: none; color: var(--primary); font-weight: 600; font-size: 14px; cursor: pointer; min-height: 44px; padding: 0 4px; }
+.seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.seg .choice { padding: 12px; }
+.seg .choice[aria-pressed="true"] { padding: 11px; }
+.m-item { display: flex; gap: 12px; align-items: center; font-size: 14px; }
+.m-item .thumb { width: 44px; height: 44px; }
+.m-item div { flex: 1; min-width: 0; }
+.m-item small { display: block; color: var(--muted); font-size: 12px; }
+.m-farm { font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+.m-farm span:last-child { font-weight: 400; color: var(--ink-2); }
+.bottom-bar { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 -8px 24px rgba(33, 59, 50, 0.08); }
+.breakdown { display: none; } .breakdown.open { display: grid; }
+.toggle-total { display: flex; justify-content: space-between; align-items: center; background: none; border: none; padding: 0; cursor: pointer; min-height: 44px; width: 100%; text-align: left; }
+.toggle-total .amt { font-size: 22px; font-weight: 700; color: var(--primary); }
+
+@media (max-width: 720px) {
+  .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .aside { position: static; }
+  .steps { flex-direction: column; }
+  .step { border-right: none; border-bottom: 1px solid var(--line-soft); }
+  h1 { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="switcher">
+  <div class="switcher-inner" role="tablist" aria-label="Phương án thiết kế">
+    <strong>Checkout – phương án:</strong>
+    <button class="tab" role="tab" aria-selected="true" data-target="opt-a">A · Một trang, chia kiện theo nông trại</button>
+    <button class="tab" role="tab" aria-selected="false" data-target="opt-b">B · Từng bước</button>
+    <button class="tab" role="tab" aria-selected="false" data-target="opt-c">C · Di động</button>
+  </div>
+</div>
+
+<!-- ============ OPTION A ============ -->
+<section id="opt-a" class="option active" role="tabpanel">
+  <p class="option-intro"><b>Ý tưởng:</b> một trang duy nhất, đánh số 4 mục theo thứ tự khách cần điền. Phí giao <b>tự tính</b> khi đủ địa chỉ (bỏ nút "Tính lại tổng tiền"). Mỗi nông trại là một kiện, hiện rõ phí từng kiện. Tóm tắt bên phải luôn hiện tổng tiền và một nút "Đặt hàng" duy nhất. "Khôi phục yêu cầu trước" chuyển thành link nhỏ. Bấm thử hai hình thức giao để xem tổng thay đổi.</p>
+  <div class="page">
+    <div class="wrap">
+      <div>
+        <nav class="crumbs" aria-label="Đường dẫn"><a href="#">Giỏ hàng</a><span aria-hidden="true">/</span><span>Thanh toán</span></nav>
+        <h1>Thanh toán</h1>
+        <p class="sub">2 sản phẩm từ 2 nông trại · mỗi nông trại gửi một kiện riêng qua Goship</p>
+      </div>
+      <div class="layout">
+        <div class="main">
+          <section class="card">
+            <div class="card-head"><span class="num">1</span><h2>Giao đến</h2></div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px">
+              <button type="button" class="chip-address" aria-pressed="true">
+                <span style="font-size:14px;font-weight:600">Đỗ Mai Phương · 0934000001</span>
+                <span style="font-size:13px;color:var(--ink-2)">Số 12 Nguyễn Trãi, P. Quỳnh Lôi, Q. Hai Bà Trưng, Hà Nội</span>
+              </button>
+              <button type="button" class="chip-add">+ Địa chỉ mới</button>
+            </div>
+            <div class="grid-2">
+              <label class="field">Tên người nhận<input value="Đỗ Mai Phương"></label>
+              <label class="field">Số điện thoại<input value="0934000001"></label>
+            </div>
+            <div class="grid-3">
+              <label class="field">Tỉnh / thành phố<select><option>Hà Nội</option></select></label>
+              <label class="field">Quận / huyện<select><option>Quận Hai Bà Trưng</option></select></label>
+              <label class="field">Phường / xã<select><option>Phường Quỳnh Lôi</option></select></label>
+            </div>
+            <label class="field">Số nhà, tên đường<input value="Số 12 Nguyễn Trãi"></label>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><span class="num">2</span><h2>Hình thức giao</h2><span class="hint">Giá từ Goship, cập nhật theo địa chỉ</span></div>
+            <div class="grid-2" data-group="a-method">
+              <button type="button" class="choice" aria-pressed="true" data-value="Standard">
+                <span class="row"><span class="title">Giao tiêu chuẩn</span><span class="price">31.400 ₫</span></span>
+                <span class="desc">Dự kiến 2–3 ngày · hãng rẻ nhất cho từng kiện</span>
+              </button>
+              <button type="button" class="choice" aria-pressed="false" data-value="FreshExpress">
+                <span class="row"><span class="title">Giao nhanh nông sản</span><span class="price">48.200 ₫</span></span>
+                <span class="desc">Dự kiến 1 ngày · dịch vụ Nhanh / Hỏa tốc</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><span class="num">3</span><h2>Kiện hàng</h2></div>
+            <div class="parcel">
+              <div class="parcel-head"><span style="font-weight:600">Nông Trại Rau Sạch Đà Lạt Gap</span><span>Kiện 1 · phí giao <strong class="a-farm-fee" style="color:var(--ink)">15.700 ₫</strong></span></div>
+              <div class="item"><div class="thumb" style="background:#dfeee4" aria-hidden="true"></div><div class="item-name"><span>Xà Lách Thủy Tinh Đà Lạt VietGAP</span><span>2 kg × 45.000 ₫</span></div><span class="item-price">90.000 ₫</span></div>
+            </div>
+            <div class="parcel">
+              <div class="parcel-head"><span style="font-weight:600">Nông Trại Cà Phê Bền Vững Buôn Ma Thuột</span><span>Kiện 2 · phí giao <strong class="a-farm-fee" style="color:var(--ink)">15.700 ₫</strong></span></div>
+              <div class="item"><div class="thumb" style="background:#efe6da" aria-hidden="true"></div><div class="item-name"><span>Cà Phê Robusta Honey Đắk Lắk</span><span>2 kg × 160.000 ₫</span></div><span class="item-price">320.000 ₫</span></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-head"><span class="num">4</span><h2>Thanh toán</h2></div>
+            <div class="grid-2" data-group="a-pay">
+              <button type="button" class="choice" aria-pressed="true"><span class="title">PayOS</span><span class="desc">Chuyển khoản qua cổng PayOS</span></button>
+              <button type="button" class="choice" aria-pressed="false"><span class="title">VietQR</span><span class="desc">Quét mã bằng ứng dụng ngân hàng</span></button>
+            </div>
+            <label class="field">Ghi chú cho người bán (không bắt buộc)<textarea rows="2" placeholder="Ví dụ: gọi trước khi giao"></textarea></label>
+          </section>
+        </div>
+
+        <aside class="aside">
+          <div class="summary">
+            <h2>Tóm tắt đơn hàng</h2>
+            <div class="voucher"><label class="field">Mã voucher<input placeholder="Nhập mã"></label><button type="button" class="btn-outline">Áp dụng</button></div>
+            <label class="points"><span>Dùng điểm thưởng <span style="color:var(--muted)">(450 điểm khả dụng)</span></span><input type="checkbox"></label>
+            <dl class="lines">
+              <dt>Tiền hàng</dt><dd>410.000 ₫</dd>
+              <dt>Phí giao (2 kiện)</dt><dd class="a-shipping">31.400 ₫</dd>
+              <dt>Giảm voucher</dt><dd>0 ₫</dd>
+              <dt>Giảm điểm</dt><dd>0 ₫</dd>
+            </dl>
+            <div class="total"><span>Tổng thanh toán</span><span class="a-total">441.400 ₫</span></div>
+            <button type="button" class="btn-primary">Đặt hàng · <span class="a-total">441.400 ₫</span></button>
+            <p class="fine">Hàng được giữ 15 phút để bạn hoàn tất thanh toán. Giá và phí giao được kiểm tra lại khi đặt.</p>
+            <div class="links"><a href="#">← Quay lại giỏ hàng</a><a href="#">Khôi phục đơn vừa đặt</a></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OPTION B ============ -->
+<section id="opt-b" class="option" role="tabpanel">
+  <p class="option-intro"><b>Ý tưởng:</b> chia thành 3 bước <b>Địa chỉ → Giao hàng → Thanh toán</b>. Mỗi lúc chỉ hiện một việc, các bước đã xong thu gọn thành một dòng tóm tắt có nút "Sửa". Lỗi phí giao (ví dụ Goship chưa hỗ trợ) hiện ngay tại bước Giao hàng thay vì banner chung ở đầu trang. Bấm "Tiếp tục" / "Quay lại" để xem.</p>
+  <div class="page">
+    <div class="wrap">
+      <div>
+        <nav class="crumbs" aria-label="Đường dẫn"><a href="#">Giỏ hàng</a><span aria-hidden="true">/</span><span>Thanh toán</span></nav>
+        <h1>Thanh toán</h1>
+      </div>
+      <ol class="steps" style="list-style:none;margin:0;padding:0">
+        <li class="step" data-step="1"><span class="dot">1</span>Địa chỉ nhận hàng</li>
+        <li class="step" data-step="2"><span class="dot">2</span>Hình thức giao</li>
+        <li class="step" data-step="3"><span class="dot">3</span>Thanh toán &amp; xác nhận</li>
+      </ol>
+      <div class="layout">
+        <div class="main">
+          <section class="card step-panel" data-panel="1">
+            <div class="card-head"><h2>Địa chỉ nhận hàng</h2></div>
+            <div class="grid-2">
+              <label class="field">Tên người nhận<input value="Đỗ Mai Phương"></label>
+              <label class="field">Số điện thoại<input value="0934000001"></label>
+            </div>
+            <div class="grid-3">
+              <label class="field">Tỉnh / thành phố<select><option>Hà Nội</option></select></label>
+              <label class="field">Quận / huyện<select><option>Quận Hai Bà Trưng</option></select></label>
+              <label class="field">Phường / xã<select><option>Phường Quỳnh Lôi</option></select></label>
+            </div>
+            <label class="field">Số nhà, tên đường<input value="Số 12 Nguyễn Trãi"></label>
+            <label style="display:flex;gap:10px;align-items:center;font-size:14px"><input type="checkbox" checked style="width:20px;height:20px;accent-color:var(--primary)">Lưu làm địa chỉ mặc định</label>
+            <div class="nav-row"><a href="#" style="align-self:center;font-size:14px">← Giỏ hàng</a><button type="button" class="btn-primary" data-go="2">Tiếp tục: chọn hình thức giao</button></div>
+          </section>
+
+          <section class="card step-panel" data-panel="2">
+            <div class="recap"><div><b>Giao đến</b>Đỗ Mai Phương · 0934000001<br>Số 12 Nguyễn Trãi, P. Quỳnh Lôi, Q. Hai Bà Trưng, Hà Nội</div><button type="button" class="m-change" data-go="1">Sửa</button></div>
+            <div class="card-head"><h2>Hình thức giao</h2><span class="hint">2 kiện · báo giá Goship</span></div>
+            <div class="grid-2" data-group="b-method">
+              <button type="button" class="choice" aria-pressed="true">
+                <span class="row"><span class="title">Giao tiêu chuẩn</span><span class="price">31.400 ₫</span></span>
+                <span class="desc">Dự kiến 2–3 ngày</span>
+              </button>
+              <button type="button" class="choice" aria-pressed="false">
+                <span class="row"><span class="title">Giao nhanh nông sản</span><span class="price">48.200 ₫</span></span>
+                <span class="desc">Dự kiến 1 ngày</span>
+              </button>
+            </div>
+            <div class="notice" role="status">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <span>Ví dụ trạng thái lỗi tại chỗ: "Nông Trại Cà Phê Bền Vững Buôn Ma Thuột chưa có dịch vụ giao nhanh tới địa chỉ này. Hãy chọn Giao tiêu chuẩn."</span>
+            </div>
+            <div class="nav-row"><button type="button" class="btn-ghost" data-go="1">Quay lại</button><button type="button" class="btn-primary" data-go="3">Tiếp tục: thanh toán</button></div>
+          </section>
+
+          <section class="card step-panel" data-panel="3">
+            <div class="recap"><div><b>Giao đến</b>Số 12 Nguyễn Trãi, P. Quỳnh Lôi, Q. Hai Bà Trưng, Hà Nội</div><button type="button" class="m-change" data-go="1">Sửa</button></div>
+            <div class="recap"><div><b>Hình thức giao</b>Giao tiêu chuẩn · 2 kiện · 31.400 ₫</div><button type="button" class="m-change" data-go="2">Sửa</button></div>
+            <div class="card-head"><h2>Thanh toán</h2></div>
+            <div class="grid-2" data-group="b-pay">
+              <button type="button" class="choice" aria-pressed="true"><span class="title">PayOS</span><span class="desc">Chuyển khoản qua cổng PayOS</span></button>
+              <button type="button" class="choice" aria-pressed="false"><span class="title">VietQR</span><span class="desc">Quét mã bằng ứng dụng ngân hàng</span></button>
+            </div>
+            <div class="voucher"><label class="field">Mã voucher<input placeholder="Nhập mã"></label><button type="button" class="btn-outline">Áp dụng</button></div>
+            <label class="points"><span>Dùng điểm thưởng <span style="color:var(--muted)">(450 điểm khả dụng)</span></span><input type="checkbox"></label>
+            <label class="field">Ghi chú cho người bán (không bắt buộc)<textarea rows="2"></textarea></label>
+            <div class="nav-row"><button type="button" class="btn-ghost" data-go="2">Quay lại</button><button type="button" class="btn-primary">Đặt hàng · 441.400 ₫</button></div>
+          </section>
+        </div>
+
+        <aside class="aside">
+          <div class="summary">
+            <h2>Đơn hàng</h2>
+            <div class="mini-items">
+              <div><span>Xà Lách Thủy Tinh Đà Lạt VietGAP<small>2 kg · Nông Trại Rau Sạch Đà Lạt Gap</small></span><span>90.000 ₫</span></div>
+              <div><span>Cà Phê Robusta Honey Đắk Lắk<small>2 kg · Nông Trại Cà Phê Bền Vững BMT</small></span><span>320.000 ₫</span></div>
+            </div>
+            <dl class="lines">
+              <dt>Tiền hàng</dt><dd>410.000 ₫</dd>
+              <dt>Phí giao</dt><dd class="b-shipping">Chọn ở bước 2</dd>
+              <dt>Giảm giá</dt><dd>0 ₫</dd>
+            </dl>
+            <div class="total"><span>Tổng</span><span class="b-total">410.000 ₫</span></div>
+            <p class="fine">Hàng được giữ 15 phút sau khi đặt.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OPTION C ============ -->
+<section id="opt-c" class="option" role="tabpanel">
+  <p class="option-intro"><b>Ý tưởng:</b> bản cho điện thoại. Mỗi mục là một thẻ gọn, có nút "Đổi" thay vì trải hết form. Tổng tiền và nút "Đặt hàng" luôn cố định ở đáy màn hình; chạm vào tổng tiền để xem chi tiết. Thiết kế này cũng có thể dùng làm bản responsive của phương án A.</p>
+  <div class="phone-stage">
+    <div class="phone">
+      <div class="phone-top">
+        <button type="button" class="icon-btn" aria-label="Quay lại giỏ hàng"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <h1>Thanh toán</h1>
+      </div>
+      <div class="phone-body">
+        <div class="m-card">
+          <div class="m-row"><span class="m-label">Giao đến</span><button type="button" class="m-change">Đổi</button></div>
+          <div style="font-size:14px;line-height:1.5"><b>Đỗ Mai Phương</b> · 0934000001<br><span style="color:var(--ink-2)">Số 12 Nguyễn Trãi, P. Quỳnh Lôi, Q. Hai Bà Trưng, Hà Nội</span></div>
+        </div>
+        <div class="m-card">
+          <span class="m-label">Hình thức giao</span>
+          <div class="seg" data-group="c-method">
+            <button type="button" class="choice" aria-pressed="true"><span class="title" style="font-size:14px">Tiêu chuẩn</span><span class="desc">2–3 ngày · 31.400 ₫</span></button>
+            <button type="button" class="choice" aria-pressed="false"><span class="title" style="font-size:14px">Giao nhanh</span><span class="desc">1 ngày · 48.200 ₫</span></button>
+          </div>
+        </div>
+        <div class="m-card">
+          <span class="m-label">2 kiện hàng</span>
+          <div class="m-farm"><span>Rau Sạch Đà Lạt Gap</span><span class="c-farm-fee">15.700 ₫</span></div>
+          <div class="m-item"><div class="thumb" style="background:#dfeee4" aria-hidden="true"></div><div>Xà Lách Thủy Tinh Đà Lạt<small>2 kg × 45.000 ₫</small></div><b>90.000 ₫</b></div>
+          <div style="border-top:1px solid var(--line-soft)"></div>
+          <div class="m-farm"><span>Cà Phê Bền Vững BMT</span><span class="c-farm-fee">15.700 ₫</span></div>
+          <div class="m-item"><div class="thumb" style="background:#efe6da" aria-hidden="true"></div><div>Cà Phê Robusta Honey<small>2 kg × 160.000 ₫</small></div><b>320.000 ₫</b></div>
+        </div>
+        <div class="m-card">
+          <div class="m-row"><span class="m-label">Thanh toán</span><button type="button" class="m-change">Đổi</button></div>
+          <div style="font-size:14px">PayOS · chuyển khoản</div>
+        </div>
+        <div class="m-card">
+          <div class="m-row"><span class="m-label">Ưu đãi</span></div>
+          <div class="voucher"><label class="field" style="flex:1">Mã voucher<input placeholder="Nhập mã"></label><button type="button" class="btn-outline">Áp dụng</button></div>
+          <label class="points"><span>Dùng 450 điểm</span><input type="checkbox"></label>
+        </div>
+      </div>
+      <div class="bottom-bar">
+        <dl class="lines breakdown" id="c-breakdown">
+          <dt>Tiền hàng</dt><dd>410.000 ₫</dd>
+          <dt>Phí giao (2 kiện)</dt><dd class="c-shipping">31.400 ₫</dd>
+          <dt>Giảm giá</dt><dd>0 ₫</dd>
+        </dl>
+        <button type="button" class="toggle-total" aria-expanded="false" aria-controls="c-breakdown">
+          <span style="font-size:14px;color:var(--ink-2)">Tổng thanh toán ▾</span><span class="amt c-total">441.400 ₫</span>
+        </button>
+        <button type="button" class="btn-primary">Đặt hàng</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+// Tabs between options.
+document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t === tab)));
+  document.querySelectorAll('.option').forEach((o) => o.classList.toggle('active', o.id === tab.dataset.target));
+  window.scrollTo({ top: 0 });
+}));
+
+// Single-select choice groups; delivery groups also update fees and totals.
+const fees = { 0: { farm: '15.700 ₫', ship: '31.400 ₫', total: '441.400 ₫' }, 1: { farm: '24.100 ₫', ship: '48.200 ₫', total: '458.200 ₫' } };
+document.querySelectorAll('[data-group]').forEach((group) => {
+  const options = [...group.querySelectorAll('.choice')];
+  options.forEach((option, index) => option.addEventListener('click', () => {
+    options.forEach((o) => o.setAttribute('aria-pressed', String(o === option)));
+    const prefix = group.dataset.group.split('-')[0];
+    if (!group.dataset.group.endsWith('method')) return;
+    const f = fees[index];
+    document.querySelectorAll(`.${prefix}-farm-fee`).forEach((el) => { el.textContent = f.farm; });
+    document.querySelectorAll(`.${prefix}-shipping`).forEach((el) => { el.textContent = f.ship; });
+    document.querySelectorAll(`.${prefix}-total`).forEach((el) => { el.textContent = f.total; });
+    if (prefix === 'b') { bMethod = index; }
+  }));
+});
+
+// Option B stepper.
+let bMethod = 0;
+function goStep(n) {
+  document.querySelectorAll('#opt-b .step').forEach((s) => {
+    const k = Number(s.dataset.step);
+    s.classList.toggle('done', k < n); s.classList.toggle('current', k === n);
+    s.querySelector('.dot').textContent = k < n ? '✓' : String(k);
+  });
+  document.querySelectorAll('#opt-b .step-panel').forEach((p) => p.classList.toggle('active', Number(p.dataset.panel) === n));
+  const shipped = n >= 3 || (n === 2);
+  document.querySelector('.b-shipping').textContent = shipped ? fees[bMethod].ship : 'Chọn ở bước 2';
+  document.querySelector('.b-total').textContent = shipped ? fees[bMethod].total : '410.000 ₫';
+}
+document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => goStep(Number(b.dataset.go))));
+goStep(1);
+
+// Option C: expandable total.
+const toggle = document.querySelector('.toggle-total');
+toggle.addEventListener('click', () => {
+  const open = toggle.getAttribute('aria-expanded') !== 'true';
+  toggle.setAttribute('aria-expanded', String(open));
+  document.getElementById('c-breakdown').classList.toggle('open', open);
+});
+</script>
+</body>
+</html>

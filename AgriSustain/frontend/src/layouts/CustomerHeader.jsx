@@ -60,7 +60,7 @@ export default function CustomerHeader({ currentRoute, navigate, user, onSwitchR
           <div
             className="cart-button"
             title="Giỏ hàng nông sản"
-            onClick={() => navigate('/checkout')}
+            onClick={() => navigate('/cart')}
             style={{ cursor: 'pointer' }}
           >
             <span className="cart-icon">🛒</span>

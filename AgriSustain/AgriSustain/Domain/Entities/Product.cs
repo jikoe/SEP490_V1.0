@@ -49,5 +49,6 @@ public partial class Product
 
     public virtual ICollection<PreOrderCampaign> PreOrderCampaigns { get; set; } = new List<PreOrderCampaign>();
 
-    public virtual ProductImage? ProductImage { get; set; }
+    public virtual ICollection<ProductImage> ProductImages { get; set; } = new List<ProductImage>();
 }
+

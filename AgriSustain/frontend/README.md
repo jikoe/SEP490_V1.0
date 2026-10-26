@@ -6,7 +6,7 @@ React SPA tiếng Việt cho UC-ADM-03, UC-ADM-05 và UC-RC-02 theo Report 3/4.
 - `src/app/router`: định tuyến trang.
 - `src/app/providers`: các context/provider dùng chung.
 - `src/api`: HTTP client và ánh xạ request/response API.
-- `src/session`: phiên đăng nhập; access token được giữ trong bộ nhớ.
+- `src/session`: phiên đăng nhập; access token được giữ trong sessionStorage của tab.
 - `src/access`: điều hướng và kiểm soát giao diện theo quyền.
 - `src/features`: các màn hình theo nhóm nghiệp vụ.
 - `src/components/ui`, `layouts`, `hooks`, `types`, `assets`, `styles`: thành phần dùng chung.
@@ -15,7 +15,7 @@ Tại thư mục frontend: `npm ci`, rồi `npm run dev`. API cần chạy tại
 giao diện phát triển ở http://127.0.0.1:5173. Trang đầu là đăng nhập bằng username/email
 và mật khẩu BCrypt trong bảng `User`; cấu hình local đang trỏ SQL Server instance `TU`,
 cơ sở dữ liệu `AgriSustain`. API cấp JWT tại
-`POST /api/auth/login`. Token chỉ được giữ trong bộ nhớ trình duyệt và bị xóa khi tải lại trang
+`POST /api/auth/login`. Token được giữ trong sessionStorage nên vẫn đăng nhập khi tải lại trang; bị xóa khi đóng tab, hết hạn
 hoặc đăng xuất. BCrypt được xác thực rồi nâng cấp sang ASP.NET Identity hash sau lần đăng nhập
 thành công đầu tiên. Tài khoản bị khóa 15 phút sau 5 lần nhập sai liên tiếp.
 Nút “Tiếp tục với bản demo” giữ lại bộ chọn fixture cục bộ, không phải đăng nhập thật.
@@ -32,5 +32,5 @@ Các hàm đã có XML/JSDoc; contract mới bỏ ảnh/archive/Version, dùng R
 Development API mặc định SqlDemo: các màn nghiệp vụ đọc dữ liệu SQL đã seed. App hiển thị mode lấy
 qua /health, danh mục/tài khoản/checkout giữ dữ liệu sau restart; points/policy/retry
 vẫn chưa hoàn chỉnh. Feature tracking: Administration và Consumer Ordering; actor RetailCustomer.
-Login đã dùng session adapter tại `src/session` và token JWT trong bộ nhớ; demo fixture vẫn là
+Login đã dùng session adapter tại `src/session` và token JWT trong sessionStorage; demo fixture vẫn là
 chế độ riêng cho phát triển.

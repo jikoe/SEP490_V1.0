@@ -4,4 +4,7 @@ public sealed record Error(
     string Code,
     string Message,
     string Kind = "Validation",
-    Dictionary<string, string[]>? FieldErrors = null);
+    IReadOnlyDictionary<string, string[]>? Fields = null)
+{
+    public IReadOnlyDictionary<string, string[]>? FieldErrors => Fields;
+}

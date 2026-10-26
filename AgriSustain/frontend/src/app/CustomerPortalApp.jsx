@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import RegisterScreen from '../features/authentication/RegisterScreen';
-import ProfileScreen from '../features/profiles/ProfileScreen';
-import OrderTrackingScreen from '../features/orders/OrderTrackingScreen';
+import RegisterScreen from '../features/Guest/RegisterScreen';
+import ProfileScreen from '../features/RetailCustomer/ProfileScreen';
+import OrderTrackingScreen from '../features/RetailCustomer/OrderTrackingScreen';
 import CustomerHeader from '../layouts/CustomerHeader';
 import CustomerFooter from '../layouts/CustomerFooter';
+import { getSession } from '../session/session';
 import '../styles/customer-portal.css';
 
 /**
@@ -111,8 +112,8 @@ export default function CustomerPortalApp() {
       {/* 3. Vùng nội dung chính của màn hình */}
       <main className="customer-portal-main">
         {screen === 'register' && <RegisterScreen navigate={navigate} />}
-        {screen === 'profile' && <ProfileScreen fixture={fixture} navigate={navigate} />}
-        {screen === 'orders' && <OrderTrackingScreen fixture={fixture} navigate={navigate} />}
+        {screen === 'profile' && <ProfileScreen session={getSession()} navigate={navigate} />}
+        {screen === 'orders' && <OrderTrackingScreen navigate={navigate} />}
       </main>
 
       {/* 4. Footer phong cách thương mại nông sản chuẩn */}

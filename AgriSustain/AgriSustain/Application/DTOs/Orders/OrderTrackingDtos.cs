@@ -41,11 +41,9 @@ public sealed record OrderItemDetailDto(
     string Unit,
     decimal UnitPrice,
     decimal SubTotal,
-    string? HarvestBatchCode,
-    DateOnly? HarvestDate,
-    string? FarmPlot,
+    string? ImageUrl,
     bool IsReviewed,
-    string? ImageEmoji);
+    IReadOnlyList<OrderItemBatchDto> Batches);
 
 public sealed record OrderDetailDto(
     long OrderId,

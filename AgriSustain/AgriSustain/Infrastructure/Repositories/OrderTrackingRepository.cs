@@ -2,12 +2,16 @@ using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.Interfaces.Repositories;
 using AgriSustain.Domain.Entities;
+using AgriSustain.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace AgriSustain.Infrastructure.Repositories;
 
 public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrackingRepository
 {
+    private static readonly string[] s_settledPaymentStatuses =
+        ["Success", "Succeeded", "Paid", "Completed"];
+
     public async Task<PagedResponse<OrderSummaryDto>> GetOrdersByBuyerAsync(
         long buyerId, OrderQuery query, CancellationToken cancellationToken)
     {
@@ -24,29 +28,26 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
         {
             string kw = query.Keyword.Trim();
             ordersQuery = ordersQuery.Where(o =>
-                o.OrderCode.Contains(kw) ||
-                o.SellerOrders.Any(so => so.OrderItems.Any(oi => (oi.ProductNameSnapshot ?? "").Contains(kw))));
+                o.OrderCode.Contains(kw)
+                || o.SellerOrders.Any(so => so.OrderItems
+                    .Any(oi => (oi.ProductNameSnapshot ?? "").Contains(kw))));
         }
 
         int totalCount = await ordersQuery.CountAsync(cancellationToken);
 
-        var orders = await ordersQuery
-            .OrderByDescending(o => o.OrderDate)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .Include(o => o.SellerOrders)
-                .ThenInclude(so => so.FarmerProfile)
-            .Include(o => o.SellerOrders)
-                .ThenInclude(so => so.OrderItems)
+        var orders = await WithTrackingData(ordersQuery
+                .OrderByDescending(o => o.OrderDate)
+                .Skip((query.Page - 1) * query.PageSize)
+                .Take(query.PageSize))
             .ToListAsync(cancellationToken);
 
         var dtoList = orders.Select(o => new OrderSummaryDto(
             OrderId: o.OrderId,
             OrderCode: o.OrderCode,
-            OrderDate: new DateTimeOffset(DateTime.SpecifyKind(o.OrderDate, DateTimeKind.Utc)),
+            OrderDate: Utc(o.OrderDate),
             OrderStatus: o.OrderStatus,
-            PaymentMethod: o.PaymentMethod ?? "VNPay / COD",
-            DeliveryMethod: o.DeliveryMethod ?? "Giao hàng tiêu chuẩn",
+            PaymentMethod: o.PaymentMethod,
+            DeliveryMethod: o.DeliveryMethod,
             TotalAmount: o.TotalAmount,
             DeliveryFee: o.DeliveryFee,
             DiscountAmount: o.DiscountAmount,
@@ -54,59 +55,56 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
             RecipientName: o.RecipientNameSnapshot,
             RecipientPhone: o.RecipientPhoneSnapshot,
             ShippingAddress: o.ShippingAddress,
-            TrackingNumber: "VNPOST-" + o.OrderId,
-            SellerOrders: o.SellerOrders.Select(so => new SellerOrderGroupDto(
-                SellerOrderId: so.SellerOrderId,
-                FarmerProfileId: so.FarmerProfileId,
-                FarmName: so.FarmerProfile?.FarmName ?? "Hợp tác xã Nông nghiệp",
-                FarmLocation: so.FarmerProfile?.Address,
-                SellerOrderCode: so.SellerOrderCode,
-                Status: so.Status,
-                FinalAmount: so.FinalAmount,
-                Items: so.OrderItems.Select(oi => new OrderItemDetailDto(
-                    OrderItemId: oi.OrderItemId,
-                    ProductId: oi.ProductId,
-                    ProductName: oi.ProductNameSnapshot ?? "Nông sản sạch",
-                    Quantity: oi.Quantity,
-                    Unit: oi.UnitSnapshot ?? "Kg",
-                    UnitPrice: oi.UnitPriceSnapshot,
-                    SubTotal: oi.SubTotal,
-                    HarvestBatchCode: "BATCH-" + oi.OrderItemId,
-                    HarvestDate: DateOnly.FromDateTime(o.OrderDate.AddDays(-2)),
-                    FarmPlot: "Lô A - Vùng canh tác chuẩn VietGAP",
-                    IsReviewed: false,
-                    ImageEmoji: "🥬")).ToList()
-            )).ToList()
-        )).ToList();
+            TrackingNumber: TrackingNumber(o),
+            SellerOrders: SellerOrders(o))).ToList();
 
-        return new PagedResponse<OrderSummaryDto>(dtoList, totalCount, query.Page, query.PageSize);
+        return new PagedResponse<OrderSummaryDto>(
+            dtoList,
+            totalCount,
+            query.Page,
+            query.PageSize);
     }
 
-    public async Task<OrderDetailDto?> GetOrderDetailAsync(long buyerId, long orderId, CancellationToken cancellationToken)
+    public async Task<OrderDetailDto?> GetOrderDetailAsync(
+        long buyerId, long orderId, CancellationToken cancellationToken)
     {
-        var o = await db.Orders
-            .AsNoTracking()
+        var o = await WithTrackingData(db.Orders.AsNoTracking())
+            .Include(o => o.PaymentTransactions)
             .Include(o => o.SellerOrders)
-                .ThenInclude(so => so.FarmerProfile)
-            .Include(o => o.SellerOrders)
-                .ThenInclude(so => so.OrderItems)
-            .FirstOrDefaultAsync(o => o.OrderId == orderId && o.BuyerUserId == buyerId, cancellationToken);
+                .ThenInclude(so => so.OrderStatusHistories)
+            .FirstOrDefaultAsync(
+                o => o.OrderId == orderId && o.BuyerUserId == buyerId,
+                cancellationToken);
 
-        if (o == null) return null;
+        if (o == null)
+        {
+            return null;
+        }
 
         var timeline = new List<OrderStatusTimelineDto>
         {
-            new("PendingPayment", new DateTimeOffset(DateTime.SpecifyKind(o.OrderDate, DateTimeKind.Utc)), "Khách hàng tạo đơn"),
-            new(o.OrderStatus, new DateTimeOffset(DateTime.SpecifyKind(o.OrderDate.AddHours(2), DateTimeKind.Utc)), $"Trạng thái đơn: {o.OrderStatus}")
+            new("Created", Utc(o.OrderDate), "Khách hàng tạo đơn")
         };
+        timeline.AddRange(o.SellerOrders
+            .SelectMany(so => so.OrderStatusHistories.Select(history =>
+                new OrderStatusTimelineDto(
+                    history.NewStatus,
+                    Utc(history.OccurredAt),
+                    $"{so.SellerNameSnapshot ?? so.FarmerProfile.FarmName}: "
+                        + (string.IsNullOrWhiteSpace(history.Reason)
+                            ? history.NewStatus : history.Reason))))
+            .OrderBy(entry => entry.Timestamp));
+
+        bool isPaid = o.PaymentTransactions
+            .Any(p => s_settledPaymentStatuses.Contains(p.PaymentStatus));
 
         return new OrderDetailDto(
             OrderId: o.OrderId,
             OrderCode: o.OrderCode,
-            OrderDate: new DateTimeOffset(DateTime.SpecifyKind(o.OrderDate, DateTimeKind.Utc)),
+            OrderDate: Utc(o.OrderDate),
             OrderStatus: o.OrderStatus,
-            PaymentMethod: o.PaymentMethod ?? "VNPay / COD",
-            DeliveryMethod: o.DeliveryMethod ?? "Giao hàng tiêu chuẩn",
+            PaymentMethod: o.PaymentMethod,
+            DeliveryMethod: o.DeliveryMethod,
             TotalAmount: o.TotalAmount,
             DeliveryFee: o.DeliveryFee,
             DiscountAmount: o.DiscountAmount,
@@ -114,41 +112,106 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
             RecipientName: o.RecipientNameSnapshot,
             RecipientPhone: o.RecipientPhoneSnapshot,
             ShippingAddress: o.ShippingAddress,
-            TrackingNumber: "VNPOST-" + o.OrderId,
-            PaymentStatus: o.OrderStatus == "Completed" ? "Paid" : "Pending",
-            ExpectedDeliveryDate: o.ExpectedDeliveryDate.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(o.ExpectedDeliveryDate.Value, DateTimeKind.Utc)) : null,
-            SellerOrders: o.SellerOrders.Select(so => new SellerOrderGroupDto(
-                SellerOrderId: so.SellerOrderId,
-                FarmerProfileId: so.FarmerProfileId,
-                FarmName: so.FarmerProfile?.FarmName ?? "Hợp tác xã Nông nghiệp",
-                FarmLocation: so.FarmerProfile?.Address,
-                SellerOrderCode: so.SellerOrderCode,
-                Status: so.Status,
-                FinalAmount: so.FinalAmount,
-                Items: so.OrderItems.Select(oi => new OrderItemDetailDto(
-                    OrderItemId: oi.OrderItemId,
-                    ProductId: oi.ProductId,
-                    ProductName: oi.ProductNameSnapshot ?? "Nông sản sạch",
-                    Quantity: oi.Quantity,
-                    Unit: oi.UnitSnapshot ?? "Kg",
-                    UnitPrice: oi.UnitPriceSnapshot,
-                    SubTotal: oi.SubTotal,
-                    HarvestBatchCode: "BATCH-" + oi.OrderItemId,
-                    HarvestDate: DateOnly.FromDateTime(o.OrderDate.AddDays(-2)),
-                    FarmPlot: "Lô A - Vùng canh tác chuẩn VietGAP",
-                    IsReviewed: false,
-                    ImageEmoji: "🥬")).ToList()
-            )).ToList(),
+            TrackingNumber: TrackingNumber(o),
+            PaymentStatus: isPaid ? "Paid" : "Unpaid",
+            ExpectedDeliveryDate: o.ExpectedDeliveryDate.HasValue
+                ? Utc(o.ExpectedDeliveryDate.Value) : null,
+            SellerOrders: SellerOrders(o),
             Timeline: timeline);
     }
 
-    public async Task<OrderDetailDto?> GetOrderDetailByCodeAsync(long buyerId, string orderCode, CancellationToken cancellationToken)
+    public async Task<OrderDetailDto?> GetOrderDetailByCodeAsync(
+        long buyerId, string orderCode, CancellationToken cancellationToken)
     {
         var o = await db.Orders
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.OrderCode == orderCode && o.BuyerUserId == buyerId, cancellationToken);
+            .FirstOrDefaultAsync(
+                o => o.OrderCode == orderCode && o.BuyerUserId == buyerId,
+                cancellationToken);
 
-        if (o == null) return null;
+        if (o == null)
+        {
+            return null;
+        }
+
         return await GetOrderDetailAsync(buyerId, o.OrderId, cancellationToken);
     }
+
+    private static IQueryable<Order> WithTrackingData(IQueryable<Order> orders) => orders
+        .Include(o => o.SellerOrders)
+            .ThenInclude(so => so.FarmerProfile)
+        .Include(o => o.SellerOrders)
+            .ThenInclude(so => so.Shipments)
+        .Include(o => o.SellerOrders)
+            .ThenInclude(so => so.OrderItems)
+                .ThenInclude(oi => oi.ProductReview)
+        .Include(o => o.SellerOrders)
+            .ThenInclude(so => so.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                    .ThenInclude(p => p.ProductImages)
+        .Include(o => o.SellerOrders)
+            .ThenInclude(so => so.OrderItems)
+                .ThenInclude(oi => oi.OrderItemBatchAllocations)
+                    .ThenInclude(a => a.HarvestBatch)
+                        .ThenInclude(b => b.CropSeason)
+        .Include(o => o.SellerOrders)
+            .ThenInclude(so => so.OrderItems)
+                .ThenInclude(oi => oi.OrderItemBatchAllocations)
+                    .ThenInclude(a => a.HarvestBatch)
+                        .ThenInclude(b => b.TraceabilityQrcode)
+        .AsSplitQuery();
+
+    private static List<SellerOrderGroupDto> SellerOrders(Order o) => o.SellerOrders
+        .OrderBy(so => so.SellerOrderId)
+        .Select(so => new SellerOrderGroupDto(
+            SellerOrderId: so.SellerOrderId,
+            FarmerProfileId: so.FarmerProfileId,
+            FarmName: so.SellerNameSnapshot ?? so.FarmerProfile.FarmName,
+            FarmLocation: so.FarmerProfile.Address,
+            SellerOrderCode: so.SellerOrderCode,
+            Status: so.Status,
+            FinalAmount: so.FinalAmount,
+            Items: so.OrderItems
+                .OrderBy(oi => oi.OrderItemId)
+                .Select(Item)
+                .ToList()))
+        .ToList();
+
+    private static OrderItemDetailDto Item(OrderItem oi) => new(
+        OrderItemId: oi.OrderItemId,
+        ProductId: oi.ProductId,
+        ProductName: oi.ProductNameSnapshot ?? oi.Product.ProductName,
+        Quantity: oi.Quantity,
+        Unit: oi.UnitSnapshot,
+        UnitPrice: oi.UnitPriceSnapshot,
+        SubTotal: oi.SubTotal,
+        ImageUrl: oi.Product.ProductImages
+            .OrderByDescending(image => image.IsPrimary)
+            .ThenBy(image => image.DisplayOrder)
+            .Select(image => image.ImageUrl)
+            .FirstOrDefault(),
+        IsReviewed: oi.ProductReview != null,
+        Batches: oi.OrderItemBatchAllocations
+            .OrderBy(a => a.AllocationSequence)
+            .Select(a => new OrderItemBatchDto(
+                a.HarvestBatch.BatchCode,
+                a.AllocatedQuantity,
+                a.HarvestBatch.ActualHarvestDate,
+                a.HarvestBatch.CropSeason?.SeasonName,
+                a.HarvestBatch.TraceabilityQrcode is { IsRevoked: false } qr
+                    ? qr.TargetUrl : null))
+            .ToList());
+
+    private static string? TrackingNumber(Order o)
+    {
+        var numbers = o.SellerOrders.SelectMany(so => so.Shipments)
+            .Select(s => s.TrackingNumber)
+            .Where(number => !string.IsNullOrWhiteSpace(number))
+            .Distinct()
+            .ToList();
+        return numbers.Count == 0 ? null : string.Join(", ", numbers);
+    }
+
+    private static DateTimeOffset Utc(DateTime value) =>
+        new(DateTime.SpecifyKind(value, DateTimeKind.Utc));
 }

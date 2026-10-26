@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AgriSustain.Api.Controllers;
 
 [ApiController]
-[AllowAnonymous]
+[Authorize]
 [Route("api/profile")]
 public sealed class ProfileController(IProfileService service) : ControllerBase
 {

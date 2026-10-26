@@ -59,6 +59,10 @@ public partial class Order
 
     public string? ProvinceNameSnapshot { get; set; }
 
+    public string? DistrictCodeSnapshot { get; set; }
+
+    public string? DistrictNameSnapshot { get; set; }
+
     public string? WardCodeSnapshot { get; set; }
 
     public string? WardNameSnapshot { get; set; }
