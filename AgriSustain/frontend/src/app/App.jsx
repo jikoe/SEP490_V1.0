@@ -1,5 +1,7 @@
 import '../styles/customer-portal.css';
 import React, { useEffect, useState } from 'react';
+import { backendUrl, logout as logoutSession } from '../api/client';
+import { Notice } from '../components/ui/Common';
 import UsersScreen from '../features/Administrator/UsersScreen';
 import CategoriesScreen from '../features/Administrator/CategoriesScreen';
 import AdminDashboard from '../features/Administrator/AdminDashboard';
@@ -220,6 +222,9 @@ export default function App() {
   const [route, setRoute] = useState(readRoute);
   const [persistence, setPersistence] = useState(null);
   const [databaseReady, setDatabaseReady] = useState(false);
+  const [logoutMessage, setLogoutMessage] = useState('');
+  const [logoutError, setLogoutError] = useState('');
+  const [logoutBusy, setLogoutBusy] = useState(false);
 
   // Xác định role hiện tại (ưu tiên session từ DB, nếu không có thì lấy fixture demo)
   const isPublicMarketplace = !session && !fixture && route === '/retail/dashboard';
@@ -245,12 +250,12 @@ export default function App() {
   useEffect(() => {
     if (isMarketplace) return;
     const controller = new AbortController();
-    fetch('/health', { signal: controller.signal })
+    fetch(backendUrl('/health'), { signal: controller.signal })
       .then((response) => response.json())
       .then(async (health) => {
         setPersistence(health.persistence);
         if (health.persistence === 'SqlServer') {
-          const response = await fetch('/health/database', { signal: controller.signal });
+          const response = await fetch(backendUrl('/health/database'), { signal: controller.signal });
           const readiness = await response.json().catch(() => ({}));
           setDatabaseReady(response.ok && readiness.connected === true);
         }
@@ -282,17 +287,41 @@ export default function App() {
     }
     setSession(loginData);
     setCurrentSession(loginData);
+    setLogoutMessage('');
+    setLogoutError('');
     setFixture(null);
     sessionStorage.removeItem('agrisustain:demo-fixture');
     navigate(targetConfig.landingRoute);
   }
 
-  function logout() {
-    clearSession();
-    setCurrentSession(null);
-    setFixture(null);
-    sessionStorage.removeItem('agrisustain:demo-fixture');
-    navigate('/login');
+  async function logout() {
+    if (logoutBusy) return;
+
+    if (!session?.accessToken) {
+      clearSession();
+      setCurrentSession(null);
+      setFixture(null);
+      sessionStorage.removeItem('agrisustain:demo-fixture');
+      navigate('/login');
+      return;
+    }
+
+    setLogoutBusy(true);
+    setLogoutError('');
+    try {
+      await logoutSession();
+      clearSession();
+      setCurrentSession(null);
+      setFixture(null);
+      sessionStorage.removeItem('agrisustain:demo-fixture');
+      setLogoutMessage('Đăng xuất thành công.');
+      setRoute('/marketplace');
+      navigate('/marketplace');
+    } catch (failure) {
+      setLogoutError(failure.message || 'Không thể đăng xuất. Vui lòng thử lại.');
+    } finally {
+      setLogoutBusy(false);
+    }
   }
 
   /** Keeps the header in sync after UC-AUTH-03 saves a new display name. */
@@ -305,6 +334,7 @@ export default function App() {
 
   if (isMarketplace) {
     return <Marketplace route={route} navigate={navigate} session={session} onLogout={logout}
+      logoutMessage={logoutMessage} logoutError={logoutError} logoutBusy={logoutBusy}
       accountLinks={roleConfig.navItems.filter((item) => !marketplacePaths.includes(item.path))} />;
   }
 
@@ -429,12 +459,24 @@ export default function App() {
 
           <div className="account-actions">
             {session ? (
-              <>
-                <span style={{ fontSize: 13, color: '#294334', fontWeight: 600 }}>{session.user.fullName}</span>
-                <span className="badge role-badge" style={{ marginLeft: 6 }}>{session.user.role}</span>
-                <button type="button" onClick={() => navigate('/account/password')} style={{ marginLeft: 10 }}>Đổi mật khẩu</button>
-                <button type="button" onClick={logout} style={{ marginLeft: 6 }}>Đăng xuất</button>
-              </>
+              <details className="account-menu">
+                <summary>
+                  <span className="account-avatar">{userAvatarInitial}</span>
+                  <span>{session.user.fullName}</span>
+                  <span aria-hidden="true">▾</span>
+                </summary>
+                <div className="account-menu-panel">
+                  <strong>{session.user.fullName}</strong>
+                  <span>{session.user.role}</span>
+                  <button type="button" onClick={() => navigate('/account/password')}>
+                    Đổi mật khẩu
+                  </button>
+                  <Notice error>{logoutError}</Notice>
+                  <button type="button" onClick={logout} disabled={logoutBusy}>
+                    {logoutBusy ? 'Đang đăng xuất…' : 'Đăng xuất'}
+                  </button>
+                </div>
+              </details>
             ) : (
               <>
                 <label className="session-selector">
@@ -464,7 +506,7 @@ export default function App() {
           </div>
         </header>
 
-        <main key={`${roleKey}-${route}`}>
+        <main key={roleKey}>
           {/* Định tuyến màn hình tương ứng */}
           {route.startsWith('/administration/dashboard') && <AdminDashboard navigate={navigate} />}
           {route.startsWith('/administration/users') && <UsersScreen fixture={fixture} route={route} navigate={navigate} />}

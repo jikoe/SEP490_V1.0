@@ -20,6 +20,8 @@ public interface IProductModerationRepository
         long productId,
         CancellationToken cancellationToken);
 
+    void AddAudit(AuditLog audit);
+
     void AddNotification(Notification notification);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);

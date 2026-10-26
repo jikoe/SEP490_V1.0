@@ -232,6 +232,60 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ReviewedProducts_AreOrderedByDecisionTimeAndIncludeReviewer()
+    {
+        var existingProduct = await _context.Products.SingleAsync();
+        existingProduct.ApprovalStatus = "Approved";
+        existingProduct.IsPublished = true;
+
+        var olderProduct = new Product
+        {
+            CategoryId = existingProduct.CategoryId,
+            FarmerProfileId = existingProduct.FarmerProfileId,
+            ProductName = "Older product reviewed most recently",
+            Unit = "kg",
+            BaseRetailPrice = 10000,
+            ApprovalStatus = "Rejected",
+            IsPublished = false,
+            CreatedAt = _clock.GetUtcNow().UtcDateTime.AddDays(-10)
+        };
+        _context.Products.Add(olderProduct);
+        await _context.SaveChangesAsync();
+
+        var decisionTime = _clock.GetUtcNow().UtcDateTime;
+        _context.AuditLogs.AddRange(
+            new AuditLog
+            {
+                PerformedByUserId = 1,
+                EntityType = "Product",
+                EntityId = existingProduct.ProductId,
+                Action = "ApproveProduct",
+                OldValue = "Pending",
+                NewValue = "Approved",
+                OccurredAt = decisionTime.AddMinutes(-1)
+            },
+            new AuditLog
+            {
+                PerformedByUserId = 1,
+                EntityType = "Product",
+                EntityId = olderProduct.ProductId,
+                Action = "RejectProduct",
+                OldValue = "Pending",
+                NewValue = "Rejected",
+                Reason = "Test rejection",
+                OccurredAt = decisionTime
+            });
+        await _context.SaveChangesAsync();
+
+        var result = await new ProductModerationRepository(_context)
+            .GetListAsync("Reviewed", null, 1, 10, default);
+
+        Assert.Equal(olderProduct.ProductId, result.Items[0].Id);
+        Assert.Equal(decisionTime, result.Items[0].ReviewedAt);
+        Assert.Equal("Administrator Test", result.Items[0].ReviewedBy);
+    }
+
+    [Fact]
     public async Task Quote_InvalidVoucher_ClearsDiscountWithoutReservingStock()
     {
         var result = await Checkout().QuoteAsync(Input() with { VoucherCode = "INVALID" }, default);
