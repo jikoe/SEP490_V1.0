@@ -62,8 +62,9 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(
-        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken) =>
-        ApiResults.From(
-            await _authService.ChangePasswordAsync(request, cancellationToken),
-            HttpContext);
+        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.ChangePasswordAsync(request, cancellationToken);
+        return result.IsSuccess ? new JsonResult(result.Value) : ApiResults.From(result, HttpContext);
+    }
 }

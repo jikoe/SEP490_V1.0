@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { request } from '../../api/client';
 import { Field, Notice } from '../../components/ui/Common';
 
 const emptyForm = { currentPassword: '', newPassword: '', confirmPassword: '' };
+const successMessage = 'Đổi mật khẩu thành công. Vui lòng sử dụng mật khẩu mới cho những lần đăng nhập sau.';
 
 /** Mirrors the server password policy so mistakes show before the request is sent. */
 function validate(form) {
@@ -24,6 +25,12 @@ export default function ChangePasswordScreen({ session, navigate, backRoute }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = setTimeout(() => setMessage(''), 8000);
+    return () => clearTimeout(timer);
+  }, [message]);
+
   function update(name, value) {
     setForm((old) => ({ ...old, [name]: value }));
     setError(''); setMessage('');
@@ -35,7 +42,8 @@ export default function ChangePasswordScreen({ session, navigate, backRoute }) {
     if (problem) { setError(problem); return; }
     setBusy(true); setError(''); setMessage('');
     try {
-      setMessage(await request('/auth/change-password', { method: 'POST', body: form }));
+      await request('/auth/change-password', { method: 'POST', body: form });
+      setMessage(successMessage);
       setForm(emptyForm);
     } catch (failure) {
       setError(failure.message);
@@ -58,7 +66,11 @@ export default function ChangePasswordScreen({ session, navigate, backRoute }) {
     <h1>Đổi mật khẩu</h1>
     <p className="muted">Tài khoản: <strong>{session.user.email}</strong></p>
     <Notice error>{error}</Notice>
-    <Notice>{message}</Notice>
+    {message && <div style={{ position: 'fixed', top: 24, right: 24, zIndex: 1000,
+      width: 'min(420px, calc(100vw - 48px))' }}>
+      <Notice><span>{message}</span><button type="button" aria-label="Đóng thông báo"
+        style={{ float: 'right', marginLeft: 8 }} onClick={() => setMessage('')}>×</button></Notice>
+    </div>}
     <form onSubmit={submit}>
       <fieldset disabled={busy} style={{ border: 0, padding: 0, margin: 0 }}>
         <Field label="Mật khẩu hiện tại *"><input type={type} autoComplete="current-password"

@@ -123,6 +123,6 @@ public sealed class AuthService : IAuthService
         user.PasswordHash = _passwordService.Hash(user, request.NewPassword);
         await _context.SaveChangesAsync(cancellationToken);
         return Result<string>.SuccessResult(
-            "Đổi mật khẩu thành công. Hãy dùng mật khẩu mới cho lần đăng nhập sau.");
+            "Đổi mật khẩu thành công. Vui lòng sử dụng mật khẩu mới cho những lần đăng nhập sau.");
     }
 }
