@@ -468,6 +468,15 @@ export default function App() {
                 <div className="account-menu-panel">
                   <strong>{session.user.fullName}</strong>
                   <span>{session.user.role}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = normalizeRole(session.user.role) === 'farmer' ? '/farmer/profile' : '/retail/profile';
+                      navigate(p);
+                    }}
+                  >
+                    {normalizeRole(session.user.role) === 'farmer' ? 'Hồ sơ nông hộ & KYC' : 'Hồ sơ cá nhân'}
+                  </button>
                   <button type="button" onClick={() => navigate('/account/password')}>
                     Đổi mật khẩu
                   </button>
