@@ -61,9 +61,9 @@ export default function CustomerFooter() {
           <div className="footer-col">
             <h4>HỖ TRỢ KHÁCH HÀNG</h4>
             <ul>
-              <li><a href="#/orders">Tra cứu hành trình đơn hàng (SCR-16)</a></li>
-              <li><a href="#/profile">Quản lý hồ sơ & sổ địa chỉ (SCR-11)</a></li>
-              <li><a href="#/register">Đăng ký tài khoản Nông dân / Mua lẻ (SCR-07)</a></li>
+              <li><a href="#/orders">Tra cứu hành trình đơn hàng</a></li>
+              <li><a href="#/profile">Quản lý hồ sơ & sổ địa chỉ</a></li>
+              <li><a href="#/register">Đăng ký tài khoản Nông dân / Mua lẻ</a></li>
               <li><a href="#/orders">Chính sách khiếu nại & hoàn tiền (UC-CS-01)</a></li>
               <li><a href="#/orders">Hướng dẫn quét mã QR lô thu hoạch</a></li>
             </ul>
