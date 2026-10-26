@@ -9,13 +9,16 @@ public sealed class ProductModerationService : IProductModerationService
     private const int MaximumPageSize = 100;
     private const int MaximumRejectionReasonLength = 500;
     private readonly IProductModerationRepository _repository;
+    private readonly IActorContext _actorContext;
     private readonly TimeProvider _timeProvider;
 
     public ProductModerationService(
         IProductModerationRepository repository,
+        IActorContext actorContext,
         TimeProvider timeProvider)
     {
         _repository = repository;
+        _actorContext = actorContext;
         _timeProvider = timeProvider;
     }
 
@@ -81,9 +84,26 @@ public sealed class ProductModerationService : IProductModerationService
             return ProductModerationOutcome.Conflict;
         }
 
+        if (approved && product.FarmerProfile.VerificationStatus != "Approved")
+        {
+            return ProductModerationOutcome.FarmerNotVerified;
+        }
+
         product.ApprovalStatus = approved ? "Approved" : "Rejected";
         product.IsPublished = approved;
         product.RejectionReason = approved ? null : normalizedReason;
+        _repository.AddAudit(new AuditLog
+        {
+            PerformedByUserId = _actorContext.UserId,
+            EntityType = "Product",
+            EntityId = product.ProductId,
+            Action = approved ? "ApproveProduct" : "RejectProduct",
+            OldValue = "Pending",
+            NewValue = product.ApprovalStatus,
+            Reason = normalizedReason,
+            OccurredAt = _timeProvider.GetUtcNow().UtcDateTime,
+            TraceId = _actorContext.TraceId
+        });
         _repository.AddNotification(new Notification
         {
             UserId = product.FarmerProfile.UserId,
@@ -100,7 +120,8 @@ public sealed class ProductModerationService : IProductModerationService
             SentAt = _timeProvider.GetUtcNow().UtcDateTime,
             DeliveryChannel = "InApp",
             DeliveryStatus = "Sent",
-            RelatedRecordType = "Product"
+            RelatedRecordType = "Product",
+            RelatedRecordId = product.ProductId
         });
 
         await _repository.SaveChangesAsync(cancellationToken);

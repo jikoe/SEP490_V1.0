@@ -3,6 +3,7 @@ using AgriSustain.Infrastructure.Data;
 using AgriSustain.Infrastructure.FileStorage;
 using AgriSustain.Api.Middlewares;
 using AgriSustain.Api.Security;
+using AgriSustain.Api.Auth;
 using AgriSustain.Application.Validators;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Interfaces.Identity;
@@ -36,6 +37,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Checkout.json", optional: false)
     .AddEnvironmentVariables().AddCommandLine(args);
 builder.Services.AddThreeUseCases(builder.Configuration);
+builder.Services.AddSingleton<RevokedTokenStore>();
 
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter()));
@@ -61,6 +63,13 @@ builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
 builder.Services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDevelopment", policy =>
+        policy.WithOrigins("http://127.0.0.1:5173", "http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
 
 // Standard Repositories and UnitOfWork
 builder.Services.AddSingleton<SqlDemoDependencies>();
@@ -117,6 +126,22 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["JWT:ValidAudience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]!))
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = context =>
+        {
+            var tokenId = context.SecurityToken.Id;
+            if (!string.IsNullOrEmpty(tokenId)
+                && context.HttpContext.RequestServices
+                    .GetRequiredService<RevokedTokenStore>()
+                    .IsRevoked(tokenId))
+            {
+                context.Fail("This session has been terminated.");
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 builder.Services.AddAuthorization();
 
@@ -145,6 +170,7 @@ app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/users")
     || context.Request.Path.StartsWithSegments("/api/checkout"), branch =>
         branch.UseMiddleware<ExceptionMiddleware>());
 
+app.UseCors("FrontendDevelopment");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ActiveFeatureAccountMiddleware>();

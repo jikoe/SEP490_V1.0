@@ -1,7 +1,13 @@
 import { getSession } from '../session/session';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+
+export function backendUrl(path) {
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 export async function login(credentials, { signal } = {}) {
-  const response = await fetch('/api/auth/login', {
+  const response = await fetch(backendUrl('/api/auth/login'), {
     method: 'POST',
     signal,
     headers: { 'Content-Type': 'application/json' },
@@ -17,10 +23,29 @@ export async function login(credentials, { signal } = {}) {
   return data;
 }
 
+export async function logout() {
+  const session = getSession();
+  if (!session?.accessToken) {
+    throw new Error('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+  }
+
+  const response = await fetch(backendUrl('/api/auth/logout'), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const error = new Error(data.detail || data.title || data.message
+      || `Đăng xuất thất bại (HTTP ${response.status}).`);
+    error.status = response.status;
+    throw error;
+  }
+}
+
 /** Sends a request to the same-origin API with the session token, if any. */
 async function send(path, { signal, method = 'GET', body } = {}) {
   const session = getSession();
-  const response = await fetch(`/api${path}`, {
+  const response = await fetch(backendUrl(`/api${path}`), {
     method,
     signal,
     headers: {
@@ -77,4 +102,3 @@ export function queryString(values) {
   return new URLSearchParams(Object.entries(values).filter(([, value]) =>
     value !== '' && value !== null && value !== undefined)).toString();
 }
-

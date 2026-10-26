@@ -8,7 +8,9 @@ public sealed record ProductModerationListItemDto(
     string FarmerName,
     string FarmName,
     DateTime SubmittedAt,
-    string? ImageUrl);
+    string? ImageUrl,
+    DateTime? ReviewedAt,
+    string? ReviewedBy);
 
 public sealed record ProductModerationListDto(
     IReadOnlyList<ProductModerationListItemDto> Items,
@@ -34,7 +36,9 @@ public sealed record ProductModerationDetailDto(
     ProductModerationFarmDto Farm,
     IReadOnlyList<ProductModerationHarvestDto> Harvest,
     IReadOnlyList<ProductModerationTraceabilityDto> Traceability,
-    IReadOnlyList<ProductModerationCertificateDto> Certificates);
+    IReadOnlyList<ProductModerationCertificateDto> Certificates,
+    DateTime? ReviewedAt,
+    string? ReviewedBy);
 
 public sealed record ProductModerationImageDto(string ImageUrl, string? AltText);
 
@@ -59,7 +63,10 @@ public sealed record ProductModerationHarvestDto(
     DateOnly? ExpirationDate,
     string? QualityNotes,
     string Season,
-    string CropVariety);
+    string CropVariety,
+    DateOnly PlantingDate,
+    string Status,
+    string? GrowingPractices);
 
 public sealed record ProductModerationTraceabilityDto(
     string BatchCode,
@@ -83,5 +90,6 @@ public enum ProductModerationOutcome
     Success,
     NotFound,
     Conflict,
+    FarmerNotVerified,
     InvalidReason
 }

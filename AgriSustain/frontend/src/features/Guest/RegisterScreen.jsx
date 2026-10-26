@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { backendUrl } from '../../api/client';
 import { Notice, Field, Modal } from '../../components/ui/Common';
 
 /**
@@ -69,7 +70,7 @@ export default function RegisterScreen({ navigate }) {
         role: role,
         agreeTerms: form.agreeTerms,
       };
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch(backendUrl('/api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -124,7 +125,7 @@ export default function RegisterScreen({ navigate }) {
     setLoading(true);
     setOtpError(null);
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const res = await fetch(backendUrl('/api/auth/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -155,7 +156,7 @@ export default function RegisterScreen({ navigate }) {
 
   async function handleResendOtp() {
     try {
-      const res = await fetch('/api/auth/resend-otp', {
+      const res = await fetch(backendUrl('/api/auth/resend-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: form.email.trim() }),
