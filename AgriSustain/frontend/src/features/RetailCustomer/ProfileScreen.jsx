@@ -496,44 +496,62 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
 
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
           {isFarmer ? (
-            <div
-              style={{
-                background: 'rgba(255,255,255,0.15)',
-                padding: '10px 16px',
-                borderRadius: 12,
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: 11, color: '#b7e4c7' }}>ĐIỂM UY TÍN NHÀ VƯỜN</div>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>⭐ {profile.reputationScore || 5.0} / 5.0</div>
-            </div>
-          ) : (
-            <div
-              style={{
-                background: 'rgba(255,255,255,0.15)',
-                padding: '10px 16px',
-                borderRadius: 12,
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: 11, color: '#b7e4c7' }}>ĐIỂM TÍCH LŨY</div>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>⭐ {profile.rewardPoints || 0}</div>
-            </div>
-          )}
+            <>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#b7e4c7' }}>ĐIỂM UY TÍN NHÀ VƯỜN</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>⭐ {profile.reputationScore || 5.0} / 5.0</div>
+              </div>
 
-          <div
-            style={{
-              background: 'rgba(255,255,255,0.15)',
-              padding: '10px 16px',
-              borderRadius: 12,
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 11, color: '#b7e4c7' }}>TRẠNG THÁI KYC</div>
-            <div style={{ marginTop: 2 }}>
-              <VerificationBadge value={profile.verificationStatus} />
-            </div>
-          </div>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#b7e4c7' }}>TRẠNG THÁI KYC</div>
+                <div style={{ marginTop: 2 }}>
+                  <VerificationBadge value={profile.verificationStatus} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#b7e4c7' }}>ĐIỂM TÍCH LŨY</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>⭐ {profile.rewardPoints || 0}</div>
+              </div>
+
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#b7e4c7' }}>TRẠNG THÁI TÀI KHOẢN</div>
+                <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, color: '#ffffff' }}>
+                  ✓ Đã kích hoạt
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -606,28 +624,28 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
             </button>
           </div>
 
-          <div style={{ borderTop: '1px solid #e0e7df', marginTop: 24, paddingTop: 16 }}>
-            <div style={{ fontSize: 12, color: '#668071', marginBottom: 8 }}>
-              <strong>Xác minh KYC:</strong> <VerificationBadge value={profile.verificationStatus} />
-            </div>
-            {isFarmer && (
+          {isFarmer && (
+            <div style={{ borderTop: '1px solid #e0e7df', marginTop: 24, paddingTop: 16 }}>
+              <div style={{ fontSize: 12, color: '#668071', marginBottom: 8 }}>
+                <strong>Xác minh KYC:</strong> <VerificationBadge value={profile.verificationStatus} />
+              </div>
               <div style={{ fontSize: 12, color: '#668071', marginBottom: 12 }}>
                 <strong>Điểm uy tín nhà vườn:</strong> ⭐ {profile.reputationScore || 5.0} / 5.0
               </div>
-            )}
 
-            {isFarmer && (profile.verificationStatus === 'NotSubmitted' || profile.verificationStatus === 'Rejected') && (
-              <button
-                type="button"
-                className="primary"
-                style={{ width: '100%', marginTop: 8, background: '#1e6546', borderRadius: 8, padding: '10px 14px', fontWeight: 600 }}
-                onClick={handleSubmitKyc}
-                disabled={saving}
-              >
-                Gửi thẩm định KYC
-              </button>
-            )}
-          </div>
+              {(profile.verificationStatus === 'NotSubmitted' || profile.verificationStatus === 'Rejected') && (
+                <button
+                  type="button"
+                  className="primary"
+                  style={{ width: '100%', marginTop: 8, background: '#1e6546', borderRadius: 8, padding: '10px 14px', fontWeight: 600 }}
+                  onClick={handleSubmitKyc}
+                  disabled={saving}
+                >
+                  Gửi thẩm định KYC
+                </button>
+              )}
+            </div>
+          )}
         </aside>
 
         {/* Right Form Card */}
