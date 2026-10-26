@@ -529,13 +529,15 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
                       </button>
                     )}
 
-                    <button
+                      {order.orderStatus === 'Completed' && (
+                        <button
                       type="button"
                       style={{ padding: '8px 12px', borderRadius: 8, fontSize: 12, color: '#b23b3b', borderColor: '#ecd3cd' }}
                       onClick={() => setComplaintModalOpen(true)}
                     >
                       Báo cáo khiếu nại
                     </button>
+                      )}
                   </div>
                 </div>
               </div>
@@ -549,31 +551,10 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
         <Modal
           open={Boolean(selectedOrder)}
           onClose={() => setSelectedOrder(null)}
+          hideCloseButton
           title={`Chi tiết đơn hàng #${selectedOrder.orderCode}`}
         >
-          {/* Nút Quay lại danh sách đơn hàng (Back to list) */}
-          <div style={{ marginBottom: 16 }}>
-            <button
-              type="button"
-              className="back-to-list-btn"
-              onClick={() => setSelectedOrder(null)}
-              style={{
-                background: '#edf6f0',
-                border: '1px solid #cce3d4',
-                color: '#1e6546',
-                fontWeight: 700,
-                fontSize: 13,
-                borderRadius: 8,
-                padding: '8px 14px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              ← Quay lại danh sách đơn hàng
-            </button>
-          </div>
+          
 
           {/* Timeline vận chuyển */}
           <div style={{ background: '#f5faf7', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
@@ -624,27 +605,22 @@ export default function OrderTrackingScreen({ fixture = 'retail-customer', navig
             </div>
           </div>
 
-          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={() => setSelectedOrder(null)}
-              style={{
-                padding: '10px 18px',
-                borderRadius: 8,
-                fontWeight: 600,
-                color: '#1e6546',
-                borderColor: '#cce3d4',
-              }}
-            >
-              ← Quay lại danh sách đơn hàng
-            </button>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
             <button
               type="button"
               className="primary"
               onClick={() => setSelectedOrder(null)}
-              style={{ background: '#1e6546', padding: '10px 22px', borderRadius: 8 }}
+              style={{
+                background: '#1e6546',
+                padding: '10px 22px',
+                borderRadius: 8,
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
             >
-              Đóng
+              ← Quay lại danh sách đơn hàng
             </button>
           </div>
         </Modal>

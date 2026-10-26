@@ -66,7 +66,7 @@ export function Pager({ total, page, pageSize = 10, onPage }) {
  * Uses a native modal dialog for focus trapping and restores previous focus on cleanup. Escape
  * delegates cancellation so busy operations can retain their confirmation state.
  */
-export function Modal({ title, children, onClose }) {
+export function Modal({ title, children, onClose, hideCloseButton = false }) {
   const ref = useRef(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -75,8 +75,12 @@ export function Modal({ title, children, onClose }) {
     return () => { dialog.close(); previousFocus?.focus(); };
   }, []);
   return <dialog ref={ref} onCancel={(event) => { event.preventDefault(); onClose(); }}>
-    <div className="modal-heading"><h2>{title}</h2><button aria-label="Đóng"
-      onClick={onClose}>×</button></div>{children}</dialog>;
+    <div className="modal-heading">
+      <h2>{title}</h2>
+      {!hideCloseButton && <button aria-label="Đóng" onClick={onClose}>×</button>}
+    </div>
+    {children}
+  </dialog>;
 }
 
 /**
