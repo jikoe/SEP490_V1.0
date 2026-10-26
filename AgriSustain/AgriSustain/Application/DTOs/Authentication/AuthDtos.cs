@@ -33,4 +33,5 @@ public sealed record PendingRegistration(
     string OtpCode,
     DateTimeOffset OtpExpiresAt,
     int AttemptCount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    DateTimeOffset OtpSentAt);

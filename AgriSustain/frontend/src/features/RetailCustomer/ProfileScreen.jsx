@@ -58,6 +58,9 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       district: cached?.district || '',
       ward: cached?.ward || '',
       addressDetail: cached?.addressDetail || '',
+      provinceCode: '',
+      districtCode: '',
+      wardCode: '',
       isDefault: Boolean(cached?.isDefault),
       // Farmer specific fields
       farmName: cached?.farmName || (isFarmer ? (activeUser?.fullName ? `Trang trại ${activeUser.fullName}` : '') : ''),
@@ -89,6 +92,69 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
   });
   const [passwordError, setPasswordError] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(null);
+
+  // Province / district / ward catalog (same source as checkout) so the saved address has real codes.
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+
+  function authHeaders() {
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  async function loadCatalog(path, setter) {
+    try {
+      const res = await fetch(path, { headers: authHeaders() });
+      setter(res.ok ? await res.json() : []);
+    } catch {
+      setter([]);
+    }
+  }
+
+  useEffect(() => {
+    if (token && !isFarmer) loadCatalog('/api/profile/address/provinces', setProvinces);
+  }, [token, isFarmer]);
+
+  useEffect(() => {
+    if (!profile.provinceCode) { setDistricts([]); return; }
+    loadCatalog(`/api/profile/address/provinces/${encodeURIComponent(profile.provinceCode)}/districts`, setDistricts);
+  }, [profile.provinceCode]);
+
+  useEffect(() => {
+    if (!profile.districtCode) { setWards([]); return; }
+    loadCatalog(`/api/profile/address/districts/${encodeURIComponent(profile.districtCode)}/wards`, setWards);
+  }, [profile.districtCode]);
+
+  function selectProvince(code) {
+    const item = provinces.find((x) => x.code === code);
+    setProfile((prev) => ({ ...prev, provinceCode: code, provinceCity: item?.name || '',
+      districtCode: '', district: '', wardCode: '', ward: '' }));
+    setFieldErrors((prev) => ({ ...prev, provinceCode: '' }));
+  }
+
+  function selectDistrict(code) {
+    const item = districts.find((x) => x.code === code);
+    setProfile((prev) => ({ ...prev, districtCode: code, district: item?.name || '', wardCode: '', ward: '' }));
+    setFieldErrors((prev) => ({ ...prev, districtCode: '' }));
+  }
+
+  function selectWard(code) {
+    const item = wards.find((x) => x.code === code);
+    setProfile((prev) => ({ ...prev, wardCode: code, ward: item?.name || '' }));
+    setFieldErrors((prev) => ({ ...prev, wardCode: '' }));
+  }
+
+  // Server field names -> form field names.
+  function mapServerErrors(errors) {
+    const alias = isFarmer
+      ? { address: 'farmAddress', gPSCoordinates: 'gpsCoordinates' }
+      : { address: 'addressDetail' };
+    const mapped = {};
+    for (const [k, v] of Object.entries(errors)) {
+      mapped[alias[k] || k] = Array.isArray(v) ? v.join(' ') : String(v);
+    }
+    return mapped;
+  }
 
   function handleChange(field, value) {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -153,6 +219,9 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
               district: data.deliveryAddress?.district || cached?.district || '',
               ward: data.deliveryAddress?.ward || cached?.ward || '',
               addressDetail: data.deliveryAddress?.addressDetail || cached?.addressDetail || '',
+              provinceCode: data.deliveryAddress?.provinceCode || '',
+              districtCode: data.deliveryAddress?.districtCode || '',
+              wardCode: data.deliveryAddress?.wardCode || '',
               isDefault: data.deliveryAddress ? Boolean(data.deliveryAddress.isDefault) : Boolean(cached?.isDefault),
               // Farmer specific data
               farmName: data.farmerProfile?.farmName || cached?.farmName || prev.farmName,
@@ -193,6 +262,8 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
     const errors = {};
     if (!profile.fullName.trim()) {
       errors.fullName = 'Họ và tên không được để trống.';
+    } else if (profile.fullName.trim().length < 2 || profile.fullName.trim().length > 50) {
+      errors.fullName = 'Họ và tên phải từ 2 đến 50 ký tự.';
     }
     if (!profile.phoneNumber.trim()) {
       errors.phoneNumber = 'Số điện thoại không được để trống.';
@@ -206,6 +277,9 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       }
       if (!profile.representativeName.trim()) {
         errors.representativeName = 'Tên người đại diện không được để trống.';
+      }
+      if (!profile.farmAddress.trim()) {
+        errors.farmAddress = 'Địa chỉ nông trại không được để trống.';
       }
     }
 
@@ -237,8 +311,11 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         district: profile.district || null,
         ward: profile.ward || null,
         addressDetail: profile.addressDetail.trim() || null,
-        provinceCode: profile.provinceCity ? '01' : null,
-        wardCode: profile.ward ? '001' : null,
+        provinceCode: profile.provinceCode || null,
+        districtCode: profile.districtCode || null,
+        wardCode: profile.wardCode || null,
+        recipientName: profile.recipientName?.trim() || null,
+        recipientPhone: profile.recipientPhone?.trim() || null,
       };
 
       if (isFarmer) {
@@ -252,8 +329,8 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
           cultivatedArea: null,
           cultivationZone: profile.cultivationZone || '',
           businessLicenseNumber: profile.businessLicenseNumber || '',
-          address: profile.farmAddress || profile.addressDetail || 'Chưa cập nhật địa chỉ',
-          provinceCode: '01',
+          address: profile.farmAddress.trim(),
+          provinceCode: null,
           gpsCoordinates: profile.gpsCoordinates || '',
         };
       }
@@ -270,13 +347,16 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         if (data.errors && typeof data.errors === 'object') {
-          const sErrors = {};
-          for (const [k, v] of Object.entries(data.errors)) {
-            sErrors[k] = Array.isArray(v) ? v.join(' ') : String(v);
-          }
-          setFieldErrors(sErrors);
+          setFieldErrors(mapServerErrors(data.errors));
         }
         throw new Error(data.title || data.message || 'Cập nhật hồ sơ thất bại.');
+      }
+
+      const saved = await res.json().catch(() => null);
+      const previousStatus = profile.verificationStatus;
+      const newStatus = saved?.farmerProfile?.verificationStatus;
+      if (newStatus) {
+        setProfile((prev) => ({ ...prev, verificationStatus: newStatus }));
       }
 
       // Persist full profile to localStorage by email so it survives reloads (F5)
@@ -331,7 +411,10 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       } catch {}
 
       setSaving(false);
-      setNotice('Cập nhật thông tin hồ sơ thành công vào cơ sở dữ liệu!');
+      // MSG13, plus the re-verification notice of SRS UC-AUTH-03 AF Step 6.
+      setNotice(previousStatus === 'Approved' && newStatus === 'PendingApproval'
+        ? 'Cập nhật hồ sơ thành công! Bạn đã thay đổi thông tin pháp lý nên hồ sơ cần được Nhân viên xác minh duyệt lại.'
+        : 'Cập nhật hồ sơ thành công!');
     } catch (err) {
       setSaving(false);
       setError(err.message || 'Lỗi khi lưu dữ liệu.');
@@ -357,11 +440,18 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (data.errors && typeof data.errors === 'object') {
+          setFieldErrors(mapServerErrors(data.errors));
+        }
         throw new Error(data.title || data.message || 'Nộp hồ sơ KYC thất bại.');
       }
 
+      const submitted = await res.json().catch(() => null);
       setSaving(false);
-      setProfile((prev) => ({ ...prev, verificationStatus: 'Pending' }));
+      setProfile((prev) => ({
+        ...prev,
+        verificationStatus: submitted?.farmerProfile?.verificationStatus || 'PendingApproval',
+      }));
       setNotice('Hồ sơ của bạn đã được chuyển vào hàng đợi duyệt KYC của Nhân viên xác minh.');
     } catch (err) {
       setSaving(false);
@@ -671,7 +761,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                   onChange={(e) => handleChange('fullName', e.target.value)}
                   placeholder="Nhập họ và tên"
                   disabled={saving}
-                  maxLength={150}
+                  maxLength={50}
                   required
                 />
               </Field>
@@ -744,7 +834,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                       onChange={(e) => handleChange('recipientName', e.target.value)}
                       placeholder="Mặc định theo họ tên tài khoản"
                       disabled={saving}
-                      maxLength={150}
+                      maxLength={50}
                     />
                   </Field>
 
@@ -764,51 +854,36 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-                  <Field label="Tỉnh / Thành phố">
+                  <Field label="Tỉnh / Thành phố" error={fieldErrors.provinceCode}>
                     <select
-                      value={profile.provinceCity}
-                      onChange={(e) => handleChange('provinceCity', e.target.value)}
-                      disabled={saving}
+                      value={profile.provinceCode}
+                      onChange={(e) => selectProvince(e.target.value)}
+                      disabled={saving || provinces.length === 0}
                     >
                       <option value="">-- Chọn Tỉnh / Thành phố --</option>
-                      <option value="Hà Nội">Hà Nội</option>
-                      <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                      <option value="Đà Nẵng">Đà Nẵng</option>
-                      <option value="Lâm Đồng">Lâm Đồng</option>
-                      <option value="Cần Thơ">Cần Thơ</option>
-                      <option value="Đồng Tháp">Đồng Tháp</option>
+                      {provinces.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
                     </select>
                   </Field>
 
-                  <Field label="Quận / Huyện">
+                  <Field label="Quận / Huyện" error={fieldErrors.districtCode}>
                     <select
-                      value={profile.district}
-                      onChange={(e) => handleChange('district', e.target.value)}
-                      disabled={saving}
+                      value={profile.districtCode}
+                      onChange={(e) => selectDistrict(e.target.value)}
+                      disabled={saving || !profile.provinceCode || districts.length === 0}
                     >
                       <option value="">-- Chọn Quận / Huyện --</option>
-                      <option value="Quận Cầu Giấy">Quận Cầu Giấy</option>
-                      <option value="Quận Đống Đa">Quận Đống Đa</option>
-                      <option value="Quận Ba Đình">Quận Ba Đình</option>
-                      <option value="Huyện Lâm Hà">Huyện Lâm Hà</option>
-                      <option value="TP. Đà Lạt">TP. Đà Lạt</option>
-                      <option value="Quận 1">Quận 1</option>
-                      <option value="Quận 7">Quận 7</option>
+                      {districts.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
                     </select>
                   </Field>
 
-                  <Field label="Phường / Xã">
+                  <Field label="Phường / Xã" error={fieldErrors.wardCode}>
                     <select
-                      value={profile.ward}
-                      onChange={(e) => handleChange('ward', e.target.value)}
-                      disabled={saving}
+                      value={profile.wardCode}
+                      onChange={(e) => selectWard(e.target.value)}
+                      disabled={saving || !profile.districtCode || wards.length === 0}
                     >
                       <option value="">-- Chọn Phường / Xã --</option>
-                      <option value="Phường Dịch Vọng Hậu">Phường Dịch Vọng Hậu</option>
-                      <option value="Phường Yên Hòa">Phường Yên Hòa</option>
-                      <option value="Xã Đạ Đờn">Xã Đạ Đờn</option>
-                      <option value="Phường Bến Nghé">Phường Bến Nghé</option>
-                      <option value="Phường Tân Phong">Phường Tân Phong</option>
+                      {wards.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
                     </select>
                   </Field>
                 </div>
@@ -863,7 +938,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                       onChange={(e) => handleChange('farmName', e.target.value)}
                       placeholder="Ví dụ: Trang trại Nông sản Đà Lạt"
                       disabled={saving}
-                      maxLength={150}
+                      maxLength={100}
                       required
                     />
                   </Field>
@@ -878,7 +953,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                       onChange={(e) => handleChange('representativeName', e.target.value)}
                       placeholder="Họ và tên chủ hộ / người đại diện"
                       disabled={saving}
-                      maxLength={150}
+                      maxLength={50}
                       required
                     />
                   </Field>
@@ -896,7 +971,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                     />
                   </Field>
 
-                  <Field label="Vùng canh tác trọng điểm">
+                  <Field label="Vùng canh tác trọng điểm *" error={fieldErrors.cultivationZone}>
                     <input
                       type="text"
                       value={profile.cultivationZone}
@@ -909,7 +984,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <Field label="Số ĐKKD / Mã số nông hộ">
+                  <Field label="Số ĐKKD / Mã số nông hộ *" error={fieldErrors.businessLicenseNumber}>
                     <input
                       type="text"
                       value={profile.businessLicenseNumber}
@@ -920,7 +995,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                     />
                   </Field>
 
-                  <Field label="Tọa độ GPS vườn (Kinh độ, Vĩ độ)">
+                  <Field label="Tọa độ GPS vườn (Vĩ độ, Kinh độ)" error={fieldErrors.gpsCoordinates}>
                     <input
                       type="text"
                       value={profile.gpsCoordinates}
@@ -932,7 +1007,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                   </Field>
                 </div>
 
-                <Field label="Địa chỉ nông trại canh tác">
+                <Field label="Địa chỉ nông trại canh tác *" error={fieldErrors.farmAddress}>
                   <input
                     type="text"
                     value={profile.farmAddress}
