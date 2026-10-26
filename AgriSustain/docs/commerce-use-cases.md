@@ -33,16 +33,17 @@ Wholesale thresholds use the total selected saleable quantity per product across
 matching checkout pricing.
 
 `GET /api/marketplace/filters` accepts optional positive `categoryId` and `supplierId`.
-These parameters scope the season options to matching public products with available batches;
-the other option lists remain available so users can switch filters. Season labels include
-the planting year (when recorded), product and supplier. The UI resets an incompatible season
-only after the new options load successfully, preserving the rest of the URL filters.
-Supplier lists of more than ten entries offer accent-insensitive name search.
+These parameters scope season options for API consumers to matching public products with
+available batches. Browse no longer displays supplier or season dropdowns. Existing farm links
+can still supply filtering context, shown as removable chips so no condition stays hidden.
 Active filter chips remove individual conditions without clearing the others.
 
 Successful password changes return a JSON string and show the Vietnamese MSG11 toast:
 "Đổi mật khẩu thành công. Vui lòng sử dụng mật khẩu mới cho những lần đăng nhập sau."
 The form clears its password fields and stays on the same page.
+RP3's MSG02, MSG04, MSG05, MSG06 and MSG12 appear beneath the corresponding input.
+Save/network failures show the Vietnamese MSG07 error toast and retain inputs for retry.
+Cancel discards entered passwords and returns to the previous application screen.
 
 Delivery dispatch consumes valid reserved quantities once. Failed delivery/returns create evidence and a support case without restoring saleable inventory. Paid cancellation creates a durable finance review notification and audit record; it does not record a completed refund.
 
@@ -51,9 +52,4 @@ Optional Quantity:Steps configuration maps units to quantity increments (default
 ## Verification
 
 Backend and frontend builds pass. Database-dependent flows require the configured SQL Server and existing reference/order data. The configured localhost database was unavailable during implementation, so end-to-end persistence and database check-constraint compatibility have not been verified.
-
-Run the isolated Marketplace/password browser checks with
-`npx playwright test --config playwright.marketplace.config.js` inside `frontend`.
-These checks mock API responses; the existing unit suite covers automatic allocation and
-password response serialization. They do not confirm persistence against SQL Server.
 

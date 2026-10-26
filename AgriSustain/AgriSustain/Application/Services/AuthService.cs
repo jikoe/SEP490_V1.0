@@ -118,7 +118,13 @@ public sealed class AuthService : IAuthService
 
         if (!_passwordService.Verify(user, request.CurrentPassword).IsValid)
             return Result<string>.FailureResult(new Error(
-                "INVALID_CURRENT_PASSWORD", "Mật khẩu hiện tại không chính xác."));
+                "INVALID_CURRENT_PASSWORD",
+                "Mật khẩu hiện tại bạn nhập không chính xác. Vui lòng thử lại.",
+                Fields: new Dictionary<string, string[]>
+                {
+                    [nameof(ChangePasswordRequest.CurrentPassword)] =
+                    ["Mật khẩu hiện tại bạn nhập không chính xác. Vui lòng thử lại."]
+                }));
 
         user.PasswordHash = _passwordService.Hash(user, request.NewPassword);
         await _context.SaveChangesAsync(cancellationToken);

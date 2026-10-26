@@ -81,17 +81,18 @@ export function AddToCart({ product, onAdd, adding, session, compact = false }) 
   }
 
   return <form className={compact ? 'mkt-quick-buy' : 'mkt-buy'} onSubmit={add} noValidate>
-    {!compact && <div className="mkt-field"><label htmlFor={quantityId}>Số lượng ({product.unit})</label>
+    {!compact && <>
       <span className="mkt-quantity">
         <button type="button" aria-label="Giảm số lượng" disabled={adding || busy || Number(quantity) <= 1}
           onClick={() => update(Number(quantity) - 1)}>−</button>
-        <input id={quantityId} type="number" min="1" step="1" value={quantity} disabled={adding || busy}
+        <input id={quantityId} aria-label={`Số lượng (${product.unit})`} type="number" min="1" step="1" value={quantity} disabled={adding || busy}
           onChange={event => update(event.target.value)}
           onBlur={() => { if (!quantity) update('1'); }} />
         <button type="button" aria-label="Tăng số lượng" disabled={adding || busy}
           onClick={() => update(Number(quantity) + 1)}>+</button>
       </span>
-    </div>}
+      <label className="mkt-quantity-unit" htmlFor={quantityId}>({product.unit})</label>
+    </>}
     <button type="submit" className="mkt-primary" disabled={adding || busy || product.availableQuantity < 1}>
       <Icon name="cart" />{product.availableQuantity < 1 ? 'Hết hàng'
         : busy ? 'Đang thêm…' : 'Thêm vào giỏ hàng'}</button>

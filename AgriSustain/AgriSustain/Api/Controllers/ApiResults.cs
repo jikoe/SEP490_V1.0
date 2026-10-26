@@ -28,6 +28,11 @@ internal static class ApiResults
             Extensions = { ["code"] = result.Error?.Code ?? "ERROR", ["traceId"] = context.TraceIdentifier }
         };
 
+        if (result.Error?.Fields is { } fields)
+        {
+            problem.Extensions["errors"] = fields;
+        }
+
         return new ObjectResult(problem) { StatusCode = status };
     }
 }

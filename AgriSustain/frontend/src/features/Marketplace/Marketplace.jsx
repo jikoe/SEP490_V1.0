@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { request } from '../../api/client';
 import ProductDetail from './ProductDetail';
-import SupplierFilter from './SupplierFilter';
 import { Icon, ProductCard } from './MarketplaceUi';
 import './marketplace.css';
 
@@ -14,9 +13,6 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
   const canBuy = session?.user.role === 'RetailCustomer';
   const query = route.includes('?') ? `?${route.split('?')[1]}` : '';
   const params = new URLSearchParams(query);
-  const categoryId = params.get('categoryId') || '';
-  const supplierId = params.get('supplierId') || '';
-  const seasonScope = `${categoryId}|${supplierId}`;
   const productId = route.split('?')[0].match(/^\/marketplace\/products\/(.+)$/)?.[1];
   const queryKeyword = params.get('keyword') || '';
   const [keyword, setKeyword] = useState(queryKeyword);
@@ -26,8 +22,6 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
   const [catalogue, setCatalogue] = useState(null);
   const [error, setError] = useState('');
   const [filtersError, setFiltersError] = useState('');
-  const [filtersScope, setFiltersScope] = useState('');
-  const [filtersLoading, setFiltersLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const [cart, setCart] = useState(null);
   const [cartError, setCartError] = useState('');
@@ -65,7 +59,8 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
       cartRequest.current?.abort();
       setCart(result);
       setCartError('');
-      setCartNotice({ message: result.messages.join(' ') || 'Đã thêm sản phẩm vào giỏ hàng.' });
+      setCartNotice({ message: (result.messages.join(' ') || 'Đã thêm sản phẩm vào giỏ hàng.')
+        .replace(/\s*\(MSG81\)/gi, '') });
       return result;
     } finally {
       addInProgress.current = false;
@@ -88,29 +83,11 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
   useEffect(() => {
     const controller = new AbortController();
     setFiltersError('');
-    setFiltersLoading(true);
-    const scope = new URLSearchParams();
-    if (categoryId) scope.set('categoryId', categoryId);
-    if (supplierId) scope.set('supplierId', supplierId);
-    request(`/marketplace/filters${scope.size ? `?${scope}` : ''}`, { signal: controller.signal })
-      .then(result => {
-        if (!controller.signal.aborted) { setFilters(result.data); setFiltersScope(seasonScope); }
-      })
-      .catch(err => { if (err.name !== 'AbortError') setFiltersError(err.message); })
-      .finally(() => { if (!controller.signal.aborted) setFiltersLoading(false); });
+    request('/marketplace/filters', { signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setFilters(result.data); })
+      .catch(err => { if (err.name !== 'AbortError') setFiltersError(err.message); });
     return () => controller.abort();
-  }, [categoryId, supplierId, seasonScope, reload]);
-
-  const seasonsReady = filters && filtersScope === seasonScope && !filtersLoading && !filtersError;
-  useEffect(() => {
-    const next = new URLSearchParams(query);
-    const selected = next.get('cropSeasonId');
-    if (productId || !seasonsReady || !selected
-      || filters.seasons.some(item => String(item.id) === selected)) return;
-    next.delete('cropSeasonId');
-    next.delete('page');
-    navigate(`/marketplace${next.size ? `?${next}` : ''}`);
-  }, [productId, seasonsReady, filters, query, navigate]);
+  }, [reload]);
   useEffect(() => {
     if (productId) return;
     const controller = new AbortController();
@@ -223,13 +200,6 @@ export default function Marketplace({ route, navigate, session, onLogout, accoun
             <label className="mkt-checkbox" key={type}><input type="checkbox"
               checked={params.getAll('certifications').includes(type)}
               onChange={() => toggleFilter('certifications', type)} />{type}</label>)}</fieldset>
-          <SupplierFilter options={filters?.suppliers || []} value={supplierId}
-            onChange={value => updateFilters({ supplierId: value })} />
-          <label className="mkt-field">Mùa vụ<select value={params.get('cropSeasonId') || ''}
-            disabled={!seasonsReady}
-            onChange={event => updateFilters({ cropSeasonId: event.target.value })}>
-            <option value="">Tất cả mùa vụ</option>{filters?.seasons.map(item =>
-              <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="mkt-field">Đánh giá tối thiểu<select value={params.get('minRating') || ''}
             onChange={event => updateFilters({ minRating: event.target.value })}>
             <option value="">Tất cả đánh giá</option>{[4, 3, 2, 1].map(rating =>

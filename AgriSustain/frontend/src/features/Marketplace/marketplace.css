@@ -61,13 +61,6 @@
 .marketplace .mkt-checkbox input { margin: 0; height: 17px; width: 17px; }
 .mkt-field { display: grid; gap: 10px; margin: 24px 8px 0; }
 .mkt-field select { width: 100%; font-weight: 400; font-size: 12px; }
-.mkt-supplier-picker { position: relative; min-width: 0; font-weight: 400; }
-.mkt-supplier-picker summary { display: flex; justify-content: space-between; gap: 8px; padding: 10px; border: 1px solid #d2d9df; border-radius: 7px; background: white; color: var(--mkt-muted); cursor: pointer; font-size: 12px; list-style: none; }
-.mkt-supplier-picker summary::-webkit-details-marker { display: none; }
-.mkt-supplier-options { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: 100%; display: grid; gap: 8px; padding: 10px; border: 1px solid var(--mkt-line); border-radius: 7px; background: white; box-shadow: 0 4px 20px #123f2425; }
-.marketplace .mkt-supplier-options input { min-width: 0; width: 100%; padding: 10px; border: 1px solid #d2d9df; border-radius: 7px; font: inherit; }
-.mkt-supplier-options option { padding: 8px; }
-.mkt-supplier-options p { margin: 0; font-size: 12px; }
 .mkt-active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; font-size: 13px; }
 .marketplace .mkt-active-filters button { max-width: 100%; padding: 6px 10px; background: #e5f4e9; overflow-wrap: anywhere; text-align: left; }
 .mkt-hero { min-height: 245px; padding: 26px 30px; border: 1px solid #e0e9e0; border-radius: 12px; position: relative; overflow: hidden; background: linear-gradient(110deg, #f3f8f6 20%, #e5f0e0 67%, #afd09b); }
@@ -139,16 +132,16 @@
 .mkt-highlights svg { color: var(--mkt-green); }
 .mkt-share { display: flex; width: 100%; gap: 10px; align-items: center; justify-content: center; margin-top: 16px; }
 .mkt-buy, .mkt-buy-note { margin: 0 0 8px; padding: 16px; border: 1px solid var(--mkt-line); border-radius: 12px; background: white; }
-.mkt-buy { display: grid; }
+.mkt-buy { display: grid; grid-template-columns: 124px auto minmax(0, 1fr); gap: 12px; align-items: center; padding: 0; border: 0; }
 .mkt-quick-buy { margin-top: auto; }
 .marketplace .mkt-quick-buy .mkt-primary { width: 100%; }
-.mkt-buy .mkt-field { margin: 0 0 12px; }
-.marketplace .mkt-buy input { font: inherit; width: 100%; padding: 10px; border: 1px solid #d2d9df; border-radius: 7px; }
-.mkt-quantity { display: flex; gap: 8px; align-items: center; }
-.marketplace .mkt-quantity input { min-width: 0; text-align: center; }
-.marketplace .mkt-quantity button { flex-shrink: 0; min-width: 44px; min-height: 44px; font-size: 20px; }
-.marketplace .mkt-buy .mkt-primary { padding: 12px 16px; }
-.mkt-buy-error { color: #a0362c; margin: 10px 0 0; font-size: 13px; }
+.mkt-quantity { display: flex; height: 44px; align-items: center; border: 1px solid #d2d9df; border-radius: 7px; background: white; }
+.marketplace .mkt-quantity input { font: inherit; min-width: 0; width: 34px; height: 42px; padding: 0; border: 0; border-radius: 0; text-align: center; appearance: textfield; }
+.mkt-quantity input::-webkit-inner-spin-button, .mkt-quantity input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.marketplace .mkt-quantity button { flex-shrink: 0; width: 44px; height: 42px; padding: 0; border: 0; background: transparent; font-size: 18px; }
+.mkt-quantity-unit { color: var(--mkt-muted); font-size: 12px; }
+.marketplace .mkt-buy .mkt-primary { min-width: 0; min-height: 44px; padding: 10px; white-space: normal; }
+.mkt-buy-error { grid-column: 1 / -1; color: #a0362c; margin: 10px 0 0; font-size: 13px; }
 .mkt-cart-toast { position: fixed; top: 16px; right: 16px; z-index: 1000; display: flex; gap: 10px; align-items: center; width: min(420px, calc(100vw - 32px)); padding: 12px 16px; border: 1px solid #a5c9b0; border-radius: 12px; background: #f0f8f2; color: var(--mkt-dark); box-shadow: 0 4px 20px #123f2425; font-size: 14px; }
 .mkt-cart-toast span { flex: 1; overflow-wrap: anywhere; }
 .marketplace .mkt-cart-toast button { flex-shrink: 0; min-width: 36px; min-height: 36px; padding: 4px; border: 0; background: transparent; color: inherit; font-size: 22px; }
@@ -259,6 +252,8 @@
   .mkt-batches article { flex-wrap: wrap; gap: 10px; }
 }
 @media (max-width: 380px) {
+  .mkt-buy { gap: 8px; }
+  .marketplace .mkt-buy .mkt-primary { gap: 6px; font-size: 12px; }
   .mkt-product-grid, .mkt-sidebar { grid-template-columns: 1fr; }
   .mkt-filter-heading { grid-column: auto; }
   .mkt-brand { font-size: 21px; gap: 8px; }
