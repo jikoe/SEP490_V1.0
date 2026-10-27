@@ -6,6 +6,12 @@ import { Notice, Field, initials, VerificationBadge, Modal } from '../../compone
  * Provides personal information management, delivery address book,
  * farmer production credentials, and account security.
  */
+// API accepts Male / Female / Other; older builds stored the Vietnamese labels.
+const GENDER_CODES = { Nam: 'Male', 'Nữ': 'Female', 'Khác': 'Other', Male: 'Male', Female: 'Female', Other: 'Other' };
+function normalizeGender(value) {
+  return GENDER_CODES[value] || '';
+}
+
 export default function ProfileScreen({ fixture = 'retail-customer', session, navigate, onProfileSaved }) {
   // 1. Synchronize user from props, sessionStorage (active auth session) or signup cache
   const activeUser = session?.user || (() => {
@@ -48,7 +54,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       fullName: cached?.fullName || activeUser?.fullName || '',
       phoneNumber: cached?.phoneNumber || activeUser?.phoneNumber || '',
       email: activeUser?.email || '',
-      gender: cached?.gender || '',
+      gender: normalizeGender(cached?.gender),
       birthDate: cached?.birthDate || '',
       rewardPoints: 0,
       // Delivery address fields
@@ -209,7 +215,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
               fullName: data.fullName || cached?.fullName || activeUser?.fullName || prev.fullName,
               phoneNumber: data.phoneNumber || cached?.phoneNumber || activeUser?.phoneNumber || prev.phoneNumber,
               email: data.email || activeUser?.email || prev.email,
-              gender: data.gender || cached?.gender || prev.gender || '',
+              gender: normalizeGender(data.gender || cached?.gender || prev.gender),
               birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : (cached?.birthDate || prev.birthDate || ''),
               rewardPoints: data.rewardPoints ?? 0,
               // Address
@@ -800,9 +806,9 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                   disabled={saving}
                 >
                   <option value="">-- Chọn giới tính --</option>
-                  <option value="Nam">Nam</option>
-                  <option value="Nữ">Nữ</option>
-                  <option value="Khác">Khác</option>
+                  <option value="Male">Nam</option>
+                  <option value="Female">Nữ</option>
+                  <option value="Other">Khác</option>
                 </select>
               </Field>
 
