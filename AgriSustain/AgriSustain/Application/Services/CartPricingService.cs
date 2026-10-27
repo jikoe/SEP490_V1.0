@@ -44,13 +44,19 @@ public sealed class CartPricingService(IOptions<QuantityOptions> options, TimePr
     public CartResponse Calculate(Cart? cart, IReadOnlyList<string>? messages = null,
         bool canProceed = false)
     {
+        var selectedQuantities = cart?.CartItems.Where(item => item.IsSelected
+                && item.PreOrderCampaignId is null && IsAvailable(item.Product, item.HarvestBatch))
+            .GroupBy(item => item.ProductId)
+            .ToDictionary(group => group.Key, group => group.Sum(item => item.Quantity))
+            ?? new Dictionary<long, decimal>();
         var lines = cart?.CartItems.OrderBy(x => x.AddedAt).ThenBy(x => x.CartItemId)
             .Select(item =>
             {
                 var product = item.Product;
                 bool available = IsAvailable(product, item.HarvestBatch)
                     && item.PreOrderCampaignId is null;
-                decimal price = UnitPrice(product, item.Quantity);
+                decimal price = UnitPrice(product, item.IsSelected && available
+                    ? selectedQuantities[item.ProductId] : item.Quantity);
                 return new CartLineResponse(item.CartItemId, product.ProductId,
                     item.HarvestBatchId, product.ProductName, product.FarmerProfile.FarmName,
                     product.FarmerProfileId, product.Unit, item.HarvestBatch?.BatchCode ?? "—",
