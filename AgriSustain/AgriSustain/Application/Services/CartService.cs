@@ -36,11 +36,16 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
     public async Task<FeatureResult<CartResponse>> AddItemAsync(long userId,
         CartItemRequest request, CancellationToken cancellationToken)
     {
-        if (request.ProductId <= 0 || request.HarvestBatchId <= 0 || request.Quantity <= 0)
+        if (request.ProductId <= 0 || request.HarvestBatchId < 0 || request.Quantity <= 0)
         {
             return Fail("VALIDATION", request.Quantity <= 0
                 ? CartMessages.InvalidQuantity("đơn vị bán")
                 : "Chọn sản phẩm và lô hàng hợp lệ.");
+        }
+
+        if (request.HarvestBatchId == 0)
+        {
+            return await AddProductAsync(userId, request, cancellationToken);
         }
 
         await unitOfWork.BeginAsync(cancellationToken);
@@ -93,6 +98,93 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
         }));
     }
 
+    private async Task<FeatureResult<CartResponse>> AddProductAsync(long userId,
+        CartItemRequest request, CancellationToken cancellationToken)
+    {
+        await unitOfWork.BeginAsync(cancellationToken);
+        var offers = (await repository.GetOffersAsync(request.ProductId, cancellationToken))
+            .Where(batch => pricing.IsAvailable(batch.Product, batch))
+            .OrderBy(batch => !batch.ExpirationDate.HasValue)
+            .ThenBy(batch => batch.ExpirationDate)
+            .ThenBy(batch => batch.HarvestBatchId).ToArray();
+        if (offers.Length == 0)
+        {
+            return Fail("CONFLICT", "Sản phẩm đã hết hàng hoặc không còn được bán (MSG88).");
+        }
+
+        var product = offers[0].Product;
+        if (!pricing.IsQuantityValid(request.Quantity, product.Unit))
+        {
+            return Fail("VALIDATION", "Số lượng sai bước bán hoặc vượt giới hạn (MSG167).");
+        }
+
+        var cart = await repository.GetOwnedAsync(userId, cancellationToken);
+        var capacity = offers.Select(batch =>
+        {
+            var item = cart?.CartItems.SingleOrDefault(x => x.ProductId == request.ProductId
+                && x.HarvestBatchId == batch.HarvestBatchId && x.PreOrderCampaignId == null);
+            return (Batch: batch, Item: item, Available: decimal.Max(0,
+                pricing.MaximumQuantity(batch) - (item?.Quantity ?? 0)));
+        }).ToArray();
+        decimal available = capacity.Sum(x => x.Available);
+        if (request.Quantity > available)
+        {
+            return Fail("CONFLICT", $"Không đủ hàng. Bạn có thể thêm tối đa {available:0.###} "
+                + $"{product.Unit} với số lượng hiện có trong giỏ (MSG86).");
+        }
+
+        var allocations = new List<(HarvestBatch Batch, CartItem? Item, decimal Quantity)>();
+        decimal remaining = request.Quantity;
+        foreach (var offer in capacity)
+        {
+            decimal quantity = decimal.Min(remaining, offer.Available);
+            if (quantity > 0)
+            {
+                allocations.Add((offer.Batch, offer.Item, quantity));
+                remaining -= quantity;
+            }
+
+            if (remaining == 0)
+            {
+                break;
+            }
+        }
+
+        if ((cart?.CartItems.Count ?? 0) + allocations.Count(x => x.Item is null) > 100)
+        {
+            return Fail("VALIDATION", "Giỏ hàng tối đa 100 dòng sản phẩm.");
+        }
+
+        if (cart is null)
+        {
+            cart = new Cart { UserId = userId };
+            repository.Add(cart);
+        }
+
+        var now = clock.GetUtcNow().UtcDateTime;
+        foreach (var allocation in allocations)
+        {
+            var item = allocation.Item;
+            if (item is null)
+            {
+                item = new CartItem
+                {
+                    ProductId = request.ProductId, Product = allocation.Batch.Product,
+                    HarvestBatchId = allocation.Batch.HarvestBatchId,
+                    HarvestBatch = allocation.Batch, IsSelected = true, AddedAt = now
+                };
+                cart.CartItems.Add(item);
+            }
+
+            item.Quantity += allocation.Quantity;
+        }
+
+        cart.UpdatedAt = now;
+        await unitOfWork.CommitAsync(cancellationToken);
+        return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart,
+            new[] { "Đã thêm vào giỏ hàng (MSG81)." }));
+    }
+
     public async Task<FeatureResult<CartResponse>> UpdateQuantityAsync(long userId, long id,
         decimal quantity, CancellationToken cancellationToken)
     {
@@ -117,14 +209,16 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
         }
         else if (item.HarvestBatch is { } batch)
         {
-            decimal previousPrice = pricing.UnitPrice(item.Product, item.Quantity);
+            decimal previousPrice = pricing.Calculate(cart).Items
+                .Single(x => x.CartItemId == id).UnitPrice;
             item.Quantity = decimal.Min(quantity, pricing.MaximumQuantity(batch));
             if (quantity > item.Quantity)
             {
                 messages.Add(CartMessages.Adjusted(item.Product.ProductName, batch.AvailableQuantity, item.Quantity, item.Product.Unit));
             }
 
-            decimal currentPrice = pricing.UnitPrice(item.Product, item.Quantity);
+            decimal currentPrice = pricing.Calculate(cart).Items
+                .Single(x => x.CartItemId == id).UnitPrice;
             if (previousPrice != currentPrice)
             {
                 messages.Add(currentPrice < previousPrice ? CartMessages.WholesaleApplied
