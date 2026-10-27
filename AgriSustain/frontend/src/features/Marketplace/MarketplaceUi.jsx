@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { money } from '../../components/ui/Common';
 
 export function Icon({ name = 'leaf', ...props }) {
@@ -52,7 +52,56 @@ export function Rating({ product }) {
   </span>;
 }
 
-export function ProductCard({ product, query }) {
+export function AddToCart({ product, onAdd, adding, session, compact = false }) {
+  const quantityId = useId();
+  const [quantity, setQuantity] = useState('1');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  function update(value) {
+    setQuantity(value === '' ? '' : String(Math.max(1, Number(value))));
+    setError('');
+  }
+
+  async function add(event) {
+    event.preventDefault();
+    const amount = compact ? 1 : Number(quantity);
+    setError('');
+    if (!Number.isFinite(amount) || amount < 1) {
+      setError('Vui lòng nhập số lượng từ 1 trở lên.'); return;
+    }
+    setBusy(true);
+    try {
+      await onAdd(product.id, amount);
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <form className={compact ? 'mkt-quick-buy' : 'mkt-buy'} onSubmit={add} noValidate>
+    {!compact && <>
+      <span className="mkt-quantity">
+        <button type="button" aria-label="Giảm số lượng" disabled={adding || busy || Number(quantity) <= 1}
+          onClick={() => update(Number(quantity) - 1)}>−</button>
+        <input id={quantityId} aria-label={`Số lượng (${product.unit})`} type="number" min="1" step="1" value={quantity} disabled={adding || busy}
+          onChange={event => update(event.target.value)}
+          onBlur={() => { if (!quantity) update('1'); }} />
+        <button type="button" aria-label="Tăng số lượng" disabled={adding || busy}
+          onClick={() => update(Number(quantity) + 1)}>+</button>
+      </span>
+      <label className="mkt-quantity-unit" htmlFor={quantityId}>({product.unit})</label>
+    </>}
+    <button type="submit" className="mkt-primary" disabled={adding || busy || product.availableQuantity < 1}>
+      <Icon name="cart" />{product.availableQuantity < 1 ? 'Hết hàng'
+        : busy ? 'Đang thêm…' : 'Thêm vào giỏ hàng'}</button>
+    {error && <p role="alert" className="mkt-buy-error">{error}{!session && <>{' '}
+      <a href="#/login">Đăng nhập</a></>}</p>}
+  </form>;
+}
+
+export function ProductCard({ product, query, onAdd, adding, session }) {
   return <article className="mkt-product-card">
     <a className="mkt-card-photo" href={`#/marketplace/products/${product.id}${query}`}>
       <ProductImage url={product.imageUrl} alt={product.name} loading="lazy" />
@@ -65,11 +114,7 @@ export function ProductCard({ product, query }) {
       <Rating product={product} />
       {product.region && <p className="mkt-region"><Icon name="pin" />{product.region}</p>}
       <Price product={product} />
-      {/* Cart lines are per harvest batch, which is chosen on the detail page. */}
-      {product.availableQuantity < 1
-        ? <button type="button" className="mkt-primary" disabled><Icon name="cart" />Hết hàng</button>
-        : <a className="mkt-primary" href={`#/marketplace/products/${product.id}${query}`}>
-          <Icon name="cart" />Chọn lô & mua</a>}
+      <AddToCart product={product} onAdd={onAdd} adding={adding} session={session} compact />
     </div>
   </article>;
 }

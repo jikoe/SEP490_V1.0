@@ -99,13 +99,13 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
             .Select(x => new ProductImageInput(x.ImageUrl, x.IsPrimary, x.AltText)).ToList();
         var fingerprint = JsonSerializer.Serialize(new
         {
-            product.ProductName, product.CategoryId, product.Unit, product.OriginProvince,
+            product.ProductName, product.CategoryId, product.Unit,
             product.Description, product.BaseRetailPrice, product.WholesaleMinQuantity,
             product.WholesalePrice, product.ApprovalStatus, product.IsPublished, Images = images
         });
         string version = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint)));
         return new ProductResponse(product.ProductId, product.ProductName, product.CategoryId,
-            product.Category?.CategoryName ?? "", product.Unit, product.OriginProvince,
+            product.Category?.CategoryName ?? "", product.Unit,
             product.Description, product.BaseRetailPrice, product.WholesaleMinQuantity,
             product.WholesalePrice, product.ApprovalStatus, product.IsPublished,
             product.RejectionReason, product.HarvestBatches.Where(x => x.IsSaleable(today))
