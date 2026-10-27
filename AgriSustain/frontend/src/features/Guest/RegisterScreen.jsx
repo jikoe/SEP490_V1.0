@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { backendUrl } from '../../api/client';
 import { Notice, Field, Modal } from '../../components/ui/Common';
 
@@ -25,6 +25,15 @@ export default function RegisterScreen({ navigate }) {
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [otpError, setOtpError] = useState(null);
   const [successNotice, setSuccessNotice] = useState(null);
+  const [otpNotice, setOtpNotice] = useState(null);
+  const [resendIn, setResendIn] = useState(0);
+
+  // 60-second cooldown before "Resend Code" is allowed (SRS UC-AUTH-08 AF Step 2).
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const timer = setTimeout(() => setResendIn((value) => value - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
 
   function handleChange(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -55,8 +64,8 @@ export default function RegisterScreen({ navigate }) {
     const errors = {};
     if (!form.fullName.trim()) {
       errors.fullName = 'Họ và tên không được để trống.';
-    } else if (form.fullName.trim().length > 150) {
-      errors.fullName = 'Họ và tên không được vượt quá 150 ký tự.';
+    } else if (form.fullName.trim().length < 2 || form.fullName.trim().length > 50) {
+      errors.fullName = 'Họ và tên phải từ 2 đến 50 ký tự.';
     }
 
     if (!form.phoneNumber.trim()) {
@@ -152,10 +161,13 @@ export default function RegisterScreen({ navigate }) {
         return;
       }
 
+      const sentMessage = await res.json().catch(() => null);
       setLoading(false);
       setOtpModalOpen(true);
       setOtpDigits(['', '', '', '', '', '']);
       setOtpError(null);
+      setOtpNotice(typeof sentMessage === 'string' ? sentMessage : `Mã xác thực đã được gửi tới ${form.email.trim()}.`);
+      setResendIn(60);
     } catch (err) {
       setLoading(false);
       setGeneralError(err.message || 'Không thể kết nối đến máy chủ.');
@@ -209,12 +221,10 @@ export default function RegisterScreen({ navigate }) {
       }
 
       const user = await res.json();
-      sessionStorage.setItem('agrisustain:current-user', JSON.stringify(user));
-      sessionStorage.setItem('agrisustain:demo-fixture', user.email);
-      window.dispatchEvent(new Event('agrisustain:user-changed'));
       setLoading(false);
       setOtpModalOpen(false);
-      setSuccessNotice(`Đăng ký tài khoản thành công cho ${user.fullName || form.fullName}! Đang chuyển hướng...`);
+      // MSG56 — the account must sign in normally; no session is created by registration.
+      setSuccessNotice(user.message || 'Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.');
       setTimeout(() => {
         if (navigate) navigate('/login'); else window.location.hash = '#/login';
       }, 1200);
@@ -225,19 +235,24 @@ export default function RegisterScreen({ navigate }) {
   }
 
   async function handleResendOtp() {
+    if (resendIn > 0) return;
+    setOtpError(null);
+    setOtpNotice(null);
     try {
       const res = await fetch(backendUrl('/api/auth/resend-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: form.email.trim() }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.title || 'Không thể gửi lại mã OTP.');
       }
-      alert('Mã OTP xác thực mới đã được gửi lại vào email của bạn.');
+      setOtpDigits(['', '', '', '', '', '']);
+      setOtpNotice(typeof data === 'string' ? data : 'Mã OTP mới đã được gửi tới email của bạn.');
+      setResendIn(60);
     } catch (err) {
-      alert(err.message);
+      setOtpError(err.message);
     }
   }
 
@@ -499,6 +514,7 @@ export default function RegisterScreen({ navigate }) {
           </div>
 
           {otpError && <Notice error>{otpError}</Notice>}
+          {otpNotice && <Notice>{otpNotice}</Notice>}
 
           <form onSubmit={handleVerifyOtp}>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 10, margin: '20px 0 24px' }}>
@@ -529,19 +545,17 @@ export default function RegisterScreen({ navigate }) {
             </div>
 
             <div style={{ textAlign: 'center', fontSize: 13, color: '#688273', marginBottom: 24 }}>
-              <div style={{ marginBottom: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: 8, display: 'inline-block' }}>
-                💡 <span style={{ color: '#166534', fontWeight: 600 }}>Mã OTP thử nghiệm hệ thống:</span> <strong style={{ color: '#15803d', fontSize: 15, letterSpacing: 1.5 }}>123456</strong>
-              </div>
-              <div>Mã OTP có hiệu lực trong: <strong style={{ color: '#d9534f' }}>05:00</strong></div>
+              <div>Mã OTP có hiệu lực trong <strong style={{ color: '#d9534f' }}>5 phút</strong>.</div>
               <div style={{ marginTop: 8 }}>
                 Chưa nhận được mã?{' '}
                 <button
                   type="button"
                   className="text-button"
-                  style={{ color: '#1e6546', fontWeight: 700 }}
+                  style={{ color: resendIn > 0 ? '#97a89d' : '#1e6546', fontWeight: 700 }}
                   onClick={handleResendOtp}
+                  disabled={resendIn > 0}
                 >
-                  Gửi lại mã OTP
+                  {resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã OTP'}
                 </button>
               </div>
             </div>

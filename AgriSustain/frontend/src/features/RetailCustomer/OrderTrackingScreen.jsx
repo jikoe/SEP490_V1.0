@@ -1,775 +1,347 @@
-import React, { useState } from 'react';
-import { money, localTime, Notice, Modal, Field } from '../../components/ui/Common';
+import React, { useCallback, useEffect, useState } from 'react';
+import { request, queryString } from '../../api/client';
+import { money, localTime, Notice, Modal, Pager } from '../../components/ui/Common';
 
 /**
- * UC-RC-04: Track Retail Order Screen (SCR-16)
- * Styled with e-commerce agricultural design language matching Figma SCR-TRC-01
+ * UC-RC-04: Track Retail Order (SCR-12 Order History, SCR-16 Order Detail).
+ * Data comes from GET /api/orders (server-side filter, search and paging) and
+ * GET /api/orders/{id}; both require the RetailCustomer JWT of the signed-in user.
  */
-// Sample demonstration orders for UC-RC-04 presentation
-const SAMPLE_ORDERS = [
-  {
-    orderId: 101,
-    orderCode: 'ORD-2026-9812',
-    orderDate: '2026-10-18T09:30:00Z',
-    finalAmount: 325000,
-    orderStatus: 'Shipping', // Đang vận chuyển
-    paymentStatus: 'Paid',
-    recipientName: 'Nguyễn Văn C',
-    recipientPhone: '0987223344',
-    shippingAddress: 'Số 18, Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
-    trackingNumber: 'AGRI-EXPRESS-VN8823',
-    sellerOrders: [
-      {
-        sellerOrderId: 201,
-        farmName: 'HTX Nông Nghiệp Lâm Đồng',
-        farmLocation: 'Lâm Hà, Lâm Đồng',
-        items: [
-          {
-            orderItemId: 301,
-            productName: 'Bơ Sáp 034 Hữu Cơ (Chứng chỉ VietGAP)',
-            harvestBatchCode: 'LOT-BO-2026-08',
-            farmPlot: 'Vườn Đồi A3 - Cây đầu dòng',
-            harvestDate: '15/10/2026',
-            quantity: 5,
-            unit: 'kg',
-            unitPriceSnapshot: 65000,
-            isReviewed: false,
-            imageEmoji: '🥑',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    orderId: 102,
-    orderCode: 'ORD-2026-8940',
-    orderDate: '2026-10-12T14:15:00Z',
-    finalAmount: 450000,
-    orderStatus: 'Completed', // Đã hoàn thành
-    paymentStatus: 'Paid',
-    recipientName: 'Nguyễn Văn C',
-    recipientPhone: '0987223344',
-    shippingAddress: 'Số 18, Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
-    trackingNumber: 'AGRI-EXPRESS-VN7719',
-    sellerOrders: [
-      {
-        sellerOrderId: 202,
-        farmName: 'Nông trại Xanh Đồng Tháp',
-        farmLocation: 'Cao Lãnh, Đồng Tháp',
-        items: [
-          {
-            orderItemId: 302,
-            productName: 'Xoài Cát Chu Cao Lãnh Chuẩn OCOP 4 Sao',
-            harvestBatchCode: 'LOT-XOAI-09',
-            farmPlot: 'Khu A Cù Lao Tây',
-            harvestDate: '09/10/2026',
-            quantity: 10,
-            unit: 'kg',
-            unitPriceSnapshot: 45000,
-            isReviewed: false,
-            imageEmoji: '🥭',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    orderId: 103,
-    orderCode: 'ORD-2026-7731',
-    orderDate: '2026-10-05T08:00:00Z',
-    finalAmount: 180000,
-    orderStatus: 'Cancelled', // Đã hủy
-    paymentStatus: 'Refunded',
-    recipientName: 'Nguyễn Văn C',
-    recipientPhone: '0987223344',
-    shippingAddress: 'Số 18, Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
-    trackingNumber: '—',
-    sellerOrders: [
-      {
-        sellerOrderId: 203,
-        farmName: 'Nông Hộ Rau Sạch An Phú',
-        farmLocation: 'Thuận Thành, Bắc Ninh',
-        items: [
-          {
-            orderItemId: 303,
-            productName: 'Cải Thìa Sinh Thái Bắc Ninh',
-            harvestBatchCode: 'BN-20260920-01',
-            farmPlot: 'Nhà màng số 2',
-            harvestDate: '03/10/2026',
-            quantity: 4,
-            unit: 'kg',
-            unitPriceSnapshot: 45000,
-            isReviewed: true,
-            imageEmoji: '🥬',
-          },
-        ],
-      },
-    ],
-  },
+
+// Status tabs defined in SRS III.6.3.1 (1).
+const TABS = [
+  { key: 'All', label: 'Tất cả' },
+  { key: 'Completed', label: 'Hoàn thành' },
+  { key: 'Cancelled', label: 'Đã hủy' },
 ];
 
-export default function OrderTrackingScreen({ fixture = 'retail-customer', navigate }) {
-  const storedUser = (() => {
-    try {
-      const raw = sessionStorage.getItem('agrisustain:current-user');
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  })();
+const STATUS = {
+  PendingPayment: { label: 'Chờ thanh toán', color: '#b7791f', bg: '#fdf6e3' },
+  Paid: { label: 'Đã thanh toán', color: '#1976d2', bg: '#e6f3fa' },
+  Processing: { label: 'Đang xử lý', color: '#1976d2', bg: '#e6f3fa' },
+  Confirmed: { label: 'Đã xác nhận', color: '#1976d2', bg: '#e6f3fa' },
+  Preparing: { label: 'Đang chuẩn bị', color: '#1976d2', bg: '#e6f3fa' },
+  ReadyToShip: { label: 'Chờ giao', color: '#1976d2', bg: '#e6f3fa' },
+  Shipping: { label: 'Đang vận chuyển', color: '#1976d2', bg: '#e6f3fa' },
+  Delivered: { label: 'Đã giao', color: '#1e6546', bg: '#eaf4e9' },
+  Completed: { label: 'Hoàn thành', color: '#1e6546', bg: '#eaf4e9' },
+  Cancelled: { label: 'Đã hủy', color: '#c2533c', bg: '#fbeee9' },
+  DeliveryFailed: { label: 'Giao thất bại', color: '#c2533c', bg: '#fbeee9' },
+};
 
-  const authIdentifier = storedUser?.email || fixture;
-  const [activeTab, setActiveTab] = useState('All');
+function StatusBadge({ value }) {
+  const s = STATUS[value] || { label: value, color: '#4d695a', bg: '#eef3ef' };
+  return (
+    <span style={{ background: s.bg, color: s.color, fontWeight: 700, fontSize: 12, padding: '4px 12px', borderRadius: 12 }}>
+      {s.label}
+    </span>
+  );
+}
+
+function itemSummary(order) {
+  const items = order.sellerOrders.flatMap((so) => so.items);
+  if (items.length === 0) return '';
+  const first = `${items[0].productName} × ${items[0].quantity} ${items[0].unit}`;
+  return items.length > 1 ? `${first} và ${items.length - 1} sản phẩm khác` : first;
+}
+
+export default function OrderTrackingScreen({ navigate }) {
+  const [tab, setTab] = useState('All');
+  const [keywordInput, setKeywordInput] = useState('');
   const [keyword, setKeyword] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [complaintModalOpen, setComplaintModalOpen] = useState(false);
-  const [traceModalOpen, setTraceModalOpen] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
-  const [isDemoView, setIsDemoView] = useState(false);
-  const [orders, setOrders] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [data, setData] = useState({ items: [], totalCount: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    async function loadOrders() {
-      setLoading(true);
-      try {
-        const res = await fetch('/api/orders', {
-          headers: { Authorization: `Demo ${authIdentifier}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled) {
-            setOrders(data.items || []);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load orders', err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [batch, setBatch] = useState(null);
+
+  // Order history: every filter change is a new server query (SRS UC-RC-04 AF Step 3).
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+    const qs = queryString({ status: tab === 'All' ? '' : tab, keyword: keyword.trim(), page, pageSize });
+    request(`/orders?${qs}`, { signal: controller.signal })
+      .then((result) => setData({ items: result.items || [], totalCount: result.total ?? 0 }))
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError(err.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [tab, keyword, page, pageSize]);
+
+  const openDetail = useCallback(async (orderId) => {
+    setDetailLoading(true);
+    setNotice(null);
+    try {
+      setDetail(await request(`/orders/${orderId}`));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDetailLoading(false);
     }
-    loadOrders();
-    return () => { cancelled = true; };
-  }, [authIdentifier, fixture]);
+  }, []);
 
-  const tabs = [
-    { key: 'All', label: 'Tất cả đơn', count: orders.length },
-    { key: 'Shipping', label: 'Đang vận chuyển', count: orders.filter((o) => o.orderStatus === 'Shipping').length },
-    { key: 'Completed', label: 'Đã hoàn thành', count: orders.filter((o) => o.orderStatus === 'Completed').length },
-    { key: 'Cancelled', label: 'Đã hủy', count: orders.filter((o) => o.orderStatus === 'Cancelled').length },
-  ];
-
-  const filteredOrders = orders.filter((order) => {
-    if (activeTab === 'Completed' && order.orderStatus !== 'Completed') return false;
-    if (activeTab === 'Cancelled' && order.orderStatus !== 'Cancelled') return false;
-    if (activeTab === 'Shipping' && order.orderStatus !== 'Shipping') return false;
-    if (keyword.trim()) {
-      const matchCode = order.orderCode.toLowerCase().includes(keyword.toLowerCase());
-      const matchProduct = order.sellerOrders.some((so) =>
-        so.items.some((item) => item.productName.toLowerCase().includes(keyword.toLowerCase()))
-      );
-      return matchCode || matchProduct;
-    }
-    return true;
-  });
-
-  function openTraceModal(item, farmName) {
-    setSelectedBatch({ ...item, farmName });
-    setTraceModalOpen(true);
+  function changeTab(key) {
+    setTab(key);
+    setPage(1);
   }
+
+  function search(e) {
+    e.preventDefault();
+    setPage(1);
+    setKeyword(keywordInput);
+  }
+
+  function goCatalog() {
+    if (navigate) navigate('/marketplace');
+    else window.location.hash = '#/marketplace';
+  }
+
+  const actions = detail?.allowedActions || [];
+  const hasFilter = tab !== 'All' || keyword.trim() !== '';
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto' }}>
-      {/* Page Heading matching e-commerce portal */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: '#1e6546' }}>
-            THEO DÕI ĐƠN HÀNG
-          </span>
-          <h1 style={{ fontSize: 26, margin: '4px 0 6px', color: '#1b4332', fontWeight: 800 }}>
-            Lịch sử & Theo dõi chi tiết đơn hàng
-          </h1>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: '#1e6546' }}>THEO DÕI ĐƠN HÀNG</span>
+          <h1 style={{ fontSize: 26, margin: '4px 0 6px', color: '#1b4332', fontWeight: 800 }}>Lịch sử mua hàng</h1>
           <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-            Tra cứu hành trình vận chuyển bưu kiện, truy xuất mã lô nhật ký nông sản số.
+            Theo dõi trạng thái giao hàng và tra cứu mã lô truy xuất nguồn gốc.
           </p>
         </div>
 
-        {/* Thanh tìm kiếm đơn hàng */}
-        <div style={{ width: 320 }}>
+        <form onSubmit={search} style={{ display: 'flex', gap: 8, width: 420, maxWidth: '100%' }}>
           <input
-            type="text"
-            placeholder="Tìm theo mã đơn (ORD-...) hoặc tên nông sản..."
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            style={{ borderRadius: 20, padding: '9px 16px', background: '#ffffff', border: '1px solid #cce0d2' }}
+            type="search"
+            aria-label="Tìm kiếm đơn hàng"
+            placeholder="Mã đơn (#ORD-...) hoặc tên sản phẩm"
+            value={keywordInput}
+            maxLength={100}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            style={{ flex: 1, borderRadius: 20, padding: '9px 16px', border: '1px solid #cce0d2' }}
           />
-        </div>
+          <button type="submit" className="primary" style={{ borderRadius: 20, background: '#1e6546' }}>Tìm kiếm</button>
+        </form>
       </div>
 
-      {toastMessage && <Notice>{toastMessage}</Notice>}
+      <Notice error>{error}</Notice>
+      <Notice>{notice}</Notice>
 
-      {isDemoView && (
-        <div
-          style={{
-            background: '#f0fdf4',
-            border: '1px solid #bbf7d0',
-            borderRadius: 10,
-            padding: '12px 18px',
-            marginBottom: 20,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 10,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 18 }}>💡</span>
-            <span style={{ fontSize: 13, color: '#166534' }}>
-              Đang hiển thị <strong>3 đơn hàng mẫu</strong> phục vụ kiểm thử tính năng Tra cứu hành trình & Mã lô thu hoạch.
-            </span>
-          </div>
+      <div role="tablist" style={{ display: 'flex', gap: 10, borderBottom: '2px solid #e2eae4', marginBottom: 24 }}>
+        {TABS.map((t) => (
           <button
+            key={t.key}
             type="button"
-            className="text-button"
-            style={{ color: '#15803d', fontWeight: 700, fontSize: 12 }}
-            onClick={() => {
-              setOrders([]);
-              setIsDemoView(false);
+            role="tab"
+            aria-selected={tab === t.key}
+            onClick={() => changeTab(t.key)}
+            style={{
+              border: 'none',
+              background: tab === t.key ? '#1e6546' : 'transparent',
+              color: tab === t.key ? '#ffffff' : '#4d695a',
+              fontWeight: tab === t.key ? 700 : 500,
+              padding: '9px 18px',
+              borderRadius: '8px 8px 0 0',
+              cursor: 'pointer',
             }}
           >
-            Quay lại đơn thực tế của tôi ✕
+            {t.label}
           </button>
-        </div>
-      )}
-
-      {/* Filter Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 10,
-          borderBottom: '2px solid #e2eae4',
-          marginBottom: 24,
-          paddingBottom: 2,
-        }}
-      >
-        {tabs.map((tab) => {
-          const isSelected = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                border: 'none',
-                background: isSelected ? '#1e6546' : 'transparent',
-                color: isSelected ? '#ffffff' : '#4d695a',
-                fontWeight: isSelected ? 700 : 500,
-                padding: '9px 18px',
-                borderRadius: '8px 8px 0 0',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span>{tab.label}</span>
-              <span
-                style={{
-                  background: isSelected ? 'rgba(255,255,255,0.25)' : '#e8f2eb',
-                  color: isSelected ? '#ffffff' : '#2d6a4f',
-                  fontSize: 11,
-                  padding: '2px 7px',
-                  borderRadius: 10,
-                  fontWeight: 700,
-                }}
-              >
-                {tab.count}
-              </span>
-            </button>
-          );
-        })}
+        ))}
       </div>
 
-      {/* Orders List */}
-      <div style={{ display: 'grid', gap: 20 }}>
-        {orders.length === 0 && !isDemoView ? (
-          <div className="panel padded empty" style={{ textAlign: 'center', padding: '60px 20px', background: '#ffffff', borderRadius: 14 }}>
-            <span style={{ fontSize: 52, display: 'block', marginBottom: 14 }}>📦</span>
-            <strong style={{ fontSize: 18, color: '#1e6546', display: 'block', marginBottom: 8 }}>
-              Tài khoản {storedUser?.fullName || 'của bạn'} chưa có đơn hàng nào
-            </strong>
-            <p className="muted" style={{ maxWidth: 520, margin: '0 auto 20px', lineHeight: 1.6, fontSize: 13 }}>
-              Tài khoản <strong>{storedUser?.fullName || 'Khách hàng'}</strong> ({storedUser?.email || ''}) vừa được tạo thành công trong cơ sở dữ liệu và hiện chưa phát sinh đơn mua hàng nông sản nào.
-            </p>
-            <button
-              type="button"
-              className="primary"
-              style={{
-                padding: '10px 24px',
-                borderRadius: 8,
-                background: '#1e6546',
-                fontWeight: 600,
-                fontSize: 14,
-                cursor: 'pointer',
-              }}
-              onClick={() => {
-                setOrders(SAMPLE_ORDERS);
-                setIsDemoView(true);
-              }}
-            >
-              🌱 Xem 3 đơn hàng mẫu để kiểm thử tính năng Tra cứu & Lô nông sản
-            </button>
-          </div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="panel padded empty" style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <span style={{ fontSize: 48, display: 'block', marginBottom: 12 }}>🔍</span>
-            <strong style={{ fontSize: 16, color: '#2d4d3c' }}>Không tìm thấy đơn hàng phù hợp</strong>
-            <p className="muted" style={{ marginTop: 6 }}>
-              Thử tìm kiếm với từ khóa khác hoặc chuyển tab bộ lọc trạng thái.
-            </p>
-          </div>
-        ) : (
-          filteredOrders.map((order) => (
-            <div
-              key={order.orderId}
-              className="panel"
-              style={{
-                borderRadius: 14,
-                boxShadow: '0 3px 12px rgba(0,0,0,0.04)',
-                border: '1px solid #dce8e0',
-                overflow: 'hidden',
-              }}
-            >
-              {/* Order Card Header */}
-              <div
-                style={{
-                  padding: '16px 24px',
-                  background: '#f9fbf9',
-                  borderBottom: '1px solid #eef3ef',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <span style={{ fontWeight: 800, color: '#1b4332', fontSize: 15 }}>
-                    Mã đơn: {order.orderCode}
-                  </span>
-                  <span style={{ fontSize: 12, color: '#6a8274' }}>
-                    Đặt lúc: {localTime(order.orderDate)}
-                  </span>
+      {loading ? (
+        <div className="panel padded" style={{ textAlign: 'center', padding: 40 }}>Đang tải đơn hàng...</div>
+      ) : data.items.length === 0 ? (
+        <div className="panel padded empty" style={{ textAlign: 'center', padding: '60px 20px', background: '#ffffff', borderRadius: 14 }}>
+          <span style={{ fontSize: 52, display: 'block', marginBottom: 14 }}>📦</span>
+          {hasFilter ? (
+            <>
+              <strong style={{ fontSize: 16, color: '#2d4d3c' }}>Không tìm thấy đơn hàng phù hợp</strong>
+              <p className="muted" style={{ marginTop: 6 }}>Thử từ khóa khác hoặc chọn tab trạng thái khác.</p>
+            </>
+          ) : (
+            <>
+              {/* MSG23 */}
+              <strong style={{ fontSize: 18, color: '#1e6546', display: 'block', marginBottom: 12 }}>
+                Bạn chưa có đơn hàng nào.
+              </strong>
+              <button type="button" className="primary" style={{ background: '#1e6546' }} onClick={goCatalog}>
+                Khám phá nông sản
+              </button>
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gap: 16 }}>
+            {data.items.map((order) => (
+              <div key={order.orderId} className="panel" style={{ borderRadius: 14, border: '1px solid #dce8e0', overflow: 'hidden' }}>
+                <div style={{ padding: '14px 24px', background: '#f9fbf9', borderBottom: '1px solid #eef3ef', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                    <strong style={{ color: '#1b4332', fontSize: 15 }}>#{order.orderCode}</strong>
+                    <span style={{ fontSize: 12, color: '#6a8274' }}>Ngày đặt: {localTime(order.orderDate)}</span>
+                  </div>
+                  <StatusBadge value={order.orderStatus} />
                 </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span
-                    style={{
-                      background:
-                        order.orderStatus === 'Completed'
-                          ? '#eaf4e9'
-                          : order.orderStatus === 'Shipping'
-                          ? '#e6f3fa'
-                          : '#fbeee9',
-                      color:
-                        order.orderStatus === 'Completed'
-                          ? '#1e6546'
-                          : order.orderStatus === 'Shipping'
-                          ? '#1976d2'
-                          : '#c2533c',
-                      fontWeight: 700,
-                      fontSize: 12,
-                      padding: '4px 12px',
-                      borderRadius: 12,
-                    }}
-                  >
-                    {order.orderStatus === 'Shipping'
-                      ? '🚚 Đang vận chuyển'
-                      : order.orderStatus === 'Completed'
-                      ? '✓ Đã hoàn thành'
-                      : '✕ Đã hủy'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Order Items */}
-              <div style={{ padding: '20px 24px' }}>
-                {order.sellerOrders.map((sellerOrder) => (
-                  <div key={sellerOrder.sellerOrderId}>
-                    {/* Farm Shop Title */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                      <span style={{ fontSize: 16 }}>🏡</span>
-                      <strong style={{ fontSize: 14, color: '#1e4834' }}>{sellerOrder.farmName}</strong>
-                      <span style={{ fontSize: 12, color: '#7a9184' }}>({sellerOrder.farmLocation})</span>
+                <div style={{ padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ fontSize: 13, color: '#2d4d3c' }}>
+                    <div>{itemSummary(order)}</div>
+                    <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                      {order.sellerOrders.map((so) => so.farmName).join(', ')}
                     </div>
-
-                    {sellerOrder.items.map((item) => (
-                      <div
-                        key={item.orderItemId}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '12px 16px',
-                          background: '#f8faf8',
-                          borderRadius: 10,
-                          marginBottom: 10,
-                          border: '1px solid #edf3ef',
-                          flexWrap: 'wrap',
-                          gap: 12,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                          <div
-                            style={{
-                              width: 52,
-                              height: 52,
-                              borderRadius: 10,
-                              background: '#e9f5ed',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 26,
-                            }}
-                          >
-                            {item.imageEmoji}
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: '#1f3e2e' }}>
-                              {item.productName}
-                            </div>
-                            <div style={{ fontSize: 12, color: '#688273', marginTop: 4 }}>
-                              Số lượng: <strong>{item.quantity} {item.unit}</strong> × {money(item.unitPriceSnapshot)}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Traceability Badge pill */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <button
-                            type="button"
-                            onClick={() => openTraceModal(item, sellerOrder.farmName)}
-                            style={{
-                              border: '1px solid #1e6546',
-                              background: '#edf7f1',
-                              color: '#1e6546',
-                              padding: '6px 12px',
-                              borderRadius: 20,
-                              fontSize: 12,
-                              fontWeight: 700,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6,
-                            }}
-                            title="Bấm để xem thông tin truy xuất nguồn gốc mã lô này"
-                          >
-                            <span>🔍</span>
-                            <span>Mã lô: {item.harvestBatchCode}</span>
-                          </button>
-
-                          <div style={{ textAlign: 'right', minWidth: 100 }}>
-                            <strong style={{ fontSize: 15, color: '#1e6546' }}>
-                              {money(item.quantity * item.unitPriceSnapshot)}
-                            </strong>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
-                ))}
-              </div>
-
-              {/* Order Card Footer */}
-              <div
-                style={{
-                  padding: '16px 24px',
-                  background: '#ffffff',
-                  borderTop: '1px solid #edf2ed',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 14,
-                }}
-              >
-                <div>
-                  <span style={{ fontSize: 12, color: '#6f8578' }}>
-                    Vận chuyển bởi: <strong>{order.trackingNumber}</strong>
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <span style={{ fontSize: 12, color: '#6f8578', marginRight: 6 }}>Tổng thanh toán:</span>
-                    <strong style={{ fontSize: 18, color: '#1e6546' }}>
-                      {money(order.finalAmount)}
-                    </strong>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      type="button"
-                      style={{ padding: '8px 14px', borderRadius: 8, fontSize: 12.5 }}
-                      onClick={() => setSelectedOrder(order)}
-                    >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: 12, color: '#6f8578', marginRight: 6 }}>Tổng tiền:</span>
+                      <strong style={{ fontSize: 17, color: '#1e6546' }}>{money(order.finalAmount)}</strong>
+                    </div>
+                    <button type="button" disabled={detailLoading} onClick={() => openDetail(order.orderId)}>
                       Xem chi tiết
                     </button>
-
-                    {order.orderStatus === 'Completed' && (
-                      <button
-                        type="button"
-                        className="primary"
-                        style={{ padding: '8px 14px', borderRadius: 8, fontSize: 12.5, background: '#1e6546' }}
-                        onClick={() => setReviewModalOpen(true)}
-                      >
-                        ⭐ Đánh giá sản phẩm
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      style={{ padding: '8px 12px', borderRadius: 8, fontSize: 12, color: '#b23b3b', borderColor: '#ecd3cd' }}
-                      onClick={() => setComplaintModalOpen(true)}
-                    >
-                      Báo cáo khiếu nại
-                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* 1. Modal Chi Tiết Đơn Hàng */}
-      {selectedOrder && (
-        <Modal
-          open={Boolean(selectedOrder)}
-          onClose={() => setSelectedOrder(null)}
-          title={`Chi tiết đơn hàng #${selectedOrder.orderCode}`}
-        >
-          {/* Nút Quay lại danh sách đơn hàng (Back to list) */}
-          <div style={{ marginBottom: 16 }}>
-            <button
-              type="button"
-              className="back-to-list-btn"
-              onClick={() => setSelectedOrder(null)}
-              style={{
-                background: '#edf6f0',
-                border: '1px solid #cce3d4',
-                color: '#1e6546',
-                fontWeight: 700,
-                fontSize: 13,
-                borderRadius: 8,
-                padding: '8px 14px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              ← Quay lại danh sách đơn hàng
-            </button>
+            ))}
           </div>
 
-          {/* Timeline vận chuyển */}
-          <div style={{ background: '#f5faf7', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-            <h4 style={{ margin: '0 0 14px', fontSize: 13, color: '#1e6546' }}>HÀNH TRÌNH VẬN CHUYỂN</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, textAlign: 'center' }}>
-              <div>
-                <span style={{ fontSize: 20 }}>📝</span>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#1e6546', marginTop: 4 }}>Đã đặt hàng</div>
-                <small style={{ color: '#7a8e82' }}>18/10 09:30</small>
-              </div>
-              <div>
-                <span style={{ fontSize: 20 }}>🌾</span>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#1e6546', marginTop: 4 }}>Nhà vườn đóng gói</div>
-                <small style={{ color: '#7a8e82' }}>18/10 14:00</small>
-              </div>
-              <div>
-                <span style={{ fontSize: 20 }}>🚚</span>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#1976d2', marginTop: 4 }}>Đang giao hàng</div>
-                <small style={{ color: '#7a8e82' }}>Hôm nay 08:00</small>
-              </div>
-              <div>
-                <span style={{ fontSize: 20 }}>🏠</span>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#97a89d', marginTop: 4 }}>Nhận hàng</div>
-                <small style={{ color: '#97a89d' }}>Dự kiến hôm nay</small>
-              </div>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, flexWrap: 'wrap', gap: 12 }}>
+            <label style={{ fontSize: 13 }}>
+              Hiển thị{' '}
+              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+                {[10, 20, 50].map((n) => <option key={n} value={n}>{n} / trang</option>)}
+              </select>
+            </label>
+            <Pager total={data.totalCount} page={page} pageSize={pageSize} onPage={setPage} />
           </div>
+        </>
+      )}
 
-          <div style={{ marginBottom: 16 }}>
-            <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#2d4d3c' }}>ĐỊA CHỈ NHẬN HÀNG</h4>
-            <div style={{ background: '#ffffff', border: '1px solid #e0eae2', borderRadius: 8, padding: 14 }}>
-              <strong>{selectedOrder.recipientName}</strong> · {selectedOrder.recipientPhone}
-              <p style={{ margin: '4px 0 0', color: '#557262', fontSize: 13 }}>
-                {selectedOrder.shippingAddress}
-              </p>
+      {detail && (
+        <Modal title={`Chi tiết đơn hàng #${detail.orderCode}`} onClose={() => setDetail(null)} hideCloseButton>
+          <section style={{ marginBottom: 16 }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#2d4d3c' }}>THÔNG TIN ĐƠN HÀNG</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 6, fontSize: 13 }}>
+              <span className="muted">Mã đơn hàng</span><strong>#{detail.orderCode}</strong>
+              <span className="muted">Ngày đặt</span><span>{localTime(detail.orderDate)}</span>
+              <span className="muted">Trạng thái</span><span><StatusBadge value={detail.orderStatus} /></span>
+              <span className="muted">Thanh toán</span>
+              <span>{detail.paymentMethod || '—'} · {detail.paymentStatus === 'Paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}</span>
+              <span className="muted">Mã vận đơn</span><span>{detail.trackingNumber || '—'}</span>
+              {detail.expectedDeliveryDate && (<><span className="muted">Dự kiến giao</span><span>{localTime(detail.expectedDeliveryDate)}</span></>)}
             </div>
-          </div>
+          </section>
 
-          <div>
-            <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#2d4d3c' }}>THÔNG TIN THANH TOÁN</h4>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0' }}>
-              <span className="muted">Hình thức thanh toán:</span>
-              <strong>VNPay / Chuyển khoản QR (Đã thanh toán)</strong>
+          <section style={{ marginBottom: 16 }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#2d4d3c' }}>THÔNG TIN GIAO HÀNG</h4>
+            <div style={{ border: '1px solid #e0eae2', borderRadius: 8, padding: 12, fontSize: 13 }}>
+              <strong>{detail.recipientName}</strong> · {detail.recipientPhone}
+              <div className="muted" style={{ marginTop: 4 }}>{detail.shippingAddress}</div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, padding: '8px 0', borderTop: '1px solid #e5ede7', marginTop: 8 }}>
-              <span>Tổng số tiền:</span>
-              <strong style={{ color: '#1e6546', fontSize: 18 }}>{money(selectedOrder.finalAmount)}</strong>
-            </div>
-          </div>
+          </section>
 
-          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={() => setSelectedOrder(null)}
-              style={{
-                padding: '10px 18px',
-                borderRadius: 8,
-                fontWeight: 600,
-                color: '#1e6546',
-                borderColor: '#cce3d4',
-              }}
-            >
-              ← Quay lại danh sách đơn hàng
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => setSelectedOrder(null)}
-              style={{ background: '#1e6546', padding: '10px 22px', borderRadius: 8 }}
-            >
-              Đóng
+          <section style={{ marginBottom: 16 }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#2d4d3c' }}>SẢN PHẨM</h4>
+            {detail.sellerOrders.map((so) => (
+              <div key={so.sellerOrderId} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 13, marginBottom: 6 }}>
+                  🏡 <strong>{so.farmName}</strong> <StatusBadge value={so.status} />
+                </div>
+                <table style={{ width: '100%', fontSize: 13 }}>
+                  <thead>
+                    <tr><th align="left">Sản phẩm</th><th align="left">Mã lô</th><th align="right">SL</th><th align="right">Đơn giá</th><th align="right">Thành tiền</th></tr>
+                  </thead>
+                  <tbody>
+                    {so.items.map((item) => (
+                      <tr key={item.orderItemId}>
+                        <td>{item.productName}</td>
+                        <td>
+                          {item.batches.length === 0 ? '—' : item.batches.map((b) => (
+                            <button key={b.batchCode} type="button" className="text-button" onClick={() => setBatch({ ...b, productName: item.productName, farmName: so.farmName })}>
+                              {b.batchCode}
+                            </button>
+                          ))}
+                        </td>
+                        <td align="right">{item.quantity} {item.unit}</td>
+                        <td align="right">{money(item.unitPrice)}</td>
+                        <td align="right">{money(item.subTotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </section>
+
+          <section style={{ marginBottom: 16 }}>
+            <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#2d4d3c' }}>TỔNG QUAN THANH TOÁN</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 4, fontSize: 13 }}>
+              <span className="muted">Tạm tính</span><span>{money(detail.totalAmount)}</span>
+              <span className="muted">Phí giao hàng</span><span>{money(detail.deliveryFee)}</span>
+              <span className="muted">Giảm giá</span><span>-{money(detail.discountAmount)}</span>
+              <strong>Tổng thanh toán</strong><strong style={{ color: '#1e6546' }}>{money(detail.finalAmount)}</strong>
+            </div>
+          </section>
+
+          {detail.timeline?.length > 0 && (
+            <section style={{ marginBottom: 16 }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#2d4d3c' }}>HÀNH TRÌNH ĐƠN HÀNG</h4>
+              <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+                {detail.timeline.map((t, i) => (
+                  <li key={i}>{localTime(t.timestamp)} — {t.description}</li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {actions.includes('PayNow') && (
+                <button type="button" className="primary" onClick={() => setNotice('Màn hình thanh toán QR (UC-RC-03) sẽ được tích hợp ở iteration sau.')}>
+                  Thanh toán ngay
+                </button>
+              )}
+              {actions.includes('Review') && (
+                <button type="button" onClick={() => setNotice('Chức năng đánh giá sản phẩm (UC-RC-05) thuộc Iteration 2.')}>
+                  ⭐ Đánh giá
+                </button>
+              )}
+              {actions.includes('SubmitComplaint') && (
+                <button type="button" style={{ color: '#b23b3b' }} onClick={() => setNotice('Chức năng khiếu nại đơn hàng (UC-RC-06) thuộc Iteration 2.')}>
+                  Gửi khiếu nại
+                </button>
+              )}
+            </div>
+            <button type="button" className="primary" style={{ background: '#1e6546' }} onClick={() => setDetail(null)}>
+              ← Quay lại danh sách
             </button>
           </div>
         </Modal>
       )}
 
-      {/* 2. Modal Xem Truy Xuất Nguồn Gốc Lô Thu Hoạch (SCR-TRC-01) */}
-      {traceModalOpen && selectedBatch && (
-        <Modal
-          open={traceModalOpen}
-          onClose={() => setTraceModalOpen(false)}
-          title={`Truy xuất nguồn gốc lô: ${selectedBatch.harvestBatchCode}`}
-        >
-          <div style={{ textAlign: 'center', padding: '10px 0 16px' }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>{selectedBatch.imageEmoji}</div>
-            <h3 style={{ margin: 0, color: '#1b4332' }}>{selectedBatch.productName}</h3>
-            <span style={{ background: '#eaf4e9', color: '#1e6546', padding: '4px 12px', borderRadius: 12, fontSize: 12, fontWeight: 700, display: 'inline-block', marginTop: 6 }}>
-              Mã QR Lô: {selectedBatch.harvestBatchCode}
-            </span>
+      {batch && (
+        <Modal title={`Truy xuất lô ${batch.batchCode}`} onClose={() => setBatch(null)}>
+          <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, fontSize: 13 }}>
+            <strong>Sản phẩm</strong><span>{batch.productName}</span>
+            <strong>Nông trại</strong><span>{batch.farmName}</span>
+            <strong>Mùa vụ</strong><span>{batch.seasonName || '—'}</span>
+            <strong>Ngày thu hoạch</strong><span>{batch.harvestDate || '—'}</span>
+            <strong>Số lượng phân bổ</strong><span>{batch.quantity}</span>
           </div>
-
-          <div style={{ background: '#f5faf7', border: '1px solid #dcebe1', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: 10, fontSize: 13 }}>
-              <strong>Nông trại / HTX:</strong> <span>{selectedBatch.farmName}</span>
-              <strong>Vị trí khu đất:</strong> <span>{selectedBatch.farmPlot}</span>
-              <strong>Ngày thu hoạch:</strong> <span>{selectedBatch.harvestDate}</span>
-              <strong>Tiêu chuẩn canh tác:</strong> <span style={{ color: '#1e6546', fontWeight: 700 }}>VietGAP · Không thuốc trừ sâu BVTV</span>
-              <strong>Nhật ký tưới bón:</strong> <span>Đã được thẩm định VietGAP</span>
-            </div>
-          </div>
-
-          <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, color: '#688273', alignSelf: 'center' }}>
-              ✓ Thông tin chuỗi cung ứng minh bạch
-            </span>
-            <button
-              type="button"
-              className="primary"
-              style={{ background: '#1e6546' }}
-              onClick={() => {
-                setTraceModalOpen(false);
-                alert(`Chuyển đến trang toàn cảnh Tra cứu nguồn gốc chi tiết cho mã lô ${selectedBatch.harvestBatchCode}`);
-              }}
-            >
-              Xem Chi Tiết Đầy Đủ →
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* 3. Modal Đánh giá sản phẩm (UC-RC-05) */}
-      {reviewModalOpen && (
-        <Modal
-          onClose={() => setReviewModalOpen(false)}
-          title="Đánh giá sản phẩm nông sản"
-        >
-          <p className="muted" style={{ fontSize: 13 }}>
-            Đánh giá của bạn sẽ được gửi tới Content Moderator kiểm duyệt trước khi hiển thị công khai.
-          </p>
-          <div style={{ margin: '16px 0' }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Mức độ hài lòng:</label>
-            <div style={{ fontSize: 24, cursor: 'pointer', color: '#ffb703' }}>
-              ⭐⭐⭐⭐⭐ <span style={{ fontSize: 14, color: '#334e3d', marginLeft: 8 }}>(5 sao - Rất tươi ngon)</span>
-            </div>
-          </div>
-          <Field label="Nội dung nhận xét chi tiết *">
-            <textarea
-              placeholder="Chia sẻ trải nghiệm về độ tươi, mùi vị, đóng gói của nông sản..."
-              rows={4}
-            />
-          </Field>
           <div className="modal-actions">
-            <button type="button" onClick={() => setReviewModalOpen(false)}>Hủy</button>
-            <button
-              type="submit"
-              className="primary"
-              style={{ background: '#1e6546' }}
-              onClick={() => {
-                setReviewModalOpen(false);
-                setToastMessage('MSG48: Đánh giá của bạn đã được gửi thành công và đang chờ duyệt nội dung!');
-                setTimeout(() => setToastMessage(null), 4000);
-              }}
-            >
-              Gửi đánh giá
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* 4. Modal Báo cáo khiếu nại */}
-      {complaintModalOpen && (
-        <Modal
-          onClose={() => setComplaintModalOpen(false)}
-          title="Gửi yêu cầu khiếu nại đơn hàng"
-        >
-          <p className="muted" style={{ fontSize: 13 }}>
-            Khiếu nại sẽ được chuyển đến bộ phận Chăm sóc khách hàng (Customer Support - UC-CS-01) để xử lý trong 24h.
-          </p>
-          <Field label="Lý do khiếu nại *">
-            <select defaultValue="damaged">
-              <option value="damaged">Hàng hóa bị dập nát / hư hỏng do vận chuyển</option>
-              <option value="missing">Thiếu số lượng so với đơn đặt</option>
-              <option value="wrong_batch">Sản phẩm không đúng mã lô thu hoạch niêm yết</option>
-              <option value="other">Lý do khác</option>
-            </select>
-          </Field>
-          <Field label="Mô tả chi tiết và yêu cầu giải quyết *">
-            <textarea
-              placeholder="Mô tả hiện trạng và cung cấp hình ảnh chụp thực tế sản phẩm..."
-              rows={4}
-            />
-          </Field>
-          <div className="modal-actions">
-            <button type="button" onClick={() => setComplaintModalOpen(false)}>Hủy</button>
-            <button
-              type="submit"
-              className="primary"
-              style={{ background: '#c2533c', borderColor: '#c2533c' }}
-              onClick={() => {
-                setComplaintModalOpen(false);
-                setToastMessage('Yêu cầu khiếu nại đã được ghi nhận và gửi đến Customer Support (UC-CS-01).');
-                setTimeout(() => setToastMessage(null), 4000);
-              }}
-            >
-              Gửi khiếu nại CS
-            </button>
+            {batch.traceabilityUrl && (
+              <a href={batch.traceabilityUrl} target="_blank" rel="noopener noreferrer">Mở trang truy xuất</a>
+            )}
+            <button type="button" onClick={() => setBatch(null)}>Đóng</button>
           </div>
         </Modal>
       )}

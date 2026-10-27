@@ -40,6 +40,9 @@ public class Result<T> : Result
                 "Forbidden" => 403,
                 "NotFound" => 404,
                 "Conflict" => 409,
+                "TooManyRequests" => 429,
+                "ServiceUnavailable" => 503,
+                "Error" => 500,
                 _ => 400
             },
             Data = default,

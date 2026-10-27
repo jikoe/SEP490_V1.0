@@ -9,16 +9,19 @@ public sealed partial class RegisterRequestValidator : AbstractValidator<Registe
     public RegisterRequestValidator()
     {
         RuleFor(x => x.FullName)
-            .NotEmpty().WithMessage("Họ và tên không được để trống.")
-            .MaximumLength(150).WithMessage("Họ và tên không được vượt quá 150 ký tự.");
+            .Must(name => !string.IsNullOrWhiteSpace(name)).WithMessage("Họ và tên không được để trống.")
+            .Must(name => name is null || name.Trim().Length is >= 2 and <= 50)
+            .WithMessage("Họ và tên phải từ 2 đến 50 ký tự.");
 
         RuleFor(x => x.PhoneNumber)
             .NotEmpty().WithMessage("Số điện thoại không được để trống.")
-            .Matches(@"^0\d{9}$").WithMessage("Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).");
+            .Must(phone => phone is not null && Regex.IsMatch(phone.Trim(), @"^0\d{9}$"))
+            .WithMessage("Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).");
 
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email không được để trống.")
-            .EmailAddress().WithMessage("Định dạng email không hợp lệ.")
+            .Must(email => email is not null && EmailPattern().IsMatch(email.Trim()))
+            .WithMessage("Định dạng email không hợp lệ.")
             .MaximumLength(255).WithMessage("Email không được vượt quá 255 ký tự.");
 
         RuleFor(x => x.Password).StrongPassword();
@@ -33,6 +36,9 @@ public sealed partial class RegisterRequestValidator : AbstractValidator<Registe
         RuleFor(x => x.AgreeTerms)
             .Equal(true).WithMessage("Bạn cần đồng ý với điều khoản sử dụng.");
     }
+
+    [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+    private static partial Regex EmailPattern();
 }
 
 public sealed class VerifyOtpRequestValidator : AbstractValidator<VerifyOtpRequest>

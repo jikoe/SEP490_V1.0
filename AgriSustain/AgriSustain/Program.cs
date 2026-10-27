@@ -96,6 +96,9 @@ builder.Services.AddScoped<OrderFulfillmentService>();
 builder.Services.AddValidatorsFromAssemblyContaining<ProductRequestValidator>();
 
 // DuND Application Services
+// Development adapter: OTP is written to the server log. Swap for a Gmail adapter in production.
+builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.LoggingEmailService>();
+builder.Services.AddSingleton<IOtpGenerator, RandomOtpGenerator>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();

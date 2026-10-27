@@ -53,10 +53,20 @@ public sealed class UnitOfWork : IUnitOfWork, AgriSustain.Application.Interfaces
 
             return result;
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
         {
             await RollbackAsync(cancellationToken);
-            return Result<T>.FailureResult(new Error("SYSTEM_ERROR", ex.Message, "Error"));
+            System.Diagnostics.Trace.TraceError(ex.ToString());
+            return Result<T>.FailureResult(new Error("SAVE_CONFLICT",
+                "Dữ liệu vừa bị thay đổi hoặc bị trùng. Vui lòng tải lại và thử lại.", "Conflict"));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await RollbackAsync(cancellationToken);
+            // Never return exception details (SQL, stack traces) to the client.
+            System.Diagnostics.Trace.TraceError(ex.ToString());
+            return Result<T>.FailureResult(new Error("SYSTEM_ERROR",
+                "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", "Error"));
         }
     }
     public async Task BeginAsync(CancellationToken cancellationToken)
