@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using AgriSustain.Application.DTOs.Cart;
+using AgriSustain.Application.Common;
 using AgriSustain.Domain.Entities;
 using Microsoft.Extensions.Options;
 
@@ -66,7 +67,7 @@ public sealed class CartPricingService(IOptions<QuantityOptions> options, TimePr
                     product.WholesaleMinQuantity, decimal.Round(price * item.Quantity, 2),
                     item.HarvestBatch?.AvailableQuantity ?? 0, StepFor(product.Unit),
                     item.IsSelected && available, available,
-                    available ? null : "Không đủ hàng hoặc sản phẩm/lô không còn được bán (MSG88).");
+                    available ? null : CartMessages.Unavailable(product.ProductName));
             }).ToList() ?? new List<CartLineResponse>();
         string Canonical(decimal amount) => amount.ToString("0.###", CultureInfo.InvariantCulture);
         string text = string.Join("|", lines.Where(x => x.IsSelected).Select(x =>

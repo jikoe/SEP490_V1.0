@@ -1,10 +1,62 @@
+import { cartMessages } from '../RetailCustomer/cartMessages';
 import React, { useEffect, useState } from 'react';
 import { request } from '../../api/client';
-import { AddToCart, Icon, Price, ProductImage, Rating, safeUrl } from './MarketplaceUi';
+import { displayMessage } from '../../utils/displayMessage';
+import { Icon, Price, ProductImage, Rating, safeUrl } from './MarketplaceUi';
 
 const dateLabel = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('vi-VN') : 'Không có';
 
-export default function ProductDetail({ productId, query, reload, session, onAdd, adding }) {
+/** UC-RC-01 entry point: adds the chosen batch to the RetailCustomer cart. */
+function AddToCart({ product, batches, session, navigate }) {
+  const [batchId, setBatchId] = useState(batches[0]?.id ?? '');
+  const [quantity, setQuantity] = useState('1');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  if (!session) return <p className="mkt-buy-note"><a href="#/login">Đăng nhập</a> bằng tài khoản
+    khách lẻ để thêm sản phẩm vào giỏ hàng.</p>;
+  if (session.user.role !== 'RetailCustomer') return <p className="mkt-buy-note">
+    Chỉ tài khoản khách lẻ (RetailCustomer) có thể đặt mua sản phẩm.</p>;
+  if (!batches.length) return <p className="mkt-buy-note">Sản phẩm hiện chưa có lô hàng khả dụng.</p>;
+
+  const batch = batches.find(item => String(item.id) === String(batchId));
+  async function add(event) {
+    event.preventDefault();
+    const amount = Number(quantity);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError(cartMessages.invalidQuantity(product.unit)); return;
+    }
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const cart = await request('/cart/items', { method: 'POST',
+        body: { productId: product.id, harvestBatchId: Number(batchId), quantity: amount } });
+      setMessage(displayMessage(cart.messages.join(' ')));
+    } catch (err) {
+      setError(displayMessage(err.message));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <form className="mkt-buy" onSubmit={add}>
+    <label className="mkt-field">Lô hàng<select value={batchId}
+      onChange={event => { setBatchId(event.target.value); setMessage(''); setError(''); }}>
+      {batches.map(item => <option key={item.id} value={item.id}>
+        {item.code} · còn {item.availableQuantity.toLocaleString('vi-VN')} {product.unit}</option>)}
+    </select></label>
+    <label className="mkt-field">Số lượng ({product.unit})<input type="number" min="0" step="any"
+      max={batch?.availableQuantity} value={quantity}
+      onChange={event => { setQuantity(event.target.value); setMessage(''); setError(''); }} /></label>
+    <button type="submit" className="mkt-primary" disabled={busy}>
+      <Icon name="cart" />{busy ? 'Đang thêm…' : 'Thêm vào giỏ hàng'}</button>
+    {error && <p role="alert" className="mkt-buy-error">{error}</p>}
+    {message && <p role="status" className="mkt-buy-message">{message}{' '}
+      <button type="button" onClick={() => navigate('/cart')}>Xem giỏ hàng</button></p>}
+  </form>;
+}
+
+export default function ProductDetail({ productId, query, reload, session, navigate }) {
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);

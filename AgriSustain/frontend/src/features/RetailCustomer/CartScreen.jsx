@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { cartMessages } from './cartMessages';
 import { request } from '../../api/client';
+import { getSession } from '../../session/session';
+import { displayMessage } from '../../utils/displayMessage';
 import { money, Notice, ProductThumbnail } from '../../components/ui/Common';
 import { Confirm, Empty, Errors, useFeatureData } from '../Commerce/Shared';
 
@@ -9,6 +12,26 @@ export default function CartScreen({ navigate }) {
   const [message, setMessage] = useState('');
   const [removeIds, setRemoveIds] = useState(null);
   const cart = state.data;
+  useEffect(() => {
+    if (!cart) return;
+    if (cart.messages?.length) setMessage(displayMessage(cart.messages.join(' ')));
+    try {
+      const key = 'agrisustain:cart-prices:' + getSession()?.user?.id;
+      const previous = JSON.parse(sessionStorage.getItem(key) || '{}');
+      const current = Object.fromEntries(cart.items.map(item => [item.cartItemId, {
+        quantity: item.quantity,
+        policy: [item.retailPrice, item.unitPrice, item.wholesalePrice, item.wholesaleMinQuantity]
+      }]));
+      const changed = cart.items.some(item => previous[item.cartItemId]
+        && previous[item.cartItemId].quantity === item.quantity
+        && JSON.stringify(previous[item.cartItemId].policy) !== JSON.stringify(current[item.cartItemId].policy));
+      if (changed && !cart.messages?.length)
+        setMessage('Giá bán hoặc chính sách giá của một hoặc nhiều sản phẩm đã thay đổi. Vui lòng kiểm tra giá và tổng tiền đã cập nhật rồi tiếp tục.');
+      sessionStorage.setItem(key, JSON.stringify(current));
+    } catch {
+      // Checkout still revalidates the authoritative server ReviewToken if browser storage is unavailable.
+    }
+  }, [cart]);
   const groups = Object.values((cart?.items || []).reduce((result, item) => {
     const key = item.farmerProfileId;
     result[key] ||= { farmName: item.farmName, items: [] };
@@ -20,7 +43,7 @@ export default function CartScreen({ navigate }) {
     setBusy(true); state.setError(null); setMessage('');
     try {
       const result = await request('/cart/' + path, { method, body });
-      state.setData(result); setMessage(result.messages.join(' '));
+      state.setData(result); setMessage(displayMessage(result.messages.join(' ')));
       return result;
     } catch (error) { state.setError(error); return null; }
     finally { setBusy(false); }
@@ -33,9 +56,9 @@ export default function CartScreen({ navigate }) {
     <p className="commerce-subtitle">Mua sắm · UC-RC-01</p><h1>Giỏ hàng của bạn</h1>
     <p className="muted">Chọn sản phẩm muốn mua và kiểm tra thông tin trước khi thanh toán.</p></div>
     <button type="button" onClick={() => navigate('/retail/dashboard')}>← Tiếp tục mua sắm</button></div>
-    <Errors error={state.error} /><Notice>{message}</Notice>
+    <Errors hideMessageCodes error={state.error} /><Notice>{message}</Notice>
     {state.loading ? <p role="status">Đang tải giỏ hàng…</p> : cart && !cart.items.length
-      ? <section className="commerce-section"><Empty>Giỏ hàng của bạn đang trống (MSG168)</Empty>
+      ? <section className="commerce-section"><Empty>{cartMessages.empty}</Empty>
         <button type="button" className="primary" onClick={() => navigate('/retail/dashboard')}>Khám phá nông sản</button></section>
       : cart && <div className="commerce-grid"><div>
         <div className="commerce-section commerce-actions"><label className="commerce-check">
@@ -69,7 +92,7 @@ export default function CartScreen({ navigate }) {
         </aside></div>}
     {removeIds && <Confirm title="Xóa sản phẩm?" busy={busy} onClose={() => setRemoveIds(null)}
       onConfirm={async () => { const result = await mutate('remove-items', { itemIds: removeIds }, 'POST');
-        if (result) setRemoveIds(null); }}>Xóa {removeIds.length} sản phẩm đã chọn khỏi giỏ hàng (MSG84)?</Confirm>}
+        if (result) setRemoveIds(null); }}>{cartMessages.confirmRemoval(removeIds.length)}</Confirm>}
   </div>;
 }
 
@@ -83,7 +106,7 @@ function CartLine({ item, busy, onQuantity, onSelect, onRemove }) {
     if (!String(value).trim() || !Number.isFinite(number) || number <= 0
         || number > 999999999 || Math.abs(ratio - Math.round(ratio)) > 1e-7) {
       setQuantity(String(item.quantity));
-      setError('Nhập số lượng dương theo bước ' + item.quantityStep + ' ' + item.unit + ' (MSG167).'); return;
+      setError(cartMessages.invalidQuantity(item.unit)); return;
     }
     setError('');
     if (number !== item.quantity) {
@@ -101,7 +124,7 @@ function CartLine({ item, busy, onQuantity, onSelect, onRemove }) {
       {item.wholesalePrice != null && <small>Giá sỉ {money(item.wholesalePrice)} từ {item.wholesaleMinQuantity} {item.unit}</small>}
       {item.unitPrice < item.retailPrice && <small>Giá lẻ: <del>{money(item.retailPrice)}</del> · Đang áp dụng giá sỉ</small>}
       <small>Còn {item.availableQuantity} {item.unit}</small>
-      {!item.isAvailable && <Notice error>{item.unavailableReason}</Notice>}
+      {!item.isAvailable && <Notice error>{displayMessage(item.unavailableReason)}</Notice>}
       {error && <div role="alert" style={{ color: '#a0362c', fontSize: 12 }}>{error}</div>}
     </div>
     <div className="commerce-quantity"><button type="button" aria-label={'Giảm ' + item.productName}

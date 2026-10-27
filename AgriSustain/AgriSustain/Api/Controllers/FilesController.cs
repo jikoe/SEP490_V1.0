@@ -1,4 +1,5 @@
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Common;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -31,19 +32,20 @@ public sealed class FilesController(IFileStorageService storage, ICurrentActor a
         if (!await context.FarmerProfiles.AnyAsync(x => x.UserId == actor.UserId
             && x.VerificationStatus == "Approved", cancellationToken))
         {
-            return Forbid();
+            return evidence ? Problem("Bạn chưa có quyền tải bằng chứng. Hồ sơ nông trại phải được duyệt trước khi thực hiện thao tác.", statusCode: 403)
+                : Problem(ProductListingMessages.MSG75, statusCode: 403);
         }
 
         if (file is null || file.Length is <= 0 or > MaximumBytes)
         {
-            return Problem("Chọn tệp tối đa 5 MB (MSG78).", statusCode: 400);
+            return Problem(evidence ? "Chọn tệp tối đa 5 MB." : ProductListingMessages.MSG78, statusCode: 400);
         }
 
         string extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (extension is not (".jpg" or ".jpeg" or ".png")
             && !(evidence && extension == ".pdf"))
         {
-            return Problem("Định dạng tệp không được hỗ trợ (MSG78).", statusCode: 400);
+            return Problem(evidence ? "Định dạng tệp không được hỗ trợ." : ProductListingMessages.MSG78, statusCode: 400);
         }
 
         await using var stream = file.OpenReadStream();
@@ -55,7 +57,7 @@ public sealed class FilesController(IFileStorageService storage, ICurrentActor a
         bool pdf = read >= 5 && System.Text.Encoding.ASCII.GetString(header, 0, 5) == "%PDF-";
         if (!(extension == ".png" ? png : extension == ".pdf" ? pdf : jpeg))
         {
-            return Problem("Nội dung tệp không đúng định dạng (MSG78).", statusCode: 400);
+            return Problem(evidence ? "Nội dung tệp không đúng định dạng." : ProductListingMessages.MSG78, statusCode: 400);
         }
 
         stream.Position = 0;
