@@ -28,5 +28,6 @@ public sealed record SellerOrderResponse(long SellerOrderId, string SellerOrderC
     DateTime? DeliveredAt, DateTime? ComplaintDeadline, DateTime? ReceivedAt, string Version,
     bool CanConfirm, bool CanMarkReady, bool CanDispatch, bool CanReject,
     IReadOnlyList<OrderLineResponse> Items, IReadOnlyList<ShipmentResponse> Shipments,
-    IReadOnlyList<TimelineResponse> Timeline, IReadOnlyList<ComplaintResponse> Complaints);
+    IReadOnlyList<TimelineResponse> Timeline, IReadOnlyList<ComplaintResponse> Complaints,
+    string? VoucherCode = null);
 

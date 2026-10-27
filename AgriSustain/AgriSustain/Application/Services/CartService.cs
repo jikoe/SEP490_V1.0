@@ -8,15 +8,39 @@ namespace AgriSustain.Application.Services;
 public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWork,
     CartPricingService pricing, TimeProvider clock)
 {
-    public async Task<CartResponse> GetAsync(long userId, CancellationToken cancellationToken) =>
-        pricing.Calculate(await repository.GetOwnedAsync(userId, cancellationToken));
+    public async Task<CartResponse> GetAsync(long userId, CancellationToken cancellationToken)
+    {
+        await unitOfWork.BeginAsync(cancellationToken);
+        var cart = await repository.GetOwnedAsync(userId, cancellationToken);
+        var messages = new List<string>();
+        foreach (var item in cart?.CartItems ?? [])
+        {
+            if (item.PreOrderCampaignId is not null || !pricing.IsAvailable(item.Product, item.HarvestBatch))
+            {
+                item.IsSelected = false;
+                messages.Add(CartMessages.Unavailable(item.Product.ProductName));
+            }
+            else if (item.HarvestBatch is { } batch && item.Quantity > pricing.MaximumQuantity(batch))
+            {
+                item.Quantity = pricing.MaximumQuantity(batch);
+                messages.Add(CartMessages.Adjusted(item.Product.ProductName,
+                    batch.AvailableQuantity, item.Quantity, item.Product.Unit));
+            }
+        }
+        if (messages.Count > 0 && cart is not null)
+            cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
+        await unitOfWork.CommitAsync(cancellationToken);
+        return pricing.Calculate(cart, messages);
+    }
 
     public async Task<FeatureResult<CartResponse>> AddItemAsync(long userId,
         CartItemRequest request, CancellationToken cancellationToken)
     {
         if (request.ProductId <= 0 || request.HarvestBatchId <= 0 || request.Quantity <= 0)
         {
-            return Fail("VALIDATION", "Chọn sản phẩm, lô hàng và số lượng hợp lệ (MSG167).");
+            return Fail("VALIDATION", request.Quantity <= 0
+                ? CartMessages.InvalidQuantity("đơn vị bán")
+                : "Chọn sản phẩm và lô hàng hợp lệ.");
         }
 
         await unitOfWork.BeginAsync(cancellationToken);
@@ -24,12 +48,12 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
             cancellationToken);
         if (batch is null || !pricing.IsAvailable(batch.Product, batch))
         {
-            return Fail("CONFLICT", "Sản phẩm/lô hàng không còn được bán (MSG88).");
+            return Fail("CONFLICT", CartMessages.Unavailable(batch?.Product.ProductName ?? "Sản phẩm đã chọn"));
         }
 
         if (!pricing.IsQuantityValid(request.Quantity, batch.Product.Unit))
         {
-            return Fail("VALIDATION", "Số lượng sai bước bán hoặc vượt giới hạn (MSG167).");
+            return Fail("VALIDATION", CartMessages.InvalidQuantity(batch.Product.Unit));
         }
 
         var cart = await repository.GetOwnedAsync(userId, cancellationToken);
@@ -64,8 +88,8 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
         await unitOfWork.CommitAsync(cancellationToken);
         return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, new[]
         {
-            desired > quantity ? $"Đã điều chỉnh còn {quantity} {batch.Product.Unit} (MSG86)."
-                : "Đã thêm vào giỏ hàng (MSG81)."
+            desired > quantity ? CartMessages.Adjusted(batch.Product.ProductName, batch.AvailableQuantity, quantity, batch.Product.Unit)
+                : CartMessages.Added
         }));
     }
 
@@ -82,14 +106,14 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
 
         if (!pricing.IsQuantityValid(quantity, item.Product.Unit))
         {
-            return Fail("VALIDATION", "Nhập số lượng dương đúng bước bán (MSG167).");
+            return Fail("VALIDATION", CartMessages.InvalidQuantity(item.Product.Unit));
         }
 
         var messages = new List<string>();
         if (!pricing.IsAvailable(item.Product, item.HarvestBatch))
         {
             item.IsSelected = false;
-            messages.Add("Sản phẩm không còn được bán, đã bỏ chọn (MSG88).");
+            messages.Add(CartMessages.Unavailable(item.Product.ProductName));
         }
         else if (item.HarvestBatch is { } batch)
         {
@@ -97,14 +121,14 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
             item.Quantity = decimal.Min(quantity, pricing.MaximumQuantity(batch));
             if (quantity > item.Quantity)
             {
-                messages.Add($"Đã điều chỉnh còn {item.Quantity} {item.Product.Unit} (MSG86).");
+                messages.Add(CartMessages.Adjusted(item.Product.ProductName, batch.AvailableQuantity, item.Quantity, item.Product.Unit));
             }
 
             decimal currentPrice = pricing.UnitPrice(item.Product, item.Quantity);
             if (previousPrice != currentPrice)
             {
-                messages.Add(currentPrice < previousPrice ? "Áp dụng giá sỉ (MSG82)."
-                    : "Áp dụng giá bán lẻ (MSG83).");
+                messages.Add(currentPrice < previousPrice ? CartMessages.WholesaleApplied
+                    : CartMessages.RetailRestored);
             }
         }
 
@@ -148,7 +172,7 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
         await unitOfWork.CommitAsync(cancellationToken);
         return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, new[]
         {
-            remove ? $"Đã xóa {ids.Count} sản phẩm (MSG85)." : "Đã cập nhật lựa chọn."
+            remove ? CartMessages.Removed(ids.Count) : "Đã cập nhật lựa chọn."
         }));
     }
 
@@ -170,15 +194,14 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
             {
                 item.IsSelected = false;
                 changed = true;
-                messages.Add($"{item.Product.ProductName} không còn được bán (MSG88).");
+                messages.Add(CartMessages.Unavailable(item.Product.ProductName));
             }
             else if (item.HarvestBatch is { } batch
                 && item.Quantity > pricing.MaximumQuantity(batch))
             {
                 item.Quantity = pricing.MaximumQuantity(batch);
                 changed = true;
-                messages.Add($"Đã điều chỉnh {item.Product.ProductName}: {item.Quantity} "
-                    + $"{item.Product.Unit} (MSG86). Vui lòng kiểm tra lại.");
+                messages.Add(CartMessages.Adjusted(item.Product.ProductName, batch.AvailableQuantity, item.Quantity, item.Product.Unit));
             }
         }
 
@@ -186,12 +209,12 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
         if (result.ReviewToken != reviewToken && !changed)
         {
             changed = true;
-            messages.Add("Giá hoặc tồn kho đã thay đổi. Kiểm tra lại trước khi tiếp tục (MSG118).");
+            messages.Add(CartMessages.PriceChanged);
         }
 
         if (result.SelectedCount == 0)
         {
-            messages.Add("Chọn ít nhất một sản phẩm để thanh toán (MSG87).");
+            messages.Add(CartMessages.NoSelection);
         }
 
         if (changed && cart is not null)

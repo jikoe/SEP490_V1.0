@@ -41,7 +41,9 @@ public sealed class OrderRepository(AgriSustainContext context, FulfillmentRules
         {
             rows = rows.Where(x => x.SellerOrderCode.Contains(query.Keyword)
                 || x.Order.OrderCode.Contains(query.Keyword)
-                || x.Order.RecipientNameSnapshot.Contains(query.Keyword));
+                || x.Order.RecipientNameSnapshot.Contains(query.Keyword)
+                || x.OrderItems.Any(item => item.OrderItemBatchAllocations
+                    .Any(allocation => allocation.HarvestBatch.BatchCode.Contains(query.Keyword))));
         }
 
         if (!string.IsNullOrEmpty(query.Status))
@@ -157,6 +159,16 @@ public sealed class OrderRepository(AgriSustainContext context, FulfillmentRules
         });
     }
 
+    public async Task NotifySupportAsync(long sellerOrderId, string content,
+        CancellationToken cancellationToken)
+    {
+        var recipients = await context.Users.Where(user => user.Status == "Active"
+            && (user.Role == "CustomerSupport" || user.Role == "Customer Support"))
+            .Select(user => user.UserId).ToListAsync(cancellationToken);
+        foreach (long userId in recipients)
+            Notify(userId, "Yêu cầu hỗ trợ đơn hàng", content, sellerOrderId);
+    }
+
     public void AddMovement(InventoryMovement movement) => context.InventoryMovements.Add(movement);
     public void AddAudit(AuditLog audit) => context.AuditLogs.Add(audit);
     public void AddEvidence(DisputeEvidence evidence) => context.DisputeEvidences.Add(evidence);
@@ -204,7 +216,7 @@ public sealed class OrderRepository(AgriSustainContext context, FulfillmentRules
                         == order.FarmerProfile.UserId)
                     .Select(r => new EvidenceRequestResponse(r.EvidenceRequestId,
                         r.RequestedAt, r.DueAt, r.RequestStatus, r.RespondedAt,
-                        r.Instructions)).ToList())).ToList());
+                        r.Instructions)).ToList())).ToList(), order.Order.VoucherCodeSnapshot);
     }
 }
 
