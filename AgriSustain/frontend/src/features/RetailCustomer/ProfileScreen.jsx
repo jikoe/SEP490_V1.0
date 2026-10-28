@@ -2,48 +2,84 @@ import React, { useState, useEffect } from 'react';
 import { Notice, Field, initials, VerificationBadge, Modal } from '../../components/ui/Common';
 
 /**
- * Manage Profile Screen
+ * UC-AUTH-03: Manage Profile Screen (SCR-11)
  * Provides personal information management, delivery address book,
  * farmer production credentials, and account security.
  */
-export default function ProfileScreen({ fixture = 'retail-customer', navigate }) {
-  const storedUser = (() => {
+// API accepts Male / Female / Other; older builds stored the Vietnamese labels.
+const GENDER_CODES = { Nam: 'Male', 'Nữ': 'Female', 'Khác': 'Other', Male: 'Male', Female: 'Female', Other: 'Other' };
+function normalizeGender(value) {
+  return GENDER_CODES[value] || '';
+}
+
+export default function ProfileScreen({ fixture = 'retail-customer', session, navigate, onProfileSaved }) {
+  // 1. Synchronize user from props, sessionStorage (active auth session) or signup cache
+  const activeUser = session?.user || (() => {
     try {
+      const fromSession = sessionStorage.getItem('agrisustain:session');
+      if (fromSession) {
+        const parsed = JSON.parse(fromSession);
+        if (parsed?.user) return parsed.user;
+      }
       const raw = sessionStorage.getItem('agrisustain:current-user');
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   })();
 
-  const authIdentifier = storedUser?.email || fixture;
-  const isFarmer = storedUser ? storedUser.role === 'Farmer' : fixture === 'farmer';
-  const roleName = isFarmer ? 'Farmer' : 'RetailCustomer';
+  const token = session?.accessToken || (() => {
+    try {
+      const s = JSON.parse(sessionStorage.getItem('agrisustain:session') || 'null');
+      return s?.accessToken;
+    } catch { return null; }
+  })();
 
-  const [profile, setProfile] = useState({
-    fullName: storedUser?.fullName || (isFarmer ? 'Nguyễn Văn Hùng' : 'Lê Thị Mai'),
-    phoneNumber: storedUser?.phoneNumber || '0912345678',
-    email: storedUser?.email || (isFarmer ? 'nongtrai.dalat@gmail.com' : 'khachle.hcm@gmail.com'),
-    gender: 'Nam',
-    birthDate: '1990-05-15',
-    rewardPoints: 1250,
-    // Delivery address fields
-    recipientName: storedUser?.fullName || (isFarmer ? 'Nguyễn Văn Hùng' : 'Lê Thị Mai'),
-    recipientPhone: storedUser?.phoneNumber || '0912345678',
-    provinceCity: 'Hà Nội',
-    district: 'Quận Cầu Giấy',
-    ward: 'Phường Dịch Vọng Hậu',
-    addressDetail: 'Số 18, Phố Duy Tân',
-    isDefault: true,
-    // Farmer specific fields
-    farmName: isFarmer ? (storedUser?.fullName ? `Trang trại ${storedUser.fullName}` : 'Hợp tác xã Nông nghiệp Xanh') : '',
-    representativeName: storedUser?.fullName || (isFarmer ? 'Nguyễn Văn Hùng' : ''),
-    productionScale: isFarmer ? '5.2 ha (Đạt chuẩn VietGAP)' : '',
-    cultivationZone: isFarmer ? 'Lâm Hà - Đà Lạt - Lâm Đồng' : '',
-    businessLicenseNumber: isFarmer ? 'BL-2026-LD-889' : '',
-    gpsCoordinates: isFarmer ? '11.9404, 108.4583' : '',
-    farmAddress: isFarmer ? 'Xã Đạ Đờn, Huyện Lâm Hà, Tỉnh Lâm Đồng' : '',
-    verificationStatus: 'NotSubmitted',
-    reputationScore: 5.0,
-    rejectReason: null,
+  const authIdentifier = activeUser?.email || fixture;
+  const isFarmer = activeUser
+    ? (String(activeUser.role).toLowerCase() === 'farmer')
+    : (window.location.hash.includes('/farmer') || fixture === 'farmer');
+  const roleName = isFarmer ? 'Farmer' : (activeUser?.role || 'RetailCustomer');
+
+  // 2. Initial state: Read saved cache from localStorage for the active user if exists
+  const [profile, setProfile] = useState(() => {
+    let cached = null;
+    try {
+      const email = activeUser?.email;
+      if (email) {
+        const raw = localStorage.getItem('agrisustain:profile:' + email);
+        if (raw) cached = JSON.parse(raw);
+      }
+    } catch {}
+
+    return {
+      fullName: cached?.fullName || activeUser?.fullName || '',
+      phoneNumber: cached?.phoneNumber || activeUser?.phoneNumber || '',
+      email: activeUser?.email || '',
+      gender: normalizeGender(cached?.gender),
+      birthDate: cached?.birthDate || '',
+      rewardPoints: 0,
+      // Delivery address fields
+      recipientName: cached?.recipientName || '',
+      recipientPhone: cached?.recipientPhone || '',
+      provinceCity: cached?.provinceCity || '',
+      district: cached?.district || '',
+      ward: cached?.ward || '',
+      addressDetail: cached?.addressDetail || '',
+      provinceCode: '',
+      districtCode: '',
+      wardCode: '',
+      isDefault: Boolean(cached?.isDefault),
+      // Farmer specific fields
+      farmName: cached?.farmName || (isFarmer ? (activeUser?.fullName ? `Trang trại ${activeUser.fullName}` : '') : ''),
+      representativeName: cached?.representativeName || activeUser?.fullName || '',
+      productionScale: cached?.productionScale || '',
+      cultivationZone: cached?.cultivationZone || '',
+      businessLicenseNumber: cached?.businessLicenseNumber || '',
+      gpsCoordinates: cached?.gpsCoordinates || '',
+      farmAddress: cached?.farmAddress || '',
+      verificationStatus: 'NotSubmitted',
+      reputationScore: 5.0,
+      rejectReason: null,
+    };
   });
 
   const [saving, setSaving] = useState(false);
@@ -62,6 +98,69 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
   });
   const [passwordError, setPasswordError] = useState(null);
   const [passwordSuccess, setPasswordSuccess] = useState(null);
+
+  // Province / district / ward catalog (same source as checkout) so the saved address has real codes.
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+
+  function authHeaders() {
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  async function loadCatalog(path, setter) {
+    try {
+      const res = await fetch(path, { headers: authHeaders() });
+      setter(res.ok ? await res.json() : []);
+    } catch {
+      setter([]);
+    }
+  }
+
+  useEffect(() => {
+    if (token && !isFarmer) loadCatalog('/api/profile/address/provinces', setProvinces);
+  }, [token, isFarmer]);
+
+  useEffect(() => {
+    if (!profile.provinceCode) { setDistricts([]); return; }
+    loadCatalog(`/api/profile/address/provinces/${encodeURIComponent(profile.provinceCode)}/districts`, setDistricts);
+  }, [profile.provinceCode]);
+
+  useEffect(() => {
+    if (!profile.districtCode) { setWards([]); return; }
+    loadCatalog(`/api/profile/address/districts/${encodeURIComponent(profile.districtCode)}/wards`, setWards);
+  }, [profile.districtCode]);
+
+  function selectProvince(code) {
+    const item = provinces.find((x) => x.code === code);
+    setProfile((prev) => ({ ...prev, provinceCode: code, provinceCity: item?.name || '',
+      districtCode: '', district: '', wardCode: '', ward: '' }));
+    setFieldErrors((prev) => ({ ...prev, provinceCode: '' }));
+  }
+
+  function selectDistrict(code) {
+    const item = districts.find((x) => x.code === code);
+    setProfile((prev) => ({ ...prev, districtCode: code, district: item?.name || '', wardCode: '', ward: '' }));
+    setFieldErrors((prev) => ({ ...prev, districtCode: '' }));
+  }
+
+  function selectWard(code) {
+    const item = wards.find((x) => x.code === code);
+    setProfile((prev) => ({ ...prev, wardCode: code, ward: item?.name || '' }));
+    setFieldErrors((prev) => ({ ...prev, wardCode: '' }));
+  }
+
+  // Server field names -> form field names.
+  function mapServerErrors(errors) {
+    const alias = isFarmer
+      ? { address: 'farmAddress', gPSCoordinates: 'gpsCoordinates' }
+      : { address: 'addressDetail' };
+    const mapped = {};
+    for (const [k, v] of Object.entries(errors)) {
+      mapped[alias[k] || k] = Array.isArray(v) ? v.join(' ') : String(v);
+    }
+    return mapped;
+  }
 
   function handleChange(field, value) {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -91,45 +190,59 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
     setError(null);
   }
 
+  // Load real user profile from backend database
   useEffect(() => {
     let cancelled = false;
     async function loadProfile() {
       try {
+        const authHeader = token ? `Bearer ${token}` : `Demo ${authIdentifier}`;
         const res = await fetch('/api/profile', {
-          headers: { Authorization: `Demo ${authIdentifier}` },
+          headers: { Authorization: authHeader },
         });
+        // Read cache to fill fields that backend does not store (like gender, birthDate)
+        const emailKey = activeUser?.email || '';
+        let cached = null;
+        try {
+          const raw = localStorage.getItem('agrisustain:profile:' + emailKey);
+          if (raw) cached = JSON.parse(raw);
+        } catch {}
+
         if (res.ok) {
           const data = await res.json();
           if (!cancelled && data) {
             setProfile((prev) => ({
               ...prev,
-              fullName: data.fullName || prev.fullName,
-              phoneNumber: data.phoneNumber || prev.phoneNumber,
-              email: data.email || prev.email,
-              gender: data.gender || prev.gender,
-              birthDate: data.birthDate ? String(data.birthDate) : prev.birthDate,
-              rewardPoints: data.rewardPoints ?? prev.rewardPoints,
+              fullName: data.fullName || cached?.fullName || activeUser?.fullName || prev.fullName,
+              phoneNumber: data.phoneNumber || cached?.phoneNumber || activeUser?.phoneNumber || prev.phoneNumber,
+              email: data.email || activeUser?.email || prev.email,
+              gender: normalizeGender(data.gender || cached?.gender || prev.gender),
+              birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : (cached?.birthDate || prev.birthDate || ''),
+              rewardPoints: data.rewardPoints ?? 0,
               // Address
-              recipientName: data.deliveryAddress?.recipientName || data.fullName || prev.recipientName,
-              recipientPhone: data.deliveryAddress?.recipientPhone || data.phoneNumber || prev.recipientPhone,
-              provinceCity: data.deliveryAddress?.provinceCity || prev.provinceCity,
-              district: data.deliveryAddress?.district || prev.district,
-              ward: data.deliveryAddress?.ward || prev.ward,
-              addressDetail: data.deliveryAddress?.addressDetail || prev.addressDetail,
-              isDefault: data.deliveryAddress?.isDefault ?? prev.isDefault,
-              // Farmer
-              farmName: data.farmerProfile?.farmName || prev.farmName,
-              representativeName: data.farmerProfile?.representativeName || prev.representativeName,
-              productionScale: data.farmerProfile?.productionScale || prev.productionScale,
-              cultivationZone: data.farmerProfile?.cultivationZone || prev.cultivationZone,
-              businessLicenseNumber: data.farmerProfile?.businessLicenseNumber || prev.businessLicenseNumber,
-              gpsCoordinates: data.farmerProfile?.gpsCoordinates || data.farmerProfile?.gpscoordinates || prev.gpsCoordinates,
-              farmAddress: data.farmerProfile?.address || prev.farmAddress,
-              verificationStatus: data.farmerProfile?.verificationStatus || prev.verificationStatus,
-              reputationScore: data.farmerProfile?.reputationScore ?? prev.reputationScore,
+              recipientName: data.deliveryAddress?.recipientName || cached?.recipientName || '',
+              recipientPhone: data.deliveryAddress?.recipientPhone || cached?.recipientPhone || '',
+              provinceCity: data.deliveryAddress?.provinceCity || cached?.provinceCity || '',
+              district: data.deliveryAddress?.district || cached?.district || '',
+              ward: data.deliveryAddress?.ward || cached?.ward || '',
+              addressDetail: data.deliveryAddress?.addressDetail || cached?.addressDetail || '',
+              provinceCode: data.deliveryAddress?.provinceCode || '',
+              districtCode: data.deliveryAddress?.districtCode || '',
+              wardCode: data.deliveryAddress?.wardCode || '',
+              isDefault: data.deliveryAddress ? Boolean(data.deliveryAddress.isDefault) : Boolean(cached?.isDefault),
+              // Farmer specific data
+              farmName: data.farmerProfile?.farmName || cached?.farmName || prev.farmName,
+              representativeName: data.farmerProfile?.representativeName || cached?.representativeName || prev.representativeName,
+              productionScale: data.farmerProfile?.productionScale || cached?.productionScale || '',
+              cultivationZone: data.farmerProfile?.cultivationZone || cached?.cultivationZone || '',
+              businessLicenseNumber: data.farmerProfile?.businessLicenseNumber || cached?.businessLicenseNumber || '',
+              gpsCoordinates: data.farmerProfile?.gpsCoordinates || data.farmerProfile?.gpscoordinates || cached?.gpsCoordinates || '',
+              farmAddress: data.farmerProfile?.address || cached?.farmAddress || '',
+              verificationStatus: data.farmerProfile?.verificationStatus || cached?.verificationStatus || 'NotSubmitted',
+              reputationScore: data.farmerProfile?.reputationScore ?? 5.0,
               rejectReason: data.farmerProfile?.rejectReason || null,
             }));
 
+            // Sync loaded name to storage so top header stays updated
             try {
               const raw = sessionStorage.getItem('agrisustain:current-user');
               if (raw) {
@@ -149,21 +262,19 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
     }
     loadProfile();
     return () => { cancelled = true; };
-  }, [authIdentifier, fixture]);
+  }, [authIdentifier, token]);
 
   function validateProfile() {
     const errors = {};
     if (!profile.fullName.trim()) {
       errors.fullName = 'Họ và tên không được để trống.';
+    } else if (profile.fullName.trim().length < 2 || profile.fullName.trim().length > 50) {
+      errors.fullName = 'Họ và tên phải từ 2 đến 50 ký tự.';
     }
     if (!profile.phoneNumber.trim()) {
       errors.phoneNumber = 'Số điện thoại không được để trống.';
     } else if (!/^0\d{9}$/.test(profile.phoneNumber.trim())) {
       errors.phoneNumber = 'Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).';
-    }
-
-    if (!profile.addressDetail.trim()) {
-      errors.addressDetail = 'Địa chỉ chi tiết không được để trống.';
     }
 
     if (isFarmer) {
@@ -172,6 +283,9 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
       }
       if (!profile.representativeName.trim()) {
         errors.representativeName = 'Tên người đại diện không được để trống.';
+      }
+      if (!profile.farmAddress.trim()) {
+        errors.farmAddress = 'Địa chỉ nông trại không được để trống.';
       }
     }
 
@@ -192,18 +306,22 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
     setFieldErrors({});
 
     try {
+      const authHeader = token ? `Bearer ${token}` : `Demo ${authIdentifier}`;
       let endpoint = '/api/profile/consumer';
       let payload = {
         fullName: profile.fullName.trim(),
         phoneNumber: profile.phoneNumber.trim(),
-        gender: profile.gender || 'Khác',
+        gender: profile.gender || null,
         birthDate: profile.birthDate || null,
-        provinceCity: profile.provinceCity || 'Hà Nội',
-        district: profile.district || 'Cầu Giấy',
-        ward: profile.ward || 'Dịch Vọng Hậu',
-        addressDetail: profile.addressDetail.trim(),
-        provinceCode: '01',
-        wardCode: '001',
+        provinceCity: profile.provinceCity || null,
+        district: profile.district || null,
+        ward: profile.ward || null,
+        addressDetail: profile.addressDetail.trim() || null,
+        provinceCode: profile.provinceCode || null,
+        districtCode: profile.districtCode || null,
+        wardCode: profile.wardCode || null,
+        recipientName: profile.recipientName?.trim() || null,
+        recipientPhone: profile.recipientPhone?.trim() || null,
       };
 
       if (isFarmer) {
@@ -213,12 +331,13 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
           phoneNumber: profile.phoneNumber.trim(),
           farmName: profile.farmName.trim(),
           representativeName: profile.representativeName.trim(),
-          productionScale: profile.productionScale || '5.0 ha',
-          cultivationZone: profile.cultivationZone || 'Vùng trồng nông sản VietGAP',
-          businessLicenseNumber: profile.businessLicenseNumber || 'DKKD-12345',
-          address: profile.farmAddress || `${profile.addressDetail}, ${profile.ward}, ${profile.provinceCity}`,
-          provinceCode: '01',
-          gpsCoordinates: profile.gpsCoordinates || '11.9404, 108.4583',
+          productionScale: profile.productionScale || '',
+          cultivatedArea: null,
+          cultivationZone: profile.cultivationZone || '',
+          businessLicenseNumber: profile.businessLicenseNumber || '',
+          address: profile.farmAddress.trim(),
+          provinceCode: null,
+          gpsCoordinates: profile.gpsCoordinates || '',
         };
       }
 
@@ -226,7 +345,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Demo ${authIdentifier}`,
+          Authorization: authHeader,
         },
         body: JSON.stringify(payload),
       });
@@ -234,27 +353,74 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         if (data.errors && typeof data.errors === 'object') {
-          const sErrors = {};
-          for (const [k, v] of Object.entries(data.errors)) {
-            sErrors[k] = Array.isArray(v) ? v.join(' ') : String(v);
-          }
-          setFieldErrors(sErrors);
+          setFieldErrors(mapServerErrors(data.errors));
         }
         throw new Error(data.title || data.message || 'Cập nhật hồ sơ thất bại.');
       }
 
+      const saved = await res.json().catch(() => null);
+      const previousStatus = profile.verificationStatus;
+      const newStatus = saved?.farmerProfile?.verificationStatus;
+      if (newStatus) {
+        setProfile((prev) => ({ ...prev, verificationStatus: newStatus }));
+      }
+
+      // Persist full profile to localStorage by email so it survives reloads (F5)
       try {
-        const raw = sessionStorage.getItem('agrisustain:current-user');
-        if (raw) {
-          const u = JSON.parse(raw);
-          u.fullName = profile.fullName.trim();
-          sessionStorage.setItem('agrisustain:current-user', JSON.stringify(u));
-          window.dispatchEvent(new Event('agrisustain:user-changed'));
+        const emailKey = profile.email || activeUser?.email;
+        if (emailKey) {
+          localStorage.setItem('agrisustain:profile:' + emailKey, JSON.stringify({
+            fullName: profile.fullName.trim(),
+            phoneNumber: profile.phoneNumber.trim(),
+            gender: profile.gender || '',
+            birthDate: profile.birthDate || '',
+            recipientName: profile.recipientName || '',
+            recipientPhone: profile.recipientPhone || '',
+            provinceCity: profile.provinceCity || '',
+            district: profile.district || '',
+            ward: profile.ward || '',
+            addressDetail: profile.addressDetail || '',
+            isDefault: Boolean(profile.isDefault),
+            farmName: profile.farmName || '',
+            representativeName: profile.representativeName || '',
+            productionScale: profile.productionScale || '',
+            cultivationZone: profile.cultivationZone || '',
+            businessLicenseNumber: profile.businessLicenseNumber || '',
+            gpsCoordinates: profile.gpsCoordinates || '',
+            farmAddress: profile.farmAddress || '',
+          }));
         }
       } catch {}
 
+      // Sync to parent session and storage
+      if (onProfileSaved) {
+        onProfileSaved({ fullName: profile.fullName.trim() });
+      }
+      try {
+        const raw = sessionStorage.getItem('agrisustain:session');
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s?.user) {
+            s.user.fullName = profile.fullName.trim();
+            s.user.phoneNumber = profile.phoneNumber.trim();
+            sessionStorage.setItem('agrisustain:session', JSON.stringify(s));
+          }
+        }
+        const rawUser = sessionStorage.getItem('agrisustain:current-user');
+        if (rawUser) {
+          const u = JSON.parse(rawUser);
+          u.fullName = profile.fullName.trim();
+          u.phoneNumber = profile.phoneNumber.trim();
+          sessionStorage.setItem('agrisustain:current-user', JSON.stringify(u));
+        }
+        window.dispatchEvent(new Event('agrisustain:user-changed'));
+      } catch {}
+
       setSaving(false);
-      setNotice('Cập nhật thông tin hồ sơ và địa chỉ thành công vào cơ sở dữ liệu!');
+      // MSG13, plus the re-verification notice of SRS UC-AUTH-03 AF Step 6.
+      setNotice(previousStatus === 'Approved' && newStatus === 'PendingApproval'
+        ? 'Cập nhật hồ sơ thành công! Bạn đã thay đổi thông tin pháp lý nên hồ sơ cần được Nhân viên xác minh duyệt lại.'
+        : 'Cập nhật hồ sơ thành công!');
     } catch (err) {
       setSaving(false);
       setError(err.message || 'Lỗi khi lưu dữ liệu.');
@@ -266,11 +432,12 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
     setSaving(true);
     setError(null);
     try {
+      const authHeader = token ? `Bearer ${token}` : `Demo ${authIdentifier}`;
       const res = await fetch('/api/profile/farmer/submit-kyc', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Demo ${authIdentifier}`,
+          Authorization: authHeader,
         },
         body: JSON.stringify({
           notes: 'Nông hộ gửi hồ sơ thẩm định giấy phép và quy chuẩn canh tác VietGAP.',
@@ -279,11 +446,18 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (data.errors && typeof data.errors === 'object') {
+          setFieldErrors(mapServerErrors(data.errors));
+        }
         throw new Error(data.title || data.message || 'Nộp hồ sơ KYC thất bại.');
       }
 
+      const submitted = await res.json().catch(() => null);
       setSaving(false);
-      setProfile((prev) => ({ ...prev, verificationStatus: 'Pending' }));
+      setProfile((prev) => ({
+        ...prev,
+        verificationStatus: submitted?.farmerProfile?.verificationStatus || 'PendingApproval',
+      }));
       setNotice('Hồ sơ của bạn đã được chuyển vào hàng đợi duyệt KYC của Nhân viên xác minh.');
     } catch (err) {
       setSaving(false);
@@ -298,7 +472,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
     setPasswordModalOpen(true);
   }
 
-  function handleChangePasswordSubmit(e) {
+  async function handleChangePasswordSubmit(e) {
     e.preventDefault();
     if (!passwordForm.currentPassword) {
       setPasswordError('Vui lòng nhập mật khẩu hiện tại.');
@@ -310,14 +484,8 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
     }
     const hasUpper = /[A-Z]/.test(passwordForm.newPassword);
     const hasLower = /[a-z]/.test(passwordForm.newPassword);
-    if (!hasUpper && !hasLower) {
-      setPasswordError('Mật khẩu phải có ít nhất 1 chữ hoa. Mật khẩu phải có ít nhất 1 chữ thường.');
-      return;
-    } else if (!hasUpper) {
-      setPasswordError('Mật khẩu phải có ít nhất 1 chữ hoa.');
-      return;
-    } else if (!hasLower) {
-      setPasswordError('Mật khẩu phải có ít nhất 1 chữ thường.');
+    if (!hasUpper || !hasLower) {
+      setPasswordError('Mật khẩu mới phải có ít nhất 1 chữ hoa và 1 chữ thường.');
       return;
     }
     if (!/[0-9]/.test(passwordForm.newPassword)) {
@@ -329,12 +497,37 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
       return;
     }
 
-    setPasswordError(null);
-    setPasswordSuccess('Đổi mật khẩu thành công! Mật khẩu mới đã được kích hoạt.');
-    setTimeout(() => {
-      setPasswordModalOpen(false);
-    }, 1500);
+    try {
+      const authHeader = token ? `Bearer ${token}` : `Demo ${authIdentifier}`;
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+          confirmPassword: passwordForm.confirmNewPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || data.title || data.message || 'Đổi mật khẩu thất bại.');
+      }
+
+      setPasswordError(null);
+      setPasswordSuccess('Đổi mật khẩu thành công! Mật khẩu mới đã được cập nhật.');
+      setTimeout(() => {
+        setPasswordModalOpen(false);
+      }, 1500);
+    } catch (err) {
+      setPasswordError(err.message || 'Lỗi khi đổi mật khẩu.');
+    }
   }
+
+  const avatarInitial = initials(profile.fullName || activeUser?.fullName || (isFarmer ? 'Farmer' : 'User'));
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto' }}>
@@ -371,12 +564,12 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
               border: '3px solid #b7e4c7',
             }}
           >
-            {initials(profile.fullName)}
+            {avatarInitial}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <h1 style={{ color: '#ffffff', margin: 0, fontSize: 24, fontWeight: 800 }}>
-                {profile.fullName}
+                {profile.fullName || (isFarmer ? 'Tài khoản Nông hộ' : 'Khách hàng')}
               </h1>
               <span
                 style={{
@@ -392,37 +585,69 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
               </span>
             </div>
             <p style={{ margin: '6px 0 0', fontSize: 13, color: '#d8f3dc' }}>
-              {profile.email} • SĐT: {profile.phoneNumber}
+              {profile.email || 'Chưa cập nhật email'} • SĐT: {profile.phoneNumber || 'Chưa cập nhật'}
             </p>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-          <div
-            style={{
-              background: 'rgba(255,255,255,0.15)',
-              padding: '10px 16px',
-              borderRadius: 12,
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 11, color: '#b7e4c7' }}>ĐIỂM TÍCH LŨY</div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>⭐ {profile.rewardPoints}</div>
-          </div>
+          {isFarmer ? (
+            <>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#b7e4c7' }}>ĐIỂM UY TÍN NHÀ VƯỜN</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>⭐ {profile.reputationScore || 5.0} / 5.0</div>
+              </div>
 
-          <div
-            style={{
-              background: 'rgba(255,255,255,0.15)',
-              padding: '10px 16px',
-              borderRadius: 12,
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 11, color: '#b7e4c7' }}>TRẠNG THÁI KYC</div>
-            <div style={{ marginTop: 2 }}>
-              <VerificationBadge value={profile.verificationStatus} />
-            </div>
-          </div>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#b7e4c7' }}>TRẠNG THÁI KYC</div>
+                <div style={{ marginTop: 2 }}>
+                  <VerificationBadge value={profile.verificationStatus} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#b7e4c7' }}>ĐIỂM TÍCH LŨY</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>⭐ {profile.rewardPoints || 0}</div>
+              </div>
+
+              <div
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  padding: '10px 16px',
+                  borderRadius: 12,
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 11, color: '#b7e4c7' }}>TRẠNG THÁI TÀI KHOẢN</div>
+                <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, color: '#ffffff' }}>
+                  ✓ Đã kích hoạt
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -457,7 +682,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
                 cursor: 'pointer',
               }}
             >
-              👤 Thông tin cá nhân & Địa chỉ
+              👤 {isFarmer ? 'Hồ sơ nông hộ & KYC' : 'Thông tin cá nhân & Địa chỉ'}
             </button>
             <button
               type="button"
@@ -471,11 +696,12 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
                 cursor: 'pointer',
               }}
               onClick={() => {
-                if (navigate) navigate('/orders');
-                else window.location.hash = '#/orders';
+                const target = isFarmer ? '/farmer/orders' : '/orders';
+                if (navigate) navigate(target);
+                else window.location.hash = '#' + target;
               }}
             >
-              📦 Lịch sử đơn mua hàng
+              📦 {isFarmer ? 'Đơn hàng của nông trại' : 'Lịch sử đơn mua hàng'}
             </button>
             <button
               type="button"
@@ -494,28 +720,28 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
             </button>
           </div>
 
-          <div style={{ borderTop: '1px solid #e0e7df', marginTop: 24, paddingTop: 16 }}>
-            <div style={{ fontSize: 12, color: '#668071', marginBottom: 8 }}>
-              <strong>Xác minh KYC:</strong> <VerificationBadge value={profile.verificationStatus} />
-            </div>
-            {isFarmer && (
-              <div style={{ fontSize: 12, color: '#668071', marginBottom: 12 }}>
-                <strong>Điểm uy tín nhà vườn:</strong> ⭐ {profile.reputationScore} / 5.0
+          {isFarmer && (
+            <div style={{ borderTop: '1px solid #e0e7df', marginTop: 24, paddingTop: 16 }}>
+              <div style={{ fontSize: 12, color: '#668071', marginBottom: 8 }}>
+                <strong>Xác minh KYC:</strong> <VerificationBadge value={profile.verificationStatus} />
               </div>
-            )}
+              <div style={{ fontSize: 12, color: '#668071', marginBottom: 12 }}>
+                <strong>Điểm uy tín nhà vườn:</strong> ⭐ {profile.reputationScore || 5.0} / 5.0
+              </div>
 
-            {(profile.verificationStatus === 'NotSubmitted' || profile.verificationStatus === 'Rejected') && (
-              <button
-                type="button"
-                className="primary"
-                style={{ width: '100%', marginTop: 8, background: '#1e6546', borderRadius: 8, padding: '10px 14px', fontWeight: 600 }}
-                onClick={handleSubmitKyc}
-                disabled={saving}
-              >
-                Gửi thẩm định KYC
-              </button>
-            )}
-          </div>
+              {(profile.verificationStatus === 'NotSubmitted' || profile.verificationStatus === 'Rejected') && (
+                <button
+                  type="button"
+                  className="primary"
+                  style={{ width: '100%', marginTop: 8, background: '#1e6546', borderRadius: 8, padding: '10px 14px', fontWeight: 600 }}
+                  onClick={handleSubmitKyc}
+                  disabled={saving}
+                >
+                  Gửi thẩm định KYC
+                </button>
+              )}
+            </div>
+          )}
         </aside>
 
         {/* Right Form Card */}
@@ -525,7 +751,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
               <div>
                 <h2 style={{ margin: 0, fontSize: 18, color: '#1b4332' }}>1. Thông tin cá nhân cơ bản</h2>
                 <p className="muted" style={{ fontSize: 12 }}>
-                  Thông tin dùng để định danh và liên hệ giao nhận hàng trên hệ thống.
+                  Thông tin dùng để định danh và liên hệ trên hệ thống.
                 </p>
               </div>
             </div>
@@ -539,8 +765,9 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
                   type="text"
                   value={profile.fullName}
                   onChange={(e) => handleChange('fullName', e.target.value)}
+                  placeholder="Nhập họ và tên"
                   disabled={saving}
-                  maxLength={150}
+                  maxLength={50}
                   required
                 />
               </Field>
@@ -554,6 +781,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
                   type="tel"
                   value={profile.phoneNumber}
                   onChange={(e) => handlePhoneChange('phoneNumber', e)}
+                  placeholder="Ví dụ: 0912345678"
                   disabled={saving}
                   maxLength={11}
                   required
@@ -577,9 +805,10 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
                   onChange={(e) => handleChange('gender', e.target.value)}
                   disabled={saving}
                 >
-                  <option value="Nam">Nam</option>
-                  <option value="Nữ">Nữ</option>
-                  <option value="Khác">Khác</option>
+                  <option value="">-- Chọn giới tính --</option>
+                  <option value="Male">Nam</option>
+                  <option value="Female">Nữ</option>
+                  <option value="Other">Khác</option>
                 </select>
               </Field>
 
@@ -593,126 +822,115 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
               </Field>
             </div>
 
-            {/* Sổ địa chỉ giao hàng */}
-            <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #e2eae4' }}>
-              <h2 style={{ margin: '0 0 6px', fontSize: 18, color: '#1b4332' }}>
-                2. Sổ địa chỉ nhận hàng mặc định
-              </h2>
-              <p className="muted" style={{ fontSize: 12, marginBottom: 16 }}>
-                Địa chỉ này sẽ được ưu tiên tự động điền khi thanh toán đơn hàng nông sản.
-              </p>
+            {/* Sổ địa chỉ giao hàng (Hiển thị cho RetailCustomer, mặc định để trống cho người dùng mới) */}
+            {!isFarmer && (
+              <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #e2eae4' }}>
+                <h2 style={{ margin: '0 0 6px', fontSize: 18, color: '#1b4332' }}>
+                  2. Sổ địa chỉ nhận hàng mặc định
+                </h2>
+                <p className="muted" style={{ fontSize: 12, marginBottom: 16 }}>
+                  Địa chỉ này sẽ được ưu tiên tự động điền khi thanh toán đơn hàng nông sản.
+                </p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <Field label="Họ tên người nhận">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <Field label="Họ tên người nhận">
+                    <input
+                      type="text"
+                      value={profile.recipientName}
+                      onChange={(e) => handleChange('recipientName', e.target.value)}
+                      placeholder="Mặc định theo họ tên tài khoản"
+                      disabled={saving}
+                      maxLength={50}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Số điện thoại người nhận"
+                    hint={recipientPhoneNotice}
+                  >
+                    <input
+                      type="tel"
+                      value={profile.recipientPhone}
+                      onChange={(e) => handlePhoneChange('recipientPhone', e)}
+                      placeholder="Mặc định theo SĐT tài khoản"
+                      disabled={saving}
+                      maxLength={11}
+                    />
+                  </Field>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                  <Field label="Tỉnh / Thành phố" error={fieldErrors.provinceCode}>
+                    <select
+                      value={profile.provinceCode}
+                      onChange={(e) => selectProvince(e.target.value)}
+                      disabled={saving || provinces.length === 0}
+                    >
+                      <option value="">-- Chọn Tỉnh / Thành phố --</option>
+                      {provinces.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+                    </select>
+                  </Field>
+
+                  <Field label="Quận / Huyện" error={fieldErrors.districtCode}>
+                    <select
+                      value={profile.districtCode}
+                      onChange={(e) => selectDistrict(e.target.value)}
+                      disabled={saving || !profile.provinceCode || districts.length === 0}
+                    >
+                      <option value="">-- Chọn Quận / Huyện --</option>
+                      {districts.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+                    </select>
+                  </Field>
+
+                  <Field label="Phường / Xã" error={fieldErrors.wardCode}>
+                    <select
+                      value={profile.wardCode}
+                      onChange={(e) => selectWard(e.target.value)}
+                      disabled={saving || !profile.districtCode || wards.length === 0}
+                    >
+                      <option value="">-- Chọn Phường / Xã --</option>
+                      {wards.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+                    </select>
+                  </Field>
+                </div>
+
+                <Field
+                  label="Địa chỉ chi tiết (Số nhà, tên ngõ, phố)"
+                  error={fieldErrors.addressDetail}
+                >
                   <input
                     type="text"
-                    value={profile.recipientName}
-                    onChange={(e) => handleChange('recipientName', e.target.value)}
-                    placeholder="Mặc định theo họ tên tài khoản"
+                    value={profile.addressDetail}
+                    onChange={(e) => handleChange('addressDetail', e.target.value)}
+                    placeholder="Ví dụ: Số 18, Phố Duy Tân"
                     disabled={saving}
                     maxLength={150}
                   />
                 </Field>
 
-                <Field
-                  label="Số điện thoại người nhận"
-                  hint={recipientPhoneNotice}
-                >
-                  <input
-                    type="tel"
-                    value={profile.recipientPhone}
-                    onChange={(e) => handlePhoneChange('recipientPhone', e)}
-                    placeholder="Mặc định theo SĐT tài khoản"
-                    disabled={saving}
-                    maxLength={11}
-                  />
-                </Field>
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#2d4d3c' }}>
+                    <input
+                      type="checkbox"
+                      checked={profile.isDefault}
+                      onChange={(e) => handleChange('isDefault', e.target.checked)}
+                      style={{ accentColor: '#1e6546' }}
+                      disabled={saving}
+                    />
+                    <span>Đặt làm địa chỉ nhận hàng mặc định</span>
+                  </label>
+                </div>
               </div>
+            )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-                <Field label="Tỉnh / Thành phố *">
-                  <select
-                    value={profile.provinceCity}
-                    onChange={(e) => handleChange('provinceCity', e.target.value)}
-                    disabled={saving}
-                  >
-                    <option value="Hà Nội">Hà Nội</option>
-                    <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                    <option value="Đà Nẵng">Đà Nẵng</option>
-                    <option value="Lâm Đồng">Lâm Đồng</option>
-                    <option value="Cần Thơ">Cần Thơ</option>
-                    <option value="Đồng Tháp">Đồng Tháp</option>
-                  </select>
-                </Field>
-
-                <Field label="Quận / Huyện *">
-                  <select
-                    value={profile.district}
-                    onChange={(e) => handleChange('district', e.target.value)}
-                    disabled={saving}
-                  >
-                    <option value="Quận Cầu Giấy">Quận Cầu Giấy</option>
-                    <option value="Quận Đống Đa">Quận Đống Đa</option>
-                    <option value="Quận Ba Đình">Quận Ba Đình</option>
-                    <option value="Huyện Lâm Hà">Huyện Lâm Hà</option>
-                    <option value="TP. Đà Lạt">TP. Đà Lạt</option>
-                    <option value="Quận 1">Quận 1</option>
-                    <option value="Quận 7">Quận 7</option>
-                  </select>
-                </Field>
-
-                <Field label="Phường / Xã *">
-                  <select
-                    value={profile.ward}
-                    onChange={(e) => handleChange('ward', e.target.value)}
-                    disabled={saving}
-                  >
-                    <option value="Phường Dịch Vọng Hậu">Phường Dịch Vọng Hậu</option>
-                    <option value="Phường Yên Hòa">Phường Yên Hòa</option>
-                    <option value="Xã Đạ Đờn">Xã Đạ Đờn</option>
-                    <option value="Phường Bến Nghé">Phường Bến Nghé</option>
-                    <option value="Phường Tân Phong">Phường Tân Phong</option>
-                  </select>
-                </Field>
-              </div>
-
-              <Field
-                label="Địa chỉ chi tiết (Số nhà, tên ngõ, phố) *"
-                error={fieldErrors.addressDetail}
-              >
-                <input
-                  type="text"
-                  value={profile.addressDetail}
-                  onChange={(e) => handleChange('addressDetail', e.target.value)}
-                  placeholder="Ví dụ: Số 18, Phố Duy Tân"
-                  disabled={saving}
-                  maxLength={150}
-                  required
-                />
-              </Field>
-
-              <div style={{ marginTop: 10 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#2d4d3c' }}>
-                  <input
-                    type="checkbox"
-                    checked={profile.isDefault}
-                    onChange={(e) => handleChange('isDefault', e.target.checked)}
-                    style={{ accentColor: '#1e6546' }}
-                    disabled={saving}
-                  />
-                  <span>Đặt làm địa chỉ nhận hàng mặc định</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Thông tin dành riêng cho Farmer */}
+            {/* Thông tin dành riêng cho Farmer (Hồ sơ nông hộ & KYC) */}
             {isFarmer && (
               <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #e2eae4' }}>
                 <h2 style={{ margin: '0 0 6px', fontSize: 18, color: '#1b4332' }}>
-                  3. Thông tin Nông trại & Hợp tác xã (Dành cho Farmer)
+                  2. Thông tin Nông trại & Hợp tác xã (Hồ sơ nông hộ)
                 </h2>
                 <p className="muted" style={{ fontSize: 12, marginBottom: 16 }}>
-                  Dữ liệu dùng để cấp mã truy xuất nguồn gốc nông sản theo quy chuẩn VietGAP.
+                  Dữ liệu dùng để cấp mã truy xuất nguồn gốc nông sản và thẩm định hồ sơ VietGAP.
                 </p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -724,92 +942,104 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
                       type="text"
                       value={profile.farmName}
                       onChange={(e) => handleChange('farmName', e.target.value)}
+                      placeholder="Ví dụ: Trang trại Nông sản Đà Lạt"
                       disabled={saving}
-                      placeholder="Ví dụ: Hợp tác xã Nông nghiệp Xanh Đà Lạt"
+                      maxLength={100}
+                      required
                     />
                   </Field>
 
                   <Field
-                    label="Người đại diện pháp lý *"
+                    label="Tên người đại diện pháp luật *"
                     error={fieldErrors.representativeName}
                   >
                     <input
                       type="text"
                       value={profile.representativeName}
                       onChange={(e) => handleChange('representativeName', e.target.value)}
+                      placeholder="Họ và tên chủ hộ / người đại diện"
                       disabled={saving}
-                      placeholder="Ví dụ: Nguyễn Văn Hùng"
+                      maxLength={50}
+                      required
                     />
                   </Field>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <Field label="Quy mô sản xuất / Diện tích">
+                  <Field label="Quy mô canh tác">
                     <input
                       type="text"
                       value={profile.productionScale}
                       onChange={(e) => handleChange('productionScale', e.target.value)}
+                      placeholder="Ví dụ: 3.5 ha canh tác nhà kính"
                       disabled={saving}
-                      placeholder="Ví dụ: 5.2 ha (Đạt chuẩn VietGAP)"
+                      maxLength={100}
                     />
                   </Field>
 
-                  <Field label="Vùng canh tác nông nghiệp">
+                  <Field label="Vùng canh tác trọng điểm *" error={fieldErrors.cultivationZone}>
                     <input
                       type="text"
                       value={profile.cultivationZone}
                       onChange={(e) => handleChange('cultivationZone', e.target.value)}
-                      disabled={saving}
                       placeholder="Ví dụ: Lâm Hà - Đà Lạt - Lâm Đồng"
+                      disabled={saving}
+                      maxLength={150}
                     />
                   </Field>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <Field label="Số ĐKKD / Giấy chứng nhận HTX">
+                  <Field label="Số ĐKKD / Mã số nông hộ *" error={fieldErrors.businessLicenseNumber}>
                     <input
                       type="text"
                       value={profile.businessLicenseNumber}
                       onChange={(e) => handleChange('businessLicenseNumber', e.target.value)}
-                      disabled={saving}
                       placeholder="Ví dụ: BL-2026-LD-889"
+                      disabled={saving}
+                      maxLength={100}
                     />
                   </Field>
 
-                  <Field label="Tọa độ GPS cơ sở (Kinh độ, Vĩ độ)">
+                  <Field label="Tọa độ GPS vườn (Vĩ độ, Kinh độ)" error={fieldErrors.gpsCoordinates}>
                     <input
                       type="text"
                       value={profile.gpsCoordinates}
                       onChange={(e) => handleChange('gpsCoordinates', e.target.value)}
-                      disabled={saving}
                       placeholder="Ví dụ: 11.9404, 108.4583"
+                      disabled={saving}
+                      maxLength={100}
                     />
                   </Field>
                 </div>
 
-                <Field label="Địa chỉ cơ sở / nông trại">
+                <Field label="Địa chỉ nông trại canh tác *" error={fieldErrors.farmAddress}>
                   <input
                     type="text"
                     value={profile.farmAddress}
                     onChange={(e) => handleChange('farmAddress', e.target.value)}
+                    placeholder="Ví dụ: Thôn 4, Xã Đạ Đờn, Huyện Lâm Hà, Tỉnh Lâm Đồng"
                     disabled={saving}
-                    placeholder="Ví dụ: Thôn 3, Xã Đạ Đờn, Huyện Lâm Hà, Tỉnh Lâm Đồng"
+                    maxLength={200}
                   />
                 </Field>
               </div>
             )}
 
-            <div style={{ marginTop: 32, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            <div style={{ marginTop: 28, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
               <button
                 type="submit"
                 className="primary"
                 style={{
-                  padding: '12px 28px',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 700,
                   background: '#1e6546',
-                  boxShadow: '0 4px 12px rgba(30, 101, 70, 0.2)',
+                  color: '#ffffff',
+                  padding: '12px 28px',
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(30,101,70,0.2)',
                 }}
                 disabled={saving}
               >
@@ -820,75 +1050,82 @@ export default function ProfileScreen({ fixture = 'retail-customer', navigate })
         </main>
       </div>
 
-      {/* Modal Đổi mật khẩu & Bảo mật */}
+      {/* Modal Change Password */}
       {passwordModalOpen && (
-        <Modal
-          onClose={() => setPasswordModalOpen(false)}
-          title="Đổi mật khẩu tài khoản"
-        >
-          <div style={{ padding: '8px 0 16px' }}>
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#557262' }}>
-              Để bảo vệ tài khoản, mật khẩu mới cần có tối thiểu 8 ký tự gồm cả chữ hoa, chữ thường và chữ số.
-            </p>
+      <Modal
+        onClose={() => setPasswordModalOpen(false)}
+        title="Đổi Mật Khẩu & Bảo Mật"
+      >
+        <form onSubmit={handleChangePasswordSubmit}>
+          <Notice error={Boolean(passwordError)}>{passwordError}</Notice>
+          {passwordSuccess && <Notice>{passwordSuccess}</Notice>}
 
-            {passwordError && <Notice error>{passwordError}</Notice>}
-            {passwordSuccess && <Notice>{passwordSuccess}</Notice>}
+          <Field label="Mật khẩu hiện tại *">
+            <input
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+              placeholder="Nhập mật khẩu hiện tại"
+              required
+            />
+          </Field>
 
-            <form onSubmit={handleChangePasswordSubmit}>
-              <div style={{ display: 'grid', gap: 14 }}>
-                <Field label="Mật khẩu hiện tại *">
-                  <input
-                    type="password"
-                    placeholder="Nhập mật khẩu hiện tại"
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
-                    required
-                  />
-                </Field>
+          <Field
+            label="Mật khẩu mới *"
+            hint="Tối thiểu 8 ký tự, gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số."
+          >
+            <input
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+              placeholder="Nhập mật khẩu mới"
+              required
+            />
+          </Field>
 
-                <Field
-                  label="Mật khẩu mới *"
-                  hint="Ít nhất 8 ký tự, gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số"
-                >
-                  <input
-                    type="password"
-                    placeholder="Nhập mật khẩu mới"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
-                    required
-                  />
-                </Field>
+          <Field label="Xác nhận mật khẩu mới *">
+            <input
+              type="password"
+              value={passwordForm.confirmNewPassword}
+              onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmNewPassword: e.target.value }))}
+              placeholder="Nhập lại mật khẩu mới chính xác"
+              required
+            />
+          </Field>
 
-                <Field label="Xác nhận mật khẩu mới *">
-                  <input
-                    type="password"
-                    placeholder="Nhập lại mật khẩu mới"
-                    value={passwordForm.confirmNewPassword}
-                    onChange={(e) => setPasswordForm((p) => ({ ...p, confirmNewPassword: e.target.value }))}
-                    required
-                  />
-                </Field>
-              </div>
-
-              <div className="modal-actions" style={{ marginTop: 24 }}>
-                <button
-                  type="button"
-                  onClick={() => setPasswordModalOpen(false)}
-                  style={{ padding: '10px 18px', borderRadius: 8 }}
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="primary"
-                  style={{ background: '#1e6546', padding: '10px 22px', borderRadius: 8, fontWeight: 700 }}
-                >
-                  Cập nhật mật khẩu
-                </button>
-              </div>
-            </form>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+            <button
+              type="button"
+              onClick={() => setPasswordModalOpen(false)}
+              style={{
+                background: '#e0e7df',
+                border: 'none',
+                padding: '10px 18px',
+                borderRadius: 8,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="primary"
+              style={{
+                background: '#1e6546',
+                color: '#ffffff',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: 8,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Cập Nhật Mật Khẩu
+            </button>
           </div>
-        </Modal>
+        </form>
+      </Modal>
       )}
     </div>
   );

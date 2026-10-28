@@ -26,7 +26,8 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
 
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            string kw = query.Keyword.Trim();
+            // Order codes are displayed as "#ORD-..." so a pasted "#" is ignored.
+            string kw = query.Keyword.Trim().TrimStart('#').Trim();
             ordersQuery = ordersQuery.Where(o =>
                 o.OrderCode.Contains(kw)
                 || o.SellerOrders.Any(so => so.OrderItems
@@ -98,6 +99,12 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
         bool isPaid = o.PaymentTransactions
             .Any(p => s_settledPaymentStatuses.Contains(p.PaymentStatus));
 
+        DateTime? deliveredAt = o.SellerOrders
+            .SelectMany(so => so.OrderStatusHistories)
+            .Where(history => history.NewStatus == "Delivered")
+            .Select(history => (DateTime?)history.OccurredAt)
+            .Max() ?? o.CompletedAt;
+
         return new OrderDetailDto(
             OrderId: o.OrderId,
             OrderCode: o.OrderCode,
@@ -117,7 +124,9 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
             ExpectedDeliveryDate: o.ExpectedDeliveryDate.HasValue
                 ? Utc(o.ExpectedDeliveryDate.Value) : null,
             SellerOrders: SellerOrders(o),
-            Timeline: timeline);
+            Timeline: timeline,
+            DeliveredAt: deliveredAt.HasValue ? Utc(deliveredAt.Value) : null,
+            ReservationExpiresAt: o.ReservationExpiresAt.HasValue ? Utc(o.ReservationExpiresAt.Value) : null);
     }
 
     public async Task<OrderDetailDto?> GetOrderDetailByCodeAsync(
@@ -136,6 +145,13 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
 
         return await GetOrderDetailAsync(buyerId, o.OrderId, cancellationToken);
     }
+
+    public async Task MarkOrderNotificationsReadAsync(
+        long buyerId, long orderId, CancellationToken cancellationToken) =>
+        await db.Notifications
+            .Where(n => n.UserId == buyerId && !n.IsRead
+                && n.RelatedRecordType == "Order" && n.RelatedRecordId == orderId)
+            .ExecuteUpdateAsync(set => set.SetProperty(n => n.IsRead, true), cancellationToken);
 
     private static IQueryable<Order> WithTrackingData(IQueryable<Order> orders) => orders
         .Include(o => o.SellerOrders)

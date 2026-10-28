@@ -9,6 +9,7 @@ using IAddressCatalog = AgriSustain.Application.Interfaces.IAddressCatalog;
 
 namespace AgriSustain.Application.Services.Profiles;
 
+/// <summary>UC-AUTH-03 Manage Profile.</summary>
 public sealed class ProfileService(
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
@@ -16,23 +17,30 @@ public sealed class ProfileService(
     IValidator<UpdateConsumerProfileRequest> consumerValidator,
     IValidator<UpdateFarmerProfileRequest> farmerValidator) : IProfileService
 {
+    private static readonly Error s_signInRequired = new(
+        "UNAUTHORIZED", "Vui lòng đăng nhập để sử dụng chức năng hồ sơ.", "Unauthorized");
+
+    private static readonly Error s_phoneTaken = new(
+        "PHONE_EXISTS", "Số điện thoại này đã được tài khoản khác sử dụng.", "Conflict",
+        new Dictionary<string, string[]> { ["phoneNumber"] = ["Số điện thoại này đã được sử dụng."] });
+
     public Task<Result<UserProfileResponse>> GetCurrentProfileAsync(
         CancellationToken cancellationToken) =>
         unitOfWork.ReadAsync(async uow =>
         {
-            if (currentUser.UserId == null)
+            if (currentUser.UserId is not long userId)
             {
-                return Result<UserProfileResponse>.FailureResult(new Error(
-                    "UNAUTHORIZED", "Vui lòng đăng nhập để xem thông tin hồ sơ.", "Unauthorized"));
+                return Result<UserProfileResponse>.FailureResult(s_signInRequired);
             }
 
-            var profile = await uow.Profiles.GetProfileAsync(currentUser.UserId.Value, cancellationToken);
+            var profile = await uow.Profiles.GetProfileAsync(userId, cancellationToken);
             return profile == null
                 ? Result<UserProfileResponse>.FailureResult(new Error(
                     "USER_NOT_FOUND", "Không tìm thấy thông tin tài khoản người dùng.", "NotFound"))
                 : Result<UserProfileResponse>.SuccessResult(profile);
         }, cancellationToken);
 
+    /// <summary>Back-office lookup. Access is restricted to Administrator / Verification Officer (GBR-08) by the controller.</summary>
     public Task<Result<UserProfileResponse>> GetProfileByIdAsync(
         long userId, CancellationToken cancellationToken) =>
         unitOfWork.ReadAsync(async uow =>
@@ -47,6 +55,11 @@ public sealed class ProfileService(
     public async Task<Result<UserProfileResponse>> UpdateConsumerProfileAsync(
         UpdateConsumerProfileRequest request, CancellationToken cancellationToken)
     {
+        if (currentUser.UserId is not long userId)
+        {
+            return Result<UserProfileResponse>.FailureResult(s_signInRequired);
+        }
+
         Error? error = await RequestValidation.CheckAsync(consumerValidator, request, cancellationToken);
         if (error != null)
         {
@@ -83,18 +96,29 @@ public sealed class ProfileService(
 
         return await unitOfWork.ExecuteAsync(async uow =>
         {
-            if (currentUser.UserId == null)
+            var account = await uow.Profiles.GetAccountAsync(userId, cancellationToken);
+            if (account == null)
             {
                 return Result<UserProfileResponse>.FailureResult(new Error(
-                    "UNAUTHORIZED", "Vui lòng đăng nhập trước khi cập nhật hồ sơ.", "Unauthorized"));
+                    "USER_NOT_FOUND", "Không tìm thấy thông tin tài khoản người dùng.", "NotFound"));
             }
 
-            var updated = await uow.Profiles.UpdateConsumerProfileAsync(
-                currentUser.UserId.Value, request, cancellationToken);
+            // Farmers keep their contact data together with the farm profile (PUT /api/profile/farmer).
+            if (account.Role == "Farmer")
+            {
+                return Result<UserProfileResponse>.FailureResult(new Error(
+                    "WRONG_PROFILE_TYPE", "Tài khoản nông hộ cập nhật hồ sơ tại mục Hồ sơ nông trại.", "Forbidden"));
+            }
 
+            if (await uow.Profiles.PhoneUsedByAnotherUserAsync(request.PhoneNumber.Trim(), userId, cancellationToken))
+            {
+                return Result<UserProfileResponse>.FailureResult(s_phoneTaken);
+            }
+
+            var updated = await uow.Profiles.UpdateConsumerProfileAsync(userId, request, cancellationToken);
             return updated == null
                 ? Result<UserProfileResponse>.FailureResult(new Error(
-                    "UPDATE_FAILED", "Không thể cập nhật hồ sơ người tiêu dùng.", "NotFound"))
+                    "USER_NOT_FOUND", "Không tìm thấy thông tin tài khoản người dùng.", "NotFound"))
                 : Result<UserProfileResponse>.SuccessResult(updated);
         }, cancellationToken);
     }
@@ -102,6 +126,11 @@ public sealed class ProfileService(
     public async Task<Result<UserProfileResponse>> UpdateFarmerProfileAsync(
         UpdateFarmerProfileRequest request, CancellationToken cancellationToken)
     {
+        if (currentUser.UserId is not long userId)
+        {
+            return Result<UserProfileResponse>.FailureResult(s_signInRequired);
+        }
+
         Error? error = await RequestValidation.CheckAsync(farmerValidator, request, cancellationToken);
         if (error != null)
         {
@@ -110,18 +139,20 @@ public sealed class ProfileService(
 
         return await unitOfWork.ExecuteAsync(async uow =>
         {
-            if (currentUser.UserId == null)
+            if (await FarmerOnlyErrorAsync(uow, userId, cancellationToken) is { } roleError)
             {
-                return Result<UserProfileResponse>.FailureResult(new Error(
-                    "UNAUTHORIZED", "Vui lòng đăng nhập trước khi cập nhật hồ sơ.", "Unauthorized"));
+                return Result<UserProfileResponse>.FailureResult(roleError);
             }
 
-            var updated = await uow.Profiles.UpdateFarmerProfileAsync(
-                currentUser.UserId.Value, request, cancellationToken);
+            if (await uow.Profiles.PhoneUsedByAnotherUserAsync(request.PhoneNumber.Trim(), userId, cancellationToken))
+            {
+                return Result<UserProfileResponse>.FailureResult(s_phoneTaken);
+            }
 
+            var updated = await uow.Profiles.UpdateFarmerProfileAsync(userId, request, cancellationToken);
             return updated == null
                 ? Result<UserProfileResponse>.FailureResult(new Error(
-                    "UPDATE_FAILED", "Không thể cập nhật hồ sơ nông hộ.", "NotFound"))
+                    "FARMER_PROFILE_NOT_FOUND", "Không tìm thấy hồ sơ nông trại của tài khoản.", "NotFound"))
                 : Result<UserProfileResponse>.SuccessResult(updated);
         }, cancellationToken);
     }
@@ -130,18 +161,44 @@ public sealed class ProfileService(
         SubmitKycRequest request, CancellationToken cancellationToken) =>
         unitOfWork.ExecuteAsync(async uow =>
         {
-            if (currentUser.UserId == null)
+            if (currentUser.UserId is not long userId)
             {
-                return Result<UserProfileResponse>.FailureResult(new Error(
-                    "UNAUTHORIZED", "Vui lòng đăng nhập trước khi nộp hồ sơ KYC.", "Unauthorized"));
+                return Result<UserProfileResponse>.FailureResult(s_signInRequired);
             }
 
-            var updated = await uow.Profiles.SubmitFarmerKycAsync(
-                currentUser.UserId.Value, request, cancellationToken);
+            if (await FarmerOnlyErrorAsync(uow, userId, cancellationToken) is { } roleError)
+            {
+                return Result<UserProfileResponse>.FailureResult(roleError);
+            }
 
-            return updated == null
-                ? Result<UserProfileResponse>.FailureResult(new Error(
-                    "KYC_FAILED", "Không thể nộp hồ sơ xác thực nông hộ.", "NotFound"))
-                : Result<UserProfileResponse>.SuccessResult(updated);
+            var result = await uow.Profiles.SubmitFarmerKycAsync(userId, request, cancellationToken);
+            return result.Outcome switch
+            {
+                KycSubmissionOutcome.Submitted => Result<UserProfileResponse>.SuccessResult(result.Profile!),
+                KycSubmissionOutcome.NotFound => Result<UserProfileResponse>.FailureResult(new Error(
+                    "FARMER_PROFILE_NOT_FOUND", "Không tìm thấy hồ sơ nông trại của tài khoản.", "NotFound")),
+                KycSubmissionOutcome.InvalidState => Result<UserProfileResponse>.FailureResult(new Error(
+                    "KYC_INVALID_STATE",
+                    $"Hồ sơ đang ở trạng thái '{result.CurrentStatus}' nên không thể gửi xác minh.", "Conflict")),
+                _ => Result<UserProfileResponse>.FailureResult(new Error(
+                    "KYC_INCOMPLETE",
+                    "Vui lòng hoàn thiện các trường bắt buộc trước khi gửi xác minh.", "Validation",
+                    result.MissingFields.ToDictionary(
+                        field => field, _ => new[] { "Trường này bắt buộc để gửi xác minh." })))
+            };
         }, cancellationToken);
+
+    private static async Task<Error?> FarmerOnlyErrorAsync(
+        IUnitOfWork uow, long userId, CancellationToken cancellationToken)
+    {
+        var account = await uow.Profiles.GetAccountAsync(userId, cancellationToken);
+        if (account == null)
+        {
+            return new Error("USER_NOT_FOUND", "Không tìm thấy thông tin tài khoản người dùng.", "NotFound");
+        }
+
+        return account.Role == "Farmer"
+            ? null
+            : new Error("FORBIDDEN", "Chỉ tài khoản nông hộ (Farmer) mới được sử dụng chức năng này.", "Forbidden");
+    }
 }

@@ -48,7 +48,7 @@ function OrderList({ navigate, selectedView }) {
     <p className="commerce-subtitle">UC-FAR-06 · Đơn hàng của nông trại</p><h1>Xử lý đơn hàng</h1>
     <p className="muted">Chuẩn bị hàng, giao mô phỏng và theo dõi phản hồi của người mua.</p></div>
     <button type="button" onClick={() => navigate('/farmer/products')}>← Quản lý sản phẩm</button></div>
-    <Errors error={state.error} />
+    <Errors error={state.error} hideMessageCodes />
     {state.error && <button type="button" onClick={state.reload}>Tải lại danh sách</button>}
     {selectedView !== 'list' && <Notice>Chọn đơn hàng bên dưới để mở màn {orderViews.find(([key]) => key === selectedView)?.[1]}.</Notice>}
     <section className="panel"><form className="commerce-filters padded" onSubmit={apply}>
@@ -70,7 +70,7 @@ function OrderList({ navigate, selectedView }) {
         setDraft(initial); setFilters(initial);
       }}>Xóa bộ lọc</button></form>
       {state.loading ? <p className="padded" role="status">Đang tải đơn hàng…</p>
-        : state.data?.items.length === 0 ? <Empty>Không có đơn hàng phù hợp (MSG124)</Empty>
+        : state.data?.items.length === 0 ? <Empty>Không có đơn hàng phù hợp</Empty>
         : <div className="table-wrap"><table><thead><tr><th>Đơn con / Đơn tổng</th><th>Người mua / Ngày</th>
           <th>Hàng hóa / Thanh toán</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
           {state.data?.items.map(order => <tr key={order.sellerOrderId}>
@@ -106,7 +106,7 @@ function OrderDetail({ id, navigate, tab }) {
   function prepareAction(action) {
     state.setError(null);
     if (action === 'reject' && (!reason || explanation.trim().length < 15)) {
-      state.setError(new Error('Chọn lý do và giải thích ít nhất 15 ký tự (MSG70).')); return;
+      state.setError(new Error('Chọn lý do và giải thích ít nhất 15 ký tự.')); return;
     }
     if (action === 'delivery-report' && (report.trim().length < 15 || !reportFiles.length)) {
       state.setError(new Error('Nhập báo cáo ít nhất 15 ký tự và tải bằng chứng.')); return;
@@ -127,46 +127,55 @@ function OrderDetail({ id, navigate, tab }) {
         evidenceRequestId: pending.action === 'evidence' ? Number(requestId) : null };
       const updated = await request('/farmer/orders/' + id + '/' + pending.action, { method: 'POST', body });
       state.setData(updated);
-      const codes = { confirm: 'MSG64', ready: 'MSG146', dispatch: 'MSG66', reject: 'MSG67',
-        'delivery-report': 'MSG149', evidence: 'MSG150' };
-      setMessage(actionNames[pending.action] + ' thành công (' + codes[pending.action] + ').'
-        + (pending.action === 'reject' && updated.verifiedPayment > 0 ? ' Khoản đã thu chờ Finance xử lý (MSG162).' : ''));
+      const messages = {
+        confirm: 'Xác nhận đơn hàng thành công! Vui lòng đóng gói sản phẩm theo quy cách.',
+        ready: 'Đơn hàng ' + updated.sellerOrderCode + ' đã sẵn sàng giao mô phỏng.',
+        dispatch: 'Bắt đầu giao mô phỏng thành công. Đơn hàng đang được giao.',
+        reject: 'Từ chối đơn hàng thành công. Người mua đã được thông báo lý do từ chối.',
+        'delivery-report': 'Đã ghi nhận giao hàng thất bại hoặc hàng trả. Hàng chỉ được nhập lại kho bán sau khi kiểm tra và điều chỉnh kho có thẩm quyền.',
+        evidence: 'Đã gửi giải trình và bằng chứng để xem xét. Việc gửi phản hồi không quyết định kết quả khiếu nại.'
+      };
+      setMessage(messages[pending.action]
+        + (pending.action === 'reject' && updated.verifiedPayment > 0
+          ? ' Khoản hoàn tiền đang chờ bộ phận tài chính xác minh và xử lý; chưa xác nhận đã chuyển tiền.' : ''));
       if (pending.action === 'evidence') { setResponse(''); setResponseFiles([]); setRequestId(''); }
       if (pending.action === 'delivery-report') { setReport(''); setReportFiles([]); }
       setPending(null);
     } catch (error) { state.setError(error); setPending(null); }
     finally { setBusy(false); }
   }
-  function packingSlip(download = false) {
+  function printPackingSlip() {
     const escape = value => String(value ?? '').replace(/[&<>"']/g, char =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     const rows = order.items.map(item => '<tr><td>' + escape(item.productName) + '</td><td>'
       + escape(item.quantity + ' ' + item.unit) + '</td><td>'
+      + escape(money(item.unitPrice)) + '/' + escape(item.unit) + '</td><td>'
+      + escape(money(item.subtotal)) + '</td><td>'
       + item.allocations.map(a => escape(a.batchCode + ' · ' + a.allocatedQuantity)).join('<br>') + '</td></tr>').join('');
     const html = '<!doctype html><html lang="vi"><meta charset="utf-8"><title>Phiếu đóng gói '
       + escape(order.sellerOrderCode) + '</title><style>body{font:15px Arial;padding:30px}td,th{padding:10px;border:1px solid #ccc}table{border-collapse:collapse;width:100%}</style>'
       + '<h1>AgriSustain · Phiếu đóng gói</h1><h2>' + escape(order.sellerOrderCode) + '</h2><p>Đơn tổng: '
       + escape(order.orderCode) + '</p><p>Người nhận: ' + escape(order.recipientName) + ' · '
       + escape(order.recipientPhone) + '</p><p>' + escape(order.shippingAddress)
-      + '</p><table><tr><th>Sản phẩm</th><th>Số lượng</th><th>Lô</th></tr>' + rows
-      + '</table><p>Ghi chú: ' + escape(order.notes) + '</p><p>Người đóng gói: __________ Người giao: __________</p></html>';
-    if (download) {
-      const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
-      const link = document.createElement('a'); link.href = url; link.download = order.sellerOrderCode + '-packing.html';
-      link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } else {
-      const popup = window.open('', '_blank', 'width=850,height=700');
-      if (!popup) { state.setError(new Error('Cho phép mở cửa sổ in phiếu.')); return; }
-      popup.document.write(html); popup.document.close(); popup.focus(); popup.print();
-    }
-    setMessage('Đã tạo phiếu đóng gói (MSG68).');
+      + '</p><table><tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th>Lô</th></tr>' + rows
+      + '</table><h3>Thanh toán đơn của nông trại</h3>'
+      + '<p>Tiền hàng: ' + escape(money(order.subtotal)) + '</p>'
+      + '<p>Phí giao hàng: ' + escape(money(order.deliveryFee)) + '</p>'
+      + (order.voucherCode ? '<p>Mã giảm giá của đơn tổng: ' + escape(order.voucherCode) + '</p>' : '')
+      + '<p>Giảm giá được phân bổ (ưu đãi / điểm): −' + escape(money(order.discountShare)) + '</p>'
+      + '<p><strong>Tổng thanh toán: ' + escape(money(order.finalAmount)) + '</strong></p>'
+      + '<p>Ghi chú: ' + escape(order.notes) + '</p><p>Người đóng gói: __________ Người giao: __________</p></html>';
+    const popup = window.open('', '_blank', 'width=1000,height=700');
+    if (!popup) { state.setError(new Error('Cho phép mở cửa sổ in phiếu.')); return; }
+    popup.document.write(html); popup.document.close(); popup.focus(); popup.print();
+    setMessage('Phiếu đóng gói đã sẵn sàng để in.');
   }
   if (state.loading) return <p role="status">Đang tải chi tiết đơn…</p>;
   const evidenceRequests = order?.complaints.flatMap(complaint => complaint.evidenceRequests) || [];
   return <div className="commerce"><div className="commerce-top"><div>
     <p className="commerce-subtitle">UC-FAR-06 · {orderViews.find(([key]) => key === tab)?.[1]}</p>
     <h1>Chi tiết đơn {order?.sellerOrderCode}</h1></div><button type="button" onClick={() => navigate('/farmer/orders')}>
-      ← Đơn hàng của nông trại</button></div><Errors error={state.error} />{state.error && <button type="button" onClick={state.reload}>Tải lại chi tiết đơn</button>}<Notice>{message}</Notice>
+      ← Đơn hàng của nông trại</button></div><Errors error={state.error} hideMessageCodes />{state.error && <button type="button" onClick={state.reload}>Tải lại chi tiết đơn</button>}<Notice>{message}</Notice>
     {order && <><div className="commerce-actions"><Status value={order.status} />
       <span>Đơn tổng {order.orderCode} · {orderStatus[order.parentStatus] || order.parentStatus}</span></div>
       <div className="commerce-grid"><div>
@@ -184,17 +193,14 @@ function OrderDetail({ id, navigate, tab }) {
                 <small>{a.allocatedQuantity} {item.unit} · Hạn {a.expirationDate || '—'} · {a.status}</small></div>)
                 : <span>Chưa có lô thực tế</span>}</td></tr>)}</tbody></table></div></section>
         {tab === 'prepare' && <section className="commerce-section"><h2>Chuẩn bị và giao hàng</h2>
-          <p>Chờ xác nhận → Đang chuẩn bị → Sẵn sàng giao → Đang giao → Đã giao.</p>
-          <p className="muted">Dùng lại lượng giữ chỗ hợp lệ; chỉ xuất kho một lần khi bắt đầu giao mô phỏng.
-            Người mua xác nhận nhận hàng để ghi thời điểm giao. Không bắt buộc hãng vận chuyển hoặc mã tracking.</p>
           <div className="commerce-actions" style={{ marginTop: 18 }}>
             <button type="button" disabled={busy || uploading || !order.canConfirm} onClick={() => prepareAction('confirm')}>Xác nhận đơn</button>
             <button type="button" disabled={busy || uploading || !order.canMarkReady} onClick={() => prepareAction('ready')}>Đánh dấu sẵn sàng giao</button>
             <button type="button" className="primary" disabled={busy || uploading || !order.canDispatch} onClick={() => prepareAction('dispatch')}>Bắt đầu giao mô phỏng</button>
             <button type="button" disabled={busy || uploading || !order.canReject}
               onClick={() => navigate('/farmer/orders/' + id + '/reject')}>Từ chối trước khi giao</button>
-          </div><hr /><div className="commerce-actions"><button type="button" onClick={() => packingSlip(true)}>Tạo phiếu đóng gói</button>
-            <button type="button" onClick={() => packingSlip()}>In phiếu</button></div>
+          </div><hr /><div className="commerce-actions">
+            <button type="button" onClick={printPackingSlip}>In phiếu</button></div>
           {order.shipments.map(shipment => <p key={shipment.shipmentId} style={{ marginTop: 18 }}>Chuyến giao #{shipment.shipmentId}
             {' · ' + shipment.status + ' · Xuất: ' + localTime(shipment.shippedAt)}</p>)}
         </section>}
