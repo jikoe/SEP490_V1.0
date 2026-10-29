@@ -102,6 +102,14 @@ internal sealed class FakeProfileRepository : IProfileRepository
         return GetProfileAsync(userId, ct);
     }
 
+    public string? LastAvatarUrl { get; private set; }
+
+    public Task<UserProfileResponse?> UpdateAvatarAsync(long userId, string avatarUrl, CancellationToken ct)
+    {
+        LastAvatarUrl = avatarUrl;
+        return GetProfileAsync(userId, ct);
+    }
+
     public Task<KycSubmissionResult> SubmitFarmerKycAsync(long userId, SubmitKycRequest request, CancellationToken ct) =>
         Task.FromResult(KycResult);
 }

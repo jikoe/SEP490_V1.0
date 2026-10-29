@@ -15,5 +15,8 @@ public interface IProfileRepository
     /// </summary>
     Task<UserProfileResponse?> UpdateFarmerProfileAsync(long userId, UpdateFarmerProfileRequest request, CancellationToken cancellationToken);
 
+    /// <summary>Stores the uploaded avatar / farm banner URL on the user account.</summary>
+    Task<UserProfileResponse?> UpdateAvatarAsync(long userId, string avatarUrl, CancellationToken cancellationToken);
+
     Task<KycSubmissionResult> SubmitFarmerKycAsync(long userId, SubmitKycRequest request, CancellationToken cancellationToken);
 }

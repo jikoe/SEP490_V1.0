@@ -157,6 +157,23 @@ public sealed class ProfileService(
         }, cancellationToken);
     }
 
+    /// <summary>Saves the avatar / farm banner URL produced by the upload endpoint (UC-AUTH-03 step 3).</summary>
+    public Task<Result<UserProfileResponse>> UpdateAvatarAsync(
+        string avatarUrl, CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteAsync(async uow =>
+        {
+            if (currentUser.UserId is not long userId)
+            {
+                return Result<UserProfileResponse>.FailureResult(s_signInRequired);
+            }
+
+            var updated = await uow.Profiles.UpdateAvatarAsync(userId, avatarUrl, cancellationToken);
+            return updated == null
+                ? Result<UserProfileResponse>.FailureResult(new Error(
+                    "USER_NOT_FOUND", "Không tìm thấy thông tin tài khoản người dùng.", "NotFound"))
+                : Result<UserProfileResponse>.SuccessResult(updated);
+        }, cancellationToken);
+
     public Task<Result<UserProfileResponse>> SubmitFarmerKycAsync(
         SubmitKycRequest request, CancellationToken cancellationToken) =>
         unitOfWork.ExecuteAsync(async uow =>

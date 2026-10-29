@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Notice, Field, initials, VerificationBadge, Modal } from '../../components/ui/Common';
 
 /**
@@ -76,6 +76,10 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       businessLicenseNumber: cached?.businessLicenseNumber || '',
       gpsCoordinates: cached?.gpsCoordinates || '',
       farmAddress: cached?.farmAddress || '',
+      cultivatedArea: '',
+      productionModel: '',
+      shortDescription: '',
+      avatarUrl: '',
       verificationStatus: 'NotSubmitted',
       reputationScore: 5.0,
       rejectReason: null,
@@ -87,6 +91,8 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [phoneNotice, setPhoneNotice] = useState(null);
+  // Last values loaded from / saved to the server, restored by the "Hủy" button (UC-AUTH-03 AF Cancel).
+  const savedProfileRef = useRef(null);
   const [recipientPhoneNotice, setRecipientPhoneNotice] = useState(null);
 
   // Change password modal state
@@ -162,6 +168,48 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
     return mapped;
   }
 
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Avatar / farm banner upload (FR 6.2.1 (1), FR 3.2 (1)): PNG or JPG, max 5 MB.
+  async function handleAvatarChange(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!/\.(png|jpe?g)$/i.test(file.name) || file.size > 5 * 1024 * 1024) {
+      setError('Vui lòng chọn ảnh PNG hoặc JPG có dung lượng tối đa 5 MB.');
+      return;
+    }
+    setUploadingAvatar(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch('/api/profile/avatar', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || data.title || 'Tải ảnh thất bại.');
+      setProfile((prev) => ({ ...prev, avatarUrl: data.avatarUrl || '' }));
+      if (savedProfileRef.current) savedProfileRef.current = { ...savedProfileRef.current, avatarUrl: data.avatarUrl || '' };
+      setNotice('Cập nhật ảnh đại diện thành công!');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  // Revert edited fields to the last saved values without calling the API.
+  function handleCancelEdit() {
+    if (savedProfileRef.current) setProfile(savedProfileRef.current);
+    setFieldErrors({});
+    setError(null);
+    setPhoneNotice(null);
+    setNotice('Đã hủy các thay đổi chưa lưu.');
+  }
+
   function handleChange(field, value) {
     setProfile((prev) => ({ ...prev, [field]: value }));
     setFieldErrors((prev) => ({ ...prev, [field]: '' }));
@@ -210,13 +258,14 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         if (res.ok) {
           const data = await res.json();
           if (!cancelled && data) {
-            setProfile((prev) => ({
+            setProfile((prev) => (savedProfileRef.current = {
               ...prev,
               fullName: data.fullName || cached?.fullName || activeUser?.fullName || prev.fullName,
               phoneNumber: data.phoneNumber || cached?.phoneNumber || activeUser?.phoneNumber || prev.phoneNumber,
               email: data.email || activeUser?.email || prev.email,
-              gender: normalizeGender(data.gender || cached?.gender || prev.gender),
-              birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : (cached?.birthDate || prev.birthDate || ''),
+              gender: normalizeGender(data.gender),
+              birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : '',
+              avatarUrl: data.avatarUrl || '',
               rewardPoints: data.rewardPoints ?? 0,
               // Address
               recipientName: data.deliveryAddress?.recipientName || cached?.recipientName || '',
@@ -237,6 +286,9 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
               businessLicenseNumber: data.farmerProfile?.businessLicenseNumber || cached?.businessLicenseNumber || '',
               gpsCoordinates: data.farmerProfile?.gpsCoordinates || data.farmerProfile?.gpscoordinates || cached?.gpsCoordinates || '',
               farmAddress: data.farmerProfile?.address || cached?.farmAddress || '',
+              cultivatedArea: data.farmerProfile?.cultivatedArea ?? '',
+              productionModel: data.farmerProfile?.productionModel || '',
+              shortDescription: data.farmerProfile?.shortDescription || '',
               verificationStatus: data.farmerProfile?.verificationStatus || cached?.verificationStatus || 'NotSubmitted',
               reputationScore: data.farmerProfile?.reputationScore ?? 5.0,
               rejectReason: data.farmerProfile?.rejectReason || null,
@@ -274,7 +326,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
     if (!profile.phoneNumber.trim()) {
       errors.phoneNumber = 'Số điện thoại không được để trống.';
     } else if (!/^0\d{9}$/.test(profile.phoneNumber.trim())) {
-      errors.phoneNumber = 'Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).';
+      errors.phoneNumber = 'Số điện thoại không hợp lệ. Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.'; // MSG180
     }
 
     if (isFarmer) {
@@ -286,6 +338,9 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       }
       if (!profile.farmAddress.trim()) {
         errors.farmAddress = 'Địa chỉ nông trại không được để trống.';
+      }
+      if (profile.cultivatedArea !== '' && profile.cultivatedArea !== null && !(Number(profile.cultivatedArea) > 0)) {
+        errors.cultivatedArea = 'Diện tích canh tác phải là số dương (> 0).';
       }
     }
 
@@ -311,7 +366,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
       let payload = {
         fullName: profile.fullName.trim(),
         phoneNumber: profile.phoneNumber.trim(),
-        gender: profile.gender || null,
+        gender: normalizeGender(profile.gender) || null,
         birthDate: profile.birthDate || null,
         provinceCity: profile.provinceCity || null,
         district: profile.district || null,
@@ -332,7 +387,10 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
           farmName: profile.farmName.trim(),
           representativeName: profile.representativeName.trim(),
           productionScale: profile.productionScale || '',
-          cultivatedArea: null,
+          cultivatedArea: profile.cultivatedArea === '' || profile.cultivatedArea === null
+            ? null : Number(profile.cultivatedArea),
+          productionModel: profile.productionModel || null,
+          shortDescription: profile.shortDescription.trim() || null,
           cultivationZone: profile.cultivationZone || '',
           businessLicenseNumber: profile.businessLicenseNumber || '',
           address: profile.farmAddress.trim(),
@@ -416,6 +474,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         window.dispatchEvent(new Event('agrisustain:user-changed'));
       } catch {}
 
+      savedProfileRef.current = { ...profile, verificationStatus: newStatus || profile.verificationStatus };
       setSaving(false);
       // MSG13, plus the re-verification notice of SRS UC-AUTH-03 AF Step 6.
       setNotice(previousStatus === 'Approved' && newStatus === 'PendingApproval'
@@ -458,7 +517,13 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         ...prev,
         verificationStatus: submitted?.farmerProfile?.verificationStatus || 'PendingApproval',
       }));
-      setNotice('Hồ sơ của bạn đã được chuyển vào hàng đợi duyệt KYC của Nhân viên xác minh.');
+      if (savedProfileRef.current) {
+        savedProfileRef.current = {
+          ...savedProfileRef.current,
+          verificationStatus: submitted?.farmerProfile?.verificationStatus || 'PendingApproval',
+        };
+      }
+      setNotice('Hồ sơ xác minh KYC của bạn đã được gửi thành công và đang chờ duyệt.'); // MSG179
     } catch (err) {
       setSaving(false);
       setError(err.message || 'Lỗi khi nộp KYC.');
@@ -564,8 +629,15 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
               border: '3px solid #b7e4c7',
             }}
           >
-            {avatarInitial}
+            {profile.avatarUrl
+              ? <img src={profile.avatarUrl} alt="Ảnh đại diện" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              : avatarInitial}
           </div>
+          <label style={{ fontSize: 12, color: '#ffffff', cursor: 'pointer', textDecoration: 'underline' }}>
+            {uploadingAvatar ? 'Đang tải...' : 'Đổi ảnh'}
+            <input type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" hidden
+              disabled={uploadingAvatar} onChange={handleAvatarChange} />
+          </label>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <h1 style={{ color: '#ffffff', margin: 0, fontSize: 24, fontWeight: 800 }}>
@@ -1023,10 +1095,55 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
                     maxLength={200}
                   />
                 </Field>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <Field label="Diện tích canh tác (ha)" error={fieldErrors.cultivatedArea}>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={profile.cultivatedArea}
+                      onChange={(e) => handleChange('cultivatedArea', e.target.value)}
+                      placeholder="Ví dụ: 2.5"
+                      disabled={saving}
+                    />
+                  </Field>
+
+                  <Field label="Loại hình" error={fieldErrors.productionModel}>
+                    <select
+                      value={profile.productionModel}
+                      onChange={(e) => handleChange('productionModel', e.target.value)}
+                      disabled={saving}
+                    >
+                      <option value="">-- Chọn loại hình --</option>
+                      <option value="Individual">Cá nhân</option>
+                      <option value="Cooperative">Hợp tác xã</option>
+                    </select>
+                  </Field>
+                </div>
+
+                <Field label={`Mô tả ngắn (${profile.shortDescription.length}/300)`} error={fieldErrors.shortDescription}>
+                  <textarea
+                    rows={3}
+                    value={profile.shortDescription}
+                    onChange={(e) => handleChange('shortDescription', e.target.value)}
+                    placeholder="Giới thiệu ngắn về nông trại và sản phẩm chủ lực"
+                    disabled={saving}
+                    maxLength={300}
+                  />
+                </Field>
               </div>
             )}
 
             <div style={{ marginTop: 28, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                disabled={saving}
+                style={{ padding: '12px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14 }}
+              >
+                Hủy
+              </button>
               <button
                 type="submit"
                 className="primary"

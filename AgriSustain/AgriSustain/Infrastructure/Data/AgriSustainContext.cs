@@ -817,6 +817,11 @@ public partial class AgriSustainContext : DbContext
             entity.Property(e => e.RejectReason).HasMaxLength(500);
             entity.Property(e => e.RepresentativeName).HasMaxLength(150);
             entity.Property(e => e.ReputationScore).HasColumnType("decimal(5, 2)");
+            entity.Property(e => e.CultivatedArea).HasColumnType("decimal(10, 2)");
+            entity.Property(e => e.ProductionModel)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.ShortDescription).HasMaxLength(300);
             entity.Property(e => e.VerificationStatus)
                 .HasMaxLength(50)
                 .IsUnicode(false)
@@ -1735,6 +1740,9 @@ public partial class AgriSustainContext : DbContext
                 .IsUnicode(false)
                 .HasDefaultValue("Active");
             entity.Property(e => e.Username).HasMaxLength(100);
+            entity.Property(e => e.Gender)
+                .HasMaxLength(10)
+                .IsUnicode(false);
         });
 
         modelBuilder.Entity<VDisputeEvidenceRequest>(entity =>
