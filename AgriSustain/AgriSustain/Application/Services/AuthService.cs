@@ -38,7 +38,7 @@ public sealed class AuthService : IAuthService
         _changePasswordValidator = changePasswordValidator;
     }
 
-    public async Task<LoginResponseDto?> LoginAsync(
+    public async Task<LoginResultDto> LoginAsync(
         LoginRequestDto request,
         CancellationToken cancellationToken)
     {
@@ -47,15 +47,25 @@ public sealed class AuthService : IAuthService
             identifier,
             cancellationToken);
 
-        if (user is null || user.Status != "Active")
+        if (user is null)
         {
-            return null;
+            return new LoginResultDto(LoginResultStatus.InvalidCredentials);
+        }
+
+        if (user.Status == "Suspended")
+        {
+            return new LoginResultDto(LoginResultStatus.AccountSuspended);
+        }
+
+        if (user.Status != "Active")
+        {
+            return new LoginResultDto(LoginResultStatus.InvalidCredentials);
         }
 
         var now = _timeProvider.GetUtcNow();
         if (user.LockedUntil.HasValue && user.LockedUntil.Value > now.UtcDateTime)
         {
-            return null;
+            return new LoginResultDto(LoginResultStatus.AccountLocked);
         }
 
         if (user.LockedUntil.HasValue)
@@ -74,7 +84,7 @@ public sealed class AuthService : IAuthService
             }
 
             await _userRepository.SaveChangesAsync(cancellationToken);
-            return null;
+            return new LoginResultDto(LoginResultStatus.InvalidCredentials);
         }
 
         user.FailedLoginCount = 0;
@@ -87,15 +97,17 @@ public sealed class AuthService : IAuthService
         await _userRepository.SaveChangesAsync(cancellationToken);
 
         var token = _tokenIssuer.Issue(user, now);
-        return new LoginResponseDto(
-            token.AccessToken,
-            token.ExpiresAt.UtcDateTime,
-            new AuthenticatedUserDto(
-                user.UserId,
-                user.Username,
-                user.Email,
-                user.FullName,
-                user.Role));
+        return new LoginResultDto(
+            LoginResultStatus.Success,
+            new LoginResponseDto(
+                token.AccessToken,
+                token.ExpiresAt.UtcDateTime,
+                new AuthenticatedUserDto(
+                    user.UserId,
+                    user.Username,
+                    user.Email,
+                    user.FullName,
+                    user.Role)));
     }
 
     // Retain the existing password-change endpoint while importing TuTB's login services.
@@ -118,11 +130,17 @@ public sealed class AuthService : IAuthService
 
         if (!_passwordService.Verify(user, request.CurrentPassword).IsValid)
             return Result<string>.FailureResult(new Error(
-                "INVALID_CURRENT_PASSWORD", "Mật khẩu hiện tại không chính xác."));
+                "INVALID_CURRENT_PASSWORD",
+                "Mật khẩu hiện tại bạn nhập không chính xác. Vui lòng thử lại.",
+                Fields: new Dictionary<string, string[]>
+                {
+                    [nameof(ChangePasswordRequest.CurrentPassword)] =
+                    ["Mật khẩu hiện tại bạn nhập không chính xác. Vui lòng thử lại."]
+                }));
 
         user.PasswordHash = _passwordService.Hash(user, request.NewPassword);
         await _context.SaveChangesAsync(cancellationToken);
         return Result<string>.SuccessResult(
-            "Đổi mật khẩu thành công. Hãy dùng mật khẩu mới cho lần đăng nhập sau.");
+            "Đổi mật khẩu thành công. Vui lòng sử dụng mật khẩu mới cho những lần đăng nhập sau.");
     }
 }

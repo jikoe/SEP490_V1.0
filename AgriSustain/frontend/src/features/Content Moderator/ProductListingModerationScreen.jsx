@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { request, queryString } from '../../api/client';
-import { Notice, ProductThumbnail } from '../../components/ui/Common';
+import { Modal, Notice, ProductThumbnail } from '../../components/ui/Common';
 
 const listRoute = '/moderation/products';
 const pageSize = 10;
@@ -10,6 +10,19 @@ const currency = new Intl.NumberFormat('vi-VN', {
 const date = (value) => value ? new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'medium',
 }).format(new Date(value)) : '—';
+const dateTime = (value) => value ? new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'medium', timeStyle: 'short',
+}).format(new Date(value)) : '—';
+const todayInVietnam = () => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+};
 const safeUrl = (value) => typeof value === 'string'
   && /^(https?:\/\/|\/(?!\/))/.test(value) ? value : '';
 
@@ -17,6 +30,41 @@ function statusLabel(status) {
   if (status === 'Approved') return 'Đã duyệt';
   if (status === 'Rejected') return 'Đã từ chối';
   return 'Chờ duyệt';
+}
+
+function farmVerificationLabel(status) {
+  if (status === 'Approved') return 'Đã xác minh';
+  if (status === 'Rejected') return 'Bị từ chối xác minh';
+  if (status === 'PendingVerification') return 'Đang chờ xác minh';
+  return 'Chưa xác minh';
+}
+
+function certificatePresentation(certificate) {
+  if (typeof certificate === 'string') {
+    return { label: `${certificate} · Chưa xác minh`, verified: false };
+  }
+
+  const expired = certificate.expiryDate && certificate.expiryDate < todayInVietnam();
+  const verified = certificate.verificationStatus === 'Approved' && !expired;
+  const verificationLabel = certificate.verificationStatus === 'Approved'
+    ? 'Đã xác minh'
+    : certificate.verificationStatus === 'Rejected'
+      ? 'Bị từ chối'
+      : certificate.verificationStatus === 'Pending'
+        ? 'Đang chờ xác minh'
+        : 'Chưa xác minh';
+
+  return {
+    label: expired ? `${verificationLabel} · Đã hết hạn` : verificationLabel,
+    verified,
+  };
+}
+
+function readProductList(result) {
+  if (!result || !Array.isArray(result.items) || !Number.isInteger(result.total)) {
+    throw new Error('Dữ liệu danh sách sản phẩm từ API không đúng định dạng.');
+  }
+  return result;
 }
 
 function SectionTitle({ children }) {
@@ -43,6 +91,8 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
   const [actionError, setActionError] = useState('');
   const [notification, setNotification] = useState('');
   const [reason, setReason] = useState('');
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [confirmReject, setConfirmReject] = useState(false);
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
 
@@ -52,7 +102,10 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
       ? selectedId : visibleProducts[0]?.id ?? null);
   const pendingCount = lists.Pending.total;
   const reviewedCount = lists.Reviewed.total;
+  const activeTotal = lists[activeTab].total;
+  const totalPages = Math.max(1, Math.ceil(activeTotal / pageSize));
   const activeStatus = detail?.moderationStatus || detail?.status || 'Pending';
+  const farmVerified = detail?.farm?.verificationStatus === 'Approved';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -60,20 +113,41 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
     setError('');
     const load = (status) => request(`/moderation/products?${queryString({
       keyword, status, page, pageSize,
-    })}`, { signal: controller.signal });
-    Promise.all([load('Pending'), load('Reviewed')])
-      .then(([pending, reviewed]) => setLists({ Pending: pending, Reviewed: reviewed }))
-      .catch((failure) => {
-        if (failure.name !== 'AbortError') setError(failure.message);
-      })
-      .finally(() => { if (!controller.signal.aborted) setListLoading(false); });
+    })}`, { signal: controller.signal }).then(readProductList);
+
+    Promise.allSettled([load('Pending'), load('Reviewed')]).then(([pending, reviewed]) => {
+      if (controller.signal.aborted) return;
+
+      setLists((current) => ({
+        Pending: pending.status === 'fulfilled' ? pending.value : current.Pending,
+        Reviewed: reviewed.status === 'fulfilled' ? reviewed.value : current.Reviewed,
+      }));
+
+      const failures = [pending, reviewed]
+        .filter((result) => result.status === 'rejected')
+        .map((result) => result.reason)
+        .filter((failure) => failure.name !== 'AbortError');
+      if (failures.length) {
+        setError(failures.map((failure) => failure.message).join(' '));
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setListLoading(false);
+    });
     return () => controller.abort();
   }, [keyword, page, refresh]);
 
   useEffect(() => {
+    if (!listLoading && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [listLoading, page, totalPages]);
+
+  useEffect(() => {
     setActiveImage(0);
     setReason('');
+    setIsRejecting(false);
     setActionError('');
+    setConfirmReject(false);
     if (!selectedProductId) {
       setDetail(null);
       setDetailLoading(false);
@@ -96,14 +170,18 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
     setSelectedId(null);
     setPage(1);
     setReason('');
+    setIsRejecting(false);
     setActionError('');
+    setConfirmReject(false);
     if (routeProductId) navigate(listRoute);
   }
 
   function selectProduct(product) {
     setSelectedId(product.id);
     setReason('');
+    setIsRejecting(false);
     setActionError('');
+    setConfirmReject(false);
     setActiveImage(0);
     navigate(`${listRoute}/${product.id}`);
   }
@@ -116,10 +194,6 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
   }
 
   async function moderate(action) {
-    if (action === 'reject' && !reason.trim()) {
-      setActionError('Vui lòng nhập lý do từ chối trước khi tiếp tục.');
-      return;
-    }
     setBusy(true);
     setActionError('');
     try {
@@ -132,13 +206,25 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
         : `Đã từ chối "${detail.name}" và gửi thông báo cho nông dân.`);
       setRefresh((value) => value + 1);
       setReason('');
+      setIsRejecting(false);
+      setConfirmReject(false);
       setActiveTab('Reviewed');
+      setPage(1);
       if (routeProductId) navigate(listRoute);
     } catch (failure) {
       setActionError(failure.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  function requestRejectConfirmation() {
+    if (!reason.trim()) {
+      setActionError('Vui lòng nhập lý do từ chối trước khi tiếp tục.');
+      return;
+    }
+    setActionError('');
+    setConfirmReject(true);
   }
 
   const images = detail?.images?.map((image) => safeUrl(image.imageUrl)).filter(Boolean) || [];
@@ -177,12 +263,22 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
 
     {listLoading && visibleProducts.length === 0
       ? <p className="empty" role="status">Đang tải danh sách hồ sơ…</p>
-      : visibleProducts.length === 0 ? <div className="moderation-empty">
-        <span>✓</span><h2>{activeTab === 'Pending'
-          ? 'Không có tin đăng cần xử lý' : 'Chưa có tin đăng đã xử lý'}</h2>
-        <p>{activeTab === 'Pending' ? 'Các hồ sơ chờ duyệt sẽ xuất hiện tại đây.'
-          : 'Các hồ sơ bạn đã duyệt hoặc từ chối sẽ xuất hiện tại đây.'}</p>
-      </div> : <div className="moderation-workspace">
+      : visibleProducts.length === 0 ? <>
+        <div className="moderation-empty">
+          <span>✓</span><h2>{activeTab === 'Pending'
+            ? 'Không có tin đăng cần kiểm duyệt.' : 'Chưa có tin đăng đã xử lý'}</h2>
+          <p>{activeTab === 'Pending' ? 'Các hồ sơ chờ duyệt sẽ xuất hiện tại đây.'
+            : 'Các hồ sơ bạn đã duyệt hoặc từ chối sẽ xuất hiện tại đây.'}</p>
+        </div>
+        {!listLoading && <div className="moderation-queue-footer">
+          <span>{activeTotal} hồ sơ</span>
+          <div><button type="button" aria-label="Trang trước" disabled={page <= 1}
+            onClick={() => setPage((value) => value - 1)}>‹</button>
+            <span>{page}</span><button type="button" aria-label="Trang sau"
+              disabled={page >= totalPages}
+              onClick={() => setPage((value) => value + 1)}>›</button></div>
+        </div>}
+      </> : <div className="moderation-workspace">
         <aside className="moderation-queue" aria-label="Danh sách tin đăng">
           {visibleProducts.map((product) => <button key={product.id}
             type="button" onClick={() => selectProduct(product)}
@@ -197,7 +293,13 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
               </span>
               <strong>{product.name}</strong>
               <span>{product.farmerName}</span>
-              <small>{date(product.submittedAt)}</small>
+              <small>{activeTab === 'Reviewed' && product.reviewedAt
+                ? `Xử lý ${dateTime(product.reviewedAt)}`
+                : `Gửi duyệt ${date(product.submittedAt)}`}</small>
+              {activeTab === 'Reviewed' && <small>
+                {product.reviewedBy ? `Người xử lý: ${product.reviewedBy}`
+                  : 'Chưa có lịch sử người xử lý'}
+              </small>}
             </div>
           </button>)}
           {!listLoading && <div className="moderation-queue-footer">
@@ -205,7 +307,7 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
             <div><button type="button" aria-label="Trang trước" disabled={page <= 1}
               onClick={() => setPage((value) => value - 1)}>‹</button>
               <span>{page}</span><button type="button" aria-label="Trang sau"
-                disabled={lists[activeTab].items.length < pageSize}
+                disabled={page >= totalPages}
                 onClick={() => setPage((value) => value + 1)}>›</button></div>
           </div>}
         </aside>
@@ -221,6 +323,11 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
                 {statusLabel(activeStatus)}
               </span>
             </div>
+            {(activeStatus === 'Approved' || activeStatus === 'Rejected') && <p className="moderation-review-meta">
+              {detail.reviewedAt
+                ? `${activeStatus === 'Rejected' ? 'Từ chối' : 'Duyệt'} bởi ${detail.reviewedBy || 'không rõ'} · ${dateTime(detail.reviewedAt)}`
+                : 'Chưa có lịch sử người xử lý và thời điểm quyết định.'}
+            </p>}
             <div className="moderation-detail-body">
               <section><SectionTitle>Hình ảnh sản phẩm</SectionTitle>
                 <div className="moderation-gallery">
@@ -242,6 +349,10 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
                   <div><span>Danh mục</span><strong>{detail.category}</strong></div>
                   <div><span>Giá bán</span><strong className="price">
                     {currency.format(detail.retailPrice)} / {detail.unit}</strong></div>
+                  {detail.wholesalePrice != null && <div><span>Giá bán sỉ</span><strong className="price">
+                    {currency.format(detail.wholesalePrice)} / {detail.unit}
+                    {detail.wholesaleMinQuantity != null
+                      && ` · Tối thiểu ${Number(detail.wholesaleMinQuantity).toLocaleString('vi-VN')} ${detail.unit}`}</strong></div>}
                   <div><span>Sản lượng</span><strong>{Number(detail.quantity || 0).toLocaleString('vi-VN')}
                     {' '}{detail.unit}</strong></div>
                 </div>
@@ -254,17 +365,25 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
                     <p>{detail.farmer?.email}</p><p>{detail.farmer?.phoneNumber}</p></div>
                   <div><span>NÔNG TRẠI</span><strong>{detail.farm?.farmName}</strong>
                     <p>{detail.farm?.address || detail.farm?.provinceCode}</p>
-                    <p>Diện tích: {detail.farm?.productionScale || '—'}</p></div>
+                    <p>Diện tích: {detail.farm?.productionScale || '—'}</p>
+                    <p>Trạng thái xác minh: <strong>{farmVerificationLabel(
+                      detail.farm?.verificationStatus,
+                    )}</strong></p></div>
                 </div>
               </section>
 
               <section><SectionTitle>Thông tin thu hoạch</SectionTitle>
                 {harvests.length ? harvests.map((batch) => <div className="moderation-facts" key={batch.batchCode}>
+                  <div><span>Mã lô</span><strong>{batch.batchCode}</strong></div>
+                  <div><span>Ngày gieo trồng</span><strong>{date(batch.plantingDate)}</strong></div>
                   <div><span>Ngày thu hoạch dự kiến</span><strong>
                     {date(batch.actualHarvestDate || batch.estimatedHarvestDate)}</strong></div>
                   <div><span>Phương thức / mùa vụ</span><strong>
-                    {batch.season || batch.cropVariety || batch.status || '—'}</strong></div>
+                    {batch.season || batch.cropVariety || '—'}</strong></div>
+                  <div><span>Trạng thái lô</span><strong>{batch.status || '—'}</strong></div>
                   <div><span>Ghi chú</span><strong>{batch.qualityNotes || '—'}</strong></div>
+                  {batch.growingPractices && <div><span>Quy trình canh tác</span>
+                    <strong>{batch.growingPractices}</strong></div>}
                 </div>) : <p className="moderation-muted">Chưa cung cấp thông tin thu hoạch.</p>}
               </section>
 
@@ -272,18 +391,21 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
                 <div className="moderation-traceability">
                   {traceability.map((batch) => <div className="moderation-trace-item" key={batch.batchCode}>
                     <span>Mã lô</span><strong>{batch.batchCode}</strong>
-                    {batch.plantingDate && <><span>Ngày gieo trồng</span><strong>{batch.plantingDate}</strong></>}
-                    {batch.growingPractices && <><span>Quy trình canh tác</span>
-                      <p>{batch.growingPractices}</p></>}
+                    <span>Trạng thái mã truy xuất</span>
+                    <strong>{batch.isRevoked ? 'Đã thu hồi' : 'Còn hiệu lực'}</strong>
                     {safeUrl(batch.targetUrl) && <a href={safeUrl(batch.targetUrl)}
                       target="_blank" rel="noreferrer">Xem thông tin truy xuất</a>}
                   </div>)}
                   <div><span>Chứng nhận</span>
                     {certificates.length ? <div className="moderation-certificates">
                       {certificates.map((certificate) => {
-                        const label = typeof certificate === 'string'
+                        const name = typeof certificate === 'string'
                           ? certificate : certificate.certificateType;
-                        return <span key={label}>✓ {label}</span>;
+                        const presentation = certificatePresentation(certificate);
+                        return <span key={name} className={presentation.verified ? 'verified' : 'unverified'}>
+                          <span aria-hidden="true">{presentation.verified ? '✓' : '!'}</span>
+                          {name} · {presentation.label}
+                        </span>;
                       })}
                     </div> : <p className="moderation-muted">Chưa cung cấp chứng nhận.</p>}
                   </div>
@@ -295,23 +417,53 @@ export default function ProductListingModerationScreen({ route = listRoute, navi
               </div>}
               {activeStatus === 'Pending' && <section className="moderation-decision">
                 <SectionTitle>Quyết định kiểm duyệt</SectionTitle>
-                <label htmlFor="moderation-reason">Lý do từ chối
-                  <span> (bắt buộc nếu từ chối)</span></label>
-                <textarea id="moderation-reason" rows="3" maxLength={500} value={reason}
-                  placeholder="Nêu rõ thông tin cần farmer bổ sung hoặc chỉnh sửa..."
-                  onChange={(event) => { setReason(event.target.value); setActionError(''); }} />
-                <Notice error>{actionError}</Notice>
-                <div className="moderation-decision-actions">
-                  <button type="button" className="reject" disabled={busy}
-                    onClick={() => moderate('reject')}>{busy ? 'Đang xử lý…' : 'Từ chối sản phẩm'}</button>
-                  <button type="button" className="approve" disabled={busy}
-                    onClick={() => moderate('approve')}>{busy ? 'Đang xử lý…' : 'Duyệt sản phẩm'}</button>
-                </div>
-                <p className="moderation-character-count">{reason.length}/500 ký tự · Farmer sẽ được thông báo sau khi có quyết định.</p>
+                {!farmVerified && <Notice error>
+                  Chưa thể duyệt sản phẩm vì nông trại chưa được xác minh.
+                </Notice>}
+                {!isRejecting ? <>
+                  <Notice error>{actionError}</Notice>
+                  <div className="moderation-decision-actions">
+                    <button type="button" className="reject" disabled={busy}
+                      onClick={() => { setActionError(''); setIsRejecting(true); }}>
+                      Từ chối sản phẩm</button>
+                    <button type="button" className="approve" disabled={busy || !farmVerified}
+                      onClick={() => moderate('approve')}>{busy ? 'Đang xử lý…' : 'Duyệt sản phẩm'}</button>
+                  </div>
+                </> : <>
+                  <label htmlFor="moderation-reason">Lý do từ chối <span>(bắt buộc)</span></label>
+                  <textarea id="moderation-reason" rows="3" maxLength={500} value={reason}
+                    placeholder="Nêu rõ thông tin cần farmer bổ sung hoặc chỉnh sửa..."
+                    onChange={(event) => { setReason(event.target.value); setActionError(''); }} />
+                  <Notice error>{actionError}</Notice>
+                  <div className="moderation-decision-actions">
+                    <button type="button" disabled={busy} onClick={() => {
+                      setIsRejecting(false);
+                      setReason('');
+                      setActionError('');
+                    }}>Hủy</button>
+                    <button type="button" className="reject" disabled={busy}
+                      onClick={requestRejectConfirmation}>Xem lại và xác nhận</button>
+                  </div>
+                  <p className="moderation-character-count">{reason.length}/500 ký tự · Farmer sẽ được thông báo sau khi có quyết định.</p>
+                </>}
               </section>}
             </div>
           </article>}
         </div>
       </div>}
+      {confirmReject && <Modal title="Xác nhận từ chối sản phẩm"
+        onClose={() => { if (!busy) setConfirmReject(false); }}>
+        <div className="moderation-confirmation">
+          <p>Bạn có chắc chắn muốn từ chối <strong>{detail?.name}</strong> không?</p>
+          <p className="moderation-confirmation-reason"><strong>Lý do từ chối:</strong> {reason.trim()}</p>
+          <p>Hệ thống sẽ lưu lý do và gửi thông báo cho Farmer sau khi xác nhận.</p>
+          <div className="moderation-decision-actions">
+            <button type="button" disabled={busy}
+              onClick={() => setConfirmReject(false)}>Hủy</button>
+            <button type="button" className="reject" disabled={busy}
+              onClick={() => moderate('reject')}>{busy ? 'Đang xử lý…' : 'Xác nhận từ chối'}</button>
+          </div>
+        </div>
+      </Modal>}
   </section>;
 }

@@ -26,8 +26,17 @@ public sealed class MarketplaceService(IMarketplaceRepository repository) : IMar
     }
 
     public async Task<Result<MarketplaceFiltersResponse>> GetFiltersAsync(
-        CancellationToken cancellationToken) =>
-        Result<MarketplaceFiltersResponse>.Ok(await repository.GetFiltersAsync(cancellationToken));
+        CancellationToken cancellationToken, long? categoryId = null, long? supplierId = null)
+    {
+        if (categoryId is <= 0 || supplierId is <= 0)
+        {
+            return Result<MarketplaceFiltersResponse>.Fail(
+                "MSG40: Vui lòng nhập từ khóa hoặc giá trị bộ lọc hợp lệ.");
+        }
+
+        return Result<MarketplaceFiltersResponse>.Ok(
+            await repository.GetFiltersAsync(cancellationToken, categoryId, supplierId));
+    }
 
     public async Task<Result<ProductDetailResponse>> GetDetailAsync(
         long productId, CancellationToken cancellationToken)

@@ -1,5 +1,7 @@
+import { cartMessages } from '../RetailCustomer/cartMessages';
 import React, { useEffect, useState } from 'react';
 import { request } from '../../api/client';
+import { displayMessage } from '../../utils/displayMessage';
 import { Icon, Price, ProductImage, Rating, safeUrl } from './MarketplaceUi';
 
 const dateLabel = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('vi-VN') : 'Không có';
@@ -23,15 +25,15 @@ function AddToCart({ product, batches, session, navigate }) {
     event.preventDefault();
     const amount = Number(quantity);
     if (!Number.isFinite(amount) || amount <= 0) {
-      setError('Nhập số lượng lớn hơn 0 (MSG167).'); return;
+      setError(cartMessages.invalidQuantity(product.unit)); return;
     }
     setBusy(true); setError(''); setMessage('');
     try {
       const cart = await request('/cart/items', { method: 'POST',
         body: { productId: product.id, harvestBatchId: Number(batchId), quantity: amount } });
-      setMessage(cart.messages.join(' '));
+      setMessage(displayMessage(cart.messages.join(' ')));
     } catch (err) {
-      setError(err.message);
+      setError(displayMessage(err.message));
     } finally {
       setBusy(false);
     }
@@ -129,7 +131,7 @@ export default function ProductDetail({ productId, query, reload, session, navig
             <Icon name="card" />Giá sỉ: {detail.wholesalePrice.toLocaleString('vi-VN')}đ / {product.unit}
             {' '}từ {detail.wholesaleMinQuantity} {product.unit}</li>}
         </ul>
-        <AddToCart product={product} batches={batches} session={session} navigate={navigate} />
+        <AddToCart product={product} session={session} onAdd={onAdd} adding={adding} />
         <button className="mkt-share" onClick={share}><Icon name="share" />Chia sẻ</button>
         {shareMessage && <p className="mkt-share-message" role="status">{shareMessage}</p>}
       </section>

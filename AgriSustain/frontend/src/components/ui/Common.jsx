@@ -66,7 +66,7 @@ export function Pager({ total, page, pageSize = 10, onPage }) {
  * Uses a native modal dialog for focus trapping and restores previous focus on cleanup. Escape
  * delegates cancellation so busy operations can retain their confirmation state.
  */
-export function Modal({ title, children, onClose }) {
+export function Modal({ title, children, onClose, hideCloseButton = false }) {
   const ref = useRef(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -75,19 +75,57 @@ export function Modal({ title, children, onClose }) {
     return () => { dialog.close(); previousFocus?.focus(); };
   }, []);
   return <dialog ref={ref} onCancel={(event) => { event.preventDefault(); onClose(); }}>
-    <div className="modal-heading"><h2>{title}</h2><button aria-label="Đóng"
-      onClick={onClose}>×</button></div>{children}</dialog>;
+    <div className="modal-heading">
+      <h2>{title}</h2>
+      {!hideCloseButton && <button aria-label="Đóng" onClick={onClose}>×</button>}
+    </div>
+    {children}
+  </dialog>;
 }
 
 /**
  * Links a stable generated label ID to its single child control, preserving an explicit child ID
  * when supplied so forms and accessibility locators remain consistent.
  */
-export function Field({ label, children, ...props }) {
+export function Field({ label, children, error, hint, className = '', ...props }) {
   const generatedId = useId();
-  const id = children.props.id || generatedId;
-  return <div className="field" {...props}><label htmlFor={id}>{label}</label>
-    {React.cloneElement(children, { id })}</div>;
+  const id = children?.props?.id || generatedId;
+  return (
+    <div className={`field ${error ? 'has-error' : ''} ${className}`.trim()} {...props}>
+      {label && <label htmlFor={id}>{label}</label>}
+      {children && React.cloneElement(children, { id, 'aria-invalid': Boolean(error) })}
+      {error && (
+        <span
+          className="field-error"
+          role="alert"
+          style={{
+            color: '#dc2626',
+            fontSize: '12px',
+            marginTop: '5px',
+            display: 'block',
+            fontWeight: 500,
+            lineHeight: 1.4,
+          }}
+        >
+          {error}
+        </span>
+      )}
+      {hint && !error && (
+        <span
+          className="field-hint"
+          style={{
+            color: '#557262',
+            fontSize: '11.5px',
+            marginTop: '4px',
+            display: 'block',
+            lineHeight: 1.4,
+          }}
+        >
+          {hint}
+        </span>
+      )}
+    </div>
+  );
 }
 
 /** Returns readable initials for the read-only avatar without requiring a new database field. */
@@ -100,7 +138,7 @@ export function initials(name = '') {
 export function VerificationBadge({ value }) {
   const labels = { Approved: 'Đã xác minh', Verified: 'Đã xác minh', Pending: 'Chờ xác minh',
     Rejected: 'Từ chối', NotVerified: 'Chưa xác minh', Unverified: 'Chưa xác minh',
-    NotSubmitted: 'Chưa nộp hồ sơ',
+    NotSubmitted: 'Chưa nộp hồ sơ', PendingApproval: 'Chờ xác minh', PendingVerification: 'Chờ xác minh',
     Expired: 'Hết hạn', Review: 'Đang xét duyệt' };
   return <span className={`badge ${value === 'Approved' || value === 'Verified' ? 'Active'
     : value === 'Rejected' || value === 'Expired' ? 'Suspended' : 'neutral'}`}>

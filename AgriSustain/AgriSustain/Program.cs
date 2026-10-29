@@ -3,6 +3,7 @@ using AgriSustain.Infrastructure.Data;
 using AgriSustain.Infrastructure.FileStorage;
 using AgriSustain.Api.Middlewares;
 using AgriSustain.Api.Security;
+using AgriSustain.Api.Auth;
 using AgriSustain.Application.Validators;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Interfaces.Identity;
@@ -36,6 +37,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Checkout.json", optional: false)
     .AddEnvironmentVariables().AddCommandLine(args);
 builder.Services.AddThreeUseCases(builder.Configuration);
+builder.Services.AddSingleton<RevokedTokenStore>();
 
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter()));
@@ -47,6 +49,24 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
 builder.Services.AddScoped<IProductModerationRepository, ProductModerationRepository>();
 builder.Services.AddScoped<IProductModerationService, ProductModerationService>();
+builder.Services.AddScoped<IComplaintRepository, ComplaintRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>();
+builder.Services.AddScoped<IComplaintResolutionService>(services => services
+    .GetRequiredService<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>());
+builder.Services.AddScoped<IComplaintEvidenceTimeoutProcessor>(services => services
+    .GetRequiredService<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>());
+// UC-CS-01: auto-resolve complaints after the 48-hour information request expires (on by default).
+if (builder.Configuration.GetValue("Complaints:EnableEvidenceTimeoutWorker", true))
+{
+    builder.Services.AddHostedService<
+        AgriSustain.Infrastructure.BackgroundWorkers.ComplaintEvidenceTimeoutWorker>();
+}
+builder.Services.AddScoped<IRefundRepository, RefundRepository>();
+builder.Services.AddScoped<IRefundProcessingService,
+    AgriSustain.Application.Services.Refunds.RefundProcessingService>();
+builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
+builder.Services.AddScoped<IVoucherManagementService,
+    AgriSustain.Application.Services.Promotions.VoucherManagementService>();
 builder.Services.AddOptions<JwtOptions>()
     .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
     .Validate(options => !string.IsNullOrWhiteSpace(options.ValidIssuer),
@@ -61,6 +81,13 @@ builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
 builder.Services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDevelopment", policy =>
+        policy.WithOrigins("http://127.0.0.1:5173", "http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
 
 // Standard Repositories and UnitOfWork
 builder.Services.AddSingleton<SqlDemoDependencies>();
@@ -87,7 +114,14 @@ builder.Services.AddScoped<OrderFulfillmentService>();
 builder.Services.AddValidatorsFromAssemblyContaining<ProductRequestValidator>();
 
 // DuND Application Services
+// Development adapter: OTP is written to the server log. Swap for a Gmail adapter in production.
+builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.LoggingEmailService>();
+builder.Services.AddSingleton<IOtpGenerator, RandomOtpGenerator>();
+builder.Services.AddSingleton<IOtpChallengeStore,
+    AgriSustain.Infrastructure.Data.InMemoryStore.InMemoryOtpChallengeStore>();
+builder.Services.AddScoped<IEmailOtpVerifier, EmailOtpVerifier>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 
@@ -95,6 +129,8 @@ builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
 builder.Services.AddScoped<IValidator<VerifyOtpRequest>, VerifyOtpRequestValidator>();
 builder.Services.AddScoped<IValidator<ResendOtpRequest>, ResendOtpRequestValidator>();
+builder.Services.AddScoped<IValidator<ForgotPasswordRequest>, ForgotPasswordRequestValidator>();
+builder.Services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
 builder.Services.AddScoped<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateConsumerProfileRequest>, UpdateConsumerProfileValidator>();
 builder.Services.AddScoped<IValidator<UpdateFarmerProfileRequest>, UpdateFarmerProfileValidator>();
@@ -116,6 +152,22 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
         ValidAudience = builder.Configuration["JWT:ValidAudience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Secret"]!))
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = context =>
+        {
+            var tokenId = context.SecurityToken.Id;
+            if (!string.IsNullOrEmpty(tokenId)
+                && context.HttpContext.RequestServices
+                    .GetRequiredService<RevokedTokenStore>()
+                    .IsRevoked(tokenId))
+            {
+                context.Fail("This session has been terminated.");
+            }
+
+            return Task.CompletedTask;
+        }
     };
 });
 builder.Services.AddAuthorization();
@@ -145,6 +197,7 @@ app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/users")
     || context.Request.Path.StartsWithSegments("/api/checkout"), branch =>
         branch.UseMiddleware<ExceptionMiddleware>());
 
+app.UseCors("FrontendDevelopment");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ActiveFeatureAccountMiddleware>();

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using AgriSustain.Application.Common;
 using AgriSustain.Infrastructure.Data;
 using AgriSustain.Application.DTOs.Authentication;
 using AgriSustain.Application.Interfaces.Repositories;
@@ -43,7 +45,7 @@ public sealed class AuthRepository(AgriSustainContext db, SqlDemoDependencies de
     {
         var user = new User
         {
-            Username = registration.Email.Split('@')[0] + "_" + Random.Shared.Next(100, 999),
+            Username = await UniqueUsernameAsync(registration.Email, cancellationToken),
             Email = registration.Email,
             PasswordHash = registration.PasswordHash,
             FullName = registration.FullName,
@@ -60,20 +62,46 @@ public sealed class AuthRepository(AgriSustainContext db, SqlDemoDependencies de
 
         if (registration.Role == "Farmer")
         {
-            var farmerProfile = new FarmerProfile
+            // Farm details are completed later on the profile screen (UC-AUTH-03) before KYC submission.
+            db.FarmerProfiles.Add(new FarmerProfile
             {
                 UserId = user.UserId,
-                FarmName = "Nông trại " + registration.FullName,
+                FarmName = "",
                 RepresentativeName = registration.FullName,
-                Address = "Chưa cập nhật địa chỉ",
-                ProvinceCode = "01",
-                VerificationStatus = "Pending",
-                ReputationScore = 5.0m
-            };
-            db.FarmerProfiles.Add(farmerProfile);
-            await db.SaveChangesAsync(cancellationToken);
+                Address = "",
+                ProvinceCode = "",
+                VerificationStatus = VerificationStatuses.NotSubmitted,
+                ReputationScore = 5.00m
+            });
         }
 
+        db.AuditLogs.Add(new AuditLog
+        {
+            PerformedByUserId = user.UserId,
+            EntityType = "User",
+            EntityId = user.UserId,
+            Action = "Register",
+            NewValue = JsonSerializer.Serialize(new
+            {
+                user.Email, user.PhoneNumber, user.Role, user.Status, user.IsEmailVerified
+            }),
+            OccurredAt = DateTime.UtcNow
+        });
+
+        await db.SaveChangesAsync(cancellationToken);
         return user;
+    }
+
+    private async Task<string> UniqueUsernameAsync(string email, CancellationToken cancellationToken)
+    {
+        string baseName = email.Split('@')[0];
+        if (baseName.Length > 80) baseName = baseName[..80];
+        string candidate = baseName;
+        while (await db.Users.AnyAsync(u => u.Username == candidate, cancellationToken))
+        {
+            candidate = $"{baseName}_{Random.Shared.Next(1000, 99999)}";
+        }
+
+        return candidate;
     }
 }

@@ -1,7 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using AgriSustain.Application.DTOs.Auth;
 using AgriSustain.Application.DTOs.Authentication;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Interfaces.Services;
+using AgriSustain.Api.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,11 +16,19 @@ public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IAuthenticationService _registrationService;
+    private readonly IPasswordResetService _passwordResetService;
+    private readonly RevokedTokenStore _revokedTokenStore;
 
-    public AuthController(IAuthService authService, IAuthenticationService registrationService)
+    public AuthController(
+        IAuthService authService,
+        IAuthenticationService registrationService,
+        IPasswordResetService passwordResetService,
+        RevokedTokenStore revokedTokenStore)
     {
         _authService = authService;
         _registrationService = registrationService;
+        _passwordResetService = passwordResetService;
+        _revokedTokenStore = revokedTokenStore;
     }
 
     [AllowAnonymous]
@@ -30,15 +41,46 @@ public sealed class AuthController : ControllerBase
         }
 
         var result = await _authService.LoginAsync(request, cancellationToken);
-        if (result == null)
+        return result.Status switch
         {
-            return Problem(
+            LoginResultStatus.Success when result.Response is not null => Ok(result.Response),
+            LoginResultStatus.InvalidCredentials => Problem(
                 title: "Đăng nhập thất bại",
                 detail: "Tên đăng nhập hoặc mật khẩu không đúng.",
+                statusCode: StatusCodes.Status401Unauthorized),
+            LoginResultStatus.AccountLocked => Problem(
+                title: "Tài khoản đang bị khóa",
+                detail: "Tài khoản đang bị khóa tạm thời do đăng nhập sai quá nhiều lần. Vui lòng thử lại sau.",
+                statusCode: StatusCodes.Status423Locked),
+            LoginResultStatus.AccountSuspended => Problem(
+                title: "Tài khoản đã bị tạm ngưng",
+                detail: "Tài khoản đã bị Admin tạm ngưng. Vui lòng liên hệ bộ phận hỗ trợ để biết thêm thông tin.",
+                statusCode: StatusCodes.Status403Forbidden),
+            _ => throw new InvalidOperationException("Kết quả đăng nhập không hợp lệ.")
+        };
+    }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public IActionResult Logout()
+    {
+        var tokenId = User.FindFirstValue(JwtRegisteredClaimNames.Jti)
+            ?? User.FindFirstValue(ClaimTypes.SerialNumber);
+        var expiration = User.FindFirstValue(JwtRegisteredClaimNames.Exp)
+            ?? User.FindFirstValue(ClaimTypes.Expiration);
+        if (string.IsNullOrWhiteSpace(tokenId)
+            || !long.TryParse(expiration, out var expirationTimestamp))
+        {
+            return Problem(
+                title: "Phiên đăng nhập không hợp lệ",
+                detail: "Không thể xác thực phiên đăng nhập hiện tại.",
                 statusCode: StatusCodes.Status401Unauthorized);
         }
 
-        return Ok(result);
+        _revokedTokenStore.Revoke(
+            tokenId,
+            DateTimeOffset.FromUnixTimeSeconds(expirationTimestamp));
+        return NoContent();
     }
 
     [AllowAnonymous]
@@ -59,11 +101,36 @@ public sealed class AuthController : ControllerBase
         [FromBody] ResendOtpRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _registrationService.ResendOtpAsync(request, cancellationToken), HttpContext);
 
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _passwordResetService.RequestCodeAsync(request, cancellationToken), HttpContext);
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password/resend-otp")]
+    public async Task<IActionResult> ResendPasswordResetOtp(
+        [FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _passwordResetService.ResendCodeAsync(request, cancellationToken), HttpContext);
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password/verify-otp")]
+    public async Task<IActionResult> VerifyPasswordResetOtp(
+        [FromBody] VerifyOtpRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _passwordResetService.VerifyCodeAsync(request, cancellationToken), HttpContext);
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _passwordResetService.ResetPasswordAsync(request, cancellationToken), HttpContext);
+
     [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(
-        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken) =>
-        ApiResults.From(
-            await _authService.ChangePasswordAsync(request, cancellationToken),
-            HttpContext);
+        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.ChangePasswordAsync(request, cancellationToken);
+        return result.IsSuccess ? new JsonResult(result.Value) : ApiResults.From(result, HttpContext);
+    }
 }

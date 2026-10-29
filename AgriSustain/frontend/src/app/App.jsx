@@ -1,5 +1,7 @@
 import '../styles/customer-portal.css';
 import React, { useEffect, useState } from 'react';
+import { backendUrl, logout as logoutSession } from '../api/client';
+import { Notice } from '../components/ui/Common';
 import UsersScreen from '../features/Administrator/UsersScreen';
 import CategoriesScreen from '../features/Administrator/CategoriesScreen';
 import AdminDashboard from '../features/Administrator/AdminDashboard';
@@ -19,10 +21,14 @@ import CustomerPortalApp from './CustomerPortalApp';
 
 import VerificationDashboard from '../features/Verification Officer/VerificationDashboard';
 import SupportDashboard from '../features/Customer Support/SupportDashboard';
+import ComplaintResolutionScreen from '../features/Customer Support/ComplaintResolutionScreen';
 import PromotionsDashboard from '../features/Promotion Staff/PromotionsDashboard';
+import VoucherManagementScreen from '../features/Promotion Staff/VoucherManagementScreen';
 import FinanceDashboard from '../features/Finance Staff/FinanceDashboard';
+import RefundProcessingScreen from '../features/Finance Staff/RefundProcessingScreen';
 import GatewayDashboard from '../features/Payment Gateway/GatewayDashboard';
 import LoginScreen from '../features/Guest/LoginScreen';
+import ForgotPasswordScreen from '../features/Guest/ForgotPasswordScreen';
 import { clearSession, getSession, setSession } from '../session/session';
 
 export function normalizeRole(role) {
@@ -134,6 +140,7 @@ export const ROLE_CONFIGS = {
     landingRoute: '/support/dashboard',
     navItems: [
       { key: 'support-dash', label: 'Trung tâm hỗ trợ', icon: '📊', path: '/support/dashboard' },
+      { key: 'support-complaints', label: 'Xử lý khiếu nại', icon: '⚖️', path: '/support/complaints' },
     ],
   },
   promotion_staff: {
@@ -146,6 +153,7 @@ export const ROLE_CONFIGS = {
     landingRoute: '/promotions/dashboard',
     navItems: [
       { key: 'promotion-dash', label: 'Chiến dịch khuyến mại', icon: '📊', path: '/promotions/dashboard' },
+      { key: 'promotion-vouchers', label: 'Quản lý voucher', icon: '🎟️', path: '/promotions/vouchers' },
     ],
   },
   finance_staff: {
@@ -158,6 +166,7 @@ export const ROLE_CONFIGS = {
     landingRoute: '/finance/dashboard',
     navItems: [
       { key: 'finance-dash', label: 'Quản lý tài chính', icon: '📊', path: '/finance/dashboard' },
+      { key: 'finance-refunds', label: 'Xử lý hoàn tiền', icon: '🔄', path: '/finance/refunds' },
     ],
   },
   payment_gateway: {
@@ -218,8 +227,15 @@ export default function App() {
   const [session, setCurrentSession] = useState(getSession);
   const [fixture, setFixture] = useState(readFixture);
   const [route, setRoute] = useState(readRoute);
+  const previousScreen = useRef(null);
+  useEffect(() => {
+    if (!route.startsWith('/account/password')) previousScreen.current = route;
+  }, [route]);
   const [persistence, setPersistence] = useState(null);
   const [databaseReady, setDatabaseReady] = useState(false);
+  const [logoutMessage, setLogoutMessage] = useState('');
+  const [logoutError, setLogoutError] = useState('');
+  const [logoutBusy, setLogoutBusy] = useState(false);
 
   // Xác định role hiện tại (ưu tiên session từ DB, nếu không có thì lấy fixture demo)
   const isPublicMarketplace = !session && !fixture && route === '/retail/dashboard';
@@ -237,7 +253,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (session && route === '/login') {
+    if (session && (route === '/login' || route.startsWith('/forgot-password'))) {
       navigate(roleConfig.landingRoute);
     }
   }, [session, route, roleConfig]);
@@ -245,12 +261,12 @@ export default function App() {
   useEffect(() => {
     if (isMarketplace) return;
     const controller = new AbortController();
-    fetch('/health', { signal: controller.signal })
+    fetch(backendUrl('/health'), { signal: controller.signal })
       .then((response) => response.json())
       .then(async (health) => {
         setPersistence(health.persistence);
         if (health.persistence === 'SqlServer') {
-          const response = await fetch('/health/database', { signal: controller.signal });
+          const response = await fetch(backendUrl('/health/database'), { signal: controller.signal });
           const readiness = await response.json().catch(() => ({}));
           setDatabaseReady(response.ok && readiness.connected === true);
         }
@@ -282,17 +298,41 @@ export default function App() {
     }
     setSession(loginData);
     setCurrentSession(loginData);
+    setLogoutMessage('');
+    setLogoutError('');
     setFixture(null);
     sessionStorage.removeItem('agrisustain:demo-fixture');
     navigate(targetConfig.landingRoute);
   }
 
-  function logout() {
-    clearSession();
-    setCurrentSession(null);
-    setFixture(null);
-    sessionStorage.removeItem('agrisustain:demo-fixture');
-    navigate('/login');
+  async function logout() {
+    if (logoutBusy) return;
+
+    if (!session?.accessToken) {
+      clearSession();
+      setCurrentSession(null);
+      setFixture(null);
+      sessionStorage.removeItem('agrisustain:demo-fixture');
+      navigate('/login');
+      return;
+    }
+
+    setLogoutBusy(true);
+    setLogoutError('');
+    try {
+      await logoutSession();
+      clearSession();
+      setCurrentSession(null);
+      setFixture(null);
+      sessionStorage.removeItem('agrisustain:demo-fixture');
+      setLogoutMessage('Đăng xuất thành công.');
+      setRoute('/marketplace');
+      navigate('/marketplace');
+    } catch (failure) {
+      setLogoutError(failure.message || 'Không thể đăng xuất. Vui lòng thử lại.');
+    } finally {
+      setLogoutBusy(false);
+    }
   }
 
   /** Keeps the header in sync after UC-AUTH-03 saves a new display name. */
@@ -305,7 +345,13 @@ export default function App() {
 
   if (isMarketplace) {
     return <Marketplace route={route} navigate={navigate} session={session} onLogout={logout}
+      logoutMessage={logoutMessage} logoutError={logoutError} logoutBusy={logoutBusy}
       accountLinks={roleConfig.navItems.filter((item) => !marketplacePaths.includes(item.path))} />;
+  }
+
+  // UC-AUTH-07 is only for signed-out users; a signed-in session is redirected above.
+  if (!session && route.startsWith('/forgot-password')) {
+    return <ForgotPasswordScreen navigate={navigate} />;
   }
 
   // Nếu chưa đăng nhập và không có phiên demo -> Hiển thị LoginScreen
@@ -331,8 +377,11 @@ export default function App() {
   else if (route.startsWith('/account/password')) currentTitle = 'Đổi mật khẩu';
   else if (route.startsWith('/verification/dashboard')) currentTitle = 'Thẩm định chất lượng';
   else if (route.startsWith('/support/dashboard')) currentTitle = 'Trung tâm khiếu nại & Tranh chấp';
+  else if (route.startsWith('/support/complaints')) currentTitle = 'Xử lý khiếu nại';
   else if (route.startsWith('/promotions/dashboard')) currentTitle = 'Chiến dịch khuyến mại';
+  else if (route.startsWith('/promotions/vouchers')) currentTitle = 'Quản lý voucher';
   else if (route.startsWith('/finance/dashboard')) currentTitle = 'Quản lý tài chính & Chi trả';
+  else if (route.startsWith('/finance/refunds')) currentTitle = 'Xử lý hoàn tiền';
   else if (route.startsWith('/gateway/dashboard')) currentTitle = 'Giám sát cổng thanh toán';
   else if (route.startsWith('/notifications/dashboard')) currentTitle = 'Dịch vụ gửi thông báo';
   else if (route.startsWith('/guest/dashboard')) currentTitle = 'Khám phá Nông Sản Việt';
@@ -429,12 +478,24 @@ export default function App() {
 
           <div className="account-actions">
             {session ? (
-              <>
-                <span style={{ fontSize: 13, color: '#294334', fontWeight: 600 }}>{session.user.fullName}</span>
-                <span className="badge role-badge" style={{ marginLeft: 6 }}>{session.user.role}</span>
-                <button type="button" onClick={() => navigate('/account/password')} style={{ marginLeft: 10 }}>Đổi mật khẩu</button>
-                <button type="button" onClick={logout} style={{ marginLeft: 6 }}>Đăng xuất</button>
-              </>
+              <details className="account-menu">
+                <summary>
+                  <span className="account-avatar">{userAvatarInitial}</span>
+                  <span>{session.user.fullName}</span>
+                  <span aria-hidden="true">▾</span>
+                </summary>
+                <div className="account-menu-panel">
+                  <strong>{session.user.fullName}</strong>
+                  <span>{session.user.role}</span>
+                  <button type="button" onClick={() => navigate('/account/password')}>
+                    Đổi mật khẩu
+                  </button>
+                  <Notice error>{logoutError}</Notice>
+                  <button type="button" onClick={logout} disabled={logoutBusy}>
+                    {logoutBusy ? 'Đang đăng xuất…' : 'Đăng xuất'}
+                  </button>
+                </div>
+              </details>
             ) : (
               <>
                 <label className="session-selector">
@@ -464,7 +525,7 @@ export default function App() {
           </div>
         </header>
 
-        <main key={`${roleKey}-${route}`}>
+        <main key={roleKey}>
           {/* Định tuyến màn hình tương ứng */}
           {route.startsWith('/administration/dashboard') && <AdminDashboard navigate={navigate} />}
           {route.startsWith('/administration/users') && <UsersScreen fixture={fixture} route={route} navigate={navigate} />}
@@ -480,14 +541,17 @@ export default function App() {
           {(route.startsWith('/retail/orders') || route.startsWith('/orders'))
             && <OrderTrackingScreen navigate={navigate} />}
           {route.startsWith('/account/password') && <ChangePasswordScreen session={session}
-            navigate={navigate} backRoute={roleConfig.landingRoute} />}
+            navigate={navigate} backRoute={previousScreen.current || roleConfig.landingRoute} />}
           {route.startsWith('/customer-portal') && <CustomerPortalApp />}
 
           {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} navigate={navigate} />}
           {route.startsWith('/verification/dashboard') && <VerificationDashboard navigate={navigate} />}
           {route.startsWith('/support/dashboard') && <SupportDashboard navigate={navigate} />}
+          {route.startsWith('/support/complaints') && <ComplaintResolutionScreen route={route} navigate={navigate} />}
           {route.startsWith('/promotions/dashboard') && <PromotionsDashboard navigate={navigate} />}
+          {route.startsWith('/promotions/vouchers') && <VoucherManagementScreen />}
           {route.startsWith('/finance/dashboard') && <FinanceDashboard navigate={navigate} />}
+          {route.startsWith('/finance/refunds') && <RefundProcessingScreen route={route} navigate={navigate} />}
           {route.startsWith('/gateway/dashboard') && <GatewayDashboard navigate={navigate} />}
           {route.startsWith('/notifications/dashboard') && <NotificationServiceDashboard navigate={navigate} />}
 
@@ -495,7 +559,7 @@ export default function App() {
           {!['/farmer/products', '/farmer/orders', '/cart', '/administration/dashboard', '/administration/users', '/administration/categories',
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
              '/retail/dashboard', '/checkout', '/verification/dashboard',
-             '/support/dashboard', '/promotions/dashboard', '/finance/dashboard',
+             '/support/dashboard', '/support/complaints', '/promotions/dashboard', '/promotions/vouchers', '/finance/dashboard', '/finance/refunds',
              '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/account/password', '/customer-portal'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <h2>Đang chuyển hướng về trang làm việc của bạn...</h2>

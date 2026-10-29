@@ -90,6 +90,10 @@ public sealed class ProductModerationController : ControllerBase
                 title: "Xung đột trạng thái",
                 detail: "Sản phẩm đã được xử lý trước đó.",
                 statusCode: StatusCodes.Status409Conflict),
+            ProductModerationOutcome.FarmerNotVerified => Problem(
+                title: "Nông trại chưa được xác minh",
+                detail: "Chỉ có thể duyệt sản phẩm khi hồ sơ nông trại đã được xác minh.",
+                statusCode: StatusCodes.Status409Conflict),
             ProductModerationOutcome.InvalidReason => Problem(
                 title: "Lý do từ chối không hợp lệ",
                 detail: "Lý do từ chối phải có từ 1 đến 500 ký tự.",

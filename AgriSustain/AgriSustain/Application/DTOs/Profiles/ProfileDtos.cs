@@ -55,7 +55,9 @@ public sealed record UpdateConsumerProfileRequest(
     string? ProvinceCode,
     string? WardCode,
     string? DistrictCode = null,
-    string? CatalogVersion = null);
+    string? CatalogVersion = null,
+    string? RecipientName = null,
+    string? RecipientPhone = null);
 
 public sealed record UpdateFarmerProfileRequest(
     string FullName,
@@ -72,3 +74,20 @@ public sealed record UpdateFarmerProfileRequest(
 
 public sealed record SubmitKycRequest(
     string? Notes);
+
+/// <summary>Minimal account data used for role and state checks.</summary>
+public sealed record ProfileAccount(long UserId, string Role, string Status);
+
+public enum KycSubmissionOutcome
+{
+    Submitted,
+    NotFound,
+    InvalidState,
+    Incomplete
+}
+
+public sealed record KycSubmissionResult(
+    KycSubmissionOutcome Outcome,
+    IReadOnlyList<string> MissingFields,
+    string? CurrentStatus,
+    UserProfileResponse? Profile);

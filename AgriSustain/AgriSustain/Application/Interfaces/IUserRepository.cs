@@ -8,5 +8,11 @@ public interface IUserRepository
         string identifier,
         CancellationToken cancellationToken);
 
+    Task<User?> FindByEmailAsync(
+        string email,
+        CancellationToken cancellationToken);
+
+    void AddAudit(AuditLog audit);
+
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }

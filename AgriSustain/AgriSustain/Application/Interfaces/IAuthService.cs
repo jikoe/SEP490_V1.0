@@ -5,7 +5,7 @@ namespace AgriSustain.Application.Interfaces;
 
 public interface IAuthService
 {
-    Task<LoginResponseDto?> LoginAsync(LoginRequestDto request, CancellationToken cancellationToken);
+    Task<LoginResultDto> LoginAsync(LoginRequestDto request, CancellationToken cancellationToken);
 
     Task<Result<string>> ChangePasswordAsync(
         ChangePasswordRequest request,

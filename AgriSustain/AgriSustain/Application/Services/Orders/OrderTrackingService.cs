@@ -7,11 +7,16 @@ using FluentValidation;
 
 namespace AgriSustain.Application.Services.Orders;
 
+/// <summary>UC-RC-04 Track Retail Order (read-only; only the buyer's own orders are visible).</summary>
 public sealed class OrderTrackingService(
     IUnitOfWork unitOfWork,
     ICurrentUser currentUser,
-    IValidator<OrderQuery> queryValidator) : IOrderTrackingService
+    IValidator<OrderQuery> queryValidator,
+    TimeProvider timeProvider) : IOrderTrackingService
 {
+    /// <summary>Complaint window after delivery (GBR-24).</summary>
+    public static readonly TimeSpan ComplaintWindow = TimeSpan.FromHours(48);
+
     private static readonly Error s_signInRequired = new(
         "UNAUTHORIZED", "Vui lòng đăng nhập để xem đơn hàng của bạn.", "Unauthorized");
 
@@ -31,10 +36,7 @@ public sealed class OrderTrackingService(
                 return Result<PagedResponse<OrderSummaryDto>>.FailureResult(s_signInRequired);
             }
 
-            var pagedOrders = await uow.Orders.GetOrdersByBuyerAsync(
-                buyerId,
-                query,
-                cancellationToken);
+            var pagedOrders = await uow.Orders.GetOrdersByBuyerAsync(buyerId, query, cancellationToken);
             return Result<PagedResponse<OrderSummaryDto>>.SuccessResult(pagedOrders);
         }, cancellationToken);
     }
@@ -48,11 +50,9 @@ public sealed class OrderTrackingService(
                 return Result<OrderDetailDto>.FailureResult(s_signInRequired);
             }
 
+            // Ownership is part of the query: another buyer's order is reported as not found (no data leak).
             var order = await uow.Orders.GetOrderDetailAsync(buyerId, orderId, cancellationToken);
-            return order == null
-                ? Result<OrderDetailDto>.FailureResult(new Error(
-                    "ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng #{orderId}.", "NotFound"))
-                : Result<OrderDetailDto>.SuccessResult(order);
+            return await CompleteAsync(uow, buyerId, order, $"Không tìm thấy đơn hàng #{orderId}.", cancellationToken);
         }, cancellationToken);
 
     public Task<Result<OrderDetailDto>> GetOrderDetailByCodeAsync(
@@ -64,13 +64,48 @@ public sealed class OrderTrackingService(
                 return Result<OrderDetailDto>.FailureResult(s_signInRequired);
             }
 
-            var order = await uow.Orders.GetOrderDetailByCodeAsync(
-                buyerId,
-                orderCode,
-                cancellationToken);
-            return order == null
-                ? Result<OrderDetailDto>.FailureResult(new Error(
-                    "ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng có mã {orderCode}.", "NotFound"))
-                : Result<OrderDetailDto>.SuccessResult(order);
+            string code = (orderCode ?? "").Trim().TrimStart('#');
+            var order = await uow.Orders.GetOrderDetailByCodeAsync(buyerId, code, cancellationToken);
+            return await CompleteAsync(uow, buyerId, order, $"Không tìm thấy đơn hàng có mã {code}.", cancellationToken);
         }, cancellationToken);
+
+    /// <summary>Contextual actions for the Order Details screen (SRS UC-RC-04 alternative flows, step 7).</summary>
+    public static IReadOnlyList<string> ResolveActions(OrderDetailDto order, DateTimeOffset now)
+    {
+        var actions = new List<string>();
+        if (order.OrderStatus == "PendingPayment" && order.PaymentStatus != "Paid"
+            && (order.ReservationExpiresAt is null || order.ReservationExpiresAt > now))
+        {
+            actions.Add(OrderActions.PayNow);
+        }
+
+        bool delivered = order.OrderStatus is "Delivered" or "Completed";
+        if (delivered && order.SellerOrders.SelectMany(so => so.Items).Any(item => !item.IsReviewed))
+        {
+            actions.Add(OrderActions.Review);
+        }
+
+        if (delivered && order.DeliveredAt is { } deliveredAt && now - deliveredAt <= ComplaintWindow)
+        {
+            actions.Add(OrderActions.SubmitComplaint);
+        }
+
+        return actions;
+    }
+
+    private async Task<Result<OrderDetailDto>> CompleteAsync(
+        IUnitOfWork uow, long buyerId, OrderDetailDto? order, string notFoundMessage,
+        CancellationToken cancellationToken)
+    {
+        if (order == null)
+        {
+            return Result<OrderDetailDto>.FailureResult(new Error("ORDER_NOT_FOUND", notFoundMessage, "NotFound"));
+        }
+
+        await uow.Orders.MarkOrderNotificationsReadAsync(buyerId, order.OrderId, cancellationToken);
+        return Result<OrderDetailDto>.SuccessResult(order with
+        {
+            AllowedActions = ResolveActions(order, timeProvider.GetUtcNow())
+        });
+    }
 }

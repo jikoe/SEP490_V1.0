@@ -14,6 +14,7 @@ public interface IOrderRepository
     Task ReleasePurchaseHoldsAsync(SellerOrder order, CancellationToken cancellationToken);
     Task QueueFinanceReviewAsync(SellerOrder order, long actorId,
         CancellationToken cancellationToken);
+    Task NotifySupportAsync(long sellerOrderId, string content, CancellationToken cancellationToken);
     void AddMovement(InventoryMovement movement);
     void AddAudit(AuditLog audit);
     void Notify(long userId, string title, string content, long sellerOrderId);
