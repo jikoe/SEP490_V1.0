@@ -19,6 +19,14 @@ public sealed class AuthenticationService(
     IEmailOtpVerifier otpVerifier,
     TimeProvider timeProvider) : IAuthenticationService
 {
+    public static readonly TimeSpan OtpLifetime = TimeSpan.FromMinutes(5);
+    public static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(60);
+    public const int MaxFailedAttempts = 5;
+
+    private static readonly Error s_emailDeliveryFailed = new(
+        "EMAIL_DELIVERY_FAILED", "Không thể gửi mã xác thực. Vui lòng thử lại sau.",
+        "ServiceUnavailable");
+
     public async Task<Result<string>> InitiateRegistrationAsync(
         RegisterRequest request, CancellationToken cancellationToken)
     {
