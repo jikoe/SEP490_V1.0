@@ -7,6 +7,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Unit/Commerce/CommerceFixture.cs" Link="Shared/CommerceFixture.cs" />
     <ProjectReference Include="../../AgriSustain/AgriSustain.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />

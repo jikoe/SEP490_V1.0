@@ -220,6 +220,10 @@ export default function App() {
   const [session, setCurrentSession] = useState(getSession);
   const [fixture, setFixture] = useState(readFixture);
   const [route, setRoute] = useState(readRoute);
+  const previousScreen = useRef(null);
+  useEffect(() => {
+    if (!route.startsWith('/account/password')) previousScreen.current = route;
+  }, [route]);
   const [persistence, setPersistence] = useState(null);
   const [databaseReady, setDatabaseReady] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
@@ -468,15 +472,6 @@ export default function App() {
                 <div className="account-menu-panel">
                   <strong>{session.user.fullName}</strong>
                   <span>{session.user.role}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const p = normalizeRole(session.user.role) === 'farmer' ? '/farmer/profile' : '/retail/profile';
-                      navigate(p);
-                    }}
-                  >
-                    {normalizeRole(session.user.role) === 'farmer' ? 'Hồ sơ nông hộ & KYC' : 'Hồ sơ cá nhân'}
-                  </button>
                   <button type="button" onClick={() => navigate('/account/password')}>
                     Đổi mật khẩu
                   </button>
@@ -531,7 +526,7 @@ export default function App() {
           {(route.startsWith('/retail/orders') || route.startsWith('/orders'))
             && <OrderTrackingScreen navigate={navigate} />}
           {route.startsWith('/account/password') && <ChangePasswordScreen session={session}
-            navigate={navigate} backRoute={roleConfig.landingRoute} />}
+            navigate={navigate} backRoute={previousScreen.current || roleConfig.landingRoute} />}
           {route.startsWith('/customer-portal') && <CustomerPortalApp />}
 
           {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} navigate={navigate} />}

@@ -17,8 +17,9 @@ public sealed class MarketplaceController(IMarketplaceService service) : ApiCont
         ToActionResult(await service.BrowseAsync(request, cancellationToken));
 
     [HttpGet("filters")]
-    public async Task<IActionResult> GetFiltersAsync(CancellationToken cancellationToken) =>
-        ToActionResult(await service.GetFiltersAsync(cancellationToken));
+    public async Task<IActionResult> GetFiltersAsync(CancellationToken cancellationToken,
+        [FromQuery] long? categoryId = null, [FromQuery] long? supplierId = null) =>
+        ToActionResult(await service.GetFiltersAsync(cancellationToken, categoryId, supplierId));
 
     [HttpGet("products/{productId:long}")]
     public async Task<IActionResult> GetDetailAsync(

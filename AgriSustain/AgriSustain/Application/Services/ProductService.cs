@@ -4,6 +4,7 @@ using AgriSustain.Application.DTOs.Products;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
 using FluentValidation;
+using FluentValidation.Results;
 
 namespace AgriSustain.Application.Services;
 
@@ -21,7 +22,7 @@ public sealed class ProductService(IProductRepository repository, IUnitOfWork un
         return validation.IsValid
             ? FeatureResult<PageResult<ProductResponse>>.Ok(
                 await repository.SearchAsync(userId, query, cancellationToken))
-            : validation.ToFailure<PageResult<ProductResponse>>();
+            : Invalid<PageResult<ProductResponse>>(validation);
     }
 
     public async Task<FeatureResult<ProductResponse>> GetAsync(long userId, long id,
@@ -37,14 +38,14 @@ public sealed class ProductService(IProductRepository repository, IUnitOfWork un
         var validation = await validator.ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
         {
-            return validation.ToFailure<ProductResponse>();
+            return Invalid<ProductResponse>(validation);
         }
 
         await unitOfWork.BeginAsync(cancellationToken);
         var farmer = await repository.GetFarmerAsync(userId, cancellationToken);
         if (farmer?.VerificationStatus != "Approved")
         {
-            return FeatureResult<ProductResponse>.Fail("FORBIDDEN", "Hồ sơ chưa duyệt (MSG75).");
+            return FeatureResult<ProductResponse>.Fail("FORBIDDEN", ProductListingMessages.MSG75);
         }
 
         var product = id.HasValue
@@ -56,18 +57,18 @@ public sealed class ProductService(IProductRepository repository, IUnitOfWork un
 
         if (!await repository.IsCategoryActiveAsync(request.CategoryId, cancellationToken))
         {
-            return FeatureResult<ProductResponse>.Fail("VALIDATION", "Danh mục không hoạt động.");
+            return FeatureResult<ProductResponse>.Fail("VALIDATION", ProductListingMessages.Field("danh mục", "danh mục đã chọn không hoạt động"));
         }
 
         if (product is not null && repository.Map(product).Version != request.Version)
         {
-            return FeatureResult<ProductResponse>.Fail("CONFLICT", "Dữ liệu đã thay đổi (MSG122).");
+            return FeatureResult<ProductResponse>.Fail("CONFLICT", ProductListingMessages.MSG122);
         }
 
         if (product is not null && product.Unit != request.Unit.Trim()
             && await repository.IsUnitLockedAsync(product.ProductId, cancellationToken))
         {
-            return FeatureResult<ProductResponse>.Fail("CONFLICT", "Đơn vị đã được sử dụng (MSG79).");
+            return FeatureResult<ProductResponse>.Fail("CONFLICT", ProductListingMessages.MSG79);
         }
 
         foreach (var image in request.Images)
@@ -76,7 +77,7 @@ public sealed class ProductService(IProductRepository repository, IUnitOfWork un
             if (!retained && !storage.OwnsImage(userId, image.ImageUrl))
             {
                 return FeatureResult<ProductResponse>.Fail("VALIDATION",
-                    "Ảnh phải được tải lên bằng tài khoản của bạn (MSG78).");
+                    "Ảnh phải được tải lên bằng tài khoản của bạn. " + ProductListingMessages.MSG78);
             }
         }
 
@@ -84,7 +85,6 @@ public sealed class ProductService(IProductRepository repository, IUnitOfWork un
         bool contentChanged = product is null || product.ApprovalStatus != "Approved"
             || product.ProductName != request.ProductName.Trim()
             || product.CategoryId != request.CategoryId || product.Unit != request.Unit.Trim()
-            || product.OriginProvince != request.OriginProvince.Trim()
             || product.Description != request.Description.Trim()
             || !repository.Map(product).Images.SequenceEqual(request.Images);
         product ??= new Product
@@ -96,7 +96,6 @@ public sealed class ProductService(IProductRepository repository, IUnitOfWork un
         product.ProductName = request.ProductName.Trim();
         product.CategoryId = request.CategoryId;
         product.Unit = request.Unit.Trim();
-        product.OriginProvince = request.OriginProvince.Trim();
         product.Description = request.Description.Trim();
         product.BaseRetailPrice = request.BaseRetailPrice;
         product.WholesaleMinQuantity = request.WholesaleMinQuantity;
@@ -142,22 +141,33 @@ public sealed class ProductService(IProductRepository repository, IUnitOfWork un
 
         if (repository.Map(product).Version != version)
         {
-            return FeatureResult<ProductResponse>.Fail("CONFLICT", "Dữ liệu đã thay đổi (MSG122).");
+            return FeatureResult<ProductResponse>.Fail("CONFLICT", ProductListingMessages.MSG122);
         }
 
         if (product.FarmerProfile.VerificationStatus != "Approved")
         {
-            return FeatureResult<ProductResponse>.Fail("FORBIDDEN", "Hồ sơ chưa duyệt (MSG75).");
+            return FeatureResult<ProductResponse>.Fail("FORBIDDEN", ProductListingMessages.MSG75);
         }
 
-        if (published && (product.ApprovalStatus != "Approved"
-            || product.FarmerProfile.VerificationStatus != "Approved"
-            || !await repository.IsCategoryActiveAsync(product.CategoryId, cancellationToken)
-            || product.ProductImages.Count(image => image.IsPrimary) != 1))
+        if (published && product.ApprovalStatus != "Approved")
         {
-            return FeatureResult<ProductResponse>.Fail("CONFLICT", "Chưa đủ điều kiện hiển thị.");
+            return FeatureResult<ProductResponse>.Fail("CONFLICT", "Không thể chuyển sản phẩm sang hiển thị từ trạng thái hiện tại.");
         }
 
+        if (published)
+        {
+            if (!await repository.IsCategoryActiveAsync(product.CategoryId, cancellationToken))
+                return FeatureResult<ProductResponse>.Fail("VALIDATION",
+                    ProductListingMessages.Field("danh mục", "danh mục đã chọn không hoạt động"));
+            var publication = new ProductRequest(product.ProductName, product.CategoryId,
+                product.Unit, product.Description ?? "", product.BaseRetailPrice,
+                product.WholesaleMinQuantity, product.WholesalePrice,
+                repository.Map(product).Images);
+            var validation = await validator.ValidateAsync(publication, cancellationToken);
+            if (!validation.IsValid)
+                return FeatureResult<ProductResponse>.Fail("VALIDATION",
+                    ProductListingMessages.Field("điều kiện hiển thị", "kiểm tra thông tin, giá bán lẻ, cặp giá sỉ và đúng một ảnh chính"));
+        }
         product.SetVisibility(published);
         repository.Audit(userId, published ? "PublishListing" : "HideListing", id,
             null, published.ToString());
@@ -165,8 +175,17 @@ public sealed class ProductService(IProductRepository repository, IUnitOfWork un
         return FeatureResult<ProductResponse>.Ok(repository.Map(product));
     }
 
+    private static FeatureResult<T> Invalid<T>(ValidationResult validation)
+    {
+        var result = validation.ToFailure<T>();
+        return result with { Error = result.Error! with
+        {
+            Message = ProductListingMessages.Field("thông tin sản phẩm", "kiểm tra các trường được đánh dấu")
+        } };
+    }
+
     private static FeatureResult<ProductResponse> Missing() =>
-        FeatureResult<ProductResponse>.Fail("NOT_FOUND", "Không tìm thấy sản phẩm (MSG80).");
+        FeatureResult<ProductResponse>.Fail("NOT_FOUND", ProductListingMessages.MSG80);
 }
 
 

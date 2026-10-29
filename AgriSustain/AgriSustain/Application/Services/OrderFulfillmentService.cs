@@ -21,7 +21,7 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             || query.PaymentStatus is not (null or "" or "Paid" or "AwaitingPayment"))
         {
             return FeatureResult<PageResult<SellerOrderResponse>>.Fail("VALIDATION",
-                "Bộ lọc hoặc khoảng ngày không hợp lệ (MSG120).");
+                "Bộ lọc hoặc khoảng ngày không hợp lệ.");
         }
 
         return FeatureResult<PageResult<SellerOrderResponse>>.Ok(
@@ -32,7 +32,7 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
         CancellationToken cancellationToken)
     {
         var order = await repository.GetOwnedAsync(userId, id, cancellationToken);
-        return order is null ? Fail("NOT_FOUND", "Không tìm thấy đơn hàng của bạn (MSG121).")
+        return order is null ? Fail("NOT_FOUND", "Bạn không có quyền truy cập đơn hàng này hoặc thực hiện thao tác.")
             : FeatureResult<SellerOrderResponse>.Ok(repository.Map(order));
     }
 
@@ -44,14 +44,14 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             || request.Explanation?.Length > 2000
             || request.EvidenceUrls?.Length > 5)
         {
-            return Fail("VALIDATION", "Thông tin thao tác không hợp lệ (MSG120).");
+            return Fail("VALIDATION", "Thông tin thao tác không hợp lệ.");
         }
 
         if (action is "reject" && (string.IsNullOrWhiteSpace(request.Reason)
             || request.Reason is not ("Quality" or "Shortfall" or "ForceMajeure")
             || request.Explanation?.Trim().Length < 15 || request.Explanation is null))
         {
-            return Fail("VALIDATION", "Chọn lý do và giải thích ít nhất 15 ký tự (MSG70).");
+            return Fail("VALIDATION", "Chọn lý do và giải thích ít nhất 15 ký tự.");
         }
 
         if (action == "delivery-report" && request.Reason is not ("DeliveryFailure" or "Return"))
@@ -75,19 +75,19 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
         await unitOfWork.BeginAsync(cancellationToken);
         if (!await repository.IsApprovedFarmerAsync(userId, cancellationToken))
         {
-            return Fail("FORBIDDEN", "Hồ sơ nông trại chưa được duyệt (MSG75).");
+            return Fail("FORBIDDEN", "Bạn chưa có quyền xử lý đơn hàng. Hồ sơ nông trại phải được duyệt trước khi thực hiện thao tác.");
         }
 
         var order = await repository.GetOwnedAsync(userId, id, cancellationToken);
         if (order is null)
         {
-            return Fail("NOT_FOUND", "Không tìm thấy đơn hàng của bạn (MSG121).");
+            return Fail("NOT_FOUND", "Bạn không có quyền truy cập đơn hàng này hoặc thực hiện thao tác.");
         }
 
         if (await repository.HasRequestAsync(request.RequestKey, cancellationToken)
             || FulfillmentRules.Version(order) != request.Version)
         {
-            return Fail("CONFLICT", "Thao tác đã được xử lý hoặc dữ liệu đã đổi (MSG122).");
+            return Fail("CONFLICT", "Yêu cầu xung đột với dữ liệu hiện tại hoặc đã được xử lý. Vui lòng tải lại để xem kết quả; không thực hiện thao tác trùng lặp.");
         }
 
         if (order.B2bcontractId.HasValue)
@@ -99,16 +99,16 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
         var now = clock.GetUtcNow().UtcDateTime;
         string? error = action switch
         {
-            "confirm" when order.Status != "Pending" => "Trạng thái không hợp lệ (MSG131).",
+            "confirm" when order.Status != "Pending" => "Trạng thái không hợp lệ.",
             "ready" when !FulfillmentRules.IsConfirmed(order.Status) =>
-                "Đơn chưa được xác nhận (MSG131).",
+                "Đơn chưa được xác nhận.",
             "dispatch" when !FulfillmentRules.IsReady(order.Status) =>
-                "Đơn chưa sẵn sàng giao (MSG131).",
+                "Không thể chuyển đơn hàng sang đang giao từ trạng thái hiện tại. Đơn phải sẵn sàng giao trước.",
             "reject" when !FulfillmentRules.IsBeforeShipping(order.Status) =>
-                "Chỉ từ chối trước khi giao (MSG131).",
+                "Chỉ từ chối trước khi giao.",
             "delivery-report" when !FulfillmentRules.IsShipping(order.Status)
                 && order.Status is not ("Delivered" or "DeliveryFailed") =>
-                "Đơn chưa giao hoặc không còn nhận báo cáo (MSG131).",
+                "Đơn chưa giao hoặc không còn nhận báo cáo.",
             _ => null
         };
         if (error is not null)
@@ -116,10 +116,33 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             return Fail("CONFLICT", error);
         }
 
-        if (action is "confirm" or "ready" or "dispatch"
-            && (!rules.PaymentSatisfied(order) || !rules.AllocationsValid(order)))
+        if (action is "confirm" or "ready" or "dispatch")
         {
-            return Fail("CONFLICT", "Thiếu thanh toán/cọc đã xác minh hoặc lô hợp lệ (MSG148).");
+            var invalidQuantity = order.OrderItems.FirstOrDefault(item => item.Quantity <= 0
+                || item.OrderItemBatchAllocations.Any(allocation => allocation.AllocatedQuantity <= 0));
+            if (invalidQuantity is not null)
+            {
+                return Fail("VALIDATION", $"Vui lòng kiểm tra số lượng sản phẩm {invalidQuantity.ProductNameSnapshot ?? invalidQuantity.Product.ProductName}: số lượng đặt và lượng phân bổ phải lớn hơn 0.");
+            }
+
+            var today = DateOnly.FromDateTime(clock.GetUtcNow().AddHours(7).DateTime);
+            var blocked = order.OrderItems.SelectMany(item => item.OrderItemBatchAllocations)
+                .FirstOrDefault(allocation =>
+                    allocation.HarvestBatch.ExpirationDate is DateOnly expiry && expiry <= today
+                    || allocation.HarvestBatch.Status is "Recalled" or "Blocked" or "Expired");
+            if (blocked is not null)
+            {
+                return Fail("CONFLICT", $"Lô {blocked.HarvestBatch.BatchCode} đã hết hạn, bị thu hồi hoặc bị khóa. Không thể phân bổ hoặc xuất lô này.");
+            }
+
+            if (!rules.PaymentSatisfied(order) || !rules.AllocationsValid(order))
+            {
+                var items = string.Join(", ", order.OrderItems.Select(item =>
+                    item.ProductNameSnapshot ?? item.Product.ProductName));
+                return Fail("CONFLICT", action == "dispatch"
+                    ? $"Không thể bắt đầu giao hàng. Vui lòng kiểm tra trạng thái đơn, thanh toán hoặc tiền cọc đã xác minh và phân bổ lô hàng hợp lệ cho: {items}."
+                    : $"Đơn hàng chưa thể tiếp tục. Chưa đủ thanh toán hoặc tiền cọc đã xác minh, hoặc thiếu phân bổ lô hàng thực tế hợp lệ cho: {items}.");
+            }
         }
 
         switch (action)
@@ -143,6 +166,8 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
                 break;
             case "delivery-report":
                 ReportDelivery(order, userId, request, now);
+                await repository.NotifySupportAsync(id,
+                    $"Đơn {order.SellerOrderCode} có báo cáo giao hàng thất bại hoặc hàng trả. Vui lòng xem hồ sơ và bằng chứng.", cancellationToken);
                 break;
             case "evidence":
                 error = SubmitEvidence(order, userId, request, now);
@@ -155,6 +180,9 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
                 return Fail("VALIDATION", "Thao tác không được hỗ trợ.");
         }
 
+        if (action == "evidence")
+            await repository.NotifySupportAsync(id,
+                $"Nông trại đã gửi giải trình và bằng chứng cho đơn {order.SellerOrderCode}. Vui lòng xem xét yêu cầu bổ sung bằng chứng.", cancellationToken);
         string historyReason = request.Reason is null ? action
             : request.Reason + ": " + request.Explanation;
         if (order.Status != previous)
@@ -175,8 +203,17 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             NewValue = JsonSerializer.Serialize(new { order.Status, request.Explanation }),
             OccurredAt = now
         });
+        string buyerMessage = action switch
+        {
+            "dispatch" => $"Đơn hàng {order.SellerOrderCode} đã bắt đầu giao mô phỏng. Bạn có thể theo dõi tiến độ tại Chi tiết đơn hàng.",
+            "reject" => $"Đơn hàng {order.SellerOrderCode} đã bị từ chối. Lý do: {request.Explanation}",
+            "confirm" => $"Đơn hàng {order.SellerOrderCode} đã được xác nhận và đang chuẩn bị.",
+            "ready" => $"Đơn hàng {order.SellerOrderCode} đã sẵn sàng giao mô phỏng.",
+            "delivery-report" => $"Đã ghi nhận vấn đề giao hàng hoặc hàng trả cho đơn {order.SellerOrderCode}. Vụ việc đang chờ xem xét.",
+            _ => $"Đã gửi giải trình và bằng chứng cho đơn hàng {order.SellerOrderCode} để xem xét."
+        };
         repository.Notify(order.Order.BuyerUserId, "Cập nhật đơn hàng",
-            $"Đơn {order.SellerOrderCode}: {order.Status}.", order.SellerOrderId);
+            buyerMessage, order.SellerOrderId);
         await unitOfWork.CommitAsync(cancellationToken);
         return FeatureResult<SellerOrderResponse>.Ok(repository.Map(order));
     }
@@ -221,8 +258,8 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
         if (rules.VerifiedPayment(order) > 0)
         {
             // A durable notification queues Finance review; no transfer is claimed as completed.
-            repository.Notify(order.Order.BuyerUserId, "Chờ xử lý hoàn tiền (MSG162)",
-                $"Đơn {order.SellerOrderCode} đã hủy; khoản thu đang chờ Finance đối soát.",
+            repository.Notify(order.Order.BuyerUserId, "Chờ xử lý hoàn tiền",
+                $"Đơn {order.SellerOrderCode} đã hủy; khoản hoàn tiền đang chờ bộ phận tài chính xác minh và xử lý; chưa xác nhận đã chuyển tiền.",
                 order.SellerOrderId);
         }
     }
@@ -264,12 +301,12 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
         if (evidenceRequest is null || evidenceRequest.RespondedAt.HasValue
             || evidenceRequest.RequestStatus is "Closed" or "Responded")
         {
-            return "Yêu cầu bằng chứng không hợp lệ hoặc đã trả lời (MSG122).";
+            return "Yêu cầu bằng chứng không hợp lệ hoặc đã trả lời.";
         }
 
         if (now > (evidenceRequest.DueAt ?? evidenceRequest.RequestedAt.AddHours(48)))
         {
-            return "Đã hết hạn 48 giờ bổ sung bằng chứng (MSG166).";
+            return "Đã hết hạn 48 giờ phản hồi yêu cầu bổ sung bằng chứng. Vui lòng liên hệ nhân viên hỗ trợ được phân công; phản hồi quá hạn chưa được tiếp nhận.";
         }
 
         foreach (string url in request.EvidenceUrls ?? [])

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using AgriSustain.Application.DTOs.Cart;
+using AgriSustain.Application.Common;
 using AgriSustain.Domain.Entities;
 using Microsoft.Extensions.Options;
 
@@ -44,13 +45,19 @@ public sealed class CartPricingService(IOptions<QuantityOptions> options, TimePr
     public CartResponse Calculate(Cart? cart, IReadOnlyList<string>? messages = null,
         bool canProceed = false)
     {
+        var selectedQuantities = cart?.CartItems.Where(item => item.IsSelected
+                && item.PreOrderCampaignId is null && IsAvailable(item.Product, item.HarvestBatch))
+            .GroupBy(item => item.ProductId)
+            .ToDictionary(group => group.Key, group => group.Sum(item => item.Quantity))
+            ?? new Dictionary<long, decimal>();
         var lines = cart?.CartItems.OrderBy(x => x.AddedAt).ThenBy(x => x.CartItemId)
             .Select(item =>
             {
                 var product = item.Product;
                 bool available = IsAvailable(product, item.HarvestBatch)
                     && item.PreOrderCampaignId is null;
-                decimal price = UnitPrice(product, item.Quantity);
+                decimal price = UnitPrice(product, item.IsSelected && available
+                    ? selectedQuantities[item.ProductId] : item.Quantity);
                 return new CartLineResponse(item.CartItemId, product.ProductId,
                     item.HarvestBatchId, product.ProductName, product.FarmerProfile.FarmName,
                     product.FarmerProfileId, product.Unit, item.HarvestBatch?.BatchCode ?? "—",
@@ -60,7 +67,7 @@ public sealed class CartPricingService(IOptions<QuantityOptions> options, TimePr
                     product.WholesaleMinQuantity, decimal.Round(price * item.Quantity, 2),
                     item.HarvestBatch?.AvailableQuantity ?? 0, StepFor(product.Unit),
                     item.IsSelected && available, available,
-                    available ? null : "Không đủ hàng hoặc sản phẩm/lô không còn được bán (MSG88).");
+                    available ? null : CartMessages.Unavailable(product.ProductName));
             }).ToList() ?? new List<CartLineResponse>();
         string Canonical(decimal amount) => amount.ToString("0.###", CultureInfo.InvariantCulture);
         string text = string.Join("|", lines.Where(x => x.IsSelected).Select(x =>
