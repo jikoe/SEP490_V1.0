@@ -1,10 +1,10 @@
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.DTOs.Profiles;
-using AgriSustain.Application.Interfaces.Identity;
 using AgriSustain.Application.Interfaces.Services;
 using AgriSustain.Application.Interfaces.UnitOfWork;
 using FluentValidation;
+using ICurrentActor = AgriSustain.Application.Interfaces.ICurrentActor;
 using IAddressCatalog = AgriSustain.Application.Interfaces.IAddressCatalog;
 
 namespace AgriSustain.Application.Services.Profiles;
@@ -12,11 +12,15 @@ namespace AgriSustain.Application.Services.Profiles;
 /// <summary>UC-AUTH-03 Manage Profile.</summary>
 public sealed class ProfileService(
     IUnitOfWork unitOfWork,
-    ICurrentUser currentUser,
+    ICurrentActor currentActor,
     IAddressCatalog addressCatalog,
     IValidator<UpdateConsumerProfileRequest> consumerValidator,
     IValidator<UpdateFarmerProfileRequest> farmerValidator) : IProfileService
 {
+    /// <summary>Signed-in user id from the validated JWT, or null for an anonymous caller
+    /// (ICurrentActor reports 0 when nobody is signed in).</summary>
+    private long? SignedInUserId() => currentActor.UserId > 0 ? currentActor.UserId : null;
+
     private static readonly Error s_signInRequired = new(
         "UNAUTHORIZED", "Vui lòng đăng nhập để sử dụng chức năng hồ sơ.", "Unauthorized");
 
@@ -28,7 +32,7 @@ public sealed class ProfileService(
         CancellationToken cancellationToken) =>
         unitOfWork.ReadAsync(async uow =>
         {
-            if (currentUser.UserId is not long userId)
+            if (SignedInUserId() is not long userId)
             {
                 return Result<UserProfileResponse>.FailureResult(s_signInRequired);
             }
@@ -55,7 +59,7 @@ public sealed class ProfileService(
     public async Task<Result<UserProfileResponse>> UpdateConsumerProfileAsync(
         UpdateConsumerProfileRequest request, CancellationToken cancellationToken)
     {
-        if (currentUser.UserId is not long userId)
+        if (SignedInUserId() is not long userId)
         {
             return Result<UserProfileResponse>.FailureResult(s_signInRequired);
         }
@@ -126,7 +130,7 @@ public sealed class ProfileService(
     public async Task<Result<UserProfileResponse>> UpdateFarmerProfileAsync(
         UpdateFarmerProfileRequest request, CancellationToken cancellationToken)
     {
-        if (currentUser.UserId is not long userId)
+        if (SignedInUserId() is not long userId)
         {
             return Result<UserProfileResponse>.FailureResult(s_signInRequired);
         }
@@ -162,7 +166,7 @@ public sealed class ProfileService(
         string avatarUrl, CancellationToken cancellationToken) =>
         unitOfWork.ExecuteAsync(async uow =>
         {
-            if (currentUser.UserId is not long userId)
+            if (SignedInUserId() is not long userId)
             {
                 return Result<UserProfileResponse>.FailureResult(s_signInRequired);
             }
@@ -178,7 +182,7 @@ public sealed class ProfileService(
         SubmitKycRequest request, CancellationToken cancellationToken) =>
         unitOfWork.ExecuteAsync(async uow =>
         {
-            if (currentUser.UserId is not long userId)
+            if (SignedInUserId() is not long userId)
             {
                 return Result<UserProfileResponse>.FailureResult(s_signInRequired);
             }

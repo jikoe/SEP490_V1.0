@@ -4,7 +4,6 @@ using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.DTOs.Profiles;
 using AgriSustain.Application.Interfaces;
-using AgriSustain.Application.Interfaces.Identity;
 using AgriSustain.Application.Interfaces.Repositories;
 using AgriSustain.Application.Interfaces.Services;
 using AgriSustain.Domain.Entities;
@@ -20,9 +19,12 @@ internal sealed class FakeClock(DateTimeOffset now) : TimeProvider
     public void Advance(TimeSpan by) => Now += by;
 }
 
-internal sealed class FakeCurrentUser(long? userId) : ICurrentUser
+internal sealed class FakeCurrentUser(long? userId, string role = "") : ICurrentActor
 {
-    public long? UserId { get; } = userId;
+    // ICurrentActor uses 0 for an anonymous caller.
+    public long UserId { get; } = userId ?? 0;
+
+    public string Role { get; } = role;
 }
 
 internal sealed class FakeOtpGenerator(params string[] codes) : IOtpGenerator

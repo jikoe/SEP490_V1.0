@@ -1,19 +1,23 @@
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Orders;
-using AgriSustain.Application.Interfaces.Identity;
 using AgriSustain.Application.Interfaces.Services;
 using AgriSustain.Application.Interfaces.UnitOfWork;
 using FluentValidation;
+using ICurrentActor = AgriSustain.Application.Interfaces.ICurrentActor;
 
 namespace AgriSustain.Application.Services.Orders;
 
 /// <summary>UC-RC-04 Track Retail Order (read-only; only the buyer's own orders are visible).</summary>
 public sealed class OrderTrackingService(
     IUnitOfWork unitOfWork,
-    ICurrentUser currentUser,
+    ICurrentActor currentActor,
     IValidator<OrderQuery> queryValidator,
     TimeProvider timeProvider) : IOrderTrackingService
 {
+    /// <summary>Signed-in user id from the validated JWT, or null for an anonymous caller
+    /// (ICurrentActor reports 0 when nobody is signed in).</summary>
+    private long? SignedInUserId() => currentActor.UserId > 0 ? currentActor.UserId : null;
+
     /// <summary>Complaint window after delivery (GBR-24).</summary>
     public static readonly TimeSpan ComplaintWindow = TimeSpan.FromHours(48);
 
@@ -31,7 +35,7 @@ public sealed class OrderTrackingService(
 
         return await unitOfWork.ReadAsync(async uow =>
         {
-            if (currentUser.UserId is not long buyerId)
+            if (SignedInUserId() is not long buyerId)
             {
                 return Result<PagedResponse<OrderSummaryDto>>.FailureResult(s_signInRequired);
             }
@@ -45,7 +49,7 @@ public sealed class OrderTrackingService(
         long orderId, CancellationToken cancellationToken) =>
         unitOfWork.ReadAsync(async uow =>
         {
-            if (currentUser.UserId is not long buyerId)
+            if (SignedInUserId() is not long buyerId)
             {
                 return Result<OrderDetailDto>.FailureResult(s_signInRequired);
             }
@@ -59,7 +63,7 @@ public sealed class OrderTrackingService(
         string orderCode, CancellationToken cancellationToken) =>
         unitOfWork.ReadAsync(async uow =>
         {
-            if (currentUser.UserId is not long buyerId)
+            if (SignedInUserId() is not long buyerId)
             {
                 return Result<OrderDetailDto>.FailureResult(s_signInRequired);
             }
