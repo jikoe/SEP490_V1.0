@@ -2228,6 +2228,7 @@ EXEC(N'CREATE TABLE [RefundTransaction] (
     [RefundStatus] varchar(50) NOT NULL DEFAULT ''Pending'',
     [ProcessedAt] datetime2 NULL,
     [GatewayReference] varchar(150) NULL,
+    [RefundMethod] varchar(50) NULL,
     [PaymentInvoiceAllocationId] bigint NULL,
     [ContractDepositAllocationId] bigint NULL,
     [RequestKey] varchar(100) NOT NULL,
@@ -2253,6 +2254,8 @@ IF COL_LENGTH(N'dbo.[RefundTransaction]', N'DisputeTicketId') IS NULL
 EXEC(N'ALTER TABLE dbo.[RefundTransaction] ADD [DisputeTicketId] bigint NULL;');
 IF COL_LENGTH(N'dbo.[RefundTransaction]', N'GatewayReference') IS NULL
 EXEC(N'ALTER TABLE dbo.[RefundTransaction] ADD [GatewayReference] varchar(150) NULL;');
+IF COL_LENGTH(N'dbo.[RefundTransaction]', N'RefundMethod') IS NULL
+EXEC(N'ALTER TABLE dbo.[RefundTransaction] ADD [RefundMethod] varchar(50) NULL;');
 IF COL_LENGTH(N'dbo.[RefundTransaction]', N'PaymentInvoiceAllocationId') IS NULL
 EXEC(N'ALTER TABLE dbo.[RefundTransaction] ADD [PaymentInvoiceAllocationId] bigint NULL;');
 IF COL_LENGTH(N'dbo.[RefundTransaction]', N'PaymentTransactionId') IS NULL

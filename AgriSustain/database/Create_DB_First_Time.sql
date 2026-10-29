@@ -947,6 +947,7 @@ CREATE TABLE dbo.[RefundTransaction] (
     [RefundStatus] varchar(50) NOT NULL DEFAULT 'Pending',
     [ProcessedAt] datetime2 NULL,
     [GatewayReference] varchar(150) NULL,
+    [RefundMethod] varchar(50) NULL,
     [PaymentInvoiceAllocationId] bigint NULL,
     [ContractDepositAllocationId] bigint NULL,
     [RequestKey] varchar(100) NOT NULL,

@@ -9,9 +9,14 @@ namespace AgriSustain.Infrastructure.Email;
 /// </summary>
 public sealed class LoggingEmailService(ILogger<LoggingEmailService> logger) : IEmailService
 {
-    public Task<bool> SendOtpEmailAsync(string email, string otpCode, CancellationToken cancellationToken)
+    public Task<bool> SendOtpEmailAsync(
+        string email, string otpCode, string purpose, CancellationToken cancellationToken)
     {
-        logger.LogWarning("[DEV EMAIL] OTP for {Email}: {OtpCode} (valid 5 minutes)", email, otpCode);
+        logger.LogWarning(
+            "[DEV EMAIL] {Purpose} OTP for {Email}: {OtpCode} (valid 5 minutes)",
+            purpose,
+            email,
+            otpCode);
         return Task.FromResult(true);
     }
 }

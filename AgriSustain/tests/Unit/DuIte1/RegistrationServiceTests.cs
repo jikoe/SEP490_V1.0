@@ -1,5 +1,7 @@
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Authentication;
+using AgriSustain.Infrastructure.Data.Demo;
+using AgriSustain.Infrastructure.Data.InMemoryStore;
 using AgriSustain.Application.Services.Authentication;
 using AgriSustain.Application.Validators.Authentication;
 using Xunit;
@@ -14,10 +16,16 @@ public sealed class RegistrationServiceTests
     private readonly FakeUnitOfWork _uow = new();
     private readonly FakeEmailService _email = new();
     private readonly FakeClock _clock = new(T0);
+    private readonly SqlDemoDependencies _store = new();
 
     private AuthenticationService Service(params string[] otps) => new(
         _uow, new RegisterRequestValidator(), new VerifyOtpRequestValidator(), new ResendOtpRequestValidator(),
-        _email, new FakeOtpGenerator(otps.Length == 0 ? ["123456"] : otps), _clock);
+        new EmailOtpVerifier(new InMemoryOtpChallengeStore(_store), _email,
+            new FakeOtpGenerator(otps.Length == 0 ? ["123456"] : otps), _clock),
+        _clock);
+
+    private OtpChallenge Challenge(string email = "vana@gmail.com") =>
+        _store.OtpChallenges[$"{OtpPurposes.Registration}|{email}"];
 
     private static RegisterRequest Valid(string role = "RetailCustomer", string email = "vana@gmail.com",
         string phone = "0912345678", string password = "Agri1234", string? confirm = null, string name = "Nguyen Van A") =>
@@ -35,7 +43,8 @@ public sealed class RegistrationServiceTests
         Assert.Equal(("vana@gmail.com", "482913"), _email.Sent[0]);
         Assert.DoesNotContain("482913", result.Value);              // OTP is never returned to the client
         var pending = _uow.AuthRepo.Pending["vana@gmail.com"];
-        Assert.Equal(T0.AddMinutes(5), pending.OtpExpiresAt);       // valid 5 minutes
+        Assert.Equal(T0.AddMinutes(5), Challenge().ExpiresAt);         // valid 5 minutes
+        Assert.Equal(OtpPurposes.Registration, _email.Purposes[0]);
         Assert.NotEqual("Agri1234", pending.PasswordHash);          // password is hashed
         Assert.True(BCrypt.Net.BCrypt.Verify("Agri1234", pending.PasswordHash));
     }
@@ -208,7 +217,7 @@ public sealed class RegistrationServiceTests
 
         Assert.False(result.IsSuccess);
         Assert.Equal("INVALID_OTP", result.Error!.Code);
-        Assert.Equal(1, _uow.AuthRepo.Pending["vana@gmail.com"].AttemptCount);
+        Assert.Equal(1, Challenge().AttemptCount);
         Assert.Empty(_uow.AuthRepo.CreatedUsers);
     }
 
@@ -221,8 +230,22 @@ public sealed class RegistrationServiceTests
         var result = await service.VerifyOtpAndCompleteRegistrationAsync(new("vana@gmail.com", "123456"), default);
 
         Assert.Equal("OTP_EXPIRED", result.Error!.Code);
-        Assert.Empty(_uow.AuthRepo.Pending);
         Assert.Empty(_uow.AuthRepo.CreatedUsers);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH08-B7 Expired OTP keeps the registration so a resend can continue it")]
+    public async Task UTC_AUTH08_B7_ExpiredOtp_ResendContinues()
+    {
+        var service = await RegisteredAsync();                       // first OTP 123456, next 654321
+        _clock.Advance(TimeSpan.FromMinutes(6));
+        await service.VerifyOtpAndCompleteRegistrationAsync(new("vana@gmail.com", "123456"), default);
+
+        var resend = await service.ResendOtpAsync(new("vana@gmail.com"), default);
+        var result = await service.VerifyOtpAndCompleteRegistrationAsync(new("vana@gmail.com", "654321"), default);
+
+        Assert.True(resend.IsSuccess);
+        Assert.True(result.IsSuccess);
+        Assert.Single(_uow.AuthRepo.CreatedUsers);
     }
 
     [Fact(DisplayName = "UTC-AUTH08-B1 OTP exactly at 5 minutes is still accepted")]
@@ -249,8 +272,48 @@ public sealed class RegistrationServiceTests
         var sixth = await service.VerifyOtpAndCompleteRegistrationAsync(new("vana@gmail.com", "123456"), default);
 
         Assert.Equal("MAX_ATTEMPTS_EXCEEDED", sixth.Error!.Code);
-        Assert.Empty(_uow.AuthRepo.Pending);
         Assert.Empty(_uow.AuthRepo.CreatedUsers);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH08-B8 Locked OTP requires a new code; the new code works")]
+    public async Task UTC_AUTH08_B8_LockedOtp_NewCodeWorks()
+    {
+        var service = await RegisteredAsync();
+        for (int i = 0; i < 5; i++)
+        {
+            await service.VerifyOtpAndCompleteRegistrationAsync(new("vana@gmail.com", "000000"), default);
+        }
+
+        _clock.Advance(TimeSpan.FromSeconds(60));
+        var resend = await service.ResendOtpAsync(new("vana@gmail.com"), default);
+        var result = await service.VerifyOtpAndCompleteRegistrationAsync(new("vana@gmail.com", "654321"), default);
+
+        Assert.True(resend.IsSuccess);
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH08-B9 A used OTP cannot be used again")]
+    public async Task UTC_AUTH08_B9_UsedOtp_Rejected()
+    {
+        var service = await RegisteredAsync();
+        await service.VerifyOtpAndCompleteRegistrationAsync(new("vana@gmail.com", "123456"), default);
+
+        var reused = await service.VerifyOtpAndCompleteRegistrationAsync(new("vana@gmail.com", "123456"), default);
+
+        Assert.False(reused.IsSuccess);
+        Assert.Empty(_store.OtpChallenges);
+        Assert.Single(_uow.AuthRepo.CreatedUsers);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH08-B10 Registering again within 60 seconds does not send another e-mail")]
+    public async Task UTC_AUTH08_B10_ReissueCooldown()
+    {
+        var service = await RegisteredAsync();
+
+        var again = await service.InitiateRegistrationAsync(Valid(), default);
+
+        Assert.Equal(429, again.StatusCode);
+        Assert.Single(_email.Sent);
     }
 
     [Fact(DisplayName = "UTC-AUTH08-B2 Legacy universal code 123456 no longer works")]

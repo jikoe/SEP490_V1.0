@@ -35,10 +35,11 @@ internal sealed class FakeEmailService : IEmailService
 {
     public bool Succeeds { get; set; } = true;
     public List<(string Email, string Otp)> Sent { get; } = [];
+    public List<string> Purposes { get; } = [];
 
-    public Task<bool> SendOtpEmailAsync(string email, string otpCode, CancellationToken cancellationToken)
+    public Task<bool> SendOtpEmailAsync(string email, string otpCode, string purpose, CancellationToken cancellationToken)
     {
-        if (Succeeds) Sent.Add((email, otpCode));
+        if (Succeeds) { Sent.Add((email, otpCode)); Purposes.Add(purpose); }
         return Task.FromResult(Succeeds);
     }
 }
