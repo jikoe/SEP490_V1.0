@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using AgriSustain.Api.Security;
 using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Services;
 using AgriSustain.Application.Services.Administration;
 using AgriSustain.Application.Services.Checkout;
 using AgriSustain.Infrastructure;
@@ -69,6 +70,7 @@ public static class UseCaseRegistration
         services.AddHttpContextAccessor();
         services.AddScoped<IActorContext, CurrentActor>();
         services.AddScoped<IAdministrationService, AdministrationService>();
+        services.AddScoped<IKycVerificationService, KycVerificationService>();
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<ReservationExpiryService>();
         services.AddScoped<IAuthorizationHandler, ActiveAccountHandler>();

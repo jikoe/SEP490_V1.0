@@ -1,5 +1,5 @@
 import '../styles/customer-portal.css';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { backendUrl, logout as logoutSession } from '../api/client';
 import { Notice } from '../components/ui/Common';
 import UsersScreen from '../features/Administrator/UsersScreen';
@@ -19,7 +19,7 @@ import OrderTrackingScreen from '../features/RetailCustomer/OrderTrackingScreen'
 import ChangePasswordScreen from '../features/authentication/ChangePasswordScreen';
 import CustomerPortalApp from './CustomerPortalApp';
 
-import VerificationDashboard from '../features/Verification Officer/VerificationDashboard';
+import KycVerificationReviewScreen from '../features/Verification Officer/KycVerificationReviewScreen';
 import SupportDashboard from '../features/Customer Support/SupportDashboard';
 import ComplaintResolutionScreen from '../features/Customer Support/ComplaintResolutionScreen';
 import PromotionsDashboard from '../features/Promotion Staff/PromotionsDashboard';
@@ -125,9 +125,9 @@ export const ROLE_CONFIGS = {
     portalCategory: 'THẨM ĐỊNH CHẤT LƯỢNG',
     avatar: 'V',
     hasSidebar: true,
-    landingRoute: '/verification/dashboard',
+    landingRoute: '/verification/kyc',
     navItems: [
-      { key: 'verification-dash', label: 'Thẩm định chất lượng', icon: '📊', path: '/verification/dashboard' },
+      { key: 'verification-kyc', label: 'Xét duyệt hồ sơ KYC', icon: '✓', path: '/verification/kyc' },
     ],
   },
   customer_support: {
@@ -277,6 +277,7 @@ export default function App() {
 
   useEffect(() => {
     if (route === '/farmer/dashboard') navigate('/farmer/products');
+    else if (route === '/verification/dashboard') navigate('/verification/kyc');
     else if (route === '/cart/checkout') navigate('/checkout');
   }, [route]);
 
@@ -375,7 +376,7 @@ export default function App() {
   else if (route.startsWith('/farmer/profile')) currentTitle = 'Hồ sơ nông hộ & KYC';
   else if (route.startsWith('/retail/profile') || route.startsWith('/profile')) currentTitle = 'Hồ sơ cá nhân';
   else if (route.startsWith('/account/password')) currentTitle = 'Đổi mật khẩu';
-  else if (route.startsWith('/verification/dashboard')) currentTitle = 'Thẩm định chất lượng';
+  else if (route.startsWith('/verification/')) currentTitle = 'Xét duyệt hồ sơ KYC';
   else if (route.startsWith('/support/dashboard')) currentTitle = 'Trung tâm khiếu nại & Tranh chấp';
   else if (route.startsWith('/support/complaints')) currentTitle = 'Xử lý khiếu nại';
   else if (route.startsWith('/promotions/dashboard')) currentTitle = 'Chiến dịch khuyến mại';
@@ -545,7 +546,8 @@ export default function App() {
           {route.startsWith('/customer-portal') && <CustomerPortalApp />}
 
           {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} navigate={navigate} />}
-          {route.startsWith('/verification/dashboard') && <VerificationDashboard navigate={navigate} />}
+          {(route.startsWith('/verification/kyc') || route.startsWith('/verification/dashboard'))
+            && <KycVerificationReviewScreen route={route} navigate={navigate} />}
           {route.startsWith('/support/dashboard') && <SupportDashboard navigate={navigate} />}
           {route.startsWith('/support/complaints') && <ComplaintResolutionScreen route={route} navigate={navigate} />}
           {route.startsWith('/promotions/dashboard') && <PromotionsDashboard navigate={navigate} />}
@@ -558,7 +560,7 @@ export default function App() {
           {/* Fallback nếu đường dẫn không khớp với màn hình nào */}
           {!['/farmer/products', '/farmer/orders', '/cart', '/administration/dashboard', '/administration/users', '/administration/categories',
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
-             '/retail/dashboard', '/checkout', '/verification/dashboard',
+             '/retail/dashboard', '/checkout', '/verification/dashboard', '/verification/kyc',
              '/support/dashboard', '/support/complaints', '/promotions/dashboard', '/promotions/vouchers', '/finance/dashboard', '/finance/refunds',
              '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/account/password', '/customer-portal'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>

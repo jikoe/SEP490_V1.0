@@ -16,6 +16,7 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
         services.AddScoped<IAdministrationRepository, AdministrationRepository>();
         services.AddScoped<ICheckoutRepository, CheckoutRepository>();
+        services.AddScoped<IKycVerificationRepository, KycVerificationRepository>();
         services.AddScoped<IUseCaseUnitOfWork, SqlUnitOfWork>();
         services.AddSingleton<IPersistenceErrorClassifier, PersistenceErrorClassifier>();
         return services;

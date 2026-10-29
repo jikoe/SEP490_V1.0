@@ -137,11 +137,13 @@ export function initials(name = '') {
 /** Renders persisted KYC state; absent verification is never presented as verified. */
 export function VerificationBadge({ value }) {
   const labels = { Approved: 'Đã xác minh', Verified: 'Đã xác minh', Pending: 'Chờ xác minh',
-    Rejected: 'Từ chối', NotVerified: 'Chưa xác minh', Unverified: 'Chưa xác minh',
+    Rejected: 'Từ chối', AdditionalInfoRequired: 'Cần bổ sung TT',
+    NotVerified: 'Chưa xác minh', Unverified: 'Chưa xác minh',
     NotSubmitted: 'Chưa nộp hồ sơ', PendingApproval: 'Chờ xác minh', PendingVerification: 'Chờ xác minh',
     Expired: 'Hết hạn', Review: 'Đang xét duyệt' };
   return <span className={`badge ${value === 'Approved' || value === 'Verified' ? 'Active'
-    : value === 'Rejected' || value === 'Expired' ? 'Suspended' : 'neutral'}`}>
+    : value === 'Rejected' || value === 'Expired' ? 'Suspended'
+    : value === 'AdditionalInfoRequired' ? 'Pending' : 'neutral'}`}>
     {value ? labels[value] || value : 'Không áp dụng'}</span>;
 }
 
