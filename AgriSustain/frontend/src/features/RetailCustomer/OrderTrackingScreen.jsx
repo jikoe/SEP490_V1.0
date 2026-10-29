@@ -27,6 +27,9 @@ const STATUS = {
   Completed: { label: 'Hoàn thành', color: '#1e6546', bg: '#eaf4e9' },
   Cancelled: { label: 'Đã hủy', color: '#c2533c', bg: '#fbeee9' },
   DeliveryFailed: { label: 'Giao thất bại', color: '#c2533c', bg: '#fbeee9' },
+  RefundPending: { label: 'Chờ hoàn tiền', color: '#8d7c53', bg: '#f1f0e8' },
+  PartiallyRefunded: { label: 'Đã hoàn một phần', color: '#8d7c53', bg: '#f1f0e8' },
+  Refunded: { label: 'Đã hoàn tiền', color: '#c2533c', bg: '#fbeee9' },
 };
 
 function StatusBadge({ value }) {

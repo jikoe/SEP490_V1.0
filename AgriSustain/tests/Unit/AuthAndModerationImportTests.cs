@@ -260,6 +260,9 @@ public sealed class AuthAndModerationImportTests
             LastIdentifier = identifier;
             return Task.FromResult<User?>(user);
         }
+        public Task<User?> FindByEmailAsync(string email, CancellationToken token) =>
+            Task.FromResult<User?>(user.Email == email ? user : null);
+        public void AddAudit(AuditLog audit) { }
         public Task SaveChangesAsync(CancellationToken token) { Saves++; return Task.CompletedTask; }
     }
 

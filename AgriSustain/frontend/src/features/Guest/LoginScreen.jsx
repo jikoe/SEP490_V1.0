@@ -69,6 +69,8 @@ export default function LoginScreen({ onLogin, onDemo, navigate }) {
                 {showPassword && <path d="m4 4 16 16" />}
               </svg>
             </button></span></label>
+          <a href="#/forgot-password" style={{ justifySelf: 'end', marginBottom: 12,
+            color: '#2e7d32', fontSize: 14, textDecoration: 'none' }}>Quên mật khẩu?</a>
           <button className="primary login-submit" type="submit" disabled={busy}>
             {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
           </button>
