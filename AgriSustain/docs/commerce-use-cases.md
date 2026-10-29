@@ -1,6 +1,6 @@
 # UC-FAR-03, UC-FAR-06, UC-RC-01
 
-Implementation keeps the existing single ASP.NET project and React shell. No test project or test files were added. coding-standards.md is not used.
+Implementation keeps the existing single ASP.NET project and React shell.
 
 ## Run locally
 
@@ -22,6 +22,28 @@ Product images: POST /api/files/images. Private evidence: POST /api/files/eviden
 The database mapping uses the existing schema with no migrations. Product gallery navigation now supports multiple images. Optimistic checks plus serializable write transactions prevent stale changes and repeated stock consumption. Each order action requires requestKey (UUID) and version returned by the details endpoint.
 
 The cart preparation endpoint revalidates selected products and returns a review token; it creates no order, payment, or stock reservation. Continue shopping returns to the RetailCustomer home (/retail/dashboard). The standalone retail catalog screen and its API have been removed. The cart payment button opens /checkout directly after successful revalidation. Farmer navigation opens product management by default and exposes products and orders in the sidebar. Completing checkout (UC-RC-02), buyer receipt confirmation, staff dispute decisions, refunds, and payouts belong to the corresponding external use cases. Those APIs were not present in the original checkout implementation and were not fabricated here.
+
+Marketplace cards add one unit directly; product details offer quantity controls starting at one.
+Both use `POST /api/cart/items` with `{ "productId": 1, "quantity": 1 }`. Omitting
+`harvestBatchId` (or sending zero) allocates across saleable batches in expiry order,
+accounting for quantities already in the user's cart. Insufficient stock rejects the whole
+addition and reports how much can still be added. Positive batch IDs retain the existing
+explicit-batch behavior. The cart icon displays the sum of quantities returned by the API.
+Wholesale thresholds use the total selected saleable quantity per product across batches,
+matching checkout pricing.
+
+`GET /api/marketplace/filters` accepts optional positive `categoryId` and `supplierId`.
+These parameters scope season options for API consumers to matching public products with
+available batches. Browse no longer displays supplier or season dropdowns. Existing farm links
+can still supply filtering context, shown as removable chips so no condition stays hidden.
+Active filter chips remove individual conditions without clearing the others.
+
+Successful password changes return a JSON string and show the Vietnamese MSG11 toast:
+"Đổi mật khẩu thành công. Vui lòng sử dụng mật khẩu mới cho những lần đăng nhập sau."
+The form clears its password fields and stays on the same page.
+RP3's MSG02, MSG04, MSG05, MSG06 and MSG12 appear beneath the corresponding input.
+Save/network failures show the Vietnamese MSG07 error toast and retain inputs for retry.
+Cancel discards entered passwords and returns to the previous application screen.
 
 Delivery dispatch consumes valid reserved quantities once. Failed delivery/returns create evidence and a support case without restoring saleable inventory. Paid cancellation creates a durable finance review notification and audit record; it does not record a completed refund.
 

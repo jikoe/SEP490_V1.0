@@ -18,6 +18,9 @@ internal static class ApiResults
             "Forbidden" => 403,
             "NotFound" => 404,
             "Conflict" => 409,
+            "TooManyRequests" => 429,
+            "ServiceUnavailable" => 503,
+            "Error" => 500,
             _ => 400
         };
 
@@ -25,8 +28,16 @@ internal static class ApiResults
         {
             Status = status,
             Title = result.Error?.Message ?? result.Message,
-            Extensions = { ["code"] = result.Error?.Code ?? "ERROR", ["traceId"] = context.TraceIdentifier }
         };
+
+        problem.Extensions["code"] = result.Error?.Code ?? "ERROR";
+        problem.Extensions["traceId"] = context.TraceIdentifier;
+
+        // Include field-level validation errors if available
+        if (result.Error?.FieldErrors is { Count: > 0 } fieldErrors)
+        {
+            problem.Extensions["errors"] = fieldErrors;
+        }
 
         return new ObjectResult(problem) { StatusCode = status };
     }

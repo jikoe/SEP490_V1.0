@@ -63,7 +63,18 @@ public sealed record OrderDetailDto(
     string PaymentStatus,
     DateTimeOffset? ExpectedDeliveryDate,
     IReadOnlyList<SellerOrderGroupDto> SellerOrders,
-    IReadOnlyList<OrderStatusTimelineDto> Timeline);
+    IReadOnlyList<OrderStatusTimelineDto> Timeline,
+    DateTimeOffset? DeliveredAt = null,
+    DateTimeOffset? ReservationExpiresAt = null,
+    IReadOnlyList<string>? AllowedActions = null);
+
+/// <summary>Post-order actions shown on the Order Details screen (SRS UC-RC-04 step 7).</summary>
+public static class OrderActions
+{
+    public const string PayNow = "PayNow";
+    public const string Review = "Review";
+    public const string SubmitComplaint = "SubmitComplaint";
+}
 
 public sealed record OrderStatusTimelineDto(
     string Status,

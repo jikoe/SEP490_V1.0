@@ -7,6 +7,8 @@ public interface ICartRepository
     Task<Cart?> GetOwnedAsync(long userId, CancellationToken cancellationToken);
     Task<HarvestBatch?> GetOfferAsync(long productId, long batchId,
         CancellationToken cancellationToken);
+    Task<IReadOnlyList<HarvestBatch>> GetOffersAsync(long productId,
+        CancellationToken cancellationToken);
     void Add(Cart cart);
     void Remove(CartItem item);
 }

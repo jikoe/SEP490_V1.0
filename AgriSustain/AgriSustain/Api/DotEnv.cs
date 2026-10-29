@@ -9,11 +9,17 @@ public static class DotEnv
 {
     public static void Load(string path)
     {
-        if (!File.Exists(path))
+        // The given path is tried first; if it is missing (e.g. the working directory is the project
+        // folder but .env sits at the solution root), walk up the directory tree and use the nearest
+        // .env found from the current directory or the app's base directory.
+        string? resolved = File.Exists(path) ? path
+            : FindUpwards(Directory.GetCurrentDirectory())
+            ?? FindUpwards(AppContext.BaseDirectory);
+        if (resolved is null)
         {
             return;
         }
-        foreach (var rawLine in File.ReadAllLines(path))
+        foreach (var rawLine in File.ReadAllLines(resolved))
         {
             var line = rawLine.Trim();
             if (line.Length == 0 || line.StartsWith('#'))
@@ -41,5 +47,19 @@ public static class DotEnv
                 Environment.SetEnvironmentVariable(key, value);
             }
         }
+    }
+
+    /// <summary>Returns the nearest ".env" from the start directory up to the drive root, or null.</summary>
+    private static string? FindUpwards(string startDirectory)
+    {
+        for (var dir = new DirectoryInfo(startDirectory); dir is not null; dir = dir.Parent)
+        {
+            var candidate = Path.Combine(dir.FullName, ".env");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+        return null;
     }
 }

@@ -27,6 +27,20 @@ public sealed class UserRepository : IUserRepository
             cancellationToken);
     }
 
+    public Task<User?> FindByEmailAsync(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        return _context.Users.SingleOrDefaultAsync(
+            candidate => candidate.Email == email,
+            cancellationToken);
+    }
+
+    public void AddAudit(AuditLog audit)
+    {
+        _context.AuditLogs.Add(audit);
+    }
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return _context.SaveChangesAsync(cancellationToken);

@@ -16,15 +16,18 @@ public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly IAuthenticationService _registrationService;
+    private readonly IPasswordResetService _passwordResetService;
     private readonly RevokedTokenStore _revokedTokenStore;
 
     public AuthController(
         IAuthService authService,
         IAuthenticationService registrationService,
+        IPasswordResetService passwordResetService,
         RevokedTokenStore revokedTokenStore)
     {
         _authService = authService;
         _registrationService = registrationService;
+        _passwordResetService = passwordResetService;
         _revokedTokenStore = revokedTokenStore;
     }
 
@@ -98,11 +101,36 @@ public sealed class AuthController : ControllerBase
         [FromBody] ResendOtpRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _registrationService.ResendOtpAsync(request, cancellationToken), HttpContext);
 
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _passwordResetService.RequestCodeAsync(request, cancellationToken), HttpContext);
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password/resend-otp")]
+    public async Task<IActionResult> ResendPasswordResetOtp(
+        [FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _passwordResetService.ResendCodeAsync(request, cancellationToken), HttpContext);
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password/verify-otp")]
+    public async Task<IActionResult> VerifyPasswordResetOtp(
+        [FromBody] VerifyOtpRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _passwordResetService.VerifyCodeAsync(request, cancellationToken), HttpContext);
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(
+        [FromBody] ResetPasswordRequest request, CancellationToken cancellationToken) =>
+        ApiResults.From(await _passwordResetService.ResetPasswordAsync(request, cancellationToken), HttpContext);
+
     [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(
-        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken) =>
-        ApiResults.From(
-            await _authService.ChangePasswordAsync(request, cancellationToken),
-            HttpContext);
+        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _authService.ChangePasswordAsync(request, cancellationToken);
+        return result.IsSuccess ? new JsonResult(result.Value) : ApiResults.From(result, HttpContext);
+    }
 }

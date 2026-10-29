@@ -23,6 +23,14 @@ public sealed class CartRepository(AgriSustainContext context) : ICartRepository
         .AsSplitQuery().SingleOrDefaultAsync(x => x.ProductId == productId
             && x.HarvestBatchId == batchId, cancellationToken);
 
+    public async Task<IReadOnlyList<HarvestBatch>> GetOffersAsync(long productId,
+        CancellationToken cancellationToken) => await context.HarvestBatches
+        .Include(x => x.Product).ThenInclude(x => x.Category)
+        .Include(x => x.Product).ThenInclude(x => x.ProductImages)
+        .Include(x => x.Product).ThenInclude(x => x.FarmerProfile).ThenInclude(x => x.User)
+        .Where(x => x.ProductId == productId && x.AvailableQuantity > 0)
+        .AsSplitQuery().ToListAsync(cancellationToken);
+
     public void Add(Cart cart) => context.Carts.Add(cart);
     public void Remove(CartItem item) => context.CartItems.Remove(item);
 }

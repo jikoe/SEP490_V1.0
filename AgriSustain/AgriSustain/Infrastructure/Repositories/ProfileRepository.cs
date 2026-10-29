@@ -1,3 +1,5 @@
+using System.Text.Json;
+using AgriSustain.Application.Common;
 using AgriSustain.Infrastructure.Data;
 using AgriSustain.Application.DTOs.Profiles;
 using AgriSustain.Application.Interfaces.Repositories;
@@ -68,6 +70,15 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             FarmerProfile: farmerDto);
     }
 
+    public async Task<ProfileAccount?> GetAccountAsync(long userId, CancellationToken cancellationToken) =>
+        await db.Users.AsNoTracking()
+            .Where(u => u.UserId == userId)
+            .Select(u => new ProfileAccount(u.UserId, u.Role, u.Status))
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<bool> PhoneUsedByAnotherUserAsync(string phone, long userId, CancellationToken cancellationToken) =>
+        await db.Users.AnyAsync(u => u.PhoneNumber == phone && u.UserId != userId, cancellationToken);
+
     public async Task<UserProfileResponse?> UpdateConsumerProfileAsync(
         long userId, UpdateConsumerProfileRequest request, CancellationToken cancellationToken)
     {
@@ -77,8 +88,18 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
 
         if (user == null) return null;
 
-        user.FullName = request.FullName;
-        user.PhoneNumber = request.PhoneNumber;
+        var before = new
+        {
+            user.FullName, user.PhoneNumber,
+            Address = user.DeliveryAddress == null ? null : new
+            {
+                user.DeliveryAddress.ProvinceCode, user.DeliveryAddress.DistrictCode,
+                user.DeliveryAddress.WardCode, user.DeliveryAddress.AddressDetail
+            }
+        };
+
+        user.FullName = request.FullName.Trim();
+        user.PhoneNumber = request.PhoneNumber.Trim();
 
         // The service has already normalized the address against the checkout catalog.
         if (!string.IsNullOrWhiteSpace(request.ProvinceCode)
@@ -98,17 +119,25 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
                 db.DeliveryAddresses.Add(address);
             }
 
-            address.RecipientName = request.FullName;
-            address.RecipientPhone = request.PhoneNumber;
+            address.RecipientName = string.IsNullOrWhiteSpace(request.RecipientName)
+                ? user.FullName : request.RecipientName.Trim();
+            address.RecipientPhone = string.IsNullOrWhiteSpace(request.RecipientPhone)
+                ? user.PhoneNumber : request.RecipientPhone.Trim();
             address.ProvinceCity = province;
             address.District = request.District;
             address.Ward = ward;
-            address.AddressDetail = detail;
+            address.AddressDetail = detail.Trim();
             address.ProvinceCode = request.ProvinceCode;
             address.DistrictCode = request.DistrictCode;
             address.WardCode = request.WardCode;
             address.AddressCatalogVersion = request.CatalogVersion;
         }
+
+        AddAudit(userId, "User", userId, "UpdateProfile", before, new
+        {
+            user.FullName, user.PhoneNumber,
+            Address = new { request.ProvinceCode, request.DistrictCode, request.WardCode, request.AddressDetail }
+        });
 
         await db.SaveChangesAsync(cancellationToken);
         return await GetProfileAsync(userId, cancellationToken);
@@ -121,53 +150,117 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             .Include(u => u.FarmerProfile)
             .FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
 
-        if (user == null) return null;
+        if (user?.FarmerProfile == null) return null;
+        var farm = user.FarmerProfile;
 
-        user.FullName = request.FullName;
-        user.PhoneNumber = request.PhoneNumber;
+        var before = FarmSnapshot(user, farm);
 
-        if (user.FarmerProfile == null)
+        user.FullName = request.FullName.Trim();
+        user.PhoneNumber = request.PhoneNumber.Trim();
+
+        bool kycFieldChanged =
+            !SameText(farm.BusinessLicenseNumber, request.BusinessLicenseNumber)
+            || !SameText(farm.RepresentativeName, request.RepresentativeName);
+
+        farm.FarmName = request.FarmName.Trim();
+        farm.RepresentativeName = request.RepresentativeName.Trim();
+        farm.Address = request.Address.Trim();
+        if (!string.IsNullOrWhiteSpace(request.ProvinceCode)) farm.ProvinceCode = request.ProvinceCode;
+        farm.ProductionScale = Clean(request.ProductionScale);
+        farm.CultivationZone = Clean(request.CultivationZone);
+        farm.Gpscoordinates = Clean(request.GPSCoordinates);
+        farm.BusinessLicenseNumber = Clean(request.BusinessLicenseNumber);
+
+        // SRS UC-AUTH-03 AF "Changing Verified Identity / KYC Fields".
+        if (kycFieldChanged && farm.VerificationStatus == VerificationStatuses.Approved)
         {
-            user.FarmerProfile = new FarmerProfile
+            farm.VerificationStatus = VerificationStatuses.PendingApproval;
+            farm.ApprovedAt = null;
+            farm.RejectReason = null;
+            db.Notifications.Add(new Notification
             {
-                UserId = user.UserId,
-                FarmName = request.FarmName,
-                RepresentativeName = request.RepresentativeName,
-                Address = request.Address,
-                ProvinceCode = request.ProvinceCode ?? "01",
-                ProductionScale = request.ProductionScale,
-                CultivationZone = request.CultivationZone,
-                Gpscoordinates = request.GPSCoordinates,
-                BusinessLicenseNumber = request.BusinessLicenseNumber,
-                VerificationStatus = "Pending",
-                ReputationScore = 5.0m
-            };
-            db.FarmerProfiles.Add(user.FarmerProfile);
-        }
-        else
-        {
-            user.FarmerProfile.FarmName = request.FarmName;
-            user.FarmerProfile.RepresentativeName = request.RepresentativeName;
-            user.FarmerProfile.Address = request.Address;
-            if (!string.IsNullOrWhiteSpace(request.ProvinceCode)) user.FarmerProfile.ProvinceCode = request.ProvinceCode;
-            user.FarmerProfile.ProductionScale = request.ProductionScale;
-            user.FarmerProfile.CultivationZone = request.CultivationZone;
-            user.FarmerProfile.Gpscoordinates = request.GPSCoordinates;
-            user.FarmerProfile.BusinessLicenseNumber = request.BusinessLicenseNumber;
+                UserId = userId,
+                Title = "Hồ sơ nông trại cần xác minh lại",
+                Content = "Bạn vừa thay đổi thông tin pháp lý (giấy phép / người đại diện). "
+                    + "Hồ sơ đã được chuyển cho Nhân viên xác minh duyệt lại.",
+                NotificationType = "KycReverification",
+                IsRead = false,
+                SentAt = DateTime.UtcNow,
+                DeliveryChannel = "InApp",
+                DeliveryStatus = "Sent",
+                RetryCount = 0,
+                RelatedRecordType = "FarmerProfile",
+                RelatedRecordId = farm.FarmerProfileId
+            });
         }
 
+        AddAudit(userId, "FarmerProfile", farm.FarmerProfileId, "UpdateProfile", before, FarmSnapshot(user, farm));
         await db.SaveChangesAsync(cancellationToken);
         return await GetProfileAsync(userId, cancellationToken);
     }
 
-    public async Task<UserProfileResponse?> SubmitFarmerKycAsync(
+    public async Task<KycSubmissionResult> SubmitFarmerKycAsync(
         long userId, SubmitKycRequest request, CancellationToken cancellationToken)
     {
-        var farmer = await db.FarmerProfiles.FirstOrDefaultAsync(f => f.UserId == userId, cancellationToken);
-        if (farmer == null) return null;
+        var user = await db.Users
+            .Include(u => u.FarmerProfile)
+            .FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
+        var farm = user?.FarmerProfile;
+        if (user == null || farm == null)
+        {
+            return new KycSubmissionResult(KycSubmissionOutcome.NotFound, [], null, null);
+        }
 
-        farmer.VerificationStatus = "PendingVerification";
+        if (!VerificationStatuses.CanSubmit(farm.VerificationStatus))
+        {
+            return new KycSubmissionResult(KycSubmissionOutcome.InvalidState, [], farm.VerificationStatus, null);
+        }
+
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(farm.FarmName)) missing.Add("farmName");
+        if (string.IsNullOrWhiteSpace(farm.RepresentativeName)) missing.Add("representativeName");
+        if (string.IsNullOrWhiteSpace(user.PhoneNumber)) missing.Add("phoneNumber");
+        if (string.IsNullOrWhiteSpace(farm.Address)) missing.Add("address");
+        if (string.IsNullOrWhiteSpace(farm.CultivationZone)) missing.Add("cultivationZone");
+        if (string.IsNullOrWhiteSpace(farm.BusinessLicenseNumber)) missing.Add("businessLicenseNumber");
+        if (missing.Count > 0)
+        {
+            return new KycSubmissionResult(KycSubmissionOutcome.Incomplete, missing, farm.VerificationStatus, null);
+        }
+
+        string oldStatus = farm.VerificationStatus;
+        farm.VerificationStatus = VerificationStatuses.PendingApproval;
+        farm.RejectReason = null;
+        AddAudit(userId, "FarmerProfile", farm.FarmerProfileId, "SubmitForVerification",
+            new { VerificationStatus = oldStatus },
+            new { farm.VerificationStatus, Notes = request.Notes });
+
         await db.SaveChangesAsync(cancellationToken);
-        return await GetProfileAsync(userId, cancellationToken);
+        return new KycSubmissionResult(KycSubmissionOutcome.Submitted, [], farm.VerificationStatus,
+            await GetProfileAsync(userId, cancellationToken));
     }
+
+    private void AddAudit(long userId, string entityType, long entityId, string action, object before, object after) =>
+        db.AuditLogs.Add(new AuditLog
+        {
+            PerformedByUserId = userId,
+            EntityType = entityType,
+            EntityId = entityId,
+            Action = action,
+            OldValue = JsonSerializer.Serialize(before),
+            NewValue = JsonSerializer.Serialize(after),
+            OccurredAt = DateTime.UtcNow
+        });
+
+    private static object FarmSnapshot(User user, FarmerProfile farm) => new
+    {
+        user.FullName, user.PhoneNumber, farm.FarmName, farm.RepresentativeName, farm.Address,
+        farm.ProvinceCode, farm.ProductionScale, farm.CultivationZone, farm.Gpscoordinates,
+        farm.BusinessLicenseNumber, farm.VerificationStatus
+    };
+
+    private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static bool SameText(string? a, string? b) =>
+        string.Equals(Clean(a), Clean(b), StringComparison.OrdinalIgnoreCase);
 }

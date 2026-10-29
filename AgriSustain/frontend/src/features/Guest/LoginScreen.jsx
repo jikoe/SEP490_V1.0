@@ -16,7 +16,7 @@ function DecorativeBranch({ className }) {
   </svg>;
 }
 
-export default function LoginScreen({ onLogin, onDemo }) {
+export default function LoginScreen({ onLogin, onDemo, navigate }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -69,13 +69,23 @@ export default function LoginScreen({ onLogin, onDemo }) {
                 {showPassword && <path d="m4 4 16 16" />}
               </svg>
             </button></span></label>
+          <a href="#/forgot-password" style={{ justifySelf: 'end', marginBottom: 12,
+            color: '#2e7d32', fontSize: 14, textDecoration: 'none' }}>Quên mật khẩu?</a>
           <button className="primary login-submit" type="submit" disabled={busy}>
             {busy ? 'Đang đăng nhập…' : 'Đăng nhập'}
           </button>
         </form>
         <div style={{ marginTop: 15, textAlign: 'center', fontSize: 14 }}>
           <span>Chưa có tài khoản? </span>
-          <a href="#/register" style={{ color: '#2e7d32', fontWeight: 600, textDecoration: 'none' }}>
+          <a
+            href="#/register"
+            onClick={(e) => {
+              e.preventDefault();
+              if (navigate) navigate('/register');
+              else window.location.hash = '#/register';
+            }}
+            style={{ color: '#2e7d32', fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}
+          >
             Đăng ký ngay
           </a>
         </div>

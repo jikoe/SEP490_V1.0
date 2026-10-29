@@ -20,9 +20,9 @@ public sealed class SellerOrdersController(OrderFulfillmentService service, ICur
     public async Task<IActionResult> Detail(long id, CancellationToken cancellationToken) =>
         Respond(await service.GetAsync(actor.UserId, id, cancellationToken));
 
-    [HttpPost("{id:long}/{action}")]
-    public async Task<IActionResult> Action(long id, string action, OrderActionRequest request,
+    [HttpPost("{id:long}/{operation}")]
+    public async Task<IActionResult> Perform(long id, string operation, OrderActionRequest request,
         CancellationToken cancellationToken) => Respond(await service.ActAsync(
-            actor.UserId, id, action, request, cancellationToken));
+            actor.UserId, id, operation, request, cancellationToken));
 }
 

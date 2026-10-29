@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { backendUrl } from '../../api/client';
 import { Notice, Field, Modal } from '../../components/ui/Common';
 
 /**
- * UC-AUTH-01: Register RetailCustomer or Farmer Account (SCR-07)
- * Includes UC-AUTH-08: Verify Email OTP modal
- * Styled with vibrant green agricultural aesthetic matching Figma SCR-TRC-01
+ * Register RetailCustomer or Farmer Account
+ * Includes Verify Email OTP modal
+ * Styled with vibrant green agricultural aesthetic
  */
 export default function RegisterScreen({ navigate }) {
   const [role, setRole] = useState('RetailCustomer');
@@ -17,49 +17,119 @@ export default function RegisterScreen({ navigate }) {
     confirmPassword: '',
     agreeTerms: false,
   });
-  const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [phoneNotice, setPhoneNotice] = useState(null);
+  const [generalError, setGeneralError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [otpError, setOtpError] = useState(null);
-  const [otpCountdown, setOtpCountdown] = useState(300);
-  const [otpInfo, setOtpInfo] = useState('');
   const [successNotice, setSuccessNotice] = useState(null);
+  const [otpNotice, setOtpNotice] = useState(null);
+  const [resendIn, setResendIn] = useState(0);
+
+  // 60-second cooldown before "Resend Code" is allowed (SRS UC-AUTH-08 AF Step 2).
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const timer = setTimeout(() => setResendIn((value) => value - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendIn]);
 
   function handleChange(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
-    setError(null);
+    setFieldErrors((prev) => ({ ...prev, [field]: '' }));
+    setGeneralError(null);
+  }
+
+  function handlePhoneChange(e) {
+    const raw = e.target.value;
+    const digitsOnly = raw.replace(/\D/g, '');
+    if (digitsOnly.length > 10) {
+      const truncated = digitsOnly.slice(0, 10);
+      setForm((prev) => ({ ...prev, phoneNumber: truncated }));
+      setPhoneNotice('Số điện thoại chỉ lấy 10 số đầu. Các số sau tự động bị xóa.');
+    } else {
+      setForm((prev) => ({ ...prev, phoneNumber: digitsOnly }));
+      if (digitsOnly.length === 10) {
+        setPhoneNotice('Đã nhập đủ 10 chữ số hợp lệ.');
+      } else {
+        setPhoneNotice(null);
+      }
+    }
+    setFieldErrors((prev) => ({ ...prev, phoneNumber: '' }));
+    setGeneralError(null);
+  }
+
+  function validateClient() {
+    const errors = {};
+    if (!form.fullName.trim()) {
+      errors.fullName = 'Họ và tên không được để trống.';
+    } else if (form.fullName.trim().length < 2 || form.fullName.trim().length > 50) {
+      errors.fullName = 'Họ và tên phải từ 2 đến 50 ký tự.';
+    }
+
+    if (!form.phoneNumber.trim()) {
+      errors.phoneNumber = 'Số điện thoại không được để trống.';
+    } else if (!/^0\d{9}$/.test(form.phoneNumber.trim())) {
+      errors.phoneNumber = 'Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).';
+    }
+
+    if (!form.email.trim()) {
+      errors.email = 'Email không được để trống.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      errors.email = 'Định dạng email không hợp lệ.';
+    }
+
+    const pwd = form.password;
+    if (!pwd) {
+      errors.password = 'Mật khẩu không được để trống.';
+    } else {
+      const pwdErrors = [];
+      if (pwd.length < 8) {
+        pwdErrors.push('Mật khẩu phải có ít nhất 8 ký tự.');
+      }
+      const hasUpper = /[A-Z]/.test(pwd);
+      const hasLower = /[a-z]/.test(pwd);
+      if (!hasUpper && !hasLower) {
+        pwdErrors.push('Mật khẩu phải có ít nhất 1 chữ hoa. Mật khẩu phải có ít nhất 1 chữ thường.');
+      } else if (!hasUpper) {
+        pwdErrors.push('Mật khẩu phải có ít nhất 1 chữ hoa.');
+      } else if (!hasLower) {
+        pwdErrors.push('Mật khẩu phải có ít nhất 1 chữ thường.');
+      }
+      if (!/[0-9]/.test(pwd)) {
+        pwdErrors.push('Mật khẩu phải có ít nhất 1 chữ số.');
+      }
+      if (pwdErrors.length > 0) {
+        errors.password = pwdErrors.join(' ');
+      }
+    }
+
+    if (!form.confirmPassword) {
+      errors.confirmPassword = 'Vui lòng xác nhận mật khẩu.';
+    } else if (form.password !== form.confirmPassword) {
+      errors.confirmPassword = 'Mật khẩu xác nhận không khớp.';
+    }
+
+    if (!form.agreeTerms) {
+      errors.agreeTerms = 'Bạn cần đồng ý với Điều khoản dịch vụ & Chính sách bảo mật của AgriSustain.';
+    }
+
+    return errors;
   }
 
   async function handleRegisterSubmit(e) {
     e.preventDefault();
-    if (!form.fullName.trim()) {
-      setError('Vui lòng nhập Họ và tên (tối đa 50 ký tự).');
-      return;
-    }
-    if (!/^0\d{9}$/.test(form.phoneNumber.trim())) {
-      setError('Số điện thoại không hợp lệ (phải bắt đầu bằng số 0 và đủ 10 chữ số).');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      setError('Địa chỉ email không đúng định dạng.');
-      return;
-    }
-    if (form.password.length < 8) {
-      setError('Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và chữ số.');
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp.');
-      return;
-    }
-    if (!form.agreeTerms) {
-      setError('Bạn cần đồng ý với Điều khoản dịch vụ & Chính sách bảo mật của AgriSustain.');
+    const errors = validateClient();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
     setLoading(true);
-    setError(null);
+    setGeneralError(null);
+    setFieldErrors({});
+
     try {
       const payload = {
         fullName: form.fullName.trim(),
@@ -78,18 +148,29 @@ export default function RegisterScreen({ navigate }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.title || data.message || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
+        if (data.errors && typeof data.errors === 'object') {
+          const serverFieldErrors = {};
+          for (const [key, val] of Object.entries(data.errors)) {
+            serverFieldErrors[key] = Array.isArray(val) ? val.join(' ') : String(val);
+          }
+          setFieldErrors(serverFieldErrors);
+        } else {
+          setGeneralError(data.title || data.message || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
+        }
+        setLoading(false);
+        return;
       }
 
-      // The server reply states where the OTP was sent (and, in this build, the demo code).
-      setOtpInfo(await res.json().catch(() => ''));
+      const sentMessage = await res.json().catch(() => null);
       setLoading(false);
       setOtpModalOpen(true);
       setOtpDigits(['', '', '', '', '', '']);
       setOtpError(null);
+      setOtpNotice(typeof sentMessage === 'string' ? sentMessage : `Mã xác thực đã được gửi tới ${form.email.trim()}.`);
+      setResendIn(60);
     } catch (err) {
       setLoading(false);
-      setError(err.message || 'Không thể kết nối đến máy chủ.');
+      setGeneralError(err.message || 'Không thể kết nối đến máy chủ.');
     }
   }
 
@@ -140,13 +221,12 @@ export default function RegisterScreen({ navigate }) {
       }
 
       const user = await res.json();
-      sessionStorage.removeItem('agrisustain:current-user');
-      sessionStorage.removeItem('agrisustain:demo-fixture');
       setLoading(false);
       setOtpModalOpen(false);
-      setSuccessNotice(`MSG56: Đăng ký tài khoản thành công cho ${user.fullName || form.fullName}! Thông tin đã được lưu vào cơ sở dữ liệu.`);
+      // MSG56 — the account must sign in normally; no session is created by registration.
+      setSuccessNotice(user.message || 'Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.');
       setTimeout(() => {
-        if (navigate) navigate('/login');
+        if (navigate) navigate('/login'); else window.location.hash = '#/login';
       }, 1200);
     } catch (err) {
       setLoading(false);
@@ -155,19 +235,22 @@ export default function RegisterScreen({ navigate }) {
   }
 
   async function handleResendOtp() {
+    if (resendIn > 0) return;
+    setOtpError(null);
+    setOtpNotice(null);
     try {
       const res = await fetch(backendUrl('/api/auth/resend-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: form.email.trim() }),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.title || 'Không thể gửi lại mã OTP.');
       }
-      setOtpInfo(await res.json().catch(() => 'Mã OTP mới đã được gửi lại vào email của bạn.'));
       setOtpDigits(['', '', '', '', '', '']);
-      setOtpError(null);
+      setOtpNotice(typeof data === 'string' ? data : 'Mã OTP mới đã được gửi tới email của bạn.');
+      setResendIn(60);
     } catch (err) {
       setOtpError(err.message);
     }
@@ -186,9 +269,9 @@ export default function RegisterScreen({ navigate }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <span style={{ fontSize: 24 }}>🌱</span>
+          <span style={{ fontSize: 24 }}>🌿</span>
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#a7e4c2' }}>
-            AGRISUSTAIN XÁC THỰC TÀI KHOẢN (SCR-07 / UC-AUTH-01)
+            AGRISUSTAIN XÁC THỰC TÀI KHOẢN
           </span>
         </div>
         <h1 style={{ color: '#ffffff', fontSize: 26, margin: '0 0 8px', fontWeight: 800 }}>
@@ -208,10 +291,10 @@ export default function RegisterScreen({ navigate }) {
           padding: '32px',
         }}
       >
-        <Notice error={Boolean(error)}>{error}</Notice>
+        <Notice error={Boolean(generalError)}>{generalError}</Notice>
         {successNotice && <Notice>{successNotice}</Notice>}
 
-        <form onSubmit={handleRegisterSubmit}>
+        <form onSubmit={handleRegisterSubmit} noValidate>
           {/* 1. Chọn vai trò tài khoản */}
           <div style={{ marginBottom: 24 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1e4834', marginBottom: 10 }}>
@@ -260,14 +343,14 @@ export default function RegisterScreen({ navigate }) {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 22 }}>🚜</span>
+                  <span style={{ fontSize: 22 }}>🌾</span>
                   <div>
                     <strong style={{ fontSize: 14, color: '#1b4332' }}>Farmer</strong>
                     <div style={{ fontSize: 11, color: '#5b7566' }}>Nông dân / Hợp tác xã</div>
                   </div>
                 </div>
                 <p style={{ margin: 0, fontSize: 11.5, color: '#688273', lineHeight: 1.4 }}>
-                  Quản lý nông trại, đăng bán sản phẩm và cập nhật nhật ký canh tác số.
+                  Quản lý mùa vụ canh tác, niêm yết nông sản đạt chuẩn VietGAP và nhận thanh toán.
                 </p>
                 {role === 'Farmer' && (
                   <span style={{ position: 'absolute', top: 10, right: 10, color: '#1e6546', fontWeight: 800 }}>✓</span>
@@ -277,70 +360,79 @@ export default function RegisterScreen({ navigate }) {
           </div>
 
           {/* 2. Thông tin đăng ký */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#1e4834', marginBottom: 12 }}>
-              2. THÔNG TIN ĐĂNG KÝ TÀI KHOẢN
-            </label>
-
-            <Field label="Họ và tên đầy đủ *">
+          <div style={{ display: 'grid', gap: 16 }}>
+            <Field
+              label="Họ và tên người dùng *"
+              error={fieldErrors.fullName}
+            >
               <input
                 type="text"
-                placeholder={role === 'Farmer' ? 'Ví dụ: Trần Văn Nông (hoặc Tên HTX)' : 'Ví dụ: Nguyễn Văn A'}
+                placeholder="Ví dụ: Nguyễn Văn An"
                 value={form.fullName}
                 onChange={(e) => handleChange('fullName', e.target.value)}
-                maxLength={50}
-                required
+                maxLength={150}
               />
             </Field>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Field label="Số điện thoại di động *">
+              <Field
+                label="Số điện thoại di động *"
+                error={fieldErrors.phoneNumber}
+                hint={phoneNotice}
+              >
                 <input
                   type="tel"
-                  placeholder="0912345678"
+                  placeholder="0912345678 (10 số)"
                   value={form.phoneNumber}
-                  onChange={(e) => handleChange('phoneNumber', e.target.value)}
-                  maxLength={10}
-                  required
+                  onChange={handlePhoneChange}
+                  maxLength={11}
                 />
               </Field>
 
-              <Field label="Địa chỉ Email *">
+              <Field
+                label="Địa chỉ Email *"
+                error={fieldErrors.email}
+              >
                 <input
                   type="email"
                   placeholder="tenban@email.com"
                   value={form.email}
                   onChange={(e) => handleChange('email', e.target.value)}
-                  required
+                  maxLength={255}
                 />
               </Field>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-              <Field label="Mật khẩu khởi tạo *">
+              <Field
+                label="Mật khẩu khởi tạo *"
+                error={fieldErrors.password}
+                hint="Tối thiểu 8 ký tự, gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số"
+              >
                 <input
                   type="password"
                   placeholder="Tối thiểu 8 ký tự..."
                   value={form.password}
                   onChange={(e) => handleChange('password', e.target.value)}
-                  required
                 />
               </Field>
 
-              <Field label="Xác nhận lại mật khẩu *">
+              <Field
+                label="Xác nhận lại mật khẩu *"
+                error={fieldErrors.confirmPassword}
+              >
                 <input
                   type="password"
                   placeholder="Nhập lại chính xác..."
                   value={form.confirmPassword}
                   onChange={(e) => handleChange('confirmPassword', e.target.value)}
-                  required
                 />
               </Field>
             </div>
           </div>
 
           {/* 3. Checkbox điều khoản */}
-          <div style={{ margin: '20px 0 24px', padding: 14, background: '#f5faf6', borderRadius: 8 }}>
+          <div style={{ margin: '20px 0 24px', padding: 14, background: '#f5faf6', borderRadius: 8, border: fieldErrors.agreeTerms ? '1px solid #dc2626' : '1px solid #d7e2da' }}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 12.5, color: '#334e3d' }}>
               <input
                 type="checkbox"
@@ -354,6 +446,11 @@ export default function RegisterScreen({ navigate }) {
                 <strong style={{ color: '#1e6546' }}>Chính sách bảo mật thông tin</strong> của Sàn nông sản AgriSustain.
               </span>
             </label>
+            {fieldErrors.agreeTerms && (
+              <span style={{ color: '#dc2626', fontSize: 12, marginTop: 6, display: 'block', fontWeight: 500 }}>
+                {fieldErrors.agreeTerms}
+              </span>
+            )}
           </div>
 
           {/* Action Button */}
@@ -379,7 +476,7 @@ export default function RegisterScreen({ navigate }) {
           Đã có tài khoản AgriSustain?{' '}
           <a
             href="#/login"
-            onClick={(e) => { e.preventDefault(); navigate('/login'); }}
+            onClick={(e) => { e.preventDefault(); if (navigate) navigate('/login'); else window.location.hash = '#/login'; }}
             style={{ color: '#1e6546', fontWeight: 700, textDecoration: 'none' }}
           >
             Đăng nhập ngay
@@ -387,11 +484,11 @@ export default function RegisterScreen({ navigate }) {
         </div>
       </div>
 
-      {/* Modal xác thực OTP (UC-AUTH-08) */}
+      {/* Modal xác thực OTP */}
       {otpModalOpen && (
         <Modal
           onClose={() => setOtpModalOpen(false)}
-          title="Xác thực OTP qua Email (UC-AUTH-08)"
+          title="Xác thực OTP qua Email"
         >
           <div style={{ textAlign: 'center', padding: '10px 0 20px' }}>
             <div
@@ -417,6 +514,7 @@ export default function RegisterScreen({ navigate }) {
           </div>
 
           {otpError && <Notice error>{otpError}</Notice>}
+          {otpNotice && <Notice>{otpNotice}</Notice>}
 
           <form onSubmit={handleVerifyOtp}>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 10, margin: '20px 0 24px' }}>
@@ -447,19 +545,17 @@ export default function RegisterScreen({ navigate }) {
             </div>
 
             <div style={{ textAlign: 'center', fontSize: 13, color: '#688273', marginBottom: 24 }}>
-              {otpInfo && <div role="status" style={{ marginBottom: 10, background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '6px 12px', borderRadius: 8, display: 'inline-block', color: '#166534' }}>
-                💡 {otpInfo}
-              </div>}
-              <div>Mã OTP có hiệu lực trong: <strong style={{ color: '#d9534f' }}>05:00</strong></div>
+              <div>Mã OTP có hiệu lực trong <strong style={{ color: '#d9534f' }}>5 phút</strong>.</div>
               <div style={{ marginTop: 8 }}>
                 Chưa nhận được mã?{' '}
                 <button
                   type="button"
                   className="text-button"
-                  style={{ color: '#1e6546', fontWeight: 700 }}
+                  style={{ color: resendIn > 0 ? '#97a89d' : '#1e6546', fontWeight: 700 }}
                   onClick={handleResendOtp}
+                  disabled={resendIn > 0}
                 >
-                  Gửi lại mã OTP
+                  {resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã OTP'}
                 </button>
               </div>
             </div>

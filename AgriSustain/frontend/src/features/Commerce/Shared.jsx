@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { request } from '../../api/client';
+import { displayMessage } from '../../utils/displayMessage';
+import { productListingMessages } from '../Farmer/productListingMessages';
 import { Modal, Notice } from '../../components/ui/Common';
 
 export const productStatus = { Pending: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Từ chối' };
@@ -10,13 +12,14 @@ export const orderStatus = { Pending: 'Chờ xác nhận', Confirmed: 'Đang chu
 export function Status({ value, labels = orderStatus }) {
   return <span className={'commerce-status status-' + value}>{labels[value] || value}</span>;
 }
-export function Errors({ error }) {
-  return error ? <Notice error><strong>{error.message || error}</strong>
+export function Errors({ error, hideMessageCodes = false }) {
+  const text = value => hideMessageCodes ? displayMessage(value) : value;
+  return error ? <Notice error><strong>{text(error.message || error)}</strong>
     {Object.entries(error.fields || {}).map(([key, values]) =>
       <div key={key}>{({ ProductName: 'Tên sản phẩm', CategoryId: 'Danh mục', Unit: 'Đơn vị',
-        OriginProvince: 'Xuất xứ', Description: 'Mô tả', BaseRetailPrice: 'Giá bán lẻ',
+        Description: 'Mô tả', BaseRetailPrice: 'Giá bán lẻ',
         WholesalePrice: 'Giá sỉ', WholesaleMinQuantity: 'Ngưỡng bán sỉ', Images: 'Ảnh sản phẩm'
-      })[key] || 'Thông tin nhập'}: {values.join(' ')}</div>)}</Notice> : null;
+      })[key] || 'Thông tin nhập'}: {text(values.join(' '))}</div>)}</Notice> : null;
 }
 export function Confirm({ title, children, busy, onConfirm, onClose }) {
   return <Modal title={title} onClose={() => { if (!busy) onClose(); }}>
@@ -35,13 +38,13 @@ export function Uploads({ evidence = false, files, onChange, disabled, onError, 
     const selected = [...event.target.files];
     const limit = evidence ? 5 : 10;
     if (selected.length + files.length > limit) {
-      onError(new Error('Tối đa ' + limit + ' tệp.')); return;
+      onError(new Error(evidence ? 'Tối đa ' + limit + ' tệp.' : productListingMessages.MSG76)); return;
     }
     const allowed = evidence ? ['image/jpeg', 'image/png', 'application/pdf']
       : ['image/jpeg', 'image/png'];
     if (selected.some(file => file.size > 5 * 1024 * 1024 || file.size === 0
         || !allowed.includes(file.type))) {
-      onError(new Error('Tệp không đúng định dạng hoặc vượt quá 5 MB (MSG78).')); return;
+      onError(new Error(evidence ? 'Bằng chứng phải là tệp JPG, JPEG, PNG hoặc PDF hợp lệ, không rỗng và không vượt quá 5 MB.' : productListingMessages.MSG78)); return;
     }
     setBusy(true); onBusyChange?.(true);
     const added = [];
