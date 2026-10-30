@@ -27,6 +27,9 @@ const STATUS = {
   Completed: { label: 'Hoàn thành', color: '#1e6546', bg: '#eaf4e9' },
   Cancelled: { label: 'Đã hủy', color: '#c2533c', bg: '#fbeee9' },
   DeliveryFailed: { label: 'Giao thất bại', color: '#c2533c', bg: '#fbeee9' },
+  RefundPending: { label: 'Chờ hoàn tiền', color: '#8d7c53', bg: '#f1f0e8' },
+  PartiallyRefunded: { label: 'Đã hoàn một phần', color: '#8d7c53', bg: '#f1f0e8' },
+  Refunded: { label: 'Đã hoàn tiền', color: '#c2533c', bg: '#fbeee9' },
 };
 
 function StatusBadge({ value }) {
@@ -208,6 +211,14 @@ export default function OrderTrackingScreen({ navigate }) {
                     <button type="button" disabled={detailLoading} onClick={() => openDetail(order.orderId)}>
                       Xem chi tiết
                     </button>
+                    {/* SRS FR 6.3.1 (6): "Đánh giá" is shown on the card only for Completed orders. */}
+                    {order.orderStatus === 'Completed'
+                      && order.sellerOrders.some((so) => so.items.some((item) => !item.isReviewed)) && (
+                      <button type="button" className="primary" style={{ background: '#1e6546' }}
+                        onClick={() => setNotice('Chức năng đánh giá sản phẩm (UC-RC-05) thuộc Iteration 2.')}>
+                        ⭐ Đánh giá
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -301,6 +312,13 @@ export default function OrderTrackingScreen({ navigate }) {
                 ))}
               </ol>
             </section>
+          )}
+
+          {/* MSG181: the complaint button is hidden for orders that are not completed or outside 48 hours. */}
+          {!actions.includes('SubmitComplaint') && (
+            <p className="muted" role="note" style={{ fontSize: 12, margin: '0 0 12px' }}>
+              ℹ️ Chỉ có thể gửi khiếu nại cho đơn hàng đã hoàn thành trong vòng 48 giờ kể từ khi giao.
+            </p>
           )}
 
           <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>

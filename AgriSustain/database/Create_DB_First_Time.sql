@@ -92,7 +92,11 @@ CREATE TABLE dbo.[User] (
     [CreatedAt] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
     [FailedLoginCount] int NOT NULL,
     [LockedUntil] datetime2 NULL,
-    CONSTRAINT [PK_User] PRIMARY KEY ([UserId])
+    [Gender] varchar(10) NULL,
+    [DateOfBirth] date NULL,
+    CONSTRAINT [PK_User] PRIMARY KEY ([UserId]),
+    CONSTRAINT [CK_User_Gender] CHECK ([Gender] IS NULL OR [Gender] IN ('Male', 'Female', 'Other')),
+    CONSTRAINT [CK_User_DateOfBirth] CHECK ([DateOfBirth] IS NULL OR [DateOfBirth] <= CAST(SYSUTCDATETIME() AS date))
 );
 
 CREATE TABLE dbo.[CategorySettings] (
@@ -185,7 +189,12 @@ CREATE TABLE dbo.[FarmerProfile] (
     [ApprovedAt] datetime2 NULL,
     [RejectReason] nvarchar(500) NULL,
     [ReputationScore] decimal(5,2) NOT NULL,
+    [CultivatedArea] decimal(10,2) NULL,
+    [ProductionModel] varchar(20) NULL,
+    [ShortDescription] nvarchar(300) NULL,
     CONSTRAINT [PK_FarmerProfile] PRIMARY KEY ([FarmerProfileId]),
+    CONSTRAINT [CK_FarmerProfile_CultivatedArea] CHECK ([CultivatedArea] IS NULL OR [CultivatedArea] > 0),
+    CONSTRAINT [CK_FarmerProfile_ProductionModel] CHECK ([ProductionModel] IS NULL OR [ProductionModel] IN ('Individual', 'Cooperative')),
     CONSTRAINT [FK_FarmerProfile_User] FOREIGN KEY ([UserId]) REFERENCES dbo.[User] ([UserId])
 );
 
@@ -938,6 +947,7 @@ CREATE TABLE dbo.[RefundTransaction] (
     [RefundStatus] varchar(50) NOT NULL DEFAULT 'Pending',
     [ProcessedAt] datetime2 NULL,
     [GatewayReference] varchar(150) NULL,
+    [RefundMethod] varchar(50) NULL,
     [PaymentInvoiceAllocationId] bigint NULL,
     [ContractDepositAllocationId] bigint NULL,
     [RequestKey] varchar(100) NOT NULL,

@@ -8,15 +8,15 @@ using FluentValidation;
 namespace AgriSustain.Application.Services.Authentication;
 
 /// <summary>
-/// UC-AUTH-01 Register RetailCustomer / Farmer account, including UC-AUTH-08 Verify Email OTP.
+/// UC-AUTH-01 Register RetailCustomer / Farmer account; the e-mail is confirmed by including
+/// UC-AUTH-08 Verify Email OTP (<see cref="IEmailOtpVerifier"/>).
 /// </summary>
 public sealed class AuthenticationService(
     IUnitOfWork unitOfWork,
     IValidator<RegisterRequest> registerValidator,
     IValidator<VerifyOtpRequest> verifyOtpValidator,
     IValidator<ResendOtpRequest> resendOtpValidator,
-    IEmailService emailService,
-    IOtpGenerator otpGenerator,
+    IEmailOtpVerifier otpVerifier,
     TimeProvider timeProvider) : IAuthenticationService
 {
     public static readonly TimeSpan OtpLifetime = TimeSpan.FromMinutes(5);
@@ -38,34 +38,27 @@ public sealed class AuthenticationService(
 
         string email = NormalizeEmail(request.Email);
         string phone = request.PhoneNumber.Trim();
-        var now = timeProvider.GetUtcNow();
 
         if (await DuplicateErrorAsync(unitOfWork.Auth, email, phone, cancellationToken) is { } duplicate)
         {
             return Result<string>.FailureResult(duplicate);
         }
 
-        string otp = otpGenerator.Generate();
-        var pending = new PendingRegistration(
+        // When the e-mail cannot be delivered no pending registration is kept (SRS AF Step 1).
+        var issued = await otpVerifier.IssueAsync(OtpPurposes.Registration, email, cancellationToken);
+        if (!issued.IsSuccess)
+        {
+            return issued;
+        }
+
+        await unitOfWork.Auth.SavePendingRegistrationAsync(new PendingRegistration(
             Email: email,
             FullName: request.FullName.Trim(),
             PhoneNumber: phone,
             PasswordHash: BCrypt.Net.BCrypt.HashPassword(request.Password),
             Role: request.Role,
-            OtpCode: otp,
-            OtpExpiresAt: now.Add(OtpLifetime),
-            AttemptCount: 0,
-            CreatedAt: now,
-            OtpSentAt: now);
-
-        // Send first: when the e-mail cannot be delivered no pending registration is kept (SRS AF Step 1).
-        if (!await emailService.SendOtpEmailAsync(email, otp, cancellationToken))
-        {
-            return Result<string>.FailureResult(s_emailDeliveryFailed);
-        }
-
-        await unitOfWork.Auth.SavePendingRegistrationAsync(pending, cancellationToken);
-        return Result<string>.SuccessResult($"Mã xác thực đã được gửi tới {email}. Mã có hiệu lực trong 5 phút.");
+            CreatedAt: timeProvider.GetUtcNow()), cancellationToken);
+        return issued;
     }
 
     public async Task<Result<AuthResponse>> VerifyOtpAndCompleteRegistrationAsync(
@@ -86,29 +79,11 @@ public sealed class AuthenticationService(
                 "Yêu cầu đăng ký không tồn tại hoặc đã hết hạn. Vui lòng đăng ký lại.", "NotFound"));
         }
 
-        if (pending.AttemptCount >= MaxFailedAttempts)
+        var verified = await otpVerifier.VerifyAsync(
+            OtpPurposes.Registration, email, request.OtpCode, cancellationToken);
+        if (!verified.IsSuccess)
         {
-            await unitOfWork.Auth.RemovePendingRegistrationAsync(email, cancellationToken);
-            return Result<AuthResponse>.FailureResult(new Error(
-                "MAX_ATTEMPTS_EXCEEDED",
-                "Bạn đã nhập sai mã OTP quá 5 lần. Mã hiện tại đã bị vô hiệu, vui lòng đăng ký lại để nhận mã mới."));
-        }
-
-        if (timeProvider.GetUtcNow() > pending.OtpExpiresAt)
-        {
-            await unitOfWork.Auth.RemovePendingRegistrationAsync(email, cancellationToken);
-            return Result<AuthResponse>.FailureResult(new Error(
-                "OTP_EXPIRED", "Mã OTP đã hết hiệu lực. Vui lòng đăng ký lại để nhận mã mới."));
-        }
-
-        if (!OtpEquals(pending.OtpCode, request.OtpCode))
-        {
-            int attempts = pending.AttemptCount + 1;
-            await unitOfWork.Auth.UpdatePendingRegistrationAsync(
-                pending with { AttemptCount = attempts }, cancellationToken);
-            int remaining = Math.Max(0, MaxFailedAttempts - attempts);
-            return Result<AuthResponse>.FailureResult(new Error(
-                "INVALID_OTP", $"Mã OTP không chính xác. Bạn còn {remaining} lần thử."));
+            return Result<AuthResponse>.FailureResult(verified.Error!);
         }
 
         var created = await unitOfWork.ExecuteAsync(async uow =>
@@ -129,7 +104,7 @@ public sealed class AuthenticationService(
                 Message: "Đăng ký thành công. Vui lòng đăng nhập để tiếp tục."));
         }, cancellationToken);
 
-        // The OTP is single-use: it is invalidated once the account is created (or can no longer be).
+        // The OTP was consumed above; the pending data is dropped once the account exists or never can.
         if (created.IsSuccess || created.Error?.Kind == "Conflict")
         {
             await unitOfWork.Auth.RemovePendingRegistrationAsync(email, cancellationToken);
@@ -148,44 +123,16 @@ public sealed class AuthenticationService(
         }
 
         string email = NormalizeEmail(request.Email);
-        PendingRegistration? pending = await unitOfWork.Auth.FindPendingRegistrationAsync(email, cancellationToken);
-        if (pending == null)
+        if (await unitOfWork.Auth.FindPendingRegistrationAsync(email, cancellationToken) == null)
         {
             return Result<string>.FailureResult(new Error(
                 "NOT_FOUND", "Không tìm thấy phiên đăng ký cho email này. Vui lòng đăng ký lại.", "NotFound"));
         }
 
-        var now = timeProvider.GetUtcNow();
-        var wait = pending.OtpSentAt.Add(ResendCooldown) - now;
-        if (wait > TimeSpan.Zero)
-        {
-            return Result<string>.FailureResult(new Error(
-                "RESEND_COOLDOWN",
-                $"Vui lòng chờ {Math.Ceiling(wait.TotalSeconds)} giây trước khi gửi lại mã.", "TooManyRequests"));
-        }
-
-        string newOtp = otpGenerator.Generate();
-        if (!await emailService.SendOtpEmailAsync(email, newOtp, cancellationToken))
-        {
-            return Result<string>.FailureResult(s_emailDeliveryFailed);
-        }
-
-        await unitOfWork.Auth.UpdatePendingRegistrationAsync(pending with
-        {
-            OtpCode = newOtp,
-            OtpExpiresAt = now.Add(OtpLifetime),
-            OtpSentAt = now,
-            AttemptCount = 0
-        }, cancellationToken);
-
-        return Result<string>.SuccessResult($"Mã xác thực đã được gửi tới {email}. Mã có hiệu lực trong 5 phút.");
+        return await otpVerifier.ResendAsync(OtpPurposes.Registration, email, cancellationToken);
     }
 
     private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
-
-    private static bool OtpEquals(string expected, string actual) =>
-        System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
-            System.Text.Encoding.UTF8.GetBytes(expected), System.Text.Encoding.UTF8.GetBytes(actual.Trim()));
 
     private static async Task<Error?> DuplicateErrorAsync(
         IAuthRepository auth, string email, string phone, CancellationToken cancellationToken)

@@ -49,6 +49,24 @@ builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
 builder.Services.AddScoped<IProductModerationRepository, ProductModerationRepository>();
 builder.Services.AddScoped<IProductModerationService, ProductModerationService>();
+builder.Services.AddScoped<IComplaintRepository, ComplaintRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>();
+builder.Services.AddScoped<IComplaintResolutionService>(services => services
+    .GetRequiredService<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>());
+builder.Services.AddScoped<IComplaintEvidenceTimeoutProcessor>(services => services
+    .GetRequiredService<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>());
+// UC-CS-01: auto-resolve complaints after the 48-hour information request expires (on by default).
+if (builder.Configuration.GetValue("Complaints:EnableEvidenceTimeoutWorker", true))
+{
+    builder.Services.AddHostedService<
+        AgriSustain.Infrastructure.BackgroundWorkers.ComplaintEvidenceTimeoutWorker>();
+}
+builder.Services.AddScoped<IRefundRepository, RefundRepository>();
+builder.Services.AddScoped<IRefundProcessingService,
+    AgriSustain.Application.Services.Refunds.RefundProcessingService>();
+builder.Services.AddScoped<IVoucherRepository, VoucherRepository>();
+builder.Services.AddScoped<IVoucherManagementService,
+    AgriSustain.Application.Services.Promotions.VoucherManagementService>();
 builder.Services.AddOptions<JwtOptions>()
     .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
     .Validate(options => !string.IsNullOrWhiteSpace(options.ValidIssuer),
@@ -99,7 +117,11 @@ builder.Services.AddValidatorsFromAssemblyContaining<ProductRequestValidator>();
 // Development adapter: OTP is written to the server log. Swap for a Gmail adapter in production.
 builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.LoggingEmailService>();
 builder.Services.AddSingleton<IOtpGenerator, RandomOtpGenerator>();
+builder.Services.AddSingleton<IOtpChallengeStore,
+    AgriSustain.Infrastructure.Data.InMemoryStore.InMemoryOtpChallengeStore>();
+builder.Services.AddScoped<IEmailOtpVerifier, EmailOtpVerifier>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 
@@ -107,6 +129,8 @@ builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
 builder.Services.AddScoped<IValidator<VerifyOtpRequest>, VerifyOtpRequestValidator>();
 builder.Services.AddScoped<IValidator<ResendOtpRequest>, ResendOtpRequestValidator>();
+builder.Services.AddScoped<IValidator<ForgotPasswordRequest>, ForgotPasswordRequestValidator>();
+builder.Services.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>();
 builder.Services.AddScoped<IValidator<ChangePasswordRequest>, ChangePasswordRequestValidator>();
 builder.Services.AddScoped<IValidator<UpdateConsumerProfileRequest>, UpdateConsumerProfileValidator>();
 builder.Services.AddScoped<IValidator<UpdateFarmerProfileRequest>, UpdateFarmerProfileValidator>();

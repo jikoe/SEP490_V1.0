@@ -4,7 +4,6 @@ using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.DTOs.Profiles;
 using AgriSustain.Application.Interfaces;
-using AgriSustain.Application.Interfaces.Identity;
 using AgriSustain.Application.Interfaces.Repositories;
 using AgriSustain.Application.Interfaces.Services;
 using AgriSustain.Domain.Entities;
@@ -20,9 +19,12 @@ internal sealed class FakeClock(DateTimeOffset now) : TimeProvider
     public void Advance(TimeSpan by) => Now += by;
 }
 
-internal sealed class FakeCurrentUser(long? userId) : ICurrentUser
+internal sealed class FakeCurrentUser(long? userId, string role = "") : ICurrentActor
 {
-    public long? UserId { get; } = userId;
+    // ICurrentActor uses 0 for an anonymous caller.
+    public long UserId { get; } = userId ?? 0;
+
+    public string Role { get; } = role;
 }
 
 internal sealed class FakeOtpGenerator(params string[] codes) : IOtpGenerator
@@ -35,10 +37,11 @@ internal sealed class FakeEmailService : IEmailService
 {
     public bool Succeeds { get; set; } = true;
     public List<(string Email, string Otp)> Sent { get; } = [];
+    public List<string> Purposes { get; } = [];
 
-    public Task<bool> SendOtpEmailAsync(string email, string otpCode, CancellationToken cancellationToken)
+    public Task<bool> SendOtpEmailAsync(string email, string otpCode, string purpose, CancellationToken cancellationToken)
     {
-        if (Succeeds) Sent.Add((email, otpCode));
+        if (Succeeds) { Sent.Add((email, otpCode)); Purposes.Add(purpose); }
         return Task.FromResult(Succeeds);
     }
 }
@@ -99,6 +102,14 @@ internal sealed class FakeProfileRepository : IProfileRepository
     public Task<UserProfileResponse?> UpdateFarmerProfileAsync(long userId, UpdateFarmerProfileRequest request, CancellationToken ct)
     {
         LastFarmerUpdate = request;
+        return GetProfileAsync(userId, ct);
+    }
+
+    public string? LastAvatarUrl { get; private set; }
+
+    public Task<UserProfileResponse?> UpdateAvatarAsync(long userId, string avatarUrl, CancellationToken ct)
+    {
+        LastAvatarUrl = avatarUrl;
         return GetProfileAsync(userId, ct);
     }
 

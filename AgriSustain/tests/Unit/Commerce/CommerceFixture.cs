@@ -77,6 +77,9 @@ internal sealed class CartDouble : ICartRepository
         Task.FromResult(Cart?.UserId == userId ? Cart : null);
     public Task<HarvestBatch?> GetOfferAsync(long productId, long batchId, CancellationToken ct) =>
         Task.FromResult(Offers.TryGetValue(batchId, out var b) && b.ProductId == productId ? b : null);
+    public Task<IReadOnlyList<HarvestBatch>> GetOffersAsync(long productId, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyList<HarvestBatch>>(
+            Offers.Values.Where(b => b.ProductId == productId).ToList());
     public void Add(Cart cart) { Adds++; cart.CartId = 601; Cart = cart; }
     public void Remove(CartItem item) { Removals++; }
 }

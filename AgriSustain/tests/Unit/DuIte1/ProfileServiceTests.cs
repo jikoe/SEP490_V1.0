@@ -184,6 +184,17 @@ public sealed class ProfileServiceTests
         Assert.Equal(403, result.StatusCode);
     }
 
+    [Fact(DisplayName = "UTC-AUTH03-B13 Invalid account / recipient phone shows MSG180")]
+    public async Task UTC_B13_InvalidPhones_Msg180()
+    {
+        var request = ConsumerRequest(phone: "abc123") with { RecipientPhone = "12345" };
+
+        var result = await Service(Consumer).UpdateConsumerProfileAsync(request, default);
+
+        Assert.Contains(SystemMessages.Msg180InvalidPhone, result.Error!.Fields!["phoneNumber"]);
+        Assert.Contains(SystemMessages.Msg180InvalidPhone, result.Error.Fields["recipientPhone"]);
+    }
+
     // ---------- UpdateFarmerProfileAsync ----------
 
     [Fact(DisplayName = "UTC017 Farmer updates farm profile")]
@@ -222,6 +233,67 @@ public sealed class ProfileServiceTests
 
         Assert.Equal(403, result.StatusCode);
         Assert.Null(_uow.ProfileRepo.LastFarmerUpdate);
+    }
+
+    [Theory(DisplayName = "UTC-AUTH03-B14 Production model must be Individual or Cooperative")]
+    [InlineData("Individual", true)]
+    [InlineData("Cooperative", true)]
+    [InlineData(null, true)]
+    [InlineData("Company", false)]
+    public async Task UTC_B14_ProductionModel(string? model, bool ok)
+    {
+        var result = await Service(Farmer).UpdateFarmerProfileAsync(
+            FarmerRequest() with { ProductionModel = model }, default);
+
+        Assert.Equal(ok, result.IsSuccess);
+        if (ok) Assert.Equal(model, _uow.ProfileRepo.LastFarmerUpdate!.ProductionModel);
+    }
+
+    [Theory(DisplayName = "UTC-AUTH03-B15 Short description up to 300 characters")]
+    [InlineData(300, true)]
+    [InlineData(301, false)]
+    public async Task UTC_B15_ShortDescriptionLength(int length, bool ok)
+    {
+        var result = await Service(Farmer).UpdateFarmerProfileAsync(
+            FarmerRequest() with { ShortDescription = new string('m', length) }, default);
+
+        Assert.Equal(ok, result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH03-B16 Gender and birth date are passed to storage")]
+    public async Task UTC_B16_GenderAndBirthDateSaved()
+    {
+        var request = ConsumerRequest() with { Gender = "Female", BirthDate = new DateOnly(2004, 2, 3) };
+
+        var result = await Service(Consumer).UpdateConsumerProfileAsync(request, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Female", _uow.ProfileRepo.LastConsumerUpdate!.Gender);
+        Assert.Equal(new DateOnly(2004, 2, 3), _uow.ProfileRepo.LastConsumerUpdate.BirthDate);
+    }
+
+    [Theory(DisplayName = "UTC-AUTH03-B17 Gender value and future birth date are validated")]
+    [InlineData("Unknown", 2004, false)]
+    [InlineData("Nam", 2004, true)]
+    [InlineData("Male", 2999, false)]
+    public async Task UTC_B17_GenderAndBirthDateRules(string gender, int year, bool ok)
+    {
+        var request = ConsumerRequest() with { Gender = gender, BirthDate = new DateOnly(year, 1, 1) };
+
+        var result = await Service(Consumer).UpdateConsumerProfileAsync(request, default);
+
+        Assert.Equal(ok, result.IsSuccess);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH03-B18 Uploaded avatar URL is saved for the signed-in user")]
+    public async Task UTC_B18_UpdateAvatar()
+    {
+        var result = await Service(Consumer).UpdateAvatarAsync("/media/10/abc.png", default);
+        var anonymous = await Service(null).UpdateAvatarAsync("/media/x.png", default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("/media/10/abc.png", _uow.ProfileRepo.LastAvatarUrl);
+        Assert.Equal(401, anonymous.StatusCode);
     }
 
     // ---------- SubmitFarmerKycAsync ----------

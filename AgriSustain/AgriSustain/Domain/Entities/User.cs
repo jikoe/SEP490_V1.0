@@ -23,6 +23,11 @@ public partial class User
 
     public string Status { get; set; } = null!;
 
+    /// <summary>'Male' | 'Female' | 'Other' (UC-AUTH-03).</summary>
+    public string? Gender { get; set; }
+
+    public DateOnly? DateOfBirth { get; set; }
+
     public bool IsEmailVerified { get; set; }
 
     public DateTime CreatedAt { get; set; }

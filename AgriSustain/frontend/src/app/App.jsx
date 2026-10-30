@@ -21,10 +21,14 @@ import CustomerPortalApp from './CustomerPortalApp';
 
 import VerificationDashboard from '../features/Verification Officer/VerificationDashboard';
 import SupportDashboard from '../features/Customer Support/SupportDashboard';
+import ComplaintResolutionScreen from '../features/Customer Support/ComplaintResolutionScreen';
 import PromotionsDashboard from '../features/Promotion Staff/PromotionsDashboard';
+import VoucherManagementScreen from '../features/Promotion Staff/VoucherManagementScreen';
 import FinanceDashboard from '../features/Finance Staff/FinanceDashboard';
+import RefundProcessingScreen from '../features/Finance Staff/RefundProcessingScreen';
 import GatewayDashboard from '../features/Payment Gateway/GatewayDashboard';
 import LoginScreen from '../features/Guest/LoginScreen';
+import ForgotPasswordScreen from '../features/Guest/ForgotPasswordScreen';
 import { clearSession, getSession, setSession } from '../session/session';
 
 export function normalizeRole(role) {
@@ -136,6 +140,7 @@ export const ROLE_CONFIGS = {
     landingRoute: '/support/dashboard',
     navItems: [
       { key: 'support-dash', label: 'Trung tâm hỗ trợ', icon: '📊', path: '/support/dashboard' },
+      { key: 'support-complaints', label: 'Xử lý khiếu nại', icon: '⚖️', path: '/support/complaints' },
     ],
   },
   promotion_staff: {
@@ -148,6 +153,7 @@ export const ROLE_CONFIGS = {
     landingRoute: '/promotions/dashboard',
     navItems: [
       { key: 'promotion-dash', label: 'Chiến dịch khuyến mại', icon: '📊', path: '/promotions/dashboard' },
+      { key: 'promotion-vouchers', label: 'Quản lý voucher', icon: '🎟️', path: '/promotions/vouchers' },
     ],
   },
   finance_staff: {
@@ -160,6 +166,7 @@ export const ROLE_CONFIGS = {
     landingRoute: '/finance/dashboard',
     navItems: [
       { key: 'finance-dash', label: 'Quản lý tài chính', icon: '📊', path: '/finance/dashboard' },
+      { key: 'finance-refunds', label: 'Xử lý hoàn tiền', icon: '🔄', path: '/finance/refunds' },
     ],
   },
   payment_gateway: {
@@ -246,7 +253,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (session && route === '/login') {
+    if (session && (route === '/login' || route.startsWith('/forgot-password'))) {
       navigate(roleConfig.landingRoute);
     }
   }, [session, route, roleConfig]);
@@ -342,6 +349,11 @@ export default function App() {
       accountLinks={roleConfig.navItems.filter((item) => !marketplacePaths.includes(item.path))} />;
   }
 
+  // UC-AUTH-07 is only for signed-out users; a signed-in session is redirected above.
+  if (!session && route.startsWith('/forgot-password')) {
+    return <ForgotPasswordScreen navigate={navigate} />;
+  }
+
   // Nếu chưa đăng nhập và không có phiên demo -> Hiển thị LoginScreen
   if (!session && !fixture && route !== '/register' && route !== '/retail/dashboard') {
     return <LoginScreen onLogin={completeLogin} onDemo={() => enterDemo('guest')} />;
@@ -365,8 +377,11 @@ export default function App() {
   else if (route.startsWith('/account/password')) currentTitle = 'Đổi mật khẩu';
   else if (route.startsWith('/verification/dashboard')) currentTitle = 'Thẩm định chất lượng';
   else if (route.startsWith('/support/dashboard')) currentTitle = 'Trung tâm khiếu nại & Tranh chấp';
+  else if (route.startsWith('/support/complaints')) currentTitle = 'Xử lý khiếu nại';
   else if (route.startsWith('/promotions/dashboard')) currentTitle = 'Chiến dịch khuyến mại';
+  else if (route.startsWith('/promotions/vouchers')) currentTitle = 'Quản lý voucher';
   else if (route.startsWith('/finance/dashboard')) currentTitle = 'Quản lý tài chính & Chi trả';
+  else if (route.startsWith('/finance/refunds')) currentTitle = 'Xử lý hoàn tiền';
   else if (route.startsWith('/gateway/dashboard')) currentTitle = 'Giám sát cổng thanh toán';
   else if (route.startsWith('/notifications/dashboard')) currentTitle = 'Dịch vụ gửi thông báo';
   else if (route.startsWith('/guest/dashboard')) currentTitle = 'Khám phá Nông Sản Việt';
@@ -532,8 +547,11 @@ export default function App() {
           {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} navigate={navigate} />}
           {route.startsWith('/verification/dashboard') && <VerificationDashboard navigate={navigate} />}
           {route.startsWith('/support/dashboard') && <SupportDashboard navigate={navigate} />}
+          {route.startsWith('/support/complaints') && <ComplaintResolutionScreen route={route} navigate={navigate} />}
           {route.startsWith('/promotions/dashboard') && <PromotionsDashboard navigate={navigate} />}
+          {route.startsWith('/promotions/vouchers') && <VoucherManagementScreen />}
           {route.startsWith('/finance/dashboard') && <FinanceDashboard navigate={navigate} />}
+          {route.startsWith('/finance/refunds') && <RefundProcessingScreen route={route} navigate={navigate} />}
           {route.startsWith('/gateway/dashboard') && <GatewayDashboard navigate={navigate} />}
           {route.startsWith('/notifications/dashboard') && <NotificationServiceDashboard navigate={navigate} />}
 
@@ -541,7 +559,7 @@ export default function App() {
           {!['/farmer/products', '/farmer/orders', '/cart', '/administration/dashboard', '/administration/users', '/administration/categories',
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
              '/retail/dashboard', '/checkout', '/verification/dashboard',
-             '/support/dashboard', '/promotions/dashboard', '/finance/dashboard',
+             '/support/dashboard', '/support/complaints', '/promotions/dashboard', '/promotions/vouchers', '/finance/dashboard', '/finance/refunds',
              '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/account/password', '/customer-portal'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <h2>Đang chuyển hướng về trang làm việc của bạn...</h2>
