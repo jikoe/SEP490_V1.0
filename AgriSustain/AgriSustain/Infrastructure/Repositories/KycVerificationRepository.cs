@@ -24,9 +24,7 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
             .Include(u => u.FarmerProfile)
                 .ThenInclude(f => f!.FarmCertificates)
             .Include(u => u.WholesaleBuyerProfile)
-            .Where(user => user.Role == "Farmer"
-                || user.Role == "WholesaleBuyer"
-                || user.Role == "RetailCustomer");
+            .Where(user => user.Role == "Farmer" || user.Role == "WholesaleBuyer");
 
         if (!string.IsNullOrWhiteSpace(search.Role))
         {
@@ -87,21 +85,15 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
             {
                 "Farmer" => farm?.VerificationStatus ?? VerificationStatuses.PendingApproval,
                 "WholesaleBuyer" => wholesale?.VerificationStatus ?? VerificationStatuses.PendingApproval,
-                _ => latestAudit is not null
-                    ? (latestAudit.Action == "ApproveKyc" ? VerificationStatuses.Approved
-                        : latestAudit.Action == "RejectKyc" ? VerificationStatuses.Rejected
-                        : VerificationStatuses.AdditionalInfoRequired)
-                    : (user.IsEmailVerified ? VerificationStatuses.Approved : VerificationStatuses.PendingApproval)
+                _ => VerificationStatuses.PendingApproval
             };
 
             string normalizedStatus = NormalizeStatusForClient(rawStatus);
 
             var accountStatus = user.Status == "Suspended" ? "Suspended"
-                : user.Role is "Farmer" or "WholesaleBuyer"
-                    ? (normalizedStatus == VerificationStatuses.Approved ? "Active"
-                        : normalizedStatus == VerificationStatuses.Rejected ? "Rejected"
-                        : "Pending")
-                    : user.Status;
+                : (normalizedStatus == VerificationStatuses.Approved ? "Active"
+                    : normalizedStatus == VerificationStatuses.Rejected ? "Rejected"
+                    : "Pending");
 
             var organizationName = farm?.FarmName ?? wholesale?.CompanyName ?? user.FullName;
             var representativeName = farm?.RepresentativeName ?? wholesale?.RepresentativeName ?? user.FullName;
@@ -180,7 +172,7 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
             .Include(u => u.WholesaleBuyerProfile)
             .SingleOrDefaultAsync(u => u.UserId == userId, cancellationToken);
 
-        if (user is null || user.Role is not ("Farmer" or "WholesaleBuyer" or "RetailCustomer"))
+        if (user is null || user.Role is not ("Farmer" or "WholesaleBuyer"))
         {
             return null;
         }
@@ -200,21 +192,15 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
         {
             "Farmer" => farm?.VerificationStatus ?? VerificationStatuses.PendingApproval,
             "WholesaleBuyer" => wholesale?.VerificationStatus ?? VerificationStatuses.PendingApproval,
-            _ => latestAudit is not null
-                ? (latestAudit.Action == "ApproveKyc" ? VerificationStatuses.Approved
-                    : latestAudit.Action == "RejectKyc" ? VerificationStatuses.Rejected
-                    : VerificationStatuses.AdditionalInfoRequired)
-                : (user.IsEmailVerified ? VerificationStatuses.Approved : VerificationStatuses.PendingApproval)
+            _ => VerificationStatuses.PendingApproval
         };
 
         string verificationStatus = NormalizeStatusForClient(rawVerificationStatus);
 
         string accountStatus = user.Status == "Suspended" ? "Suspended"
-            : user.Role is "Farmer" or "WholesaleBuyer"
-                ? (verificationStatus == VerificationStatuses.Approved ? "Active"
-                    : verificationStatus == VerificationStatuses.Rejected ? "Rejected"
-                    : "Pending")
-                : user.Status;
+            : (verificationStatus == VerificationStatuses.Approved ? "Active"
+                : verificationStatus == VerificationStatuses.Rejected ? "Rejected"
+                : "Pending");
 
         var documents = new List<KycDocumentDto>();
         if (farm is not null && farm.FarmCertificates.Count > 0)
@@ -271,23 +257,6 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
                 verificationStatus,
                 verificationStatus));
         }
-        else
-        {
-            var idNum = user.PhoneNumber ?? user.Email;
-            documents.Add(new KycDocumentDto(
-                user.UserId,
-                user.UserId,
-                "Hồ sơ định danh khách hàng cá nhân (CCCD / Hộ chiếu)",
-                "Hồ sơ định danh khách hàng cá nhân (CCCD / Hộ chiếu)",
-                idNum,
-                idNum,
-                "Khách hàng kê khai & xác thực",
-                null,
-                null,
-                null,
-                verificationStatus,
-                verificationStatus));
-        }
 
         string? address = farm?.Address
             ?? wholesale?.BusinessAddress
@@ -300,7 +269,7 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
         {
             "Farmer" => "Giấy phép ĐKKD / Mã số hộ nông dân",
             "WholesaleBuyer" => "Mã số thuế doanh nghiệp (MST)",
-            _ => "Thông tin định danh & Liên hệ cá nhân"
+            _ => "Thông tin định danh pháp lý"
         };
         string? identificationNumber = user.Role switch
         {
@@ -330,7 +299,7 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
             user.CreatedAt,
             address,
             provinceCode,
-            wholesale?.BusinessType ?? (user.Role == "Farmer" ? "Nông hộ / Trang trại sản xuất" : "Khách hàng cá nhân"),
+            wholesale?.BusinessType ?? "Nông hộ / Trang trại sản xuất",
             farm?.ProductionScale,
             farm?.CultivationZone,
             farm?.Gpscoordinates,

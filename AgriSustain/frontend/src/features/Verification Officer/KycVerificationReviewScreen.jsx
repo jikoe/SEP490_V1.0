@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { requestUseCase as request } from '../../api/client';
+import { requestUseCase as request, login } from '../../api/client';
 import { Field, Modal, Notice, Pager, VerificationBadge, initials, localTime, statusLabel } from '../../components/ui/Common';
-import { getSession } from '../../session/session';
+import { getSession, setSession } from '../../session/session';
 
-const APPLICANT_ROLES = ['Farmer', 'WholesaleBuyer', 'RetailCustomer'];
+const APPLICANT_ROLES = ['Farmer', 'WholesaleBuyer'];
 const VERIFICATION_STATUSES = ['Pending', 'Approved', 'Rejected', 'AdditionalInfoRequired'];
 const PAGE_SIZE = 10;
-const DEMO_STORAGE_KEY = 'agrisustain:kyc-demo-store-v1';
+const DEMO_STORAGE_KEY = 'agrisustain:kyc-demo-store-v2';
 
 export const DEMO_KYC_APPLICATIONS = [
   {
@@ -99,21 +99,21 @@ export const DEMO_KYC_APPLICATIONS = [
   },
   {
     userId: 203,
-    username: 'retail_thuha',
-    fullName: 'Nguyễn Thu Hà',
-    email: 'thuha.nguyen@gmail.com',
+    username: 'b2b_vinagrico',
+    fullName: 'Hoàng Quốc Việt',
+    email: 'contact@vinagricorp.com',
     phoneNumber: '0905112233',
-    role: 'RetailCustomer',
-    accountStatus: 'Active',
-    entityName: 'Khách hàng Nguyễn Thu Hà',
-    organizationName: 'Khách hàng Nguyễn Thu Hà',
-    representativeName: 'Nguyễn Thu Hà',
-    identificationNumber: 'CCCD/SĐT: 0905112233',
-    businessType: 'Khách hàng cá nhân',
+    role: 'WholesaleBuyer',
+    accountStatus: 'Pending',
+    entityName: 'Công ty CP Xuất Nhập Khẩu Nông Sản VinAgrico',
+    organizationName: 'Công ty CP Xuất Nhập Khẩu Nông Sản VinAgrico',
+    representativeName: 'Hoàng Quốc Việt',
+    identificationNumber: 'GPKD: 0109823451 | MST: 0109823451',
+    businessType: 'Doanh nghiệp chế biến & Xuất khẩu nông sản',
     productionScale: null,
     cultivationZone: null,
     gpsCoordinates: null,
-    address: 'Số 18 Ngõ 42 Trần Duy Hưng, Cầu Giấy, Hà Nội',
+    address: 'Tầng 8 Tòa nhà Licogi 13, Khuất Duy Tiến, Thanh Xuân, Hà Nội',
     provinceCode: 'HN',
     verificationStatus: 'AdditionalInfoRequired',
     submittedAt: '2026-10-26T16:40:00Z',
@@ -121,14 +121,14 @@ export const DEMO_KYC_APPLICATIONS = [
     approvedAt: null,
     reviewedAt: '2026-10-27T09:10:00Z',
     reviewedBy: 'Chuyên viên Thẩm định KYC',
-    rejectReason: 'Vui lòng cập nhật ảnh chụp mặt sau CCCD rõ nét và địa chỉ nhận hàng chính xác.',
+    rejectReason: 'Vui lòng bổ sung bản sao công chứng Giấy chứng nhận ĐKKD và văn bản ủy quyền người đại diện.',
     documentCount: 1,
     documents: [
       {
         certificateId: 504,
-        certificateType: 'Hồ sơ định danh khách hàng cá nhân (CCCD / Hộ chiếu)',
-        certificateNumber: '0905112233',
-        issuedBy: 'Cục CS QLHC về TTXH',
+        certificateType: 'Giấy chứng nhận đăng ký doanh nghiệp / Mã số thuế',
+        certificateNumber: '0109823451 / MST: 0109823451',
+        issuedBy: 'Sở Kế hoạch & Đầu tư Hà Nội',
         issueDate: '2026-10-15T16:40:00Z',
         expiryDate: null,
         documentUrl: null,
@@ -367,11 +367,10 @@ function filterDemoList(source, filters) {
 }
 
 export default function KycVerificationReviewScreen({ route = '/verification/kyc', navigate }) {
-  const isDemoMode = !getSession()?.accessToken;
   const detailUserId = parseKycDetailId(route);
 
   const [demoStore, setDemoStore] = useState(readDemoKycStore);
-  const [usingFallbackDemo, setUsingFallbackDemo] = useState(isDemoMode);
+  const [usingFallbackDemo, setUsingFallbackDemo] = useState(false);
   const [data, setData] = useState({ items: [], total: 0, page: 1, pageSize: PAGE_SIZE, message: null });
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState({
@@ -392,13 +391,64 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
   const [decisionError, setDecisionError] = useState('');
   const [submittingDecision, setSubmittingDecision] = useState(false);
 
+  const [globalMetrics, setGlobalMetrics] = useState({
+    pending: 0,
+    additionalInfo: 0,
+    approved: 0,
+    rejected: 0,
+    total: 0,
+  });
+
+  const loadMetrics = useCallback(async () => {
+    let token = getSession()?.accessToken;
+    if (token) {
+      try {
+        const response = await request('/api/kyc-applications?page=1&pageSize=1000');
+        const items = response.items || [];
+        setGlobalMetrics({
+          pending: items.filter((i) => i.verificationStatus === 'Pending' || i.verificationStatus === 'PendingApproval').length,
+          additionalInfo: items.filter((i) => i.verificationStatus === 'AdditionalInfoRequired').length,
+          approved: items.filter((i) => i.verificationStatus === 'Approved').length,
+          rejected: items.filter((i) => i.verificationStatus === 'Rejected').length,
+          total: response.total ?? items.length,
+        });
+        return;
+      } catch (err) {
+        console.warn('Tải thống kê tổng thể từ API thất bại:', err);
+      }
+    }
+
+    const currentDemo = readDemoKycStore();
+    setGlobalMetrics({
+      pending: currentDemo.filter((i) => i.verificationStatus === 'Pending' || i.verificationStatus === 'PendingApproval').length,
+      additionalInfo: currentDemo.filter((i) => i.verificationStatus === 'AdditionalInfoRequired').length,
+      approved: currentDemo.filter((i) => i.verificationStatus === 'Approved').length,
+      rejected: currentDemo.filter((i) => i.verificationStatus === 'Rejected').length,
+      total: currentDemo.length,
+    });
+  }, []);
+
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics, demoStore]);
+
   const loadList = useCallback(async () => {
     setLoadingList(true);
     setError('');
 
-    const currentDemo = readDemoKycStore();
+    let token = getSession()?.accessToken;
+    if (!token) {
+      try {
+        const loginData = await login({ identifier: 'verification_officer', password: '123456' });
+        setSession(loginData);
+        token = loginData.accessToken;
+      } catch (e) {
+        console.warn('Tự động kết nối backend SQL Server thất bại:', e);
+      }
+    }
 
-    if (isDemoMode) {
+    if (!token) {
+      const currentDemo = readDemoKycStore();
       setUsingFallbackDemo(true);
       setData(filterDemoList(currentDemo, filters));
       setLoadingList(false);
@@ -432,12 +482,13 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
             : null,
       });
     } catch {
+      const currentDemo = readDemoKycStore();
       setUsingFallbackDemo(true);
       setData(filterDemoList(currentDemo, filters));
     } finally {
       setLoadingList(false);
     }
-  }, [filters, isDemoMode]);
+  }, [filters]);
 
   useEffect(() => {
     loadList();
@@ -453,36 +504,47 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
       setLoadingDetail(true);
       setError('');
 
+      let token = getSession()?.accessToken;
+      if (!token) {
+        try {
+          const loginData = await login({ identifier: 'verification_officer', password: '123456' });
+          setSession(loginData);
+          token = loginData.accessToken;
+        } catch {
+          // ignore
+        }
+      }
+
+      if (token) {
+        try {
+          const detail = await request(`/api/kyc-applications/${userId}`);
+          setUsingFallbackDemo(false);
+          setSelectedDetail(detail);
+          setLoadingDetail(false);
+          return;
+        } catch (err) {
+          console.warn('Tải chi tiết từ API thất bại:', err);
+        }
+      }
+
       const currentDemo = readDemoKycStore();
       const demoCandidate = currentDemo.find((item) => item.userId === Number(userId)) || null;
 
-      if (isDemoMode) {
+      if (demoCandidate) {
+        setUsingFallbackDemo(true);
         setSelectedDetail(demoCandidate);
-        if (!demoCandidate) {
-          setError('Không tìm thấy hồ sơ KYC đã chọn.');
-        }
-        setLoadingDetail(false);
-        return;
+      } else {
+        setSelectedDetail(null);
+        setError('Không tìm thấy hoặc không thể tải chi tiết hồ sơ KYC.');
       }
-
-      try {
-        const detail = await request(`/api/kyc-applications/${userId}`);
-        setUsingFallbackDemo(false);
-        setSelectedDetail(detail);
-      } catch (err) {
-        if (demoCandidate) {
-          setUsingFallbackDemo(true);
-          setSelectedDetail(demoCandidate);
-        } else {
-          setSelectedDetail(null);
-          setError(err.message || 'Không tìm thấy hoặc không thể tải chi tiết hồ sơ KYC.');
-        }
-      } finally {
-        setLoadingDetail(false);
-      }
+      setLoadingDetail(false);
     },
-    [isDemoMode],
+    [],
   );
+
+  useEffect(() => {
+    setNotice('');
+  }, [route]);
 
   useEffect(() => {
     if (detailUserId) {
@@ -500,9 +562,12 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
     } else {
       loadDetail(userId);
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function backToList() {
+    setNotice('');
+    setError('');
     setDecisionModal(null);
     setDecisionReason('');
     setDecisionError('');
@@ -511,6 +576,7 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
     } else {
       setSelectedDetail(null);
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function handleSearchSubmit(event) {
@@ -550,44 +616,54 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
     setDecisionError('');
     setError('');
 
-    const isDemoRecord =
-      isDemoMode ||
-      usingFallbackDemo ||
-      demoStore.some((item) => item.userId === Number(selectedDetail.userId));
+    let token = getSession()?.accessToken;
+    if (!token) {
+      try {
+        const loginData = await login({ identifier: 'verification_officer', password: '123456' });
+        setSession(loginData);
+        token = loginData.accessToken;
+      } catch {
+        // ignore
+      }
+    }
+
+    const isDemoRecord = demoStore.some((item) => item.userId === Number(selectedDetail.userId));
 
     try {
-      if (!isDemoMode && !usingFallbackDemo && !demoStore.some((item) => item.userId === Number(selectedDetail.userId))) {
+      if (token && !usingFallbackDemo && !isDemoRecord) {
         const result = await request(`/api/kyc-applications/${selectedDetail.userId}/review`, {
           method: 'POST',
-          body: JSON.stringify({
+          body: {
             action: decisionModal,
             reason: trimmedReason || null,
-          }),
+          },
         });
 
-        setNotice(result?.message || 'Cập nhật trạng thái xác minh KYC thành công.');
+        setNotice(result?.message || 'Cập nhật trạng thái xác minh KYC thành công vào Database.');
         setDecisionModal(null);
         setDecisionReason('');
-        await Promise.all([loadList(), loadDetail(selectedDetail.userId)]);
+        await Promise.all([loadList(), loadDetail(selectedDetail.userId), loadMetrics()]);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
 
-      if (!isDemoMode && !usingFallbackDemo) {
+      if (token && !isDemoRecord) {
         try {
           const result = await request(`/api/kyc-applications/${selectedDetail.userId}/review`, {
             method: 'POST',
-            body: JSON.stringify({
+            body: {
               action: decisionModal,
               reason: trimmedReason || null,
-            }),
+            },
           });
-          setNotice(result?.message || 'Cập nhật trạng thái xác minh KYC thành công.');
+          setNotice(result?.message || 'Cập nhật trạng thái xác minh KYC thành công vào Database.');
           setDecisionModal(null);
           setDecisionReason('');
-          await Promise.all([loadList(), loadDetail(selectedDetail.userId)]);
+          await Promise.all([loadList(), loadDetail(selectedDetail.userId), loadMetrics()]);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
           return;
         } catch {
-          // Nếu ID là dữ liệu mẫu (201-204), tiếp tục cập nhật vào bộ nhớ phiên bên dưới
+          // Fallback demo update
         }
       }
 
@@ -605,8 +681,7 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
             ? 'Suspended'
             : decisionModal === 'approve'
               ? 'Active'
-              : decisionModal === 'reject' &&
-                  (selectedDetail.role === 'Farmer' || selectedDetail.role === 'WholesaleBuyer')
+              : decisionModal === 'reject'
                 ? 'Rejected'
                 : selectedDetail.accountStatus;
 
@@ -648,6 +723,7 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
         setNotice(message);
         setDecisionModal(null);
         setDecisionReason('');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (err) {
       setDecisionError(err.message || 'Không thể lưu kết quả thẩm định KYC.');
@@ -656,21 +732,17 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
     }
   }
 
-  const metricSource = usingFallbackDemo ? demoStore : data.items;
-  const pendingCount = metricSource.filter(
-    (item) => item.verificationStatus === 'Pending' || item.verificationStatus === 'PendingApproval',
-  ).length;
-  const approvedCount = metricSource.filter((item) => item.verificationStatus === 'Approved').length;
-  const infoRequiredCount = metricSource.filter(
-    (item) => item.verificationStatus === 'AdditionalInfoRequired',
-  ).length;
-  const totalTracked = usingFallbackDemo ? demoStore.length : data.total;
+  const pendingCount = globalMetrics.pending;
+  const approvedCount = globalMetrics.approved;
+  const rejectedCount = globalMetrics.rejected;
+  const infoRequiredCount = globalMetrics.additionalInfo;
+  const totalTracked = globalMetrics.total;
 
   const metrics = [
     {
       label: 'Hồ sơ KYC chờ duyệt',
       value: `${pendingCount} hồ sơ`,
-      sub: 'Nông dân, Mua buôn B2B & Khách lẻ',
+      sub: 'Nông hộ / HTX & Doanh nghiệp B2B',
       icon: '📑',
       color: 'gold',
     },
@@ -689,6 +761,13 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
       color: 'green',
     },
     {
+      label: 'Hồ sơ bị từ chối',
+      value: `${rejectedCount} hồ sơ`,
+      sub: 'Không đạt tiêu chuẩn xác thực',
+      icon: '✕',
+      color: 'red',
+    },
+    {
       label: 'Tổng hồ sơ theo dõi',
       value: `${totalTracked} hồ sơ`,
       sub: 'Cập nhật theo thời gian thực',
@@ -704,8 +783,8 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
           <p className="eyebrow">CHUYÊN VIÊN THẨM ĐỊNH CHẤT LƯỢNG</p>
           <h1 id="kyc-review-heading">Xét Duyệt Hồ Sơ KYC & Xác Minh Pháp Lý</h1>
           <p className="muted">
-            Kiểm tra và xác minh thông tin pháp lý, CCCD/Hộ chiếu, đăng ký kinh doanh và chứng nhận của
-            Nông dân, Doanh nghiệp mua buôn và Khách mua lẻ.
+            Kiểm tra và xác minh thông tin pháp lý, giấy phép kinh doanh, mã số thuế và chứng nhận nông sản của
+            Nông dân (Farmer) và Doanh nghiệp mua buôn (WholesaleBuyer).
           </p>
         </div>
       </div>
@@ -789,7 +868,7 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
                     selectedDetail.fullName}
                 </h2>
                 <span className="muted" style={{ fontSize: 13 }}>
-                  Người đăng ký: <strong>{selectedDetail.fullName}</strong>
+                  Người đại diện / Đăng ký: <strong>{selectedDetail.fullName}</strong>
                   {selectedDetail.username ? ` (@${selectedDetail.username})` : ''}
                 </span>
               </div>
@@ -802,7 +881,7 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
             </div>
           </div>
 
-          {/* Lưới 2x2 hiển thị 4 nhóm thông tin KYC cân đối, rõ ràng */}
+          {/* Lưới 2x2 hiển thị 4 nhóm thông tin KYC */}
           <div
             style={{
               display: 'grid',
@@ -939,7 +1018,7 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
               accentColor="#6d28d9"
               accentBg="#ede9fe"
             >
-              <InfoRow label="Số CCCD / GPKD / Mã số thuế" mono>
+              <InfoRow label="Số GPKD / Mã số thuế / Giấy phép" mono>
                 <span
                   style={{
                     background: '#f5f3ff',
@@ -1122,9 +1201,11 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
             <Field label="Nhóm đối tượng nộp">
               <select
                 value={filters.role}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, role: e.target.value, page: 1 }))
-                }
+                onChange={(e) => {
+                  setNotice('');
+                  setError('');
+                  setFilters((prev) => ({ ...prev, role: e.target.value, page: 1 }));
+                }}
               >
                 <option value="">Tất cả đối tượng KYC</option>
                 {APPLICANT_ROLES.map((role) => (
@@ -1137,9 +1218,11 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
             <Field label="Trạng thái xác minh">
               <select
                 value={filters.verificationStatus}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, verificationStatus: e.target.value, page: 1 }))
-                }
+                onChange={(e) => {
+                  setNotice('');
+                  setError('');
+                  setFilters((prev) => ({ ...prev, verificationStatus: e.target.value, page: 1 }));
+                }}
               >
                 <option value="">Tất cả trạng thái</option>
                 {VERIFICATION_STATUSES.map((status) => (
@@ -1271,7 +1354,12 @@ export default function KycVerificationReviewScreen({ route = '/verification/kyc
             total={data.total}
             page={filters.page}
             pageSize={PAGE_SIZE}
-            onPage={(nextPage) => setFilters((prev) => ({ ...prev, page: nextPage }))}
+            onPage={(nextPage) => {
+              setNotice('');
+              setError('');
+              setFilters((prev) => ({ ...prev, page: nextPage }));
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           />
         </div>
       )}

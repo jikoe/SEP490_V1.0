@@ -113,7 +113,7 @@ public sealed class KycVerificationService(
         }
 
         var user = await repository.GetUserForKycReviewAsync(userId, cancellationToken);
-        if (user is null || user.Role is not ("Farmer" or "WholesaleBuyer" or "RetailCustomer"))
+        if (user is null || user.Role is not ("Farmer" or "WholesaleBuyer"))
         {
             return Missing<KycReviewResultDto>();
         }
@@ -149,9 +149,7 @@ public sealed class KycVerificationService(
             user.WholesaleBuyerProfile.RejectReason = action == "approve" ? null : reason;
         }
 
-        // Normal Flow Step 9 & AF3: First approval moves a Pending Farmer/WholesaleBuyer account to Active.
-        // Existing administrative suspensions (user.Status == "Suspended") are NOT lifted by KYC approval.
-        if (user.Role is "Farmer" or "WholesaleBuyer" && user.Status != "Suspended")
+        if (user.Status != "Suspended")
         {
             if (action == "approve" && user.Status == "Pending")
             {
@@ -251,7 +249,7 @@ public sealed class KycVerificationService(
             return user.WholesaleBuyerProfile.VerificationStatus;
         }
 
-        return user.IsEmailVerified ? VerificationStatuses.Approved : VerificationStatuses.PendingApproval;
+        return VerificationStatuses.PendingApproval;
     }
 
     private static string ComputeEffectiveAccountStatus(User user, string verificationStatus)
@@ -261,17 +259,12 @@ public sealed class KycVerificationService(
             return "Suspended";
         }
 
-        if (user.Role is "Farmer" or "WholesaleBuyer")
+        return verificationStatus switch
         {
-            return verificationStatus switch
-            {
-                VerificationStatuses.Approved => "Active",
-                VerificationStatuses.Rejected => "Rejected",
-                _ => "Pending"
-            };
-        }
-
-        return user.Status;
+            VerificationStatuses.Approved => "Active",
+            VerificationStatuses.Rejected => "Rejected",
+            _ => "Pending"
+        };
     }
 
     private static UseCaseResult<T> Denied<T>() => UseCaseResult<T>.Failure(

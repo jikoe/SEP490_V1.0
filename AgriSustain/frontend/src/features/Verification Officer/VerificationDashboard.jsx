@@ -44,7 +44,7 @@ export default function VerificationDashboard({ navigate }) {
     {
       label: 'Hồ sơ KYC chờ duyệt',
       value: `${pendingCount} hồ sơ`,
-      sub: 'Farmer, WholesaleBuyer & RetailCustomer',
+      sub: 'Nông dân & Người mua B2B',
       icon: '📑',
       color: 'gold',
     },

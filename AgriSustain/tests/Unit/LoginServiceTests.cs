@@ -43,10 +43,10 @@ public sealed class LoginServiceTests
         var token = new JsonWebTokenHandler().ReadJsonWebToken(response.AccessToken);
         Assert.Equal(Now.UtcDateTime, token.ValidFrom);
         Assert.Equal(Now.AddHours(1).UtcDateTime, token.ValidTo);
-        Assert.Contains(token.Claims, claim => claim.Type == "nameid" && claim.Value == user.UserId.ToString());
-        Assert.Contains(token.Claims, claim => claim.Type == "unique_name" && claim.Value == user.Username);
-        Assert.Contains(token.Claims, claim => claim.Type == "email" && claim.Value == user.Email);
-        Assert.Contains(token.Claims, claim => claim.Type == "role" && claim.Value == user.Role);
+        Assert.Contains(token.Claims, claim => (claim.Type == "nameid" || claim.Type == ClaimTypes.NameIdentifier) && claim.Value == user.UserId.ToString());
+        Assert.Contains(token.Claims, claim => (claim.Type == "unique_name" || claim.Type == ClaimTypes.Name) && claim.Value == user.Username);
+        Assert.Contains(token.Claims, claim => (claim.Type == "email" || claim.Type == ClaimTypes.Email) && claim.Value == user.Email);
+        Assert.Contains(token.Claims, claim => (claim.Type == "role" || claim.Type == ClaimTypes.Role) && claim.Value == user.Role);
     }
 
     [Fact]
@@ -262,6 +262,10 @@ public sealed class LoginServiceTests
             LastIdentifier = identifier;
             return Task.FromResult(user);
         }
+
+        public void AddAudit(AuditLog audit) { }
+
+        public Task<User?> FindByEmailAsync(string email, CancellationToken cancellationToken) => Task.FromResult(user?.Email == email ? user : null);
 
         public Task SaveChangesAsync(CancellationToken cancellationToken)
         {

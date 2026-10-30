@@ -45,7 +45,8 @@ export async function logout() {
 /** Sends a request to the same-origin API with the session token, if any. */
 async function send(path, { signal, method = 'GET', body } = {}) {
   const session = getSession();
-  const response = await fetch(backendUrl(`/api${path}`), {
+  const cleanPath = path.startsWith('/api') ? path : `/api${path.startsWith('/') ? path : `/${path}`}`;
+  const response = await fetch(backendUrl(cleanPath), {
     method,
     signal,
     headers: {
@@ -53,7 +54,7 @@ async function send(path, { signal, method = 'GET', body } = {}) {
       // Uploads let the browser set the multipart boundary.
       ...(body === undefined || body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     },
-    body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
+    body: body === undefined ? undefined : (body instanceof FormData || typeof body === 'string') ? body : JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));
   return { response, data };

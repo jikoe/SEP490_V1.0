@@ -1,6 +1,6 @@
 import '../styles/customer-portal.css';
 import React, { useEffect, useRef, useState } from 'react';
-import { backendUrl, logout as logoutSession } from '../api/client';
+import { backendUrl, login, logout as logoutSession } from '../api/client';
 import { Notice } from '../components/ui/Common';
 import UsersScreen from '../features/Administrator/UsersScreen';
 import CategoriesScreen from '../features/Administrator/CategoriesScreen';
@@ -281,7 +281,28 @@ export default function App() {
     else if (route === '/cart/checkout') navigate('/checkout');
   }, [route]);
 
-  function enterDemo(roleKeyName = 'administrator') {
+const DEMO_CREDENTIALS = {
+  administrator: { identifier: 'admin', password: '123456' },
+  content_moderator: { identifier: 'moderator', password: '123456' },
+  farmer: { identifier: 'farmer1', password: '123456' },
+  wholesale_buyer: { identifier: 'wholesale1', password: '123456' },
+  verification_officer: { identifier: 'verification_officer', password: '123456' },
+  customer_support: { identifier: 'support_staff', password: '123456' },
+  promotion_staff: { identifier: 'promotion_staff', password: '123456' },
+  finance_staff: { identifier: 'finance_staff', password: '123456' },
+};
+
+  async function enterDemo(roleKeyName = 'administrator') {
+    const creds = DEMO_CREDENTIALS[roleKeyName];
+    if (creds) {
+      try {
+        const loginData = await login(creds);
+        completeLogin(loginData);
+        return;
+      } catch (err) {
+        console.warn('Tự động đăng nhập tài khoản DB cho vai trò này thất bại, chuyển về fixture:', err);
+      }
+    }
     clearSession();
     setCurrentSession(null);
     setFixture(roleKeyName);
