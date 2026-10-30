@@ -10,6 +10,7 @@ public sealed class ActiveFeatureAccountMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext context, AgriSustainContext database)
     {
         bool feature = context.Request.Path.StartsWithSegments("/api/farmer")
+            || context.Request.Path.StartsWithSegments("/api/finance")
             || context.Request.Path.StartsWithSegments("/api/cart")
             || context.Request.Path.StartsWithSegments("/api/files")
             || context.Request.Path.StartsWithSegments("/api/profile")

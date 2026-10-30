@@ -43,12 +43,18 @@ public sealed class FeatureExceptionMiddleware(RequestDelegate next,
                         ? "Không thể tải thông tin đơn hàng. Vui lòng thử lại."
                         : "Không thể gửi yêu cầu. Vui lòng thử lại sau."
                 : null;
+            string? financeMessage = context.Request.Path.StartsWithSegments("/api/finance")
+                ? conflict ? "Dữ liệu tài chính đã thay đổi. Vui lòng tải lại trước khi thử lại."
+                    : HttpMethods.IsGet(context.Request.Method)
+                        ? "Không thể tải dữ liệu tài chính. Vui lòng thử lại."
+                        : "Không thể lưu kết quả đối soát. Vui lòng tải lại trước khi thử lại."
+                : null;
             logger.LogError(exception, "Request failed: {TraceId}", context.TraceIdentifier);
             context.Response.StatusCode = conflict ? 409 : 500;
             await context.Response.WriteAsJsonAsync(new ProblemDetails
             {
                 Status = context.Response.StatusCode,
-                Title = productMessage ?? cartMessage ?? orderMessage ?? (context.Request.Path.StartsWithSegments("/api/farmer/orders")
+                Title = productMessage ?? cartMessage ?? orderMessage ?? financeMessage ?? (context.Request.Path.StartsWithSegments("/api/farmer/orders")
                     || context.Request.Path.StartsWithSegments("/api/files/evidence")
                     ? conflict ? "Yêu cầu xung đột với dữ liệu hiện tại hoặc đã được xử lý. Vui lòng tải lại; không thực hiện thao tác trùng lặp."
                         : HttpMethods.IsGet(context.Request.Method)
