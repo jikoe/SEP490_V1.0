@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { request, queryString } from '../../api/client';
 import { money, localTime, Notice, Modal, Pager } from '../../components/ui/Common';
+import OrderFeedbackScreen from './OrderFeedbackScreen';
 
 /**
  * UC-RC-04: Track Retail Order (SCR-12 Order History, SCR-16 Order Detail).
@@ -62,6 +63,7 @@ export default function OrderTrackingScreen({ navigate }) {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [batch, setBatch] = useState(null);
+  const [feedback, setFeedback] = useState(null);
 
   // Order history: every filter change is a new server query (SRS UC-RC-04 AF Step 3).
   useEffect(() => {
@@ -110,6 +112,15 @@ export default function OrderTrackingScreen({ navigate }) {
 
   const actions = detail?.allowedActions || [];
   const hasFilter = tab !== 'All' || keyword.trim() !== '';
+
+  if (feedback) {
+    return <OrderFeedbackScreen key={`${feedback.orderId}-${feedback.mode}`}
+      orderId={feedback.orderId} mode={feedback.mode} navigate={navigate} onBack={() => {
+        const orderId = feedback.orderId;
+        setFeedback(null);
+        openDetail(orderId);
+      }} />;
+  }
 
   return (
     <div style={{ maxWidth: 1120, margin: '0 auto' }}>
@@ -215,7 +226,7 @@ export default function OrderTrackingScreen({ navigate }) {
                     {order.orderStatus === 'Completed'
                       && order.sellerOrders.some((so) => so.items.some((item) => !item.isReviewed)) && (
                       <button type="button" className="primary" style={{ background: '#1e6546' }}
-                        onClick={() => setNotice('Chức năng đánh giá sản phẩm (UC-RC-05) thuộc Iteration 2.')}>
+                        onClick={() => setFeedback({ orderId: order.orderId, mode: 'review' })}>
                         ⭐ Đánh giá
                       </button>
                     )}
@@ -274,7 +285,14 @@ export default function OrderTrackingScreen({ navigate }) {
                   <tbody>
                     {so.items.map((item) => (
                       <tr key={item.orderItemId}>
-                        <td>{item.productName}</td>
+                        <td>
+                          {item.productName}
+                          {item.isReviewed && (
+                            <div style={{ color: '#1e6546', fontSize: 12, marginTop: 4 }}>
+                              ✓ Đã đánh giá
+                            </div>
+                          )}
+                        </td>
                         <td>
                           {item.batches.length === 0 ? '—' : item.batches.map((b) => (
                             <button key={b.batchCode} type="button" className="text-button" onClick={() => setBatch({ ...b, productName: item.productName, farmName: so.farmName })}>
@@ -314,30 +332,33 @@ export default function OrderTrackingScreen({ navigate }) {
             </section>
           )}
 
-          {/* MSG181: the complaint button is hidden for orders that are not completed or outside 48 hours. */}
           {!actions.includes('SubmitComplaint') && (
             <p className="muted" role="note" style={{ fontSize: 12, margin: '0 0 12px' }}>
-              ℹ️ Chỉ có thể gửi khiếu nại cho đơn hàng đã hoàn thành trong vòng 48 giờ kể từ khi giao.
+              ℹ️ Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao, trong vòng 48 giờ kể từ khi giao.
             </p>
           )}
 
           <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', gap: 8 }}>
               {actions.includes('PayNow') && (
-                <button type="button" className="primary" onClick={() => setNotice('Màn hình thanh toán QR (UC-RC-03) sẽ được tích hợp ở iteration sau.')}>
+                <button type="button" className="primary" onClick={() => setNotice('Thanh toán cho đơn hàng này chưa được tích hợp.')}>
                   Thanh toán ngay
                 </button>
               )}
-              {actions.includes('Review') && (
-                <button type="button" onClick={() => setNotice('Chức năng đánh giá sản phẩm (UC-RC-05) thuộc Iteration 2.')}>
-                  ⭐ Đánh giá
+              {(actions.includes('Review') || actions.includes('EditReview')) && (
+                <button type="button" onClick={() => {
+                  setFeedback({ orderId: detail.orderId, mode: 'review' }); setDetail(null);
+                }}>
+                  ⭐ {actions.includes('EditReview')
+                    ? actions.includes('Review') ? 'Đánh giá / Sửa đánh giá' : 'Sửa đánh giá'
+                    : 'Đánh giá'}
                 </button>
               )}
-              {actions.includes('SubmitComplaint') && (
-                <button type="button" style={{ color: '#b23b3b' }} onClick={() => setNotice('Chức năng khiếu nại đơn hàng (UC-RC-06) thuộc Iteration 2.')}>
-                  Gửi khiếu nại
-                </button>
-              )}
+              <button type="button" style={{ color: '#b23b3b' }} onClick={() => {
+                setFeedback({ orderId: detail.orderId, mode: 'complaint' }); setDetail(null);
+              }}>
+                Gửi khiếu nại
+              </button>
             </div>
             <button type="button" className="primary" style={{ background: '#1e6546' }} onClick={() => setDetail(null)}>
               ← Quay lại danh sách
