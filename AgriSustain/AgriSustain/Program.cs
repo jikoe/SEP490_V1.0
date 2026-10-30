@@ -120,8 +120,24 @@ builder.Services.AddScoped<OrderFulfillmentService>();
 builder.Services.AddValidatorsFromAssemblyContaining<ProductRequestValidator>();
 
 // DuND Application Services
-// Development adapter: OTP is written to the server log. Swap for a Gmail adapter in production.
-builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.LoggingEmailService>();
+// API-02 Gmail Notification Service: real Gmail SMTP by default; Gmail__Provider=Log keeps the
+// local adapter that writes the OTP to the server log.
+builder.Services.AddOptions<AgriSustain.Infrastructure.Email.GmailOptions>()
+    .Bind(builder.Configuration.GetSection(AgriSustain.Infrastructure.Email.GmailOptions.SectionName))
+    .Validate(options => !options.UsesGmail
+            || (!string.IsNullOrWhiteSpace(options.SenderAddress)
+                && !string.IsNullOrWhiteSpace(options.AppPassword)),
+        "Gmail__SenderAddress and Gmail__AppPassword must be set in .env (or set Gmail__Provider=Log).")
+    .ValidateOnStart();
+if (builder.Configuration.GetValue("Gmail:Provider", "Gmail")!
+    .Equals("Log", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.LoggingEmailService>();
+}
+else
+{
+    builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.GmailEmailService>();
+}
 builder.Services.AddSingleton<IOtpGenerator, RandomOtpGenerator>();
 builder.Services.AddSingleton<IOtpChallengeStore,
     AgriSustain.Infrastructure.Data.InMemoryStore.InMemoryOtpChallengeStore>();

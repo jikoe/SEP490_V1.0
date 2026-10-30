@@ -9,7 +9,7 @@ namespace AgriSustain.Application.Services.Complaints;
 
 /// <summary>
 /// UC-CS-01 Resolve Complaint (SRS UC-ADM-06). A refund decision creates a manual refund request
-/// for Finance (UC-FIN-03) and moves the order to RefundPending; a rejection keeps the order as it
+/// for Finance (UC-FIN-03) and moves the seller order to RefundPending; a rejection keeps it as it
 /// is. Stock is never restored here: returned goods are restocked only after inspection.
 /// </summary>
 public sealed class ComplaintResolutionService(
@@ -19,7 +19,7 @@ public sealed class ComplaintResolutionService(
     IValidator<RequestComplaintInfoRequest> requestInfoValidator,
     TimeProvider timeProvider) : IComplaintResolutionService, IComplaintEvidenceTimeoutProcessor
 {
-    public const string RefundPendingStatus = "RefundPending";
+    public const string RefundPendingStatus = SellerOrder.StatusRefundPending;
     public static readonly TimeSpan EvidenceResponseWindow = TimeSpan.FromHours(48);
     private const int MaximumPageSize = 100;
     private static readonly string[] s_financeRoles = ["FinanceStaff", "Finance Staff"];
@@ -36,7 +36,7 @@ public sealed class ComplaintResolutionService(
             Page = Math.Max(query.Page, 1),
             PageSize = Math.Clamp(query.PageSize, 1, MaximumPageSize)
         };
-        var (total, items) = await repository.SearchAsync(normalized, cancellationToken);
+        var (total, items) = await repository.SearchAsync(normalized, Now(), cancellationToken);
         var reasons = await repository.GetReasonsAsync(cancellationToken);
         return Result<ComplaintListDto>.SuccessResult(new ComplaintListDto(
             items, total, normalized.Page, normalized.PageSize, reasons));
@@ -52,10 +52,13 @@ public sealed class ComplaintResolutionService(
             return Result<ComplaintDetailDto>.FailureResult(s_notFound);
         }
 
-        decimal paidForOrder = decimal.Min(detail.OrderFinalAmount ?? 0, detail.PaidAmount);
+        // BR-CS-04: at most what is still refundable for this seller order, and never more than
+        // what remains on the captured payment.
+        decimal sellerOrderRemaining = (detail.SellerOrderAmount ?? 0) - detail.SellerOrderReservedRefundAmount;
+        decimal paymentRemaining = detail.PaidAmount - detail.ReservedRefundAmount;
         return Result<ComplaintDetailDto>.SuccessResult(detail with
         {
-            MaxRefundAmount = decimal.Max(0, paidForOrder - detail.ReservedRefundAmount)
+            MaxRefundAmount = decimal.Max(0, decimal.Min(sellerOrderRemaining, paymentRemaining))
         });
     }
 
@@ -274,7 +277,7 @@ public sealed class ComplaintResolutionService(
         AddAudit(ticket, auditAction, previousStatus, new
         {
             ticket.TicketStatus, request.Resolution, request.FaultParty,
-            RefundAmount = refund?.Amount, refund?.RefundCode
+            RefundAmount = refund?.Amount, refund?.RefundCode, RefundItems = request.Items
         }, reason, auditUserId, now);
         return Result<RefundTransaction?>.SuccessResult(refund);
     }
@@ -319,29 +322,44 @@ public sealed class ComplaintResolutionService(
             .Where(candidate => candidate.IsCaptured)
             .OrderByDescending(candidate => candidate.RefundableAmount)
             .FirstOrDefault();
-        // The cap is what the buyer actually paid for the order (after vouchers and points,
-        // including delivery), less refunds already requested or made for it.
-        decimal reserved = order.PaymentTransactions.Where(candidate => candidate.IsCaptured)
-            .Sum(candidate => candidate.ReservedRefundAmount);
+        // BR-CS-04: the cap is what the buyer paid for this seller order (after its share of
+        // vouchers and points, including its delivery fee), less refunds already requested or
+        // made for it, and never more than what remains on the captured payment.
         decimal limit = payment is null ? 0 : decimal.Min(
-            decimal.Max(0, order.FinalAmount - reserved), payment.RefundableAmount);
+            decimal.Max(0, sellerOrder.FinalAmount - sellerOrder.ReservedRefundAmount),
+            payment.RefundableAmount);
         if (payment is null || limit <= 0)
         {
+            // MSG-CS-06
             return Result<RefundTransaction>.FailureResult(new Error("NO_REFUNDABLE_PAYMENT",
-                "Đơn hàng chưa có khoản thanh toán thành công còn có thể hoàn. "
+                "Đơn hàng của người bán này không còn khoản thanh toán thành công nào có thể hoàn. "
                     + "Không thể tạo yêu cầu hoàn tiền.", "Conflict"));
         }
 
-        // Full refund returns everything still refundable on the order.
-        decimal amount = request.Resolution == ComplaintResolutions.FullRefund
-            ? limit
-            : request.RefundAmount!.Value;
+        decimal amount;
+        if (request.Resolution == ComplaintResolutions.FullRefund)
+        {
+            // Full refund returns everything still refundable on the seller order.
+            amount = limit;
+        }
+        else
+        {
+            var calculated = PartialRefundAmount(sellerOrder, request.Items!);
+            if (!calculated.IsSuccess)
+            {
+                return Result<RefundTransaction>.FailureResult(calculated.Error!);
+            }
+
+            amount = calculated.Value;
+        }
+
         if (amount > limit)
         {
-            string message = $"Số tiền hoàn không được vượt quá {limit:N0} ₫ (số tiền người mua đã "
-                + "thanh toán cho đơn, trừ các khoản đã hoàn).";
+            // MSG-CS-04
+            string message = $"Số tiền hoàn {amount:N0} ₫ vượt quá số tiền còn có thể hoàn cho đơn "
+                + $"của người bán này ({limit:N0} ₫).";
             return Result<RefundTransaction>.FailureResult(new Error("REFUND_AMOUNT_EXCEEDED", message,
-                Fields: new Dictionary<string, string[]> { ["refundAmount"] = [message] }));
+                Fields: new Dictionary<string, string[]> { ["items"] = [message] }));
         }
 
         var refund = new RefundTransaction
@@ -360,12 +378,47 @@ public sealed class ComplaintResolutionService(
         return Result<RefundTransaction>.SuccessResult(refund);
     }
 
+    /// <summary>
+    /// BR-CS-03: the refund is the paid value of the selected quantities; each line must belong to
+    /// the seller order and no quantity may exceed what was delivered.
+    /// </summary>
+    private static Result<decimal> PartialRefundAmount(SellerOrder sellerOrder,
+        IReadOnlyList<RefundItemRequest> items)
+    {
+        decimal amount = 0;
+        foreach (var selected in items)
+        {
+            var item = sellerOrder.OrderItems.SingleOrDefault(line => line.OrderItemId == selected.OrderItemId);
+            if (item is null || selected.Quantity > item.Quantity)
+            {
+                // MSG-CS-04
+                string message = item is null
+                    ? "Sản phẩm được chọn không thuộc đơn hàng của người bán này."
+                    : $"Số lượng hoàn của {item.ProductNameSnapshot} không được vượt quá "
+                        + $"{item.Quantity:0.###} {item.UnitSnapshot} đã giao.";
+                return Result<decimal>.FailureResult(new Error("REFUND_ITEMS_INVALID", message,
+                    Fields: new Dictionary<string, string[]> { ["items"] = [message] }));
+            }
+
+            amount += sellerOrder.RefundValueOf(item, selected.Quantity);
+        }
+
+        if (amount <= 0)
+        {
+            const string message = "Số tiền hoàn tính từ các sản phẩm được chọn phải lớn hơn 0.";
+            return Result<decimal>.FailureResult(new Error("REFUND_ITEMS_INVALID", message,
+                Fields: new Dictionary<string, string[]> { ["items"] = [message] }));
+        }
+
+        return Result<decimal>.SuccessResult(amount);
+    }
+
     private static void MoveToRefundPending(SellerOrder sellerOrder, string reason, long staffUserId,
         DateTime now)
     {
         string previous = sellerOrder.Status;
         sellerOrder.Status = RefundPendingStatus;
-        sellerOrder.Order.OrderStatus = RefundPendingStatus;
+        sellerOrder.Order.SyncRefundStatus();
         sellerOrder.OrderStatusHistories.Add(new OrderStatusHistory
         {
             ChangedByUserId = staffUserId,
