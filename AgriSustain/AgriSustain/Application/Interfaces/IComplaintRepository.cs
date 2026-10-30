@@ -5,8 +5,10 @@ namespace AgriSustain.Application.Interfaces;
 
 public interface IComplaintRepository
 {
+    /// <summary>HasOverdueEvidence is evaluated at <paramref name="now"/> with the 48-hour window.</summary>
     Task<(int Total, IReadOnlyList<ComplaintListItemDto> Items)> SearchAsync(
         ComplaintQuery query,
+        DateTime now,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<string>> GetReasonsAsync(CancellationToken cancellationToken);

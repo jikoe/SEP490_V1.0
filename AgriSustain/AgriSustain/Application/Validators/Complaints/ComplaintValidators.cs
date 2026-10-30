@@ -26,14 +26,23 @@ public sealed class ResolveComplaintRequestValidator : AbstractValidator<Resolve
             .MaximumLength(MaxReasonLength)
             .WithMessage($"Lý do quyết định không được vượt quá {MaxReasonLength} ký tự.");
 
-        RuleFor(x => x.RefundAmount)
-            .NotNull().WithMessage("Vui lòng nhập số tiền hoàn.")
-            .GreaterThan(0).WithMessage("Số tiền hoàn phải lớn hơn 0.")
-            .PrecisionScale(18, 2, true).WithMessage("Số tiền hoàn tối đa 2 chữ số thập phân.")
+        // MSG-CS-04: a partial refund needs at least one affected item with a valid quantity.
+        RuleFor(x => x.Items)
+            .Must(items => items is { Count: > 0 })
+            .WithMessage("Vui lòng chọn ít nhất một sản phẩm bị ảnh hưởng để hoàn tiền một phần.")
+            .Must(items => items is null
+                || items.Select(item => item.OrderItemId).Distinct().Count() == items.Count)
+            .WithMessage("Mỗi sản phẩm chỉ được chọn một lần.")
             .When(x => x.Resolution == ComplaintResolutions.PartialRefund);
 
-        RuleFor(x => x.RefundAmount)
-            .Null().WithMessage("Chỉ nhập số tiền hoàn khi chọn Hoàn tiền một phần.")
+        RuleForEach(x => x.Items)
+            .Must(item => item.Quantity > 0 && item.Quantity == decimal.Round(item.Quantity, 3))
+            .WithMessage("Số lượng hoàn phải lớn hơn 0 và có tối đa 3 chữ số thập phân.")
+            .When(x => x.Resolution == ComplaintResolutions.PartialRefund);
+
+        RuleFor(x => x.Items)
+            .Must(items => items is null || items.Count == 0)
+            .WithMessage("Chỉ chọn sản phẩm khi Hoàn tiền một phần.")
             .When(x => x.Resolution is ComplaintResolutions.FullRefund or ComplaintResolutions.RejectClaim);
     }
 }

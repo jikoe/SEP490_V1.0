@@ -131,6 +131,10 @@ public sealed class RefundRepository : IRefundRepository
             .Include(refund => refund.DisputeTicket!)
                 .ThenInclude(ticket => ticket.SellerOrder!)
                     .ThenInclude(sellerOrder => sellerOrder.FarmerProfile)
+            // The seller order's complaints identify which refunds count towards it.
+            .Include(refund => refund.DisputeTicket!)
+                .ThenInclude(ticket => ticket.SellerOrder!)
+                    .ThenInclude(sellerOrder => sellerOrder.DisputeTickets)
             .Include(refund => refund.DisputeTicket!)
                 .ThenInclude(ticket => ticket.SellerOrder!)
                     .ThenInclude(sellerOrder => sellerOrder.Order)
