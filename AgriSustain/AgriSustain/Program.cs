@@ -79,6 +79,9 @@ builder.Services.AddOptions<JwtOptions>()
     .ValidateOnStart();
 builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
 builder.Services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
+builder.Services.AddScoped<IOrderFeedbackService, OrderFeedbackService>();
+builder.Services.AddScoped<IOrderFeedbackRepository, OrderFeedbackRepository>();
+builder.Services.AddScoped<IOrderFeedbackStorage, OrderFeedbackStorage>();
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddCors(options =>
