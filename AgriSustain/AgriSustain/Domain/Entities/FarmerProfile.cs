@@ -33,6 +33,14 @@ public partial class FarmerProfile
 
     public decimal ReputationScore { get; set; }
 
+    /// <summary>Cultivated land size in hectares (> 0).</summary>
+    public decimal? CultivatedArea { get; set; }
+
+    /// <summary>'Individual' (Cá nhân) | 'Cooperative' (Hợp tác xã).</summary>
+    public string? ProductionModel { get; set; }
+
+    public string? ShortDescription { get; set; }
+
     public virtual ICollection<B2bcontract> B2bcontracts { get; set; } = new List<B2bcontract>();
 
     public virtual ICollection<CropSeason> CropSeasons { get; set; } = new List<CropSeason>();

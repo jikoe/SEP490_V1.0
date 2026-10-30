@@ -41,6 +41,15 @@ export default function RegisterScreen({ navigate }) {
     setGeneralError(null);
   }
 
+  function handleCancel() {
+    setForm({ fullName: '', phoneNumber: '', email: '', password: '', confirmPassword: '', agreeTerms: false });
+    setRole('RetailCustomer');
+    setFieldErrors({});
+    setGeneralError(null);
+    setPhoneNotice(null);
+    if (navigate) navigate('/'); else window.location.hash = '#/';
+  }
+
   function handlePhoneChange(e) {
     const raw = e.target.value;
     const digitsOnly = raw.replace(/\D/g, '');
@@ -71,7 +80,7 @@ export default function RegisterScreen({ navigate }) {
     if (!form.phoneNumber.trim()) {
       errors.phoneNumber = 'Số điện thoại không được để trống.';
     } else if (!/^0\d{9}$/.test(form.phoneNumber.trim())) {
-      errors.phoneNumber = 'Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).';
+      errors.phoneNumber = 'Số điện thoại không hợp lệ. Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.'; // MSG180
     }
 
     if (!form.email.trim()) {
@@ -469,6 +478,16 @@ export default function RegisterScreen({ navigate }) {
             disabled={loading}
           >
             {loading ? 'Đang gửi mã xác thực...' : 'Đăng Ký & Nhận Mã OTP Xác Thực →'}
+          </button>
+
+          {/* SRS FR 1.1 (9) / UC-AUTH-01 AF "Cancel Registration": clear the form and go Home, no account created. */}
+          <button
+            type="button"
+            onClick={handleCancel}
+            disabled={loading}
+            style={{ width: '100%', marginTop: 10, padding: '11px 20px', fontSize: 14, borderRadius: 10 }}
+          >
+            Hủy
           </button>
         </form>
 

@@ -1,3 +1,4 @@
+using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Authentication;
 using AgriSustain.Infrastructure.Data.Demo;
 using AgriSustain.Infrastructure.Data.InMemoryStore;
@@ -154,6 +155,18 @@ public sealed class RegistrationServiceTests
         var result = await Service().InitiateRegistrationAsync(Valid(email: "  VanA@Gmail.com "), default);
 
         Assert.Equal("Conflict", result.Error!.Kind);
+    }
+
+    [Theory(DisplayName = "UTC-AUTH01-B4 Invalid phone shows MSG180")]
+    [InlineData("091234567")]
+    [InlineData("1912345678")]
+    [InlineData("09123456789")]
+    public async Task UTC_B4_InvalidPhone_Msg180(string phone)
+    {
+        var result = await Service().InitiateRegistrationAsync(Valid(phone: phone), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains(SystemMessages.Msg180InvalidPhone, result.Error!.Fields!["phoneNumber"]);
     }
 
     // ---------- VerifyOtpAndCompleteRegistrationAsync ----------

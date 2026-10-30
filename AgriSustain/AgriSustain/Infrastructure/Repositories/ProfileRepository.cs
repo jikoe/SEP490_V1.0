@@ -39,7 +39,7 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             user.FarmerProfile.FarmName,
             user.FarmerProfile.RepresentativeName,
             user.FarmerProfile.ProductionScale,
-            null,
+            user.FarmerProfile.CultivatedArea,
             user.FarmerProfile.CultivationZone,
             user.FarmerProfile.Gpscoordinates,
             user.FarmerProfile.BusinessLicenseNumber,
@@ -48,13 +48,14 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             user.FarmerProfile.VerificationStatus,
             user.FarmerProfile.ReputationScore,
             user.FarmerProfile.ApprovedAt,
-            user.FarmerProfile.RejectReason);
+            user.FarmerProfile.RejectReason,
+            user.FarmerProfile.ProductionModel,
+            user.FarmerProfile.ShortDescription);
 
         long rewardPoints = await db.RewardPointEntries
             .Where(entry => entry.UserId == userId)
             .SumAsync(entry => entry.AvailableDelta ?? 0, cancellationToken);
 
-        // The User table has no gender/birth-date columns, so these are not reported.
         return new UserProfileResponse(
             UserId: user.UserId,
             FullName: user.FullName,
@@ -63,8 +64,8 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             Role: user.Role,
             Status: user.Status,
             AvatarUrl: user.AvatarUrl,
-            Gender: null,
-            BirthDate: null,
+            Gender: user.Gender,
+            BirthDate: user.DateOfBirth,
             RewardPoints: rewardPoints,
             DeliveryAddress: addressDto,
             FarmerProfile: farmerDto);
@@ -100,6 +101,8 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
 
         user.FullName = request.FullName.Trim();
         user.PhoneNumber = request.PhoneNumber.Trim();
+        user.Gender = NormalizeGender(request.Gender);
+        user.DateOfBirth = request.BirthDate;
 
         // The service has already normalized the address against the checkout catalog.
         if (!string.IsNullOrWhiteSpace(request.ProvinceCode)
@@ -135,7 +138,7 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
 
         AddAudit(userId, "User", userId, "UpdateProfile", before, new
         {
-            user.FullName, user.PhoneNumber,
+            user.FullName, user.PhoneNumber, user.Gender, user.DateOfBirth,
             Address = new { request.ProvinceCode, request.DistrictCode, request.WardCode, request.AddressDetail }
         });
 
@@ -170,6 +173,9 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
         farm.CultivationZone = Clean(request.CultivationZone);
         farm.Gpscoordinates = Clean(request.GPSCoordinates);
         farm.BusinessLicenseNumber = Clean(request.BusinessLicenseNumber);
+        farm.CultivatedArea = request.CultivatedArea;
+        farm.ProductionModel = Clean(request.ProductionModel);
+        farm.ShortDescription = Clean(request.ShortDescription);
 
         // SRS UC-AUTH-03 AF "Changing Verified Identity / KYC Fields".
         if (kycFieldChanged && farm.VerificationStatus == VerificationStatuses.Approved)
@@ -240,6 +246,27 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             await GetProfileAsync(userId, cancellationToken));
     }
 
+    public async Task<UserProfileResponse?> UpdateAvatarAsync(
+        long userId, string avatarUrl, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.UserId == userId, cancellationToken);
+        if (user == null) return null;
+
+        AddAudit(userId, "User", userId, "UpdateAvatar", new { user.AvatarUrl }, new { AvatarUrl = avatarUrl });
+        user.AvatarUrl = avatarUrl;
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetProfileAsync(userId, cancellationToken);
+    }
+
+    /// <summary>Accepts the codes and the Vietnamese labels used by older UI builds.</summary>
+    private static string? NormalizeGender(string? value) => value?.Trim() switch
+    {
+        "Male" or "Nam" => "Male",
+        "Female" or "Nữ" => "Female",
+        "Other" or "Khác" => "Other",
+        _ => null
+    };
+
     private void AddAudit(long userId, string entityType, long entityId, string action, object before, object after) =>
         db.AuditLogs.Add(new AuditLog
         {
@@ -256,7 +283,8 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
     {
         user.FullName, user.PhoneNumber, farm.FarmName, farm.RepresentativeName, farm.Address,
         farm.ProvinceCode, farm.ProductionScale, farm.CultivationZone, farm.Gpscoordinates,
-        farm.BusinessLicenseNumber, farm.VerificationStatus
+        farm.BusinessLicenseNumber, farm.CultivatedArea, farm.ProductionModel, farm.ShortDescription,
+        farm.VerificationStatus
     };
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
