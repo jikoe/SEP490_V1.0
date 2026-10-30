@@ -69,8 +69,7 @@ export default function Marketplace({
       cartRequest.current?.abort();
       setCart(result);
       setCartError('');
-      setCartNotice({ message: (result.messages.join(' ') || 'Đã thêm sản phẩm vào giỏ hàng.')
-        .replace(/\s*\(MSG81\)/gi, '') });
+      setCartNotice({ message: result.messages.join(' ') || 'Đã thêm sản phẩm vào giỏ hàng.' });
       return result;
     } finally {
       addInProgress.current = false;

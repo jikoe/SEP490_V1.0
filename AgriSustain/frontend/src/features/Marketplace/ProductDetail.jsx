@@ -7,7 +7,7 @@ import { Icon, Price, ProductImage, Rating, safeUrl } from './MarketplaceUi';
 const dateLabel = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('vi-VN') : 'Không có';
 
 /** UC-RC-01 entry point: adds the chosen batch to the RetailCustomer cart. */
-function AddToCart({ product, batches, session, navigate }) {
+function AddToCart({ product, batches = [], session, navigate }) {
   const [batchId, setBatchId] = useState(batches[0]?.id ?? '');
   const [quantity, setQuantity] = useState('1');
   const [busy, setBusy] = useState(false);
@@ -131,7 +131,7 @@ export default function ProductDetail({ productId, query, reload, session, navig
             <Icon name="card" />Giá sỉ: {detail.wholesalePrice.toLocaleString('vi-VN')}đ / {product.unit}
             {' '}từ {detail.wholesaleMinQuantity} {product.unit}</li>}
         </ul>
-        <AddToCart product={product} session={session} onAdd={onAdd} adding={adding} />
+        <AddToCart key={product.id} product={product} batches={batches} session={session} navigate={navigate} />
         <button className="mkt-share" onClick={share}><Icon name="share" />Chia sẻ</button>
         {shareMessage && <p className="mkt-share-message" role="status">{shareMessage}</p>}
       </section>

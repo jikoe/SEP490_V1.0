@@ -106,8 +106,16 @@ builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
-builder.Services.AddScoped<ProductService>();
-builder.Services.AddScoped<CartService>();
+builder.Services.AddScoped<FarmerProductService>();
+builder.Services.AddScoped<ProductListingRules>();
+builder.Services.AddScoped<ProductNotificationService>();
+builder.Services.AddScoped<IProductNotificationRepository, ProductNotificationRepository>();
+builder.Services.Configure<AgriSustain.Infrastructure.Email.EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<INotificationGateway, AgriSustain.Infrastructure.Email.NotificationGateway>();
+if (builder.Configuration.GetValue("ProductNotifications:EnableWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.ProductNotificationWorker>();
+builder.Services.AddScoped<RetailCartService>();
 builder.Services.AddScoped<CartPricingService>();
 builder.Services.AddScoped<FulfillmentRules>();
 builder.Services.AddScoped<OrderFulfillmentService>();

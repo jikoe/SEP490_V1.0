@@ -295,8 +295,8 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<IProductRepository, ProductRepository>();
         builder.Services.AddScoped<ICartRepository, CartRepository>();
         builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-        builder.Services.AddScoped<ProductService>();
-        builder.Services.AddScoped<CartService>();
+        builder.Services.AddScoped<FarmerProductService>();
+        builder.Services.AddScoped<RetailCartService>();
         builder.Services.AddScoped<OrderFulfillmentService>();
         builder.Services.AddSingleton<IValidator<ProductRequest>, ProductRequestValidator>();
         builder.Services.AddSingleton<IValidator<ProductQuery>, ProductQueryValidator>();
@@ -310,7 +310,7 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<ICurrentActor, CurrentActor>();
         builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => { });
         builder.Services.AddAuthorization();
-        builder.Services.AddControllers().AddApplicationPart(typeof(ProductsController).Assembly);
+        builder.Services.AddControllers().AddApplicationPart(typeof(FarmerProductController).Assembly);
         Host = builder.Build();
         Host.UseMiddleware<FeatureExceptionMiddleware>();
         Host.UseAuthentication();

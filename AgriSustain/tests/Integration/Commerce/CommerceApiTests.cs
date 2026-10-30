@@ -36,14 +36,14 @@ public sealed partial class CommerceApiTests
             var f = new Api();
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
             builder.WebHost.UseTestServer(); builder.Logging.ClearProviders();
-            builder.Services.AddSingleton(f.Data.ProductService);
-            builder.Services.AddSingleton(f.Data.CartService);
+            builder.Services.AddSingleton(f.Data.FarmerProductService);
+            builder.Services.AddSingleton(f.Data.RetailCartService);
             builder.Services.AddSingleton(f.Data.OrderService);
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddScoped<ICurrentActor, CurrentActor>();
             builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => { });
             builder.Services.AddAuthorization();
-            builder.Services.AddControllers().AddApplicationPart(typeof(ProductsController).Assembly);
+            builder.Services.AddControllers().AddApplicationPart(typeof(FarmerProductController).Assembly);
             f.host = builder.Build();
             f.host.UseMiddleware<FeatureExceptionMiddleware>();
             f.host.UseAuthentication(); f.host.UseAuthorization(); f.host.MapControllers();

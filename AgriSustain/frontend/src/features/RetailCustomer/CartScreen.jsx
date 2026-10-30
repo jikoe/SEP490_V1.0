@@ -49,6 +49,7 @@ export default function CartScreen({ navigate }) {
     finally { setBusy(false); }
   }
   async function proceed() {
+    if (!cart?.selectedCount) { setMessage(cartMessages.noSelection); return; }
     const result = await mutate('prepare-checkout', { reviewToken: cart.reviewToken }, 'POST');
     if (result?.canProceedToCheckout) navigate('/checkout');
   }
@@ -57,6 +58,7 @@ export default function CartScreen({ navigate }) {
     <p className="muted">Chọn sản phẩm muốn mua và kiểm tra thông tin trước khi thanh toán.</p></div>
     <button type="button" onClick={() => navigate('/retail/dashboard')}>← Tiếp tục mua sắm</button></div>
     <Errors hideMessageCodes error={state.error} /><Notice>{message}</Notice>
+    {state.error && <button type="button" disabled={state.loading || busy} onClick={state.reload}>Tải lại giỏ hàng</button>}
     {state.loading ? <p role="status">Đang tải giỏ hàng…</p> : cart && !cart.items.length
       ? <section className="commerce-section"><Empty>{cartMessages.empty}</Empty>
         <button type="button" className="primary" onClick={() => navigate('/retail/dashboard')}>Khám phá nông sản</button></section>
@@ -86,7 +88,7 @@ export default function CartScreen({ navigate }) {
             <div><dt>Tạm tính</dt><dd className="commerce-subtotal">{money(cart.selectedSubtotal)}</dd></div></dl>
           <p className="muted">Chỉ tính các sản phẩm được chọn.</p><hr />
           <p>Phí giao hàng, voucher và điểm thưởng được xác định tại trang checkout.</p>
-          <button type="button" className="primary" disabled={busy || !cart.selectedCount} onClick={proceed}>
+          <button type="button" className="primary" disabled={busy || !cart.items.length} onClick={proceed}>
             {busy ? 'Đang kiểm tra…' : 'Tiến hành thanh toán →'}</button>
           <small>Bạn sẽ kiểm tra địa chỉ và xác nhận đặt hàng ở bước tiếp theo.</small>
         </aside></div>}
@@ -113,6 +115,7 @@ function CartLine({ item, busy, onQuantity, onSelect, onRemove }) {
       const updated = await onQuantity(number);
       const line = updated?.items.find(row => row.cartItemId === item.cartItemId);
       setQuantity(String(line?.quantity ?? item.quantity));
+      if (!updated) setError('Không thể lưu số lượng. Vui lòng tải lại giỏ hàng để xem dữ liệu đã được lưu.');
     } else setQuantity(String(item.quantity));
   }
   return <div className={'commerce-cart-line' + (item.isAvailable ? '' : ' unavailable')}>
@@ -140,4 +143,3 @@ function CartLine({ item, busy, onQuantity, onSelect, onRemove }) {
       <button type="button" disabled={busy} onClick={onRemove}>Xóa</button></div>
   </div>;
 }
-
