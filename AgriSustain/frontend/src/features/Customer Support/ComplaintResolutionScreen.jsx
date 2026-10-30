@@ -20,7 +20,18 @@ const requestStatuses = {
   Expired: 'Quá hạn – hệ thống đã tự xử lý (Evidence Overdue)',
 };
 const awaitingDecision = ['Open', 'UnderReview', 'WaitingCustomerInfo'];
-const emptyDecision = { resolution: '', faultParty: '', refundAmount: '', reason: '' };
+const emptyDecision = { resolution: '', faultParty: '', quantities: {}, reason: '' };
+
+/** Partial refund lines chosen by Customer Support, with the server's paid-value formula (BR-CS-03). */
+function selectedRefundItems(detail, quantities) {
+  return (detail?.items || [])
+    .filter((item) => quantities[item.orderItemId] !== undefined && quantities[item.orderItemId] !== '')
+    .map((item) => {
+      const quantity = Number(quantities[item.orderItemId]);
+      const amount = item.quantity > 0 ? Math.round(item.paidValue * quantity / item.quantity) : 0;
+      return { item, quantity, amount };
+    });
+}
 
 function StatusBadge({ status }) {
   const tone = status === 'Rejected' ? 'Rejected' : status === 'Closed' ? 'Active' : '';
@@ -93,12 +104,33 @@ export default function ComplaintResolutionScreen({ route = listRoute, navigate 
     }
   }
 
+  const refundLines = selectedRefundItems(detail, decision.quantities);
+  const partialAmount = refundLines.reduce((sum, line) => sum + line.amount, 0);
+
+  function setQuantity(orderItemId, value) {
+    setDecision((old) => {
+      const quantities = { ...old.quantities };
+      if (value === null) delete quantities[orderItemId]; else quantities[orderItemId] = value;
+      return { ...old, quantities };
+    });
+  }
+
   function prepareResolution(event) {
     event.preventDefault(); setError('');
     if (decision.resolution === 'PartialRefund') {
-      const amount = Number(decision.refundAmount);
-      if (!(amount > 0 && amount <= detail.maxRefundAmount)) {
-        setError(`Số tiền hoàn phải lớn hơn 0 và không vượt quá ${money(detail.maxRefundAmount)}.`);
+      if (!refundLines.length) {
+        setError('Vui lòng chọn ít nhất một sản phẩm bị ảnh hưởng để hoàn tiền một phần.');
+        return;
+      }
+      const invalid = refundLines.find(({ item, quantity }) => !(quantity > 0 && quantity <= item.quantity));
+      if (invalid) {
+        setError(`Số lượng hoàn của ${invalid.item.productName} phải lớn hơn 0 và không vượt quá `
+          + `${invalid.item.quantity} ${invalid.item.unit}.`);
+        return;
+      }
+      if (!(partialAmount > 0 && partialAmount <= detail.maxRefundAmount)) {
+        setError(`Số tiền hoàn ${money(partialAmount)} phải lớn hơn 0 và không vượt quá `
+          + `${money(detail.maxRefundAmount)}.`);
         return;
       }
     }
@@ -109,7 +141,9 @@ export default function ComplaintResolutionScreen({ route = listRoute, navigate 
     submit('resolve', {
       resolution: decision.resolution,
       faultParty: decision.faultParty,
-      refundAmount: decision.resolution === 'PartialRefund' ? Number(decision.refundAmount) : null,
+      items: decision.resolution === 'PartialRefund'
+        ? refundLines.map(({ item, quantity }) => ({ orderItemId: item.orderItemId, quantity }))
+        : null,
       reason: decision.reason.trim(),
     }, () => { setConfirming(false); setDecision(emptyDecision); });
   }
@@ -146,7 +180,9 @@ export default function ComplaintResolutionScreen({ route = listRoute, navigate 
           <td><strong>#{item.ticketId}</strong></td>
           <td>{item.sellerOrderCode || '—'}<br /><small className="muted">{item.orderCode}</small></td>
           <td>{item.complainantName}</td><td>{item.disputeReason}</td>
-          <td>{localTime(item.createdAt)}</td><td><StatusBadge status={item.ticketStatus} /></td>
+          <td>{localTime(item.createdAt)}</td><td><StatusBadge status={item.ticketStatus} />
+            {item.hasOverdueEvidence && <><br /><span className="badge Suspended">Quá hạn bổ sung bằng chứng</span></>}
+          </td>
           <td><button type="button" onClick={() => openTicket(item.ticketId)}>Xem</button></td>
         </tr>)}</tbody>
       </table>
@@ -180,9 +216,16 @@ export default function ComplaintResolutionScreen({ route = listRoute, navigate 
           · Trạng thái: {detail.sellerOrderStatus || '—'} · Giá trị: {money(detail.sellerOrderAmount || 0)}
           · Giao lúc: {localTime(detail.deliveredAt)}</p>
         <p>Người mua: {detail.buyer?.fullName || '—'} · Người bán: {detail.seller?.fullName || '—'}</p>
-        <p>Người mua trả cho đơn (sau voucher/điểm): {money(detail.orderFinalAmount || 0)}
-          · Đã thanh toán: {money(detail.paidAmount)} · Đã dành cho hoàn tiền: {money(detail.reservedRefundAmount)}
+        <p>Người mua trả cho đơn người bán (sau voucher/điểm, gồm phí giao): {money(detail.sellerOrderAmount || 0)}
+          · Đã hoàn hoặc đang chờ hoàn cho đơn này: {money(detail.sellerOrderReservedRefundAmount)}
           · Có thể hoàn tối đa: <strong>{money(detail.maxRefundAmount)}</strong></p>
+        {!!detail.items.length && <div className="table-wrap"><table>
+          <thead><tr><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th>Người mua đã trả</th></tr></thead>
+          <tbody>{detail.items.map((item) => <tr key={item.orderItemId}>
+            <td>{item.productName || '—'}</td><td>{item.quantity} {item.unit}</td>
+            <td>{money(item.unitPrice)}</td><td>{money(item.paidValue)}</td>
+          </tr>)}</tbody>
+        </table></div>}
       </article>
 
       <article className="panel padded">
@@ -225,10 +268,30 @@ export default function ComplaintResolutionScreen({ route = listRoute, navigate 
           <option value="">Chọn bên có lỗi</option>
           {Object.entries(faultParties).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select></Field>
-        {decision.resolution === 'PartialRefund' && <Field label="Số tiền hoàn (₫) *"
-          hint={`Tối đa ${money(detail.maxRefundAmount)}`}><input type="number" required min="1"
-          step="1" max={detail.maxRefundAmount} value={decision.refundAmount}
-          onChange={(event) => setDecision({ ...decision, refundAmount: event.target.value })} /></Field>}
+        {decision.resolution === 'PartialRefund' && <fieldset>
+          <legend>Sản phẩm bị ảnh hưởng *</legend>
+          <p className="muted">Chọn sản phẩm và số lượng; hệ thống tính số tiền hoàn theo số tiền người mua đã trả
+            cho từng sản phẩm. Tối đa {money(detail.maxRefundAmount)}.</p>
+          <div className="table-wrap"><table>
+            <thead><tr><th>Chọn</th><th>Sản phẩm</th><th>Đã giao</th><th>Số lượng hoàn</th><th>Tiền hoàn</th></tr></thead>
+            <tbody>{detail.items.map((item) => {
+              const value = decision.quantities[item.orderItemId];
+              const checked = value !== undefined;
+              const line = refundLines.find((candidate) => candidate.item.orderItemId === item.orderItemId);
+              return <tr key={item.orderItemId}>
+                <td><input type="checkbox" checked={checked}
+                  aria-label={`Chọn ${item.productName || 'sản phẩm'}`}
+                  onChange={(event) => setQuantity(item.orderItemId, event.target.checked ? String(item.quantity) : null)} /></td>
+                <td>{item.productName || '—'}</td><td>{item.quantity} {item.unit}</td>
+                <td><input type="number" min="0.001" step="0.001" max={item.quantity} disabled={!checked}
+                  value={value ?? ''} aria-label={`Số lượng hoàn ${item.productName || ''}`}
+                  onChange={(event) => setQuantity(item.orderItemId, event.target.value)} /></td>
+                <td>{line ? money(line.amount) : '—'}</td>
+              </tr>;
+            })}</tbody>
+          </table></div>
+          <p>Tổng tiền hoàn: <strong>{money(partialAmount)}</strong></p>
+        </fieldset>}
         <Field label="Lý do quyết định *"><textarea required maxLength={1000} value={decision.reason}
           onChange={(event) => setDecision({ ...decision, reason: event.target.value })} /></Field>
         <div className="modal-actions">
@@ -244,10 +307,12 @@ export default function ComplaintResolutionScreen({ route = listRoute, navigate 
     {confirming && <Modal title="Xác nhận quyết định" onClose={() => { if (!busy) setConfirming(false); }}>
       <p>{resolutions[decision.resolution]} cho khiếu nại #{ticketId}
         {decision.resolution === 'FullRefund' && ` – ${money(detail.maxRefundAmount)}`}
-        {decision.resolution === 'PartialRefund' && ` – ${money(Number(decision.refundAmount))}`}.</p>
+        {decision.resolution === 'PartialRefund' && ` – ${money(partialAmount)}`}.</p>
+      {decision.resolution === 'PartialRefund' && <ul>{refundLines.map(({ item, quantity, amount }) =>
+        <li key={item.orderItemId}>{item.productName}: {quantity} {item.unit} – {money(amount)}</li>)}</ul>}
       {decision.resolution !== 'RejectClaim'
-        ? <p className="muted">Một yêu cầu hoàn tiền sẽ được chuyển sang bộ phận Tài chính; đơn hàng chuyển sang
-          trạng thái chờ hoàn tiền.</p>
+        ? <p className="muted">Một yêu cầu hoàn tiền sẽ được chuyển sang bộ phận Tài chính; đơn hàng của người bán
+          này chuyển sang trạng thái chờ hoàn tiền.</p>
         : <p className="muted">Đơn hàng giữ nguyên trạng thái đã giao.</p>}
       <Notice error>{error}</Notice>
       <div className="modal-actions"><button type="button" disabled={busy} onClick={() => setConfirming(false)}>
