@@ -1,5 +1,6 @@
 import React, { useId, useState } from 'react';
 import { money } from '../../components/ui/Common';
+import { backendUrl } from '../../api/client';
 
 export function Icon({ name = 'leaf', ...props }) {
   const paths = {
@@ -26,7 +27,8 @@ export function Icon({ name = 'leaf', ...props }) {
 export function safeUrl(value) {
   if (!value) return null;
   try {
-    const url = new URL(value, window.location.origin);
+    const url = new URL(value.startsWith('/media/') ? backendUrl(value) : value,
+      window.location.origin);
     return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
   } catch { return null; }
 }
