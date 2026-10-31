@@ -1,5 +1,5 @@
 import '../styles/customer-portal.css';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { backendUrl, logout as logoutSession } from '../api/client';
 import { Notice } from '../components/ui/Common';
 import UsersScreen from '../features/Administrator/UsersScreen';
@@ -25,6 +25,7 @@ import ComplaintResolutionScreen from '../features/Customer Support/ComplaintRes
 import PromotionsDashboard from '../features/Promotion Staff/PromotionsDashboard';
 import VoucherManagementScreen from '../features/Promotion Staff/VoucherManagementScreen';
 import FinanceDashboard from '../features/Finance Staff/FinanceDashboard';
+import PaymentReconciliationScreen from '../features/Finance Staff/PaymentReconciliationScreen';
 import RefundProcessingScreen from '../features/Finance Staff/RefundProcessingScreen';
 import GatewayDashboard from '../features/Payment Gateway/GatewayDashboard';
 import LoginScreen from '../features/Guest/LoginScreen';
@@ -159,13 +160,14 @@ export const ROLE_CONFIGS = {
   finance_staff: {
     key: 'finance_staff',
     title: 'Finance Staff',
-    portalName: 'FINANCE & PAYOUT',
-    portalCategory: 'TÀI CHÍNH & KẾ TOÁN',
+    portalName: 'QUẢN LÝ TÀI CHÍNH',
+    portalCategory: 'TÀI CHÍNH',
     avatar: '💰',
     hasSidebar: true,
     landingRoute: '/finance/dashboard',
     navItems: [
-      { key: 'finance-dash', label: 'Quản lý tài chính', icon: '📊', path: '/finance/dashboard' },
+      { key: 'finance-dash', label: 'Tổng quan', icon: '▦', path: '/finance/dashboard' },
+      { key: 'finance-payments', label: 'Đối soát thanh toán', icon: '⇄', path: '/finance/payments' },
       { key: 'finance-refunds', label: 'Xử lý hoàn tiền', icon: '🔄', path: '/finance/refunds' },
     ],
   },
@@ -380,7 +382,8 @@ export default function App() {
   else if (route.startsWith('/support/complaints')) currentTitle = 'Xử lý khiếu nại';
   else if (route.startsWith('/promotions/dashboard')) currentTitle = 'Chiến dịch khuyến mại';
   else if (route.startsWith('/promotions/vouchers')) currentTitle = 'Quản lý voucher';
-  else if (route.startsWith('/finance/dashboard')) currentTitle = 'Quản lý tài chính & Chi trả';
+  else if (route.startsWith('/finance/dashboard')) currentTitle = 'Tổng quan';
+  else if (route.startsWith('/finance/payments')) currentTitle = 'Đối soát thanh toán';
   else if (route.startsWith('/finance/refunds')) currentTitle = 'Xử lý hoàn tiền';
   else if (route.startsWith('/gateway/dashboard')) currentTitle = 'Giám sát cổng thanh toán';
   else if (route.startsWith('/notifications/dashboard')) currentTitle = 'Dịch vụ gửi thông báo';
@@ -391,7 +394,7 @@ export default function App() {
   const userAvatarInitial = session ? session.user.fullName?.charAt(0)?.toUpperCase() : roleConfig.avatar;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${roleKey === 'finance_staff' ? 'finance-shell' : ''}`}>
       {/* THANH BÊN (SIDEBAR) - Hiển thị cho tất cả role NGOẠI TRỪ RetailCustomer */}
       {roleConfig.hasSidebar && (
         <aside className="sidebar">
@@ -427,12 +430,12 @@ export default function App() {
               <span className="profile-avatar">{userAvatarInitial}</span>
               <div>
                 <strong>{userDisplayName}</strong>
-                <small>{userDisplayRole}</small>
+                <small>{roleConfig.key === 'finance_staff' ? 'Nhân viên tài chính' : userDisplayRole}</small>
               </div>
             </div>
             <p>
               <span className="status-dot" />
-              {databaseReady
+              {roleConfig.key === 'finance_staff' ? 'Đang hoạt động' : databaseReady
                 ? 'Đã kết nối SQL · EF Core'
                 : persistence === 'SqlServer'
                   ? 'Chưa xác nhận kết nối SQL'
@@ -551,6 +554,7 @@ export default function App() {
           {route.startsWith('/promotions/dashboard') && <PromotionsDashboard navigate={navigate} />}
           {route.startsWith('/promotions/vouchers') && <VoucherManagementScreen />}
           {route.startsWith('/finance/dashboard') && <FinanceDashboard navigate={navigate} />}
+          {route.startsWith('/finance/payments') && <PaymentReconciliationScreen route={route} navigate={navigate} />}
           {route.startsWith('/finance/refunds') && <RefundProcessingScreen route={route} navigate={navigate} />}
           {route.startsWith('/gateway/dashboard') && <GatewayDashboard navigate={navigate} />}
           {route.startsWith('/notifications/dashboard') && <NotificationServiceDashboard navigate={navigate} />}
@@ -559,7 +563,7 @@ export default function App() {
           {!['/farmer/products', '/farmer/orders', '/cart', '/administration/dashboard', '/administration/users', '/administration/categories',
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
              '/retail/dashboard', '/checkout', '/verification/dashboard',
-             '/support/dashboard', '/support/complaints', '/promotions/dashboard', '/promotions/vouchers', '/finance/dashboard', '/finance/refunds',
+             '/support/dashboard', '/support/complaints', '/promotions/dashboard', '/promotions/vouchers', '/finance/dashboard', '/finance/payments', '/finance/refunds',
              '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/account/password', '/customer-portal'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <h2>Đang chuyển hướng về trang làm việc của bạn...</h2>
