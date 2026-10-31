@@ -5,7 +5,10 @@
 1. Pull commit chứa code và thư mục AgriSustain/database.
 2. Dừng API; backup database nếu có dữ liệu cần giữ.
 3. Mở Update_DB.sql trong SSMS, kết nối instance của máy mình, chạy toàn bộ file.
-4. Build/chạy lại API với ConnectionStrings:MyCnn trỏ đúng instance.
+4. Chạy tiếp `20261029_profile_fields.sql` và `20261030_bank_accounts.sql` (bảng SupportedBank,
+   UserBankAccount và cột tài khoản nhận trên RefundTransaction/FarmerPayout mà code đang map).
+   Hai file chạy lại nhiều lần vẫn an toàn. Thiếu bước này API báo MSG123/MSG126.
+5. Build/chạy lại API với ConnectionStrings:MyCnn trỏ đúng instance.
 
 Một file chứa cả schema và INSERT; không cần mở bốn migration riêng.
 Bản Downloads/Update_DB (1).sql có cùng nội dung với bản trong repository.
