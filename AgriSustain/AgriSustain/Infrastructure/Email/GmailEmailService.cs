@@ -19,7 +19,12 @@ public sealed class GmailEmailService(IOptions<GmailOptions> options, ILogger<Gm
     public async Task<bool> SendOtpEmailAsync(
         string email, string otpCode, string purpose, CancellationToken cancellationToken)
     {
-        string action = purpose == OtpPurposes.PasswordReset ? "đặt lại mật khẩu" : "xác thực email đăng ký";
+        string action = purpose switch
+        {
+            OtpPurposes.PasswordReset => "đặt lại mật khẩu",
+            "BankAccount" => "xác nhận thay đổi tài khoản ngân hàng",
+            _ => "xác thực email đăng ký"
+        };
         using var message = new MailMessage
         {
             From = new MailAddress(_options.SenderAddress!, _options.SenderName),

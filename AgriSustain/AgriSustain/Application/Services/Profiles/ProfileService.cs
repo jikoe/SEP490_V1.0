@@ -205,7 +205,10 @@ public sealed class ProfileService(
                     "KYC_INCOMPLETE",
                     "Vui lòng hoàn thiện các trường bắt buộc trước khi gửi xác minh.", "Validation",
                     result.MissingFields.ToDictionary(
-                        field => field, _ => new[] { "Trường này bắt buộc để gửi xác minh." })))
+                        field => field, field => new[] { field == "bankAccount"
+                            // BR-BA-03
+                            ? "Vui lòng thêm tài khoản nhận tiền ở mục Tài khoản ngân hàng trước khi gửi xác minh."
+                            : "Trường này bắt buộc để gửi xác minh." })))
             };
         }, cancellationToken);
 

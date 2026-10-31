@@ -229,6 +229,9 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
         if (string.IsNullOrWhiteSpace(farm.Address)) missing.Add("address");
         if (string.IsNullOrWhiteSpace(farm.CultivationZone)) missing.Add("cultivationZone");
         if (string.IsNullOrWhiteSpace(farm.BusinessLicenseNumber)) missing.Add("businessLicenseNumber");
+        // BR-BA-03: a payout bank account is required before submitting for verification.
+        if (!await db.UserBankAccounts.AnyAsync(a => a.UserId == userId && a.IsDefault, cancellationToken))
+            missing.Add("bankAccount");
         if (missing.Count > 0)
         {
             return new KycSubmissionResult(KycSubmissionOutcome.Incomplete, missing, farm.VerificationStatus, null);
