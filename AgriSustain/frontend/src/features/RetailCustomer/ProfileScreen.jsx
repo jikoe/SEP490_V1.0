@@ -91,7 +91,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [phoneNotice, setPhoneNotice] = useState(null);
-  // Last values loaded from / saved to the server, restored by the "Hủy" button (UC-AUTH-03 AF Cancel).
+  // Last values loaded from / saved to the server.
   const savedProfileRef = useRef(null);
   const [recipientPhoneNotice, setRecipientPhoneNotice] = useState(null);
 
@@ -199,15 +199,6 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
     } finally {
       setUploadingAvatar(false);
     }
-  }
-
-  // Revert edited fields to the last saved values without calling the API.
-  function handleCancelEdit() {
-    if (savedProfileRef.current) setProfile(savedProfileRef.current);
-    setFieldErrors({});
-    setError(null);
-    setPhoneNotice(null);
-    setNotice('Đã hủy các thay đổi chưa lưu.');
   }
 
   function handleChange(field, value) {
@@ -1136,14 +1127,6 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
             )}
 
             <div style={{ marginTop: 28, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                disabled={saving}
-                style={{ padding: '12px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14 }}
-              >
-                Hủy
-              </button>
               <button
                 type="submit"
                 className="primary"
