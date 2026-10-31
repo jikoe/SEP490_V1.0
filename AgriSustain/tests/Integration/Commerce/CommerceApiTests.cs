@@ -36,14 +36,15 @@ public sealed partial class CommerceApiTests
             var f = new Api();
             var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing" });
             builder.WebHost.UseTestServer(); builder.Logging.ClearProviders();
-            builder.Services.AddSingleton(f.Data.ProductService);
-            builder.Services.AddSingleton(f.Data.CartService);
+            builder.Services.AddSingleton(f.Data.FarmerProductService);
+            builder.Services.AddSingleton(f.Data.RetailCartService);
             builder.Services.AddSingleton(f.Data.OrderService);
+            builder.Services.AddSingleton(new AgriSustain.Application.Services.FarmerOrderService(f.Data.Orders, f.Data.OrderService));
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddScoped<ICurrentActor, CurrentActor>();
             builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => { });
             builder.Services.AddAuthorization();
-            builder.Services.AddControllers().AddApplicationPart(typeof(ProductsController).Assembly);
+            builder.Services.AddControllers().AddApplicationPart(typeof(FarmerProductController).Assembly);
             f.host = builder.Build();
             f.host.UseMiddleware<FeatureExceptionMiddleware>();
             f.host.UseAuthentication(); f.host.UseAuthorization(); f.host.MapControllers();
@@ -89,6 +90,7 @@ public sealed partial class CommerceApiTests
         Assert.Equal(0, api.Data.Work.Begins);
     }
     [Fact, Trait("UseCase", "UC-FAR-03")]
+    [Trait("CaseId", "IT-FAR-03-AUTO-002")]
     public async Task ProductSubmission_ReturnsCreatedWithLocationAndPendingVietnameseContract()
     {
         await using var api = await Api.Create();
@@ -103,6 +105,7 @@ public sealed partial class CommerceApiTests
     }
     [Theory, Trait("UseCase", "UC-FAR-03")]
     [InlineData("name"), InlineData("unit"), InlineData("description"), InlineData("price"), InlineData("wholesale"), InlineData("images")]
+    [Trait("CaseId", "IT-FAR-03-AUTO-003")]
     public async Task ProductValidation_ReturnsFieldErrorsWithoutMessageCodes(string field)
     {
         await using var api = await Api.Create();
@@ -122,6 +125,7 @@ public sealed partial class CommerceApiTests
         Assert.Equal(0, api.Data.Work.Commits);
     }
     [Fact, Trait("UseCase", "UC-FAR-03")]
+    [Trait("CaseId", "IT-FAR-03-AUTO-004")]
     public async Task ProductStaleVersion_Returns409()
     {
         await using var api = await Api.Create();
@@ -130,6 +134,7 @@ public sealed partial class CommerceApiTests
         Assert.Equal(0, api.Data.Work.Commits);
     }
     [Fact, Trait("UseCase", "UC-FAR-03")]
+    [Trait("CaseId", "IT-FAR-03-AUTO-005")]
     public async Task VisibilityRequest_BindsDto_AndHidesOwnedProduct()
     {
         await using var api = await Api.Create();
@@ -139,6 +144,7 @@ public sealed partial class CommerceApiTests
     }
     [Theory, Trait("UseCase", "UC-FAR-03")]
     [InlineData(false), InlineData(true)]
+    [Trait("CaseId", "IT-FAR-03-AUTO-006")]
     public async Task ProductStorageFailure_ReturnsFriendlyProblemDetails(bool visibility)
     {
         await using var api = await Api.Create();
@@ -152,6 +158,7 @@ public sealed partial class CommerceApiTests
     }
     [Theory, Trait("UseCase", "UC-RC-01")]
     [InlineData("{\"quantity\":\"abc\"}"), InlineData("{\"quantity\":\"\"}"), InlineData("{\"quantity\":null}")]
+    [Trait("CaseId", "IT-RC-01-AUTO-003")]
     public async Task InvalidQuantityJson_IsRejectedByApiBinding(string body)
     {
         await using var api = await Api.Create(102, "RetailCustomer");
@@ -162,6 +169,7 @@ public sealed partial class CommerceApiTests
     }
     [Theory, Trait("UseCase", "UC-RC-01")]
     [InlineData(0), InlineData(-1), InlineData(1.5)]
+    [Trait("CaseId", "IT-RC-01-AUTO-004")]
     public async Task InvalidQuantity_IsRejectedByServiceThroughApi(double quantity)
     {
         await using var api = await Api.Create(102, "RetailCustomer"); api.Data.AddCartLine();
@@ -170,6 +178,7 @@ public sealed partial class CommerceApiTests
         Assert.Equal(3, api.Data.Cart.CartItems.Single().Quantity); Assert.Equal(0, api.Data.Work.Commits);
     }
     [Fact, Trait("UseCase", "UC-RC-01")]
+    [Trait("CaseId", "IT-RC-01-AUTO-005")]
     public async Task CartQuantityUpdate_ReturnsWholesalePriceAndVietnameseNotification()
     {
         await using var api = await Api.Create(102, "RetailCustomer"); api.Data.AddCartLine(quantity: 9);
@@ -178,6 +187,7 @@ public sealed partial class CommerceApiTests
         Assert.Contains(result.Messages, message => message.Contains("s\u1ec9")); Assert.All(result.Messages, m => Assert.DoesNotContain("(MSG", m));
     }
     [Fact, Trait("UseCase", "UC-RC-01")]
+    [Trait("CaseId", "IT-RC-01-AUTO-006")]
     public async Task CartPreparation_PriceChangeRequiresSecondReview()
     {
         await using var api = await Api.Create(102, "RetailCustomer"); api.Data.AddCartLine(quantity: 2);
@@ -189,6 +199,7 @@ public sealed partial class CommerceApiTests
         Assert.True(reviewed.CanProceedToCheckout); Assert.Equal(5, api.Data.Batch.ReservedQuantity);
     }
     [Fact, Trait("UseCase", "UC-RC-01")]
+    [Trait("CaseId", "IT-RC-01-AUTO-007")]
     public async Task CartRemove_RemovesOnlyRequestedOwnedLine()
     {
         await using var api = await Api.Create(102, "RetailCustomer");
@@ -197,6 +208,7 @@ public sealed partial class CommerceApiTests
         Assert.Equal(702, Assert.Single(cart.Items).CartItemId); Assert.Equal(1, api.Data.Carts.Removals);
     }
     [Fact, Trait("UseCase", "UC-RC-01")]
+    [Trait("CaseId", "IT-RC-01-AUTO-008")]
     public async Task CartForeignItem_Returns404WithoutWrite()
     {
         await using var api = await Api.Create(103, "RetailCustomer"); api.Data.AddCartLine();
@@ -204,6 +216,7 @@ public sealed partial class CommerceApiTests
         Assert.Equal(0, api.Data.Work.Commits);
     }
     [Fact, Trait("UseCase", "UC-FAR-06")]
+    [Trait("CaseId", "IT-FAR-06-AUTO-001")]
     public async Task OrderWorkflow_RoutesToActualTransitionsAndCreatesSingleDispatch()
     {
         await using var api = await Api.Create();
@@ -214,6 +227,7 @@ public sealed partial class CommerceApiTests
         Assert.Equal(0, api.Data.Batch.ReservedQuantity); Assert.Equal(20, api.Data.Batch.AvailableQuantity);
     }
     [Fact, Trait("UseCase", "UC-FAR-06")]
+    [Trait("CaseId", "IT-FAR-06-AUTO-002")]
     public async Task DispatchDuplicate_Returns409WithoutSecondShipment()
     {
         await using var api = await Api.Create(); api.Data.Seller.Status = "ReadyToShip";
@@ -223,15 +237,17 @@ public sealed partial class CommerceApiTests
         Assert.Single(api.Data.Seller.Shipments); Assert.Single(api.Data.Orders.Movements);
     }
     [Theory, Trait("UseCase", "UC-FAR-06")]
-    [InlineData(0), InlineData(14)]
-    public async Task RejectShortExplanation_Returns400WithoutAudit(int length)
+    [InlineData(""), InlineData("   ")]
+    [Trait("CaseId", "IT-FAR-06-AUTO-003")]
+    public async Task RejectBlankExplanation_Returns400WithoutAudit(string explanation)
     {
         await using var api = await Api.Create();
         await Error(await api.Client.PostAsJsonAsync("api/farmer/orders/501/reject",
-            api.Data.Action("Shortfall", new string('a', length))), HttpStatusCode.BadRequest, "VALIDATION");
+            api.Data.Action("Shortfall", explanation)), HttpStatusCode.BadRequest, "VALIDATION");
         Assert.Empty(api.Data.Orders.Audits);
     }
     [Fact, Trait("UseCase", "UC-FAR-06")]
+    [Trait("CaseId", "IT-FAR-06-AUTO-004")]
     public async Task FarmerCannotSetBuyerReceipt_UnsupportedActionReturns400()
     {
         await using var api = await Api.Create(); api.Data.Seller.Status = "Shipping";
@@ -239,6 +255,7 @@ public sealed partial class CommerceApiTests
         Assert.Null(api.Data.Seller.ReceivedAt); Assert.Empty(api.Data.Orders.Audits);
     }
     [Fact, Trait("UseCase", "UC-FAR-06")]
+    [Trait("CaseId", "IT-FAR-06-AUTO-005")]
     public async Task OrderCommitFailure_Returns500WithNoRawMessageId()
     {
         await using var api = await Api.Create(); api.Data.Work.FailCommit = true;

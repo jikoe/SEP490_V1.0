@@ -126,9 +126,9 @@ internal sealed class CommerceFixture
     public readonly ProductDouble Products;
     public readonly CartDouble Carts;
     public readonly OrderDouble Orders;
-    public readonly ProductService ProductService;
+    public readonly FarmerProductService FarmerProductService;
     public readonly CartPricingService Pricing;
-    public readonly CartService CartService;
+    public readonly RetailCartService RetailCartService;
     public readonly OrderFulfillmentService OrderService;
     public SellerOrder Seller => Orders.Order;
     public OrderItem Line => Seller.OrderItems.Single();
@@ -218,9 +218,9 @@ internal sealed class CommerceFixture
         seller.OrderItems.Add(line);
         Batch.ReservedQuantity = 5;
         Orders = new OrderDouble { Order = seller };
-        ProductService = new ProductService(Products, Work, new ProductRequestValidator(), new ProductQueryValidator(), Clock, Files);
+        FarmerProductService = new FarmerProductService(Products, Work, new ProductRequestValidator(), new ProductQueryValidator(), Clock, Files);
         Pricing = new CartPricingService(Options.Create(new QuantityOptions()), Clock);
-        CartService = new CartService(Carts, Work, Pricing, Clock);
+        RetailCartService = new RetailCartService(Carts, Work, Pricing, Clock);
         OrderService = new OrderFulfillmentService(Orders, Work, new FulfillmentRules(Clock), Clock, Files);
     }
     public ProductRequest Request => new("Tomato", 201, "kg", "Fresh tomato", 30000, 10, 25000,

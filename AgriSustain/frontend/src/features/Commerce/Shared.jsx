@@ -31,7 +31,7 @@ export function Confirm({ title, children, busy, onConfirm, onClose }) {
 export function Empty({ children }) {
   return <div className="commerce-empty"><span>♧</span><h2>{children}</h2></div>;
 }
-export function Uploads({ evidence = false, files, onChange, disabled, onError, onBusyChange }) {
+export function Uploads({ evidence = false, files, onChange, disabled, onError, onBusyChange, showAltText = true }) {
   const [busy, setBusy] = useState(false);
   const ref = useRef(null);
   async function upload(event) {
@@ -78,9 +78,9 @@ export function Uploads({ evidence = false, files, onChange, disabled, onError, 
       {!evidence && <><label className="commerce-check"><input type="radio" name="primary-image"
         disabled={disabled || busy} checked={file.isPrimary} onChange={() => onChange(files.map(
           (item, i) => ({ ...item, isPrimary: index === i })))} />Ảnh đại diện</label>
-        <label>Mô tả ảnh<input maxLength={255} value={file.altText || ''} disabled={disabled || busy}
+        {showAltText && <label>Mô tả ảnh<input maxLength={255} value={file.altText || ''} disabled={disabled || busy}
           onChange={event => onChange(files.map((item, i) => i === index
-            ? { ...item, altText: event.target.value } : item))} /></label></>}
+            ? { ...item, altText: event.target.value } : item))} /></label>}</>}
       <button type="button" disabled={disabled || busy} onClick={() => {
         const next = files.filter((_, i) => i !== index);
         if (!evidence && next.length && !next.some(item => item.isPrimary)) next[0].isPrimary = true;
@@ -102,6 +102,3 @@ export function useFeatureData(load, dependencies) {
   }, [...dependencies, revision]);
   return { data, setData, error, setError, loading, reload: () => setRevision(value => value + 1) };
 }
-
-
-

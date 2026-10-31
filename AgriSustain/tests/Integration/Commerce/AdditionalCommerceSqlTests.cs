@@ -71,6 +71,7 @@ public sealed partial class CommerceSqlTests
     [InlineData(".jpg", 5242881, false)]
     [InlineData(".jpg", 0, false)]
     [InlineData(".png", 24, false)]
+    [Trait("CaseId", "IT-FAR-03-AUTO-001")]
     public async Task UploadImage_ValidatesFiveMbLimitExtensionAndSignature(string extension, int length, bool accepted)
     {
         await using var f = await CommerceDatabase.Create();
@@ -86,7 +87,7 @@ public sealed partial class CommerceSqlTests
         form.Add(new ByteArrayContent(bytes), "file", "image" + extension);
         var response = await f.Farmer().PostAsync("api/files/images", form);
         if (!accepted) { await Error(response, HttpStatusCode.BadRequest); return; }
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(response.StatusCode==HttpStatusCode.OK, $"{response.StatusCode}: {f.Errors}");
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var imageUrl = json.RootElement.GetProperty("imageUrl").GetString()!;
         Assert.StartsWith($"/media/{f.FarmerId}/", imageUrl);
@@ -112,6 +113,7 @@ public sealed partial class CommerceSqlTests
 
     [CommerceSqlTheory, Trait("UseCase", "UC-RC-01")]
     [InlineData("retail"), InlineData("wholesale"), InlineData("threshold")]
+    [Trait("CaseId", "IT-RC-01-AUTO-001")]
     public async Task CheckoutPreparation_ChangedPricingRequiresReview(string change)
     {
         await using var f = await CommerceDatabase.Create();
@@ -133,6 +135,7 @@ public sealed partial class CommerceSqlTests
     }
 
     [CommerceSqlFact, Trait("UseCase", "UC-RC-01")]
+    [Trait("CaseId", "IT-RC-01-AUTO-002")]
     public async Task DifferentBatchCreatesSeparateLine_AndBulkDeletePreservesUnselectedLine()
     {
         await using var f = await CommerceDatabase.Create();

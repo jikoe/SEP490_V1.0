@@ -5,28 +5,14 @@ using AgriSustain.Domain.Entities;
 
 namespace AgriSustain.Application.Services;
 
-public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWork,
+public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfWork unitOfWork,
     CartPricingService pricing, TimeProvider clock)
 {
-    public async Task<CartResponse> GetAsync(long userId, CancellationToken cancellationToken)
+    public async Task<CartResponse> GetCartAsync(long userId, CancellationToken cancellationToken)
     {
         await unitOfWork.BeginAsync(cancellationToken);
         var cart = await repository.GetOwnedAsync(userId, cancellationToken);
-        var messages = new List<string>();
-        foreach (var item in cart?.CartItems ?? [])
-        {
-            if (item.PreOrderCampaignId is not null || !pricing.IsAvailable(item.Product, item.HarvestBatch))
-            {
-                item.IsSelected = false;
-                messages.Add(CartMessages.Unavailable(item.Product.ProductName));
-            }
-            else if (item.HarvestBatch is { } batch && item.Quantity > pricing.MaximumQuantity(batch))
-            {
-                item.Quantity = pricing.MaximumQuantity(batch);
-                messages.Add(CartMessages.Adjusted(item.Product.ProductName,
-                    batch.AvailableQuantity, item.Quantity, item.Product.Unit));
-            }
-        }
+        var messages = pricing.Availability.ReconcileAvailability(cart);
         if (messages.Count > 0 && cart is not null)
             cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await unitOfWork.CommitAsync(cancellationToken);
@@ -51,12 +37,12 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
         await unitOfWork.BeginAsync(cancellationToken);
         var batch = await repository.GetOfferAsync(request.ProductId, request.HarvestBatchId,
             cancellationToken);
-        if (batch is null || !pricing.IsAvailable(batch.Product, batch))
+        if (batch is null || !pricing.Availability.ValidateLine(batch.Product, batch))
         {
             return Fail("CONFLICT", CartMessages.Unavailable(batch?.Product.ProductName ?? "Sản phẩm đã chọn"));
         }
 
-        if (!pricing.IsQuantityValid(request.Quantity, batch.Product.Unit))
+        if (!pricing.Availability.ValidateQuantity(request.Quantity, batch.Product.Unit))
         {
             return Fail("VALIDATION", CartMessages.InvalidQuantity(batch.Product.Unit));
         }
@@ -76,7 +62,7 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
         }
 
         decimal desired = (item?.Quantity ?? 0) + request.Quantity;
-        decimal quantity = decimal.Min(desired, pricing.MaximumQuantity(batch));
+        decimal quantity = decimal.Min(desired, pricing.Availability.MaximumQuantity(batch));
         if (item is null)
         {
             item = new CartItem
@@ -88,7 +74,7 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
             cart.CartItems.Add(item);
         }
 
-        item.Quantity = quantity;
+        item.ChangeQuantity(quantity);
         cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await unitOfWork.CommitAsync(cancellationToken);
         return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, new[]
@@ -101,91 +87,16 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
     private async Task<FeatureResult<CartResponse>> AddProductAsync(long userId,
         CartItemRequest request, CancellationToken cancellationToken)
     {
-        await unitOfWork.BeginAsync(cancellationToken);
-        var offers = (await repository.GetOffersAsync(request.ProductId, cancellationToken))
-            .Where(batch => pricing.IsAvailable(batch.Product, batch))
-            .OrderBy(batch => !batch.ExpirationDate.HasValue)
-            .ThenBy(batch => batch.ExpirationDate)
-            .ThenBy(batch => batch.HarvestBatchId).ToArray();
-        if (offers.Length == 0)
-        {
-            return Fail("CONFLICT", "Sản phẩm đã hết hàng hoặc không còn được bán (MSG88).");
-        }
-
-        var product = offers[0].Product;
-        if (!pricing.IsQuantityValid(request.Quantity, product.Unit))
-        {
-            return Fail("VALIDATION", "Số lượng sai bước bán hoặc vượt giới hạn (MSG167).");
-        }
-
-        var cart = await repository.GetOwnedAsync(userId, cancellationToken);
-        var capacity = offers.Select(batch =>
-        {
-            var item = cart?.CartItems.SingleOrDefault(x => x.ProductId == request.ProductId
-                && x.HarvestBatchId == batch.HarvestBatchId && x.PreOrderCampaignId == null);
-            return (Batch: batch, Item: item, Available: decimal.Max(0,
-                pricing.MaximumQuantity(batch) - (item?.Quantity ?? 0)));
-        }).ToArray();
-        decimal available = capacity.Sum(x => x.Available);
-        if (request.Quantity > available)
-        {
-            return Fail("CONFLICT", $"Không đủ hàng. Bạn có thể thêm tối đa {available:0.###} "
-                + $"{product.Unit} với số lượng hiện có trong giỏ (MSG86).");
-        }
-
-        var allocations = new List<(HarvestBatch Batch, CartItem? Item, decimal Quantity)>();
-        decimal remaining = request.Quantity;
-        foreach (var offer in capacity)
-        {
-            decimal quantity = decimal.Min(remaining, offer.Available);
-            if (quantity > 0)
-            {
-                allocations.Add((offer.Batch, offer.Item, quantity));
-                remaining -= quantity;
-            }
-
-            if (remaining == 0)
-            {
-                break;
-            }
-        }
-
-        if ((cart?.CartItems.Count ?? 0) + allocations.Count(x => x.Item is null) > 100)
-        {
-            return Fail("VALIDATION", "Giỏ hàng tối đa 100 dòng sản phẩm.");
-        }
-
-        if (cart is null)
-        {
-            cart = new Cart { UserId = userId };
-            repository.Add(cart);
-        }
-
-        var now = clock.GetUtcNow().UtcDateTime;
-        foreach (var allocation in allocations)
-        {
-            var item = allocation.Item;
-            if (item is null)
-            {
-                item = new CartItem
-                {
-                    ProductId = request.ProductId, Product = allocation.Batch.Product,
-                    HarvestBatchId = allocation.Batch.HarvestBatchId,
-                    HarvestBatch = allocation.Batch, IsSelected = true, AddedAt = now
-                };
-                cart.CartItems.Add(item);
-            }
-
-            item.Quantity += allocation.Quantity;
-        }
-
-        cart.UpdatedAt = now;
-        await unitOfWork.CommitAsync(cancellationToken);
-        return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart,
-            new[] { "Đã thêm vào giỏ hàng (MSG81)." }));
+        // Catalog quick-add chooses one actual batch; it never merges different batches into one line.
+        var batch = (await repository.GetOffersAsync(request.ProductId, cancellationToken))
+            .Where(x => pricing.Availability.ValidateLine(x.Product, x))
+            .OrderBy(x => !x.ExpirationDate.HasValue).ThenBy(x => x.ExpirationDate)
+            .ThenBy(x => x.HarvestBatchId).FirstOrDefault();
+        return batch is null ? Fail("CONFLICT", CartMessages.Unavailable("Sản phẩm đã chọn"))
+            : await AddItemAsync(userId, request with { HarvestBatchId = batch.HarvestBatchId }, cancellationToken);
     }
 
-    public async Task<FeatureResult<CartResponse>> UpdateQuantityAsync(long userId, long id,
+    public async Task<FeatureResult<CartResponse>> ChangeQuantityAsync(long userId, long id,
         decimal quantity, CancellationToken cancellationToken)
     {
         await unitOfWork.BeginAsync(cancellationToken);
@@ -196,13 +107,13 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
             return Fail("NOT_FOUND", "Không tìm thấy sản phẩm trong giỏ của bạn.");
         }
 
-        if (!pricing.IsQuantityValid(quantity, item.Product.Unit))
+        if (!pricing.Availability.ValidateQuantity(quantity, item.Product.Unit))
         {
             return Fail("VALIDATION", CartMessages.InvalidQuantity(item.Product.Unit));
         }
 
         var messages = new List<string>();
-        if (!pricing.IsAvailable(item.Product, item.HarvestBatch))
+        if (!pricing.Availability.ValidateLine(item.Product, item.HarvestBatch))
         {
             item.IsSelected = false;
             messages.Add(CartMessages.Unavailable(item.Product.ProductName));
@@ -211,7 +122,7 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
         {
             decimal previousPrice = pricing.Calculate(cart).Items
                 .Single(x => x.CartItemId == id).UnitPrice;
-            item.Quantity = decimal.Min(quantity, pricing.MaximumQuantity(batch));
+            item.ChangeQuantity(pricing.Availability.NormalizeQuantity(quantity, item.Product.Unit, batch.AvailableQuantity));
             if (quantity > item.Quantity)
             {
                 messages.Add(CartMessages.Adjusted(item.Product.ProductName, batch.AvailableQuantity, item.Quantity, item.Product.Unit));
@@ -258,16 +169,15 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
             else
             {
                 item.IsSelected = request.IsSelected
-                    && pricing.IsAvailable(item.Product, item.HarvestBatch);
+                    && pricing.Availability.ValidateLine(item.Product, item.HarvestBatch);
             }
         }
 
+        var selectionMessages = remove ? new List<string> { CartMessages.Removed(ids.Count) }
+            : pricing.Availability.ReconcileAvailability(cart).ToList();
         cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await unitOfWork.CommitAsync(cancellationToken);
-        return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, new[]
-        {
-            remove ? CartMessages.Removed(ids.Count) : "Đã cập nhật lựa chọn."
-        }));
+        return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, selectionMessages));
     }
 
     public async Task<FeatureResult<CartResponse>> PrepareCheckoutAsync(long userId,
@@ -280,27 +190,11 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
 
         await unitOfWork.BeginAsync(cancellationToken);
         var cart = await repository.GetOwnedAsync(userId, cancellationToken);
-        bool changed = false;
-        var messages = new List<string>();
-        foreach (var item in cart?.CartItems.Where(x => x.IsSelected) ?? [])
-        {
-            if (!pricing.IsAvailable(item.Product, item.HarvestBatch))
-            {
-                item.IsSelected = false;
-                changed = true;
-                messages.Add(CartMessages.Unavailable(item.Product.ProductName));
-            }
-            else if (item.HarvestBatch is { } batch
-                && item.Quantity > pricing.MaximumQuantity(batch))
-            {
-                item.Quantity = pricing.MaximumQuantity(batch);
-                changed = true;
-                messages.Add(CartMessages.Adjusted(item.Product.ProductName, batch.AvailableQuantity, item.Quantity, item.Product.Unit));
-            }
-        }
+        var messages = pricing.Availability.ReconcileAvailability(cart, selectedOnly: true).ToList();
+        bool changed = messages.Count > 0;
 
         var result = pricing.Calculate(cart);
-        if (result.ReviewToken != reviewToken && !changed)
+        if (!pricing.Availability.CompareSelection(reviewToken, result.ReviewToken) && !changed)
         {
             changed = true;
             messages.Add(CartMessages.PriceChanged);
@@ -321,7 +215,11 @@ public sealed class CartService(ICartRepository repository, IUnitOfWork unitOfWo
             !changed && result.SelectedCount > 0));
     }
 
+    public Task<FeatureResult<CartResponse>> SelectItemsAsync(long userId, CartSelectionRequest input, CancellationToken ct) =>
+        SetSelectionAsync(userId, input, false, ct);
+    public Task<FeatureResult<CartResponse>> RemoveItemsAsync(long userId, long[] ids, CancellationToken ct) =>
+        SetSelectionAsync(userId, new CartSelectionRequest(ids, false), true, ct);
+
     private static FeatureResult<CartResponse> Fail(string code, string message) =>
         FeatureResult<CartResponse>.Fail(code, message);
 }
-

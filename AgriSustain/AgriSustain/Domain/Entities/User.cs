@@ -23,11 +23,6 @@ public partial class User
 
     public string Status { get; set; } = null!;
 
-    /// <summary>'Male' | 'Female' | 'Other' (UC-AUTH-03).</summary>
-    public string? Gender { get; set; }
-
-    public DateOnly? DateOfBirth { get; set; }
-
     public bool IsEmailVerified { get; set; }
 
     public DateTime CreatedAt { get; set; }
@@ -35,6 +30,10 @@ public partial class User
     public int FailedLoginCount { get; set; }
 
     public DateTime? LockedUntil { get; set; }
+
+    public string? Gender { get; set; }
+
+    public DateOnly? DateOfBirth { get; set; }
 
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 
@@ -81,6 +80,8 @@ public partial class User
     public virtual ICollection<RetailCheckoutQuote> RetailCheckoutQuotes { get; set; } = new List<RetailCheckoutQuote>();
 
     public virtual ICollection<RewardPointEntry> RewardPointEntries { get; set; } = new List<RewardPointEntry>();
+
+    public virtual UserBankAccount? UserBankAccount { get; set; }
 
     public virtual WholesaleBuyerProfile? WholesaleBuyerProfile { get; set; }
 }

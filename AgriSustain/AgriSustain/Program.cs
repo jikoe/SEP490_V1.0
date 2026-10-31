@@ -108,15 +108,32 @@ builder.Services.AddScoped<AgriSustain.Application.Interfaces.IUnitOfWork>(servi
 
 builder.Services.Configure<QuantityOptions>(builder.Configuration.GetSection("Quantity"));
 builder.Services.AddScoped<ICurrentActor, CurrentActor>();
+builder.Services.AddScoped<IFarmerProductRepository>(services => services.GetRequiredService<IProductRepository>());
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IRetailCartRepository>(services => services.GetRequiredService<ICartRepository>());
 builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<IFarmerOrderRepository>(services => services.GetRequiredService<IOrderRepository>());
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
-builder.Services.AddScoped<ProductService>();
-builder.Services.AddScoped<CartService>();
+builder.Services.AddScoped<FarmerProductService>();
+builder.Services.AddScoped<ProductListingRules>();
+builder.Services.AddScoped<ProductNotificationService>();
+builder.Services.AddScoped<IProductNotificationRepository, ProductNotificationRepository>();
+// Review links only; NotificationGateway uses the shared GmailOptions registered below.
+builder.Services.Configure<AgriSustain.Infrastructure.Email.EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<INotificationGateway, AgriSustain.Infrastructure.Email.NotificationGateway>();
+if (builder.Configuration.GetValue("ProductNotifications:EnableWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.ProductNotificationWorker>();
+builder.Services.AddScoped<RetailCartService>();
 builder.Services.AddScoped<CartPricingService>();
 builder.Services.AddScoped<FulfillmentRules>();
 builder.Services.AddScoped<OrderFulfillmentService>();
+builder.Services.AddScoped<AgriSustain.Infrastructure.Payments.PaymentGatewayProxy>();
+builder.Services.AddScoped<OrderRefundService>();
+builder.Services.AddScoped<OrderNotificationService>();
+builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.OrderNotificationWorker>();
+builder.Services.AddScoped<FarmerOrderService>();
 builder.Services.AddValidatorsFromAssemblyContaining<ProductRequestValidator>();
 
 // DuND Application Services
