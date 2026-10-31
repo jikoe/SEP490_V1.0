@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Notice, Field, initials, VerificationBadge, Modal } from '../../components/ui/Common';
+import { Notice, Toast, Field, initials, VerificationBadge, Modal } from '../../components/ui/Common';
 
 /**
  * UC-AUTH-03: Manage Profile Screen (SCR-11)
@@ -714,8 +714,8 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         </div>
       </div>
 
-      <Notice error={Boolean(error)}>{error}</Notice>
-      {notice && <Notice>{notice}</Notice>}
+      <Toast error message={error} onClose={() => setError(null)} />
+      <Toast message={notice} onClose={() => setNotice(null)} />
 
       {/* Reject Reason Warning banner if KYC is Rejected */}
       {profile.rejectReason && (

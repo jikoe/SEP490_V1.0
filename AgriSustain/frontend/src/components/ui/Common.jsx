@@ -34,6 +34,34 @@ export const statusLabel = {
  * Exposes user feedback as an accessible status or alert region, keeping server messages as text
  * rather than rendering untrusted HTML.
  */
+/**
+ * Toast that slides down at the top-right corner: green for success, red for failure.
+ * It closes itself after `duration` ms or when the user clicks ×, then calls onClose so the
+ * screen can clear its message state.
+ */
+export function Toast({ message, error = false, onClose, duration = 4000 }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!message) return undefined;
+    const timer = setTimeout(() => closeRef.current?.(), duration);
+    return () => clearTimeout(timer);
+  }, [message, duration]);
+  if (!message) return null;
+  return <div role={error ? 'alert' : 'status'} aria-live={error ? 'assertive' : 'polite'} style={{
+    position: 'fixed', top: 20, right: 20, zIndex: 2000, maxWidth: 'min(420px, calc(100vw - 40px))',
+    display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 10,
+    background: error ? '#fdecea' : '#e8f5ed', color: error ? '#9b1c1c' : '#14532d',
+    borderLeft: `5px solid ${error ? '#dc2626' : '#16a34a'}`, boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+    fontSize: 14, lineHeight: 1.5, animation: 'toast-slide-down 0.3s ease-out' }}>
+    <style>{'@keyframes toast-slide-down{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:translateY(0)}}'}</style>
+    <span style={{ flex: 1 }}>{message}</span>
+    <button type="button" aria-label="Đóng thông báo" onClick={() => onClose?.()} style={{
+      border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: 16,
+      lineHeight: 1, padding: 0, minHeight: 0 }}>×</button>
+  </div>;
+}
+
 export function Notice({ children, error = false }) {
   return children ? <div className={`notice ${error ? 'error' : ''}`}
     role={error ? 'alert' : 'status'}>{children}</div> : null;
