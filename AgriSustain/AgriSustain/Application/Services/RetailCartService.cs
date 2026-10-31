@@ -5,7 +5,7 @@ using AgriSustain.Domain.Entities;
 
 namespace AgriSustain.Application.Services;
 
-public sealed class RetailCartService(ICartRepository repository, IUnitOfWork unitOfWork,
+public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfWork unitOfWork,
     CartPricingService pricing, TimeProvider clock)
 {
     public async Task<CartResponse> GetCartAsync(long userId, CancellationToken cancellationToken)

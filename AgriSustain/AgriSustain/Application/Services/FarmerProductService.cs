@@ -7,7 +7,7 @@ using FluentValidation;
 using FluentValidation.Results;
 namespace AgriSustain.Application.Services;
 
-public sealed class FarmerProductService(IProductRepository repository, IUnitOfWork unitOfWork,
+public sealed class FarmerProductService(IFarmerProductRepository repository, IUnitOfWork unitOfWork,
     IValidator<ProductRequest> validator, IValidator<ProductQuery> queryValidator,
     TimeProvider clock, IFileStorageService storage,
     ProductNotificationService? notifications = null, ProductListingRules? listingRules = null)
@@ -20,11 +20,11 @@ public sealed class FarmerProductService(IProductRepository repository, IUnitOfW
     {
         var validation = await queryValidator.ValidateAsync(query, ct);
         return validation.IsValid ? FeatureResult<PageResult<ProductResponse>>.Ok(
-            await repository.SearchAsync(userId, query, ct)) : Invalid<PageResult<ProductResponse>>(validation);
+            await repository.SearchOwnedAsync(userId, query, ct)) : Invalid<PageResult<ProductResponse>>(validation);
     }
     public async Task<FeatureResult<ProductResponse>> GetProductAsync(long userId, long id, CancellationToken ct)
     {
-        var product = await repository.GetOwnedAsync(userId, id, ct);
+        var product = await repository.LoadOwnedContextAsync(userId, id, ct);
         return product is null ? Missing() : FeatureResult<ProductResponse>.Ok(repository.Map(product));
     }
     public async Task<FeatureResult<ProductResponse>> SaveProductAsync(long userId, long? id,
@@ -36,7 +36,7 @@ public sealed class FarmerProductService(IProductRepository repository, IUnitOfW
         var farmer = await repository.GetFarmerAsync(userId, ct);
         if (farmer?.VerificationStatus != "Approved")
             return await Abort("FORBIDDEN", ProductListingMessages.MSG75, ct);
-        var product = id.HasValue ? await repository.GetOwnedAsync(userId, id.Value, ct) : null;
+        var product = id.HasValue ? await repository.LoadOwnedContextAsync(userId, id.Value, ct) : null;
         if (id.HasValue && product is null) return await Abort("NOT_FOUND", ProductListingMessages.MSG80, ct);
         if (product is not null && repository.Map(product).Version != request.Version)
             return await Abort("CONFLICT", ProductListingMessages.MSG122, ct);
@@ -94,7 +94,7 @@ public sealed class FarmerProductService(IProductRepository repository, IUnitOfW
         bool published, string version, CancellationToken ct)
     {
         await unitOfWork.BeginAsync(ct);
-        var product = await repository.GetOwnedAsync(userId, id, ct);
+        var product = await repository.LoadOwnedContextAsync(userId, id, ct);
         if (product is null) return await Abort("NOT_FOUND", ProductListingMessages.MSG80, ct);
         if (repository.Map(product).Version != version) return await Abort("CONFLICT", ProductListingMessages.MSG122, ct);
         if (product.FarmerProfile.VerificationStatus != "Approved") return await Abort("FORBIDDEN", ProductListingMessages.MSG75, ct);

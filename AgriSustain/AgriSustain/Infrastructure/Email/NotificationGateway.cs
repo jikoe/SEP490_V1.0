@@ -6,23 +6,25 @@ using AgriSustain.Application.Interfaces;
 using Microsoft.Extensions.Options;
 namespace AgriSustain.Infrastructure.Email;
 
-public sealed class NotificationGateway(IOptions<EmailSettings> options) : INotificationGateway
+public sealed class NotificationGateway(IOptions<GmailOptions> options) : INotificationGateway
 {
     public async Task SendEmailAsync(string recipient, string subject, string content,
         string eventKey, CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        if (string.IsNullOrWhiteSpace(settings.SmtpPass)
-            || string.IsNullOrWhiteSpace(settings.SmtpUser)
-            || string.IsNullOrWhiteSpace(settings.SmtpHost) || !settings.EnableSsl)
-            throw new InvalidOperationException("SMTP credentials and TLS must be configured.");
-        using var client = new SmtpClient(settings.SmtpHost, settings.SmtpPort)
+        if (!settings.UsesGmail || string.IsNullOrWhiteSpace(settings.AppPassword)
+            || string.IsNullOrWhiteSpace(settings.SenderAddress)
+            || string.IsNullOrWhiteSpace(settings.Host))
+            throw new InvalidOperationException("Configure Gmail__SenderAddress and Gmail__AppPassword with Gmail provider enabled.");
+        using var client = new SmtpClient(settings.Host, settings.Port)
         {
-            EnableSsl = settings.EnableSsl, UseDefaultCredentials = false,
-            Credentials = new NetworkCredential(settings.SmtpUser, settings.SmtpPass),
-            DeliveryMethod = SmtpDeliveryMethod.Network, Timeout = 30000
+            EnableSsl = true, UseDefaultCredentials = false,
+            Credentials = new NetworkCredential(settings.SenderAddress,
+                settings.AppPassword.Replace(" ", string.Empty)),
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+            Timeout = Math.Clamp(settings.TimeoutSeconds, 1, 120) * 1000
         };
-        using var message = new MailMessage(new MailAddress(settings.FromEmail, "AgriSustain"),
+        using var message = new MailMessage(new MailAddress(settings.SenderAddress, settings.SenderName),
             new MailAddress(recipient))
         {
             Subject = subject, Body = content, IsBodyHtml = false,

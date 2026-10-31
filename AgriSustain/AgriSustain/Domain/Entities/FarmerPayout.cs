@@ -31,9 +31,17 @@ public partial class FarmerPayout
 
     public string RequestKey { get; set; } = null!;
 
+    public string? RecipientBankCode { get; set; }
+
+    public string? RecipientAccountNumber { get; set; }
+
+    public string? RecipientAccountHolder { get; set; }
+
     public virtual User? ApprovedByUser { get; set; }
 
     public virtual FarmerProfile FarmerProfile { get; set; } = null!;
 
     public virtual ICollection<PayoutItem> PayoutItems { get; set; } = new List<PayoutItem>();
+
+    public virtual SupportedBank? RecipientBankCodeNavigation { get; set; }
 }

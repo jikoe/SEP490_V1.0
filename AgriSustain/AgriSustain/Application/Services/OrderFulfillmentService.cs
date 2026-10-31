@@ -3,11 +3,22 @@ using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
+using AgriSustain.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AgriSustain.Application.Services;
 
-public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOfWork unitOfWork,
-    FulfillmentRules rules, TimeProvider clock, IFileStorageService storage)
+public sealed class OrderFulfillmentService(
+    IOrderRepository repository,
+    IUnitOfWork unitOfWork,
+    FulfillmentRules rules,
+    TimeProvider clock,
+    IFileStorageService storage,
+    INotificationGateway? notificationGateway = null,
+    OrderRefundService? refundService = null,
+    OrderNotificationService? notificationService = null,
+    AgriSustainContext? dbContext = null)
 {
     public async Task<FeatureResult<PageResult<SellerOrderResponse>>> GetListAsync(long userId,
         SellerOrderQuery query, CancellationToken cancellationToken)
@@ -47,11 +58,14 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             return Fail("VALIDATION", "Thông tin thao tác không hợp lệ.");
         }
 
-        if (action is "reject" && (string.IsNullOrWhiteSpace(request.Reason)
-            || request.Reason is not ("Quality" or "Shortfall" or "ForceMajeure")
-            || request.Explanation?.Trim().Length < 15 || request.Explanation is null))
+        if (action is "reject")
         {
-            return Fail("VALIDATION", "Chọn lý do và giải thích ít nhất 15 ký tự.");
+            var trimmedReason = (request.Explanation ?? request.Reason)?.Trim();
+            if (string.IsNullOrWhiteSpace(trimmedReason))
+            {
+                return Fail("VALIDATION", "Vui lòng nhập lý do từ chối. Không được để trống hoặc chỉ nhập khoảng trắng.");
+            }
+
         }
 
         if (action == "delivery-report" && request.Reason is not ("DeliveryFailure" or "Return"))
@@ -95,28 +109,17 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             return Fail("CONFLICT", "Đơn hợp đồng được xử lý qua quản lý hợp đồng UC-FAR-08.");
         }
 
+        decimal refundedAmount = 0;
         string previous = order.Status;
         var now = clock.GetUtcNow().UtcDateTime;
-        string? error = action switch
+
+        string? validationError = ValidateAction(order, action, request.RequestKey);
+        if (validationError is not null)
         {
-            "confirm" when order.Status != "Pending" => "Trạng thái không hợp lệ.",
-            "ready" when !FulfillmentRules.IsConfirmed(order.Status) =>
-                "Đơn chưa được xác nhận.",
-            "dispatch" when !FulfillmentRules.IsReady(order.Status) =>
-                "Không thể chuyển đơn hàng sang đang giao từ trạng thái hiện tại. Đơn phải sẵn sàng giao trước.",
-            "reject" when !FulfillmentRules.IsBeforeShipping(order.Status) =>
-                "Chỉ từ chối trước khi giao.",
-            "delivery-report" when !FulfillmentRules.IsShipping(order.Status)
-                && order.Status is not ("Delivered" or "DeliveryFailed") =>
-                "Đơn chưa giao hoặc không còn nhận báo cáo.",
-            _ => null
-        };
-        if (error is not null)
-        {
-            return Fail("CONFLICT", error);
+            return Fail("CONFLICT", validationError);
         }
 
-        if (action is "confirm" or "ready" or "dispatch")
+        if (action is "confirm" or "ready" or "dispatch" or "start-shipping")
         {
             var invalidQuantity = order.OrderItems.FirstOrDefault(item => item.Quantity <= 0
                 || item.OrderItemBatchAllocations.Any(allocation => allocation.AllocatedQuantity <= 0));
@@ -139,7 +142,7 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             {
                 var items = string.Join(", ", order.OrderItems.Select(item =>
                     item.ProductNameSnapshot ?? item.Product.ProductName));
-                return Fail("CONFLICT", action == "dispatch"
+                return Fail("CONFLICT", action is "dispatch" or "start-shipping"
                     ? $"Không thể bắt đầu giao hàng. Vui lòng kiểm tra trạng thái đơn, thanh toán hoặc tiền cọc đã xác minh và phân bổ lô hàng hợp lệ cho: {items}."
                     : $"Đơn hàng chưa thể tiếp tục. Chưa đủ thanh toán hoặc tiền cọc đã xác minh, hoặc thiếu phân bổ lô hàng thực tế hợp lệ cho: {items}.");
             }
@@ -153,16 +156,22 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             case "ready":
                 order.Status = "ReadyToShip";
                 break;
-            case "dispatch":
+            case "dispatch" or "start-shipping":
                 Dispatch(order, userId, request.RequestKey, now);
                 break;
             case "reject":
-                Reject(order, now);
-                await repository.ReleasePurchaseHoldsAsync(order, cancellationToken);
-                if (rules.VerifiedPayment(order) > 0)
+                var trimmedReason = (request.Explanation ?? request.Reason)?.Trim() ?? "Farmer rejected order before dispatch";
+                if (refundService is not null)
                 {
-                    await repository.QueueFinanceReviewAsync(order, userId, cancellationToken);
+                    await refundService.RefundSellerShareOnceAsync(order, userId, trimmedReason,
+                        request.RequestKey, now, cancellationToken);
+                    refundedAmount = refundService.GetCompletedAmount(order);
                 }
+                else if (rules.VerifiedPayment(order) > 0)
+                    return Fail("UNAVAILABLE", "Dịch vụ hoàn tiền chưa sẵn sàng. Vui lòng thử lại.");
+                ReleaseUndispatchedGoods(order, now);
+                order.Status = "Cancelled";
+                await repository.ReleasePurchaseHoldsAsync(order, cancellationToken);
                 break;
             case "delivery-report":
                 ReportDelivery(order, userId, request, now);
@@ -170,10 +179,10 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
                     $"Đơn {order.SellerOrderCode} có báo cáo giao hàng thất bại hoặc hàng trả. Vui lòng xem hồ sơ và bằng chứng.", cancellationToken);
                 break;
             case "evidence":
-                error = SubmitEvidence(order, userId, request, now);
-                if (error is not null)
+                string? evidenceError = SubmitEvidence(order, userId, request, now);
+                if (evidenceError is not null)
                 {
-                    return Fail("CONFLICT", error);
+                    return Fail("CONFLICT", evidenceError);
                 }
                 break;
             default:
@@ -181,15 +190,20 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
         }
 
         if (action == "evidence")
+        {
             await repository.NotifySupportAsync(id,
                 $"Nông trại đã gửi giải trình và bằng chứng cho đơn {order.SellerOrderCode}. Vui lòng xem xét yêu cầu bổ sung bằng chứng.", cancellationToken);
+        }
+
         string historyReason = request.Reason is null ? action
-            : request.Reason + ": " + request.Explanation;
+            : request.Reason + (string.IsNullOrWhiteSpace(request.Explanation) ? "" : ": " + request.Explanation);
         if (order.Status != previous)
         {
             order.OrderStatusHistories.Add(new OrderStatusHistory
             {
-                ChangedByUserId = userId, OldStatus = previous, NewStatus = order.Status,
+                ChangedByUserId = userId,
+                OldStatus = previous,
+                NewStatus = order.Status,
                 Reason = historyReason[..Math.Min(historyReason.Length, 500)],
                 OccurredAt = now
             });
@@ -198,24 +212,128 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
         FulfillmentRules.Aggregate(order.Order);
         repository.AddAudit(new AuditLog
         {
-            PerformedByUserId = userId, EntityType = "SellerOrder", EntityId = id,
-            Action = action, TraceId = request.RequestKey, OldValue = previous,
+            PerformedByUserId = userId,
+            EntityType = "SellerOrder",
+            EntityId = id,
+            Action = action,
+            TraceId = request.RequestKey,
+            OldValue = previous,
             NewValue = JsonSerializer.Serialize(new { order.Status, request.Explanation }),
             OccurredAt = now
         });
-        string buyerMessage = action switch
+
+        // Notifications & Transactional e-mails
+        if (notificationService is not null)
         {
-            "dispatch" => $"Đơn hàng {order.SellerOrderCode} đã bắt đầu giao mô phỏng. Bạn có thể theo dõi tiến độ tại Chi tiết đơn hàng.",
-            "reject" => $"Đơn hàng {order.SellerOrderCode} đã bị từ chối. Lý do: {request.Explanation}",
-            "confirm" => $"Đơn hàng {order.SellerOrderCode} đã được xác nhận và đang chuẩn bị.",
-            "ready" => $"Đơn hàng {order.SellerOrderCode} đã sẵn sàng giao mô phỏng.",
-            "delivery-report" => $"Đã ghi nhận vấn đề giao hàng hoặc hàng trả cho đơn {order.SellerOrderCode}. Vụ việc đang chờ xem xét.",
-            _ => $"Đã gửi giải trình và bằng chứng cho đơn hàng {order.SellerOrderCode} để xem xét."
-        };
-        repository.Notify(order.Order.BuyerUserId, "Cập nhật đơn hàng",
-            buyerMessage, order.SellerOrderId);
+            string eventCode = action switch
+            {
+                "confirm" => "MSG185",
+                "dispatch" or "start-shipping" => "MSG65",
+                "reject" => "MSG186",
+                _ => "UPDATE"
+            };
+            await notificationService.NotifyRetailCustomerAsync(
+                order, eventCode, request.RequestKey, request.Explanation ?? request.Reason,
+                action == "reject" ? refundedAmount : 0, cancellationToken);
+        }
+        else
+        {
+            string buyerMessage = action switch
+            {
+                "dispatch" or "start-shipping" => $"Đơn hàng {order.SellerOrderCode} đã bắt đầu giao mô phỏng. Bạn có thể theo dõi tiến độ tại Chi tiết đơn hàng.",
+                "reject" => refundedAmount > 0
+                    ? $"Đơn hàng {order.SellerOrderCode} đã bị từ chối bởi nông trại. Lý do: {request.Explanation ?? request.Reason}. Khoản tiền {refundedAmount:N0} ₫ đã được hoàn tất về tài khoản nhận tiền của Quý khách."
+                    : $"Đơn hàng {order.SellerOrderCode} đã bị từ chối. Lý do: {request.Explanation ?? request.Reason}",
+                "confirm" => $"Đơn hàng {order.SellerOrderCode} đã được xác nhận và đang chuẩn bị.",
+                "ready" => $"Đơn hàng {order.SellerOrderCode} đã sẵn sàng giao mô phỏng.",
+                "delivery-report" => $"Đã ghi nhận vấn đề giao hàng hoặc hàng trả cho đơn {order.SellerOrderCode}. Vụ việc đang chờ xem xét.",
+                _ => $"Đã gửi giải trình và bằng chứng cho đơn hàng {order.SellerOrderCode} để xem xét."
+            };
+            repository.Notify(order.Order.BuyerUserId, "Cập nhật đơn hàng", buyerMessage, order.SellerOrderId);
+
+        }
+
         await unitOfWork.CommitAsync(cancellationToken);
         return FeatureResult<SellerOrderResponse>.Ok(repository.Map(order));
+    }
+
+    public string? ValidateAction(SellerOrder order, string action, string requestKey)
+    {
+        return action switch
+        {
+            "confirm" when order.Status != "Pending" => "Trạng thái không hợp lệ.",
+            "ready" when !FulfillmentRules.IsConfirmed(order.Status) => "Đơn chưa được xác nhận.",
+            "dispatch" or "start-shipping" when !FulfillmentRules.IsReady(order.Status) =>
+                "Không thể chuyển đơn hàng sang đang giao từ trạng thái hiện tại. Đơn phải sẵn sàng giao trước.",
+            "reject" when !FulfillmentRules.IsBeforeShipping(order.Status) =>
+                "Chỉ từ chối trước khi giao.",
+            "delivery-report" when !FulfillmentRules.IsShipping(order.Status)
+                && order.Status is not ("Delivered" or "DeliveryFailed") =>
+                "Đơn chưa giao hoặc không còn nhận báo cáo.",
+            _ => null
+        };
+    }
+
+    public void ApplyAction(SellerOrder order, string action, string requestKey)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        switch (action)
+        {
+            case "confirm":
+                order.Status = "Confirmed";
+                break;
+            case "ready":
+                order.Status = "ReadyToShip";
+                break;
+            case "dispatch" or "start-shipping":
+                order.Status = "Shipping";
+                break;
+            case "reject":
+                ReleaseUndispatchedGoods(order, now);
+                order.Status = "Cancelled";
+                break;
+        }
+    }
+
+    public void ReleaseUndispatchedGoods(SellerOrder order, DateTime now)
+    {
+        foreach (var allocation in order.OrderItems.SelectMany(x => x.OrderItemBatchAllocations)
+            .Where(x => x.AllocationStatus == "Reserved"))
+        {
+            allocation.HarvestBatch.ReleaseReservation(allocation.AllocatedQuantity);
+            allocation.AllocationStatus = "Released";
+            allocation.ReleasedAt = now;
+        }
+    }
+
+    public PackingSlipResponse BuildPackingSlip(SellerOrder order)
+    {
+        var items = order.OrderItems.Select(item => new PackingSlipItemResponse(
+            item.ProductNameSnapshot ?? item.Product.ProductName,
+            item.UnitSnapshot,
+            item.Quantity,
+            item.UnitPriceSnapshot,
+            item.SubTotal,
+            item.OrderItemBatchAllocations.FirstOrDefault()?.HarvestBatch?.BatchCode,
+            item.OrderItemBatchAllocations.FirstOrDefault()?.HarvestBatch?.ExpirationDate
+        )).ToList();
+
+        return new PackingSlipResponse(
+            order.SellerOrderId,
+            order.SellerOrderCode,
+            order.Order.OrderCode,
+            order.Order.RecipientNameSnapshot,
+            order.Order.RecipientPhoneSnapshot,
+            order.Order.ShippingAddress,
+            order.Order.OrderDate,
+            order.Order.OrderNotes,
+            items,
+            order.Subtotal,
+            order.DeliveryFee,
+            order.Order.VoucherCodeSnapshot,
+            order.DiscountShare,
+            order.FinalAmount
+        );
     }
 
     private void Dispatch(SellerOrder order, long userId, string requestKey, DateTime now)
@@ -229,39 +347,23 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             {
                 HarvestBatchId = allocation.HarvestBatchId,
                 OrderItemBatchAllocationId = allocation.OrderItemBatchAllocationId,
-                RecordedByUserId = userId, MovementType = "StockOut",
-                QuantityChange = -allocation.AllocatedQuantity, Reason = "Simulated dispatch",
-                OccurredAt = now, RequestKey = requestKey + ":" + allocation.OrderItemBatchAllocationId
+                RecordedByUserId = userId,
+                MovementType = "StockOut",
+                QuantityChange = -allocation.AllocatedQuantity,
+                Reason = "Simulated dispatch",
+                OccurredAt = now,
+                RequestKey = requestKey + ":" + allocation.OrderItemBatchAllocationId
             });
             shipment.ShipmentItems.Add(new ShipmentItem
             {
                 OrderItemBatchAllocationId = allocation.OrderItemBatchAllocationId,
-                ShippedQuantity = allocation.AllocatedQuantity, ReconciliationStatus = "Pending"
+                ShippedQuantity = allocation.AllocatedQuantity,
+                ReconciliationStatus = "Pending"
             });
         }
 
         order.Shipments.Add(shipment);
         order.Status = "Shipping";
-    }
-
-    private void Reject(SellerOrder order, DateTime now)
-    {
-        foreach (var allocation in order.OrderItems.SelectMany(x => x.OrderItemBatchAllocations)
-            .Where(x => x.AllocationStatus == "Reserved"))
-        {
-            allocation.HarvestBatch.ReleaseReservation(allocation.AllocatedQuantity);
-            allocation.AllocationStatus = "Released";
-            allocation.ReleasedAt = now;
-        }
-
-        order.Status = "Cancelled";
-        if (rules.VerifiedPayment(order) > 0)
-        {
-            // A durable notification queues Finance review; no transfer is claimed as completed.
-            repository.Notify(order.Order.BuyerUserId, "Chờ xử lý hoàn tiền",
-                $"Đơn {order.SellerOrderCode} đã hủy; khoản hoàn tiền đang chờ bộ phận tài chính xác minh và xử lý; chưa xác nhận đã chuyển tiền.",
-                order.SellerOrderId);
-        }
     }
 
     private void ReportDelivery(SellerOrder order, long userId,
@@ -273,19 +375,23 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             shipment.ShipmentStatus = request.Reason == "Return" ? "Returned" : "Failed";
         }
 
-        // Reporting a return never makes the returned quantity saleable again.
         order.Status = request.Reason == "Return" ? "Returned" : "DeliveryFailed";
         var ticket = new DisputeTicket
         {
-            SubmittedByUserId = userId, DisputeReason = "DeliveryIssue",
-            Description = request.Explanation, TicketStatus = "Open", CreatedAt = now
+            SubmittedByUserId = userId,
+            DisputeReason = "DeliveryIssue",
+            Description = request.Explanation,
+            TicketStatus = "Open",
+            CreatedAt = now
         };
         foreach (var url in request.EvidenceUrls ?? [])
         {
             ticket.DisputeEvidences.Add(new DisputeEvidence
             {
-                SubmittedByUserId = userId, FileUrl = url,
-                Description = request.Explanation, SubmittedAt = now
+                SubmittedByUserId = userId,
+                FileUrl = url,
+                Description = request.Explanation,
+                SubmittedAt = now
             });
         }
 
@@ -315,8 +421,10 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
             {
                 DisputeTicketId = evidenceRequest.DisputeTicketId,
                 EvidenceRequestId = evidenceRequest.EvidenceRequestId,
-                SubmittedByUserId = userId, FileUrl = url,
-                Description = request.Explanation, SubmittedAt = now
+                SubmittedByUserId = userId,
+                FileUrl = url,
+                Description = request.Explanation,
+                SubmittedAt = now
             });
         }
 
@@ -332,7 +440,3 @@ public sealed class OrderFulfillmentService(IOrderRepository repository, IUnitOf
     private static FeatureResult<SellerOrderResponse> Fail(string code, string message) =>
         FeatureResult<SellerOrderResponse>.Fail(code, message);
 }
-
-
-
-

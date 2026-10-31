@@ -12,7 +12,9 @@ public sealed class ProductRequestValidator : AbstractValidator<ProductRequest>
             .MaximumLength(255).WithMessage(ProductListingMessages.Field("tên sản phẩm", "tối đa 255 ký tự"));
         RuleFor(x => x.CategoryId).GreaterThan(0).WithMessage(ProductListingMessages.Field("danh mục", "chọn danh mục đang hoạt động"));
         RuleFor(x => x.Unit).NotEmpty().WithMessage(ProductListingMessages.Field("đơn vị", "không được để trống"))
-            .MaximumLength(50).WithMessage(ProductListingMessages.Field("đơn vị", "tối đa 50 ký tự"));
+            .MaximumLength(50).WithMessage(ProductListingMessages.Field("đơn vị", "tối đa 50 ký tự"))
+            .Must(unit => new[] { "g", "kg", "tạ", "tấn", "ml", "lít", "cái", "quả", "củ", "bắp", "bó", "chùm", "buồng", "cây", "cành", "bông", "con", "gói", "túi", "hộp", "khay", "vỉ", "chai", "lọ", "hũ", "lon", "can", "bao", "thùng", "sọt", "rổ" }.Contains(unit))
+            .WithMessage(ProductListingMessages.Field("đơn vị", "chọn đơn vị được hỗ trợ"));
         RuleFor(x => x.Description).NotEmpty().WithMessage(ProductListingMessages.Field("mô tả", "không được để trống"))
             .MaximumLength(10000).WithMessage(ProductListingMessages.Field("mô tả", "tối đa 10000 ký tự"));
         RuleFor(x => x.BaseRetailPrice).GreaterThan(0).WithMessage(ProductListingMessages.MSG77).LessThanOrEqualTo(999999999999m).WithMessage(ProductListingMessages.MSG77)

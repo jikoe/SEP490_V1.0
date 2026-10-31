@@ -223,6 +223,8 @@ function ProductEditor({ id, navigate }) {
         <Field label="Giá bán sỉ (đ/đơn vị)"><input type="number" min="0.01" step="0.01"
           max={form.baseRetailPrice || undefined} value={form.wholesalePrice}
           onChange={event => update('wholesalePrice', event.target.value)} /></Field>
+        <Field label="Chiết khấu giá sỉ"><output>{Number(form.baseRetailPrice) > 0 && form.wholesalePrice !== '' && Number(form.wholesalePrice) > 0 && Number(form.wholesalePrice) <= Number(form.baseRetailPrice)
+          ? ((1 - Number(form.wholesalePrice) / Number(form.baseRetailPrice)) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + '%' : '—'}</output></Field>
       </div><p className="muted">Bỏ trống cả giá và ngưỡng khi không bán sỉ. Giá sỉ &gt; 0 và ≤ giá lẻ; ngưỡng sỉ &gt; 1.</p></section>
       <section className="commerce-section"><Uploads showAltText={false} files={form.images} onError={setError} onBusyChange={setUploading}
         disabled={busy} onChange={images => {

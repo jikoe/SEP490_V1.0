@@ -26,18 +26,22 @@ public sealed class FulfillmentRules(TimeProvider clock)
     {
         if (seller.Order.IsPreOrder)
         {
-            if (seller.Order.SellerOrders.SelectMany(x => x.OrderItems)
+            if (seller.Order.SellerOrders.Where(x => x.Status is not ("Cancelled" or "Rejected")).SelectMany(x => x.OrderItems)
                 .Any(x => x.PreOrderReservation is null))
             {
-                return seller.Order.FinalAmount;
+                return seller.Order.SellerOrders.Count > 0
+                    ? seller.Order.SellerOrders.Where(x => x.Status is not ("Cancelled" or "Rejected")).Sum(x => x.FinalAmount)
+                    : seller.Order.FinalAmount;
             }
 
-            return decimal.Round(seller.Order.SellerOrders.SelectMany(x => x.OrderItems)
+            return decimal.Round(seller.Order.SellerOrders.Where(x => x.Status is not ("Cancelled" or "Rejected")).SelectMany(x => x.OrderItems)
                 .Sum(x => x.Quantity * x.UnitPriceSnapshot
                     * x.PreOrderReservation!.DepositPercentageSnapshot / 100), 2);
         }
 
-        return seller.Order.FinalAmount;
+        return seller.Order.SellerOrders.Count > 0
+                    ? seller.Order.SellerOrders.Where(x => x.Status is not ("Cancelled" or "Rejected")).Sum(x => x.FinalAmount)
+                    : seller.Order.FinalAmount;
     }
 
     public bool PaymentSatisfied(SellerOrder seller) => RequiredPayment(seller) > 0

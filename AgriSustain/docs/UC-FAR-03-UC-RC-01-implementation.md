@@ -12,13 +12,14 @@ The implementation follows Report-3 sections II, III and V and the corresponding
 
 ## Email configuration
 
-Non-secret SMTP settings remain in `AgriSustain/appsettings.json`. The existing `.env` loader runs before `CreateBuilder`. Keep the application password only in `AgriSustain/.env`:
+Product-review SMTP uses the same `GmailOptions` as the existing Gmail service. The `.env` loader runs before `CreateBuilder`. Keep the sender and application password in `AgriSustain/.env`:
 
 ```dotenv
-EmailSettings__SmtpPass=YOUR_GMAIL_APP_PASSWORD
+Gmail__SenderAddress=YOUR_GMAIL_ADDRESS
+Gmail__AppPassword=YOUR_GMAIL_APP_PASSWORD
 ```
 
-`EmailSettings__FrontendBaseUrl` may override the default `http://localhost:5173` for review links. Gmail SMTP uses port 587 with TLS. The email worker starts by default; `ProductNotifications__EnableWorker=false` disables delivery for isolated verification. This change does not replace the separate authentication OTP logging adapter.
+`EmailSettings__FrontendBaseUrl` may override the default `http://localhost:5173` for review links. Gmail SMTP uses port 587 with TLS. The email worker starts by default; `ProductNotifications__EnableWorker=false` disables delivery for isolated verification. The existing Gmail OTP service is unchanged. `EmailSettings` now contains only the frontend base URL; old SMTP credential keys are no longer used.
 
 The application was verified to authenticate to Gmail over TLS and its actual `NotificationGateway` successfully submitted the test email to the recipient explicitly authorized in this chat. SMTP acceptance does not itself verify inbox placement.
 

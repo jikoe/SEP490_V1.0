@@ -229,7 +229,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Products.UnitLocked = true;
-        Rejected(await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { Unit = "bag" }, default), f, "CONFLICT");
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { Unit = "túi" }, default), f, "CONFLICT");
         Assert.Equal("kg", f.Product.Unit);
     }
 
@@ -238,8 +238,8 @@ public sealed class ProductListingTests
     public async Task Update_UnreferencedUnit_CanChange()
     {
         var f = new CommerceFixture();
-        var result = await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { Unit = "bag" }, default);
-        Assert.True(result.IsSuccess); Assert.Equal("bag", result.Value!.Unit); Assert.Equal("Pending", result.Value.ApprovalStatus);
+        var result = await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { Unit = "túi" }, default);
+        Assert.True(result.IsSuccess); Assert.Equal("túi", result.Value!.Unit); Assert.Equal("Pending", result.Value.ApprovalStatus);
     }
 
     [Fact]

@@ -753,13 +753,17 @@ public partial class AgriSustainContext : DbContext
 
         modelBuilder.Entity<FarmerPayout>(entity =>
         {
-            entity.HasKey(e => e.FarmerPayoutId).HasName("PK__FarmerPa__80AAF9C346B5F80F");
+            entity.ToTable("FarmerPayout");
 
-            entity.ToTable("FarmerPayout", tb => tb.HasTrigger("TR_FarmerPayout_Write"));
+            entity.HasIndex(e => e.ApprovedByUserId, "IX_FarmerPayout_ApprovedByUserId");
 
-            entity.HasIndex(e => e.PayoutCode, "UQ__FarmerPa__3F2306E3E98F526C").IsUnique();
+            entity.HasIndex(e => e.FarmerProfileId, "IX_FarmerPayout_FarmerProfileId");
 
-            entity.HasIndex(e => e.RequestKey, "UQ__FarmerPa__F6AC419D6087B004").IsUnique();
+            entity.HasIndex(e => e.RecipientBankCode, "IX_FarmerPayout_RecipientBankCode");
+
+            entity.HasIndex(e => e.PayoutCode, "UQ_FarmerPayout_PayoutCode").IsUnique();
+
+            entity.HasIndex(e => e.RequestKey, "UQ_FarmerPayout_RequestKey").IsUnique();
 
             entity.HasIndex(e => e.BankTransferRef, "UX_Payout_BankRef")
                 .IsUnique()
@@ -778,6 +782,13 @@ public partial class AgriSustainContext : DbContext
                 .HasMaxLength(50)
                 .IsUnicode(false)
                 .HasDefaultValue("Pending");
+            entity.Property(e => e.RecipientAccountHolder).HasMaxLength(100);
+            entity.Property(e => e.RecipientAccountNumber)
+                .HasMaxLength(19)
+                .IsUnicode(false);
+            entity.Property(e => e.RecipientBankCode)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.RequestKey)
                 .HasMaxLength(100)
                 .IsUnicode(false);
@@ -790,6 +801,10 @@ public partial class AgriSustainContext : DbContext
                 .HasForeignKey(d => d.FarmerProfileId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_FarmerPayout_FarmerProfile");
+
+            entity.HasOne(d => d.RecipientBankCodeNavigation).WithMany(p => p.FarmerPayouts)
+                .HasForeignKey(d => d.RecipientBankCode)
+                .HasConstraintName("FK_FarmerPayout_RecipientBank");
         });
 
         modelBuilder.Entity<FarmerProfile>(entity =>
@@ -1465,13 +1480,25 @@ public partial class AgriSustainContext : DbContext
 
         modelBuilder.Entity<RefundTransaction>(entity =>
         {
-            entity.HasKey(e => e.RefundTransactionId).HasName("PK__RefundTr__4745915E127673BE");
+            entity.ToTable("RefundTransaction");
 
-            entity.ToTable("RefundTransaction", tb => tb.HasTrigger("TR_RefundTransaction_Write"));
+            entity.HasIndex(e => new { e.ContractDepositAllocationId, e.PaymentTransactionId }, "IX_RefundTransaction_ContractDepositAllocationId_PaymentTransactionId");
 
-            entity.HasIndex(e => e.RefundCode, "UQ__RefundTr__7DFE7F497899A6E4").IsUnique();
+            entity.HasIndex(e => e.ContractTerminationRequestId, "IX_RefundTransaction_ContractTerminationRequestId");
 
-            entity.HasIndex(e => e.RequestKey, "UQ__RefundTr__F6AC419D4C5118D2").IsUnique();
+            entity.HasIndex(e => e.DisputeTicketId, "IX_RefundTransaction_DisputeTicketId");
+
+            entity.HasIndex(e => new { e.PaymentInvoiceAllocationId, e.PaymentTransactionId }, "IX_RefundTransaction_PaymentInvoiceAllocationId_PaymentTransactionId");
+
+            entity.HasIndex(e => e.PaymentTransactionId, "IX_RefundTransaction_PaymentTransactionId");
+
+            entity.HasIndex(e => e.ProcessedByUserId, "IX_RefundTransaction_ProcessedByUserId");
+
+            entity.HasIndex(e => e.ReceiverBankCode, "IX_RefundTransaction_ReceiverBankCode");
+
+            entity.HasIndex(e => e.RefundCode, "UQ_RefundTransaction_RefundCode").IsUnique();
+
+            entity.HasIndex(e => e.RequestKey, "UQ_RefundTransaction_RequestKey").IsUnique();
 
             entity.HasIndex(e => e.GatewayReference, "UX_Refund_ProviderRef")
                 .IsUnique()
@@ -1482,8 +1509,18 @@ public partial class AgriSustainContext : DbContext
                 .HasMaxLength(150)
                 .IsUnicode(false);
             entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.ReceiverAccountHolder).HasMaxLength(100);
+            entity.Property(e => e.ReceiverAccountNumber)
+                .HasMaxLength(19)
+                .IsUnicode(false);
+            entity.Property(e => e.ReceiverBankCode)
+                .HasMaxLength(20)
+                .IsUnicode(false);
             entity.Property(e => e.RefundCode)
                 .HasMaxLength(100)
+                .IsUnicode(false);
+            entity.Property(e => e.RefundMethod)
+                .HasMaxLength(50)
                 .IsUnicode(false);
             entity.Property(e => e.RefundStatus)
                 .HasMaxLength(50)
@@ -1510,6 +1547,10 @@ public partial class AgriSustainContext : DbContext
                 .HasForeignKey(d => d.ProcessedByUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_RefundTransaction_ProcessedByUser");
+
+            entity.HasOne(d => d.ReceiverBankCodeNavigation).WithMany(p => p.RefundTransactions)
+                .HasForeignKey(d => d.ReceiverBankCode)
+                .HasConstraintName("FK_RefundTransaction_ReceiverBank");
 
             entity.HasOne(d => d.ContractDepositAllocation).WithMany(p => p.RefundTransactions)
                 .HasPrincipalKey(p => new { p.ContractDepositAllocationId, p.PaymentTransactionId })
@@ -1716,18 +1757,19 @@ public partial class AgriSustainContext : DbContext
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(e => e.UserId).HasName("PK__User__1788CC4C1EE96F0D");
+            entity.ToTable("User");
 
-            entity.ToTable("User", tb => tb.HasTrigger("TR_User_Validate"));
+            entity.HasIndex(e => e.Email, "UQ_User_Email").IsUnique();
 
-            entity.HasIndex(e => e.Username, "UQ__User__536C85E46FD72E95").IsUnique();
-
-            entity.HasIndex(e => e.Email, "UQ__User__A9D10534209BB63E").IsUnique();
+            entity.HasIndex(e => e.Username, "UQ_User_Username").IsUnique();
 
             entity.Property(e => e.AvatarUrl).HasMaxLength(500);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Email).HasMaxLength(255);
             entity.Property(e => e.FullName).HasMaxLength(150);
+            entity.Property(e => e.Gender)
+                .HasMaxLength(10)
+                .IsUnicode(false);
             entity.Property(e => e.PasswordHash).HasMaxLength(500);
             entity.Property(e => e.PhoneNumber)
                 .HasMaxLength(20)
@@ -1740,9 +1782,6 @@ public partial class AgriSustainContext : DbContext
                 .IsUnicode(false)
                 .HasDefaultValue("Active");
             entity.Property(e => e.Username).HasMaxLength(100);
-            entity.Property(e => e.Gender)
-                .HasMaxLength(10)
-                .IsUnicode(false);
         });
 
         modelBuilder.Entity<VDisputeEvidenceRequest>(entity =>
@@ -1864,8 +1903,59 @@ public partial class AgriSustainContext : DbContext
                 .HasConstraintName("FK_WholesaleBuyerProfile_User");
         });
 
+        modelBuilder.Entity<SupportedBank>(entity =>
+        {
+            entity.HasKey(e => e.BankCode);
+
+            entity.ToTable("SupportedBank");
+
+            entity.Property(e => e.BankCode)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.FullName).HasMaxLength(200);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.ShortName).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<UserBankAccount>(entity =>
+        {
+            entity.ToTable("UserBankAccount");
+
+            entity.HasIndex(e => e.UserId, "IX_UserBankAccount_UserId");
+
+            entity.HasIndex(e => e.UserId, "UX_UserBankAccount_DefaultPerUser")
+                .IsUnique()
+                .HasFilter("([IsDefault]=(1))");
+
+            entity.HasIndex(e => new { e.UserId, e.BankCode, e.AccountNumber }, "UX_UserBankAccount_UserBankNumber").IsUnique();
+
+            entity.Property(e => e.AccountHolder).HasMaxLength(100);
+            entity.Property(e => e.AccountNumber)
+                .HasMaxLength(19)
+                .IsUnicode(false);
+            entity.Property(e => e.BankCode)
+                .HasMaxLength(20)
+                .IsUnicode(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
+            entity.Property(e => e.IsDefault).HasDefaultValue(true);
+
+            entity.HasOne(d => d.BankCodeNavigation).WithMany(p => p.UserBankAccounts)
+                .HasForeignKey(d => d.BankCode)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_UserBankAccount_SupportedBank");
+
+            entity.HasOne(d => d.User).WithOne(p => p.UserBankAccount)
+                .HasForeignKey<UserBankAccount>(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_UserBankAccount_User");
+        });
+
         OnModelCreatingPartial(modelBuilder);
     }
+
+    public virtual DbSet<SupportedBank> SupportedBanks { get; set; }
+
+    public virtual DbSet<UserBankAccount> UserBankAccounts { get; set; }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
