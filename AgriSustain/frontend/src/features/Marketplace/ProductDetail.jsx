@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { request } from '../../api/client';
-import { AddToCart, Icon, Price, ProductImage, Rating, safeUrl } from './MarketplaceUi';
+import { Icon, Price, ProductImage, Rating, safeUrl } from './MarketplaceUi';
 
 const dateLabel = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('vi-VN') : 'Không có';
 
