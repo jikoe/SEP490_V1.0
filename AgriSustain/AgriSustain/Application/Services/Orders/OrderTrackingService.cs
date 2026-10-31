@@ -83,13 +83,22 @@ public sealed class OrderTrackingService(
             actions.Add(OrderActions.PayNow);
         }
 
-        bool delivered = order.OrderStatus is "Delivered" or "Completed";
-        if (delivered && order.SellerOrders.SelectMany(so => so.Items).Any(item => !item.IsReviewed))
+        if (order.OrderStatus == "Completed"
+            && order.SellerOrders.Any(seller => seller.Status == "Completed"
+                && seller.Items.Any(item => !item.IsReviewed)))
         {
             actions.Add(OrderActions.Review);
         }
 
-        if (delivered && order.DeliveredAt is { } deliveredAt && now - deliveredAt <= ComplaintWindow)
+        if (order.OrderStatus == "Completed"
+            && order.SellerOrders.Any(seller => seller.Status == "Completed"
+                && seller.Items.Any(item => item.IsReviewed)))
+        {
+            actions.Add(OrderActions.EditReview);
+        }
+
+        if (order.OrderStatus == "Delivered" && order.DeliveredAt is { } deliveredAt
+            && deliveredAt <= now && now - deliveredAt <= ComplaintWindow)
         {
             actions.Add(OrderActions.SubmitComplaint);
         }

@@ -1,8 +1,6 @@
-import { cartMessages } from '../RetailCustomer/cartMessages';
 import React, { useEffect, useState } from 'react';
 import { request } from '../../api/client';
-import { displayMessage } from '../../utils/displayMessage';
-import { Icon, Price, ProductImage, Rating, safeUrl } from './MarketplaceUi';
+import { AddToCart, Icon, Price, ProductImage, Rating, safeUrl } from './MarketplaceUi';
 
 const dateLabel = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('vi-VN') : 'Không có';
 
@@ -196,7 +194,8 @@ export default function ProductDetail({ productId, query, reload, session, navig
                 {reviews.map(review => <article className="mkt-review" key={review.id}>
                   <h3>{review.author}</h3><span className="mkt-review-stars" aria-label={`${review.rating} trên 5 sao`}>{'★'.repeat(review.rating)}</span>
                   <span> · Đã mua hàng · {new Date(`${review.date.replace(/Z$/, '')}Z`).toLocaleDateString('vi-VN')}</span>
-                  <p>{review.comment || 'Khách hàng đã đánh giá sản phẩm.'}</p></article>)}</>}
+                  <p>{review.comment || 'Khách hàng đã đánh giá sản phẩm.'}</p>
+                </article>)}</>}
           </section>}
           {tab === 'delivery' && <section><h2>Chính sách giao hàng</h2>
             <p>Phí vận chuyển và khả năng phục vụ phụ thuộc địa chỉ nhận hàng và được xác nhận khi thanh toán.</p>

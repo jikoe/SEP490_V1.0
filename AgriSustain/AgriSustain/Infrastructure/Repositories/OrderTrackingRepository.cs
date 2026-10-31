@@ -99,11 +99,12 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
         bool isPaid = o.PaymentTransactions
             .Any(p => s_settledPaymentStatuses.Contains(p.PaymentStatus));
 
-        DateTime? deliveredAt = o.SellerOrders
+        DateTime? deliveredAt = o.SellerOrders.Select(seller => seller.DeliveredAt).Max()
+            ?? o.SellerOrders
             .SelectMany(so => so.OrderStatusHistories)
             .Where(history => history.NewStatus == "Delivered")
             .Select(history => (DateTime?)history.OccurredAt)
-            .Max() ?? o.CompletedAt;
+            .Max();
 
         return new OrderDetailDto(
             OrderId: o.OrderId,

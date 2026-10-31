@@ -73,6 +73,7 @@ public static class OrderActions
 {
     public const string PayNow = "PayNow";
     public const string Review = "Review";
+    public const string EditReview = "EditReview";
     public const string SubmitComplaint = "SubmitComplaint";
 }
 
