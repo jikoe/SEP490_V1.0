@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Notice, Field, initials, VerificationBadge, Modal } from '../../components/ui/Common';
+import { Notice, Toast, Field, initials, VerificationBadge, Modal } from '../../components/ui/Common';
+import BankAccountPanel from './BankAccountPanel';
 
 /**
  * UC-AUTH-03: Manage Profile Screen (SCR-11)
@@ -10,6 +11,19 @@ import { Notice, Field, initials, VerificationBadge, Modal } from '../../compone
 const GENDER_CODES = { Nam: 'Male', 'Nữ': 'Female', 'Khác': 'Other', Male: 'Male', Female: 'Female', Other: 'Other' };
 function normalizeGender(value) {
   return GENDER_CODES[value] || '';
+}
+
+function tabStyle(active) {
+  return {
+    textAlign: 'left',
+    border: 'none',
+    background: active ? '#edf6f0' : 'transparent',
+    color: active ? '#1e6546' : '#52695c',
+    fontWeight: active ? 700 : 400,
+    padding: '10px 14px',
+    borderRadius: 8,
+    cursor: 'pointer',
+  };
 }
 
 export default function ProfileScreen({ fixture = 'retail-customer', session, navigate, onProfileSaved }) {
@@ -87,11 +101,13 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
   });
 
   const [saving, setSaving] = useState(false);
+  // 'profile' | 'bank' – UC-AUTH-03 Manage Profile / Manage Bank Account
+  const [activeTab, setActiveTab] = useState(() => (window.location.hash.includes('tab=bank') ? 'bank' : 'profile'));
   const [notice, setNotice] = useState(null);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [phoneNotice, setPhoneNotice] = useState(null);
-  // Last values loaded from / saved to the server, restored by the "Hủy" button (UC-AUTH-03 AF Cancel).
+  // Last values loaded from / saved to the server.
   const savedProfileRef = useRef(null);
   const [recipientPhoneNotice, setRecipientPhoneNotice] = useState(null);
 
@@ -199,15 +215,6 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
     } finally {
       setUploadingAvatar(false);
     }
-  }
-
-  // Revert edited fields to the last saved values without calling the API.
-  function handleCancelEdit() {
-    if (savedProfileRef.current) setProfile(savedProfileRef.current);
-    setFieldErrors({});
-    setError(null);
-    setPhoneNotice(null);
-    setNotice('Đã hủy các thay đổi chưa lưu.');
   }
 
   function handleChange(field, value) {
@@ -508,7 +515,10 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         if (data.errors && typeof data.errors === 'object') {
           setFieldErrors(mapServerErrors(data.errors));
         }
-        throw new Error(data.title || data.message || 'Nộp hồ sơ KYC thất bại.');
+        // BR-BA-03: a payout bank account is required; point the farmer to the bank tab.
+        const bankMessage = data.errors?.bankAccount?.[0];
+        if (bankMessage) setActiveTab('bank');
+        throw new Error(bankMessage || data.title || data.message || 'Nộp hồ sơ KYC thất bại.');
       }
 
       const submitted = await res.json().catch(() => null);
@@ -723,8 +733,8 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
         </div>
       </div>
 
-      <Notice error={Boolean(error)}>{error}</Notice>
-      {notice && <Notice>{notice}</Notice>}
+      <Toast error message={error} onClose={() => setError(null)} />
+      <Toast message={notice} onClose={() => setNotice(null)} />
 
       {/* Reject Reason Warning banner if KYC is Rejected */}
       {profile.rejectReason && (
@@ -743,19 +753,22 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
           <div style={{ display: 'grid', gap: 8 }}>
             <button
               type="button"
-              style={{
-                textAlign: 'left',
-                border: 'none',
-                background: '#edf6f0',
-                color: '#1e6546',
-                fontWeight: 700,
-                padding: '10px 14px',
-                borderRadius: 8,
-                cursor: 'pointer',
-              }}
+              style={tabStyle(activeTab === 'profile')}
+              aria-current={activeTab === 'profile' ? 'page' : undefined}
+              onClick={() => setActiveTab('profile')}
             >
               👤 {isFarmer ? 'Hồ sơ nông hộ & KYC' : 'Thông tin cá nhân & Địa chỉ'}
             </button>
+            {['Farmer', 'RetailCustomer', 'WholesaleBuyer'].includes(roleName) && (
+              <button
+                type="button"
+                style={tabStyle(activeTab === 'bank')}
+                aria-current={activeTab === 'bank' ? 'page' : undefined}
+                onClick={() => setActiveTab('bank')}
+              >
+                🏦 Tài khoản ngân hàng
+              </button>
+            )}
             <button
               type="button"
               style={{
@@ -818,6 +831,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
 
         {/* Right Form Card */}
         <main className="panel padded" style={{ minHeight: 'auto', padding: 32 }}>
+          {activeTab === 'bank' ? <BankAccountPanel /> : (
           <form onSubmit={handleSave} noValidate>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
@@ -1137,14 +1151,6 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
 
             <div style={{ marginTop: 28, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
               <button
-                type="button"
-                onClick={handleCancelEdit}
-                disabled={saving}
-                style={{ padding: '12px 24px', borderRadius: 8, fontWeight: 600, fontSize: 14 }}
-              >
-                Hủy
-              </button>
-              <button
                 type="submit"
                 className="primary"
                 style={{
@@ -1164,6 +1170,7 @@ export default function ProfileScreen({ fixture = 'retail-customer', session, na
               </button>
             </div>
           </form>
+          )}
         </main>
       </div>
 

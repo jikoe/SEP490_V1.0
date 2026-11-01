@@ -21,6 +21,12 @@ public partial class UserBankAccount
 
     public DateTime? PayoutHoldUntil { get; set; }
 
+    /// <summary>Verified or Unverified: result of the bank account lookup (BR-BA-06).</summary>
+    public string VerificationStatus { get; set; } = "Unverified";
+
+    /// <summary>QR image of the saved account, added after the account is saved.</summary>
+    public string? QrImageUrl { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
