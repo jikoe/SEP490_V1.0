@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng nhập - Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body class="login-page">
+  <header class="login-header">
+    <a class="login-brand" href="../RetailCustomer/index.html">
+      <svg class="login-leaf-mark" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M31 57C11 48 5 31 8 13c15 4 25 13 27 27C38 23 48 10 59 5c2 25-7 43-28 52Z" />
+        <path d="M30 58c-2-17-8-28-20-39m21 37c5-18 13-31 26-43" />
+      </svg>
+      <strong>Nông Sản Việt</strong>
+    </a>
+    <span class="login-header-divider" aria-hidden="true"></span>
+    <p>Nền tảng nông sản Việt – Kết nối nông dân, bền vững tương lai</p>
+  </header>
+
+  <main class="login-main">
+    <svg class="login-branch login-branch-left" viewBox="0 0 180 350" aria-hidden="true">
+      <path class="branch-stem" d="M5 350 55 190 92 14m-38 176 69-48m-72 57-30-79m14 157 91-64m-99 77 48 12" />
+      <path class="branch-leaf" d="M91 14C58 42 70 73 111 94c13-34 5-61-20-80ZM47 141C15 124 4 97 12 78c34-1 55 20 59 56-10 4-17 6-24 7Zm14 21c-2-33 14-56 44-66 21 28 11 58-22 77-9-4-16-7-22-11Zm-22 65c-29-16-39-39-30-60 32 2 51 24 50 59-8 2-14 2-20 1Zm15 20c2-31 19-52 49-57 17 30 4 58-31 73-8-6-14-11-18-16Zm-36 72c-18-22-18-46-3-63 28 13 38 38 25 68-9-1-16-3-22-5Z" />
+    </svg>
+    <svg class="login-branch login-branch-right" viewBox="0 0 180 350" aria-hidden="true">
+      <path class="branch-stem" d="M5 350 55 190 92 14m-38 176 69-48m-72 57-30-79m14 157 91-64m-99 77 48 12" />
+      <path class="branch-leaf" d="M91 14C58 42 70 73 111 94c13-34 5-61-20-80ZM47 141C15 124 4 97 12 78c34-1 55 20 59 56-10 4-17 6-24 7Zm14 21c-2-33 14-56 44-66 21 28 11 58-22 77-9-4-16-7-22-11Zm-22 65c-29-16-39-39-30-60 32 2 51 24 50 59-8 2-14 2-20 1Zm15 20c2-31 19-52 49-57 17 30 4 58-31 73-8-6-14-11-18-16Zm-36 72c-18-22-18-46-3-63 28 13 38 38 25 68-9-1-16-3-22-5Z" />
+    </svg>
+
+    <section class="login-card">
+      <h1>Đăng nhập</h1>
+      <p class="login-subtitle">Chào mừng bạn đến với Nông Sản Việt</p>
+
+      <div id="login-error-notice" class="notice error" style="display:none;" role="alert"></div>
+
+      <form class="login-form" onsubmit="submitLogin(event)">
+        <label class="field">
+          <span>Email hoặc tên đăng nhập</span>
+          <input
+            id="login-identifier"
+            type="text"
+            autocomplete="username"
+            autofocus
+            required
+            maxlength="255"
+            placeholder="Nhập email hoặc tên đăng nhập"
+          />
+        </label>
+
+        <label class="field">
+          <span>Mật khẩu</span>
+          <span class="password-control">
+            <input
+              id="login-password"
+              type="password"
+              autocomplete="current-password"
+              required
+              maxlength="500"
+              placeholder="Nhập mật khẩu"
+            />
+            <button
+              type="button"
+              id="btn-toggle-pwd"
+              class="password-toggle"
+              aria-label="Hiện mật khẩu"
+              onclick="toggleShowPassword()"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6Z" />
+                <circle cx="12" cy="12" r="2.5" />
+                <path id="pwd-slash" d="m4 4 16 16" style="display:none;" />
+              </svg>
+            </button>
+          </span>
+        </label>
+
+        <a href="forgot-password.html" style="justify-self: end; margin-bottom: 12px; color: #2e7d32; font-size: 14px; text-decoration: none;">
+          Quên mật khẩu?
+        </a>
+
+        <button class="primary login-submit" type="submit" id="btn-submit">
+          Đăng nhập
+        </button>
+      </form>
+
+      <div style="margin-top: 15px; text-align: center; font-size: 14px;">
+        <span>Chưa có tài khoản? </span>
+        <a href="register.html" style="color: #2e7d32; font-weight: 600; text-decoration: none;">
+          Đăng ký ngay
+        </a>
+      </div>
+
+      <button class="login-demo" type="button" onclick="window.location.href='../RetailCustomer/index.html'">
+        Tiếp tục khám phá sản phẩm
+      </button>
+    </section>
+  </main>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+
+  <script>
+    let showPassword = false;
+
+    // If already authenticated, redirect to role landing page
+    document.addEventListener('DOMContentLoaded', () => {
+      if (Auth.isAuthenticated()) {
+        const role = Auth.getUserRole();
+        window.location.href = Auth.getLandingPageForRole(role);
+      }
+    });
+
+    function toggleShowPassword() {
+      showPassword = !showPassword;
+      const pwdInput = document.getElementById('login-password');
+      const slash = document.getElementById('pwd-slash');
+      const toggleBtn = document.getElementById('btn-toggle-pwd');
+
+      pwdInput.type = showPassword ? 'text' : 'password';
+      slash.style.display = showPassword ? 'block' : 'none';
+      toggleBtn.setAttribute('aria-label', showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+    }
+
+    async function submitLogin(e) {
+      e.preventDefault();
+      const identifier = document.getElementById('login-identifier').value.trim();
+      const password = document.getElementById('login-password').value;
+      const notice = document.getElementById('login-error-notice');
+      const submitBtn = document.getElementById('btn-submit');
+
+      notice.style.display = 'none';
+      notice.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Đang đăng nhập…';
+
+      try {
+        const res = await API.login({ identifier, password });
+        if (res.success && res.data) {
+          const user = res.data.user;
+          const targetUrl = Auth.getLandingPageForRole(user?.role);
+          window.location.href = targetUrl;
+        } else {
+          notice.textContent = res.error || Messages.common.loginFailedFallback;
+          notice.style.display = 'block';
+        }
+      } catch (err) {
+        notice.textContent = err.message || Messages.common.networkError;
+        notice.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Đăng nhập';
+      }
+    }
+  </script>
+</body>
+</html>

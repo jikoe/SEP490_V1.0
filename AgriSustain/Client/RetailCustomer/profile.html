@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hồ sơ cá nhân - Sàn Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display:none;"></aside>
+
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+
+      <main style="max-width:1150px; margin:32px auto; padding:0 24px;">
+    <div class="section-heading" style="margin-bottom:24px;">
+      <div>
+        <p class="eyebrow" style="color:#2e7d32; font-size:11px; text-transform:uppercase; font-weight:700;">HỒ SƠ NGƯỜI DÙNG · UC-AUTH-03</p>
+        <h1 style="color:#103e2d; margin:4px 0;">Hồ sơ cá nhân &amp; Sổ địa chỉ</h1>
+        <p class="muted">Quản lý thông tin liên hệ, sổ địa chỉ nhận hàng và bảo mật tài khoản.</p>
+      </div>
+    </div>
+
+    <div id="profile-alert" class="notice" style="display:none; margin-bottom:16px;"></div>
+
+    <div style="display:grid; grid-template-columns:260px 1fr; gap:24px; align-items:start;">
+      <!-- Navigation Tabs -->
+      <div class="panel padded" style="display:flex; flex-direction:column; gap:4px; padding:12px;">
+        <button type="button" class="tab-btn active" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;" onclick="switchProfileTab('info')">
+          👤 Thông tin cá nhân
+        </button>
+        <button type="button" class="tab-btn" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;" onclick="switchProfileTab('address')">
+          📍 Sổ địa chỉ nhận hàng
+        </button>
+        <button type="button" class="tab-btn" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;" onclick="switchProfileTab('security')">
+          🔒 Bảo mật &amp; Đổi mật khẩu
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="panel padded">
+        <!-- 1. Personal Info -->
+        <div id="tab-info">
+          <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Thông tin cá nhân</h3>
+          <form onsubmit="handleSaveInfo(event)" style="margin-top:16px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <label class="field">
+                <span>Họ và tên *</span>
+                <input type="text" id="prof-name" required value="Lê Thị Mai">
+              </label>
+
+              <label class="field">
+                <span>Email *</span>
+                <input type="email" id="prof-email" required value="mai.le@example.test" disabled style="background:#f5f8f6;">
+              </label>
+
+              <label class="field">
+                <span>Số điện thoại *</span>
+                <input type="tel" id="prof-phone" required value="0901234567">
+              </label>
+
+              <label class="field">
+                <span>Giới tính</span>
+                <select id="prof-gender">
+                  <option value="Female" selected>Nữ</option>
+                  <option value="Male">Nam</option>
+                  <option value="Other">Khác</option>
+                </select>
+              </label>
+            </div>
+
+            <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+              <button type="submit" class="primary">Lưu thay đổi</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 2. Address Book -->
+        <div id="tab-address" style="display:none;">
+          <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Sổ địa chỉ nhận hàng</h3>
+          <div style="padding:14px; border:1px solid #2e7d32; border-radius:8px; background:#f4f9f6; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>Lê Thị Mai</strong>
+              <span class="badge Active">Mặc định</span>
+            </div>
+            <p style="margin:4px 0; font-size:13px; color:#405247;">Số điện thoại: 0901234567</p>
+            <p style="margin:4px 0; font-size:13px; color:#405247;">Địa chỉ: 123 Nguyễn Thị Minh Khai, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh</p>
+          </div>
+          <button class="primary" onclick="Utils.showToast('Tính năng thêm nhiều sổ địa chỉ đang được cập nhật.', 'info')">+ Thêm địa chỉ mới</button>
+        </div>
+
+        <!-- 3. Security -->
+        <div id="tab-security" style="display:none;">
+          <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Đổi mật khẩu tài khoản</h3>
+          <form onsubmit="handleChangePassword(event)" style="margin-top:16px; max-width:440px;">
+            <label class="field">
+              <span>Mật khẩu hiện tại *</span>
+              <input type="password" id="old-pass" required placeholder="Nhập mật khẩu hiện tại">
+            </label>
+
+            <label class="field">
+              <span>Mật khẩu mới *</span>
+              <input type="password" id="new-pass" required minlength="6" placeholder="Mật khẩu từ 6 ký tự">
+            </label>
+
+            <label class="field">
+              <span>Xác nhận mật khẩu mới *</span>
+              <input type="password" id="confirm-pass" required minlength="6" placeholder="Nhập lại mật khẩu mới">
+            </label>
+
+            <div style="margin-top:20px;">
+              <button type="submit" class="primary">Cập nhật mật khẩu</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+  </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      Components.init();
+    });
+    function switchProfileTab(tab) {
+      document.getElementById('tab-info').style.display = tab === 'info' ? 'block' : 'none';
+      document.getElementById('tab-address').style.display = tab === 'address' ? 'block' : 'none';
+      document.getElementById('tab-security').style.display = tab === 'security' ? 'block' : 'none';
+
+      const btns = document.querySelectorAll('.tab-btn');
+      btns.forEach((b, idx) => {
+        b.classList.toggle('active', (tab === 'info' && idx === 0) || (tab === 'address' && idx === 1) || (tab === 'security' && idx === 2));
+      });
+    }
+
+    function handleSaveInfo(e) {
+      e.preventDefault();
+      const name = document.getElementById('prof-name').value.trim();
+      const phone = document.getElementById('prof-phone').value.trim();
+
+      const user = Auth.getUserInfo() || {};
+      user.fullName = name;
+      user.phone = phone;
+      Auth.setUserInfo(user);
+
+      showProfileAlert('Đã cập nhật thông tin cá nhân thành công!', 'success');
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const oldPass = document.getElementById('old-pass').value;
+      const newPass = document.getElementById('new-pass').value;
+      const confirmPass = document.getElementById('confirm-pass').value;
+
+      if (newPass !== confirmPass) {
+        showProfileAlert('Mật khẩu xác nhận không khớp.', 'error');
+        return;
+      }
+
+      try {
+        await API.changePassword({ oldPassword: oldPass, newPassword: newPass });
+        showProfileAlert('Đổi mật khẩu thành công!', 'success');
+        document.getElementById('old-pass').value = '';
+        document.getElementById('new-pass').value = '';
+        document.getElementById('confirm-pass').value = '';
+      } catch (err) {
+        showProfileAlert(err.message || 'Không thể đổi mật khẩu. Vui lòng kiểm tra lại.', 'error');
+      }
+    }
+
+    function showProfileAlert(msg, type = 'success') {
+      const el = document.getElementById('profile-alert');
+      if (el) {
+        el.className = `notice ${type === 'error' ? 'error' : ''}`;
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4000);
+      }
+      Utils.showToast(msg, type);
+    }
+  </script>
+</body>
+</html>

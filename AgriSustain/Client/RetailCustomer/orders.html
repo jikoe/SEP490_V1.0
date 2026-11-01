@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lịch sử &amp; Theo dõi đơn hàng - Sàn Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display:none;"></aside>
+
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+
+      <main style="max-width:1150px; margin:32px auto; padding:0 24px;">
+    <div class="section-heading" style="margin-bottom:24px;">
+      <div>
+        <p class="eyebrow" style="color:#2e7d32; font-size:11px; text-transform:uppercase; font-weight:700;">ĐƠN HÀNG CỦA TÔI · UC-RC-04</p>
+        <h1 style="color:#103e2d; margin:4px 0;">Lịch sử &amp; Theo dõi đơn hàng</h1>
+        <p class="muted">Tra cứu hành trình vận chuyển, tình trạng giao nhận nông sản tươi từ nhà vườn.</p>
+      </div>
+    </div>
+
+    <!-- Status Tabs matching OrderTrackingScreen.jsx -->
+    <div class="commerce-tabs" id="track-tabs" style="display:flex; gap:8px; margin-bottom:20px;">
+      <button type="button" class="tab-btn active" onclick="switchTrackTab('All')">Tất cả đơn hàng</button>
+      <button type="button" class="tab-btn" onclick="switchTrackTab('Completed')">Hoàn thành</button>
+      <button type="button" class="tab-btn" onclick="switchTrackTab('Cancelled')">Đã hủy</button>
+    </div>
+
+    <!-- Search input -->
+    <div class="panel" style="padding:14px 20px; margin-bottom:20px;">
+      <div style="display:flex; gap:12px;">
+        <input type="text" id="track-search" placeholder="Tìm theo mã đơn hàng hoặc tên nông sản..." style="flex:1;" onkeyup="if(event.key==='Enter') filterOrders()">
+        <button class="primary" type="button" onclick="filterOrders()">Tìm kiếm</button>
+      </div>
+    </div>
+
+    <!-- Orders Cards Container -->
+    <div id="orders-list-container" style="display:flex; flex-direction:column; gap:16px;">
+      <div class="panel padded" style="text-align:center; padding:40px;">
+        <div class="spinner"></div>
+        <p class="muted">Đang tải lịch sử đơn hàng…</p>
+      </div>
+    </div>
+  </main>
+  </div>
+  </div>
+
+  <!-- Order Detail Dialog -->
+  <dialog id="order-detail-modal">
+    <div class="modal-heading">
+      <h2>Chi tiết đơn hàng</h2>
+      <button type="button" onclick="closeDetailModal()">&times;</button>
+    </div>
+    <div id="order-detail-content" style="margin-top:16px;"></div>
+  </dialog>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let activeTab = 'All';
+    let allOrders = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Components.init();
+      loadOrders();
+    });
+
+    function switchTrackTab(tab) {
+      activeTab = tab;
+      const btns = document.querySelectorAll('#track-tabs .tab-btn');
+      btns.forEach(b => b.classList.toggle('active', b.textContent.includes(tab) || (tab === 'All' && b.textContent.includes('Tất cả'))));
+      filterOrders();
+    }
+
+    async function loadOrders() {
+      try {
+        const res = await API.getRetailOrders({ suppressErrorToast: true });
+        if (res.success && res.data) {
+          allOrders = res.data.items || res.data.value || (Array.isArray(res.data) ? res.data : []);
+          filterOrders();
+        } else {
+          allOrders = [];
+          filterOrders();
+        }
+      } catch (e) {
+        allOrders = [];
+        filterOrders();
+      }
+    }
+
+    function filterOrders() {
+      const keyword = document.getElementById('track-search').value.trim().toLowerCase();
+      let filtered = allOrders;
+
+      if (activeTab === 'Completed') {
+        filtered = filtered.filter(x => x.status === 'Delivered' || x.status === 'Completed');
+      } else if (activeTab === 'Cancelled') {
+        filtered = filtered.filter(x => x.status === 'Cancelled');
+      }
+
+      if (keyword) {
+        filtered = filtered.filter(x =>
+          (x.orderCode || '').toLowerCase().includes(keyword) ||
+          (x.items || []).some(i => (i.productName || '').toLowerCase().includes(keyword))
+        );
+      }
+
+      renderOrdersList(filtered);
+    }
+
+    function renderOrdersList(items) {
+      const container = document.getElementById('orders-list-container');
+      if (!items || items.length === 0) {
+        container.innerHTML = `
+          <div class="panel padded" style="text-align:center; padding:50px 20px;">
+            <p style="font-size:36px; margin:0 0 10px;">📦</p>
+            <h3>Không có đơn hàng nào</h3>
+            <p class="muted">Không tìm thấy đơn hàng phù hợp với trạng thái hoặc từ khóa tìm kiếm.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = items.map(o => {
+        const itemsSummary = (o.items || []).map(i => `${i.productName} × ${i.quantity} ${i.unit || 'kg'}`).join(', ');
+
+        return `
+          <div class="panel padded" style="margin:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #edf2ee; padding-bottom:12px; margin-bottom:14px;">
+              <div>
+                <span style="font-size:12px; color:#687b70;">Mã đơn:</span>
+                <strong style="font-size:15px; color:#103e2d; margin-left:4px;">#${Utils.escapeHtml(o.orderCode || o.id)}</strong>
+                <span class="muted" style="margin-left:12px; font-size:12px;">Ngày đặt: ${Utils.formatDateTime(o.createdDate)}</span>
+              </div>
+              <span style="background:${o.statusBg || '#eaf4e9'}; color:${o.statusColor || '#1e6546'}; font-weight:700; font-size:12px; padding:4px 12px; border-radius:12px;">
+                ${Utils.escapeHtml(o.statusLabel || o.status)}
+              </span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+              <div style="flex:1; min-width:280px;">
+                <p style="margin:0 0 6px; font-weight:600; color:#1f3328;">${Utils.escapeHtml(itemsSummary)}</p>
+                <small class="muted">Giao đến: ${Utils.escapeHtml(o.shippingAddress || 'Địa chỉ người nhận')}</small>
+              </div>
+
+              <div style="text-align:right;">
+                <span style="display:block; font-size:12px; color:#687b70;">Tổng thanh toán</span>
+                <strong style="color:#094d34; font-size:18px;">${Utils.formatVND(o.totalAmount)}</strong>
+              </div>
+
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="primary" style="padding:8px 14px; font-size:12px;" onclick="viewDetail(${o.id})">
+                  Chi tiết hành trình
+                </button>
+                ${o.status === 'Delivered' || o.status === 'Completed' ? `<button type="button" style="padding:8px 14px; font-size:12px;" onclick="window.location.href='feedback.html?orderId=${o.id}'">Đánh giá</button>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function viewDetail(id) {
+      const o = allOrders.find(x => x.id === id);
+      if (!o) return;
+
+      const content = document.getElementById('order-detail-content');
+      const itemsHtml = (o.items || []).map(i => `
+        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f4f1;">
+          <span>${Utils.escapeHtml(i.productName)} × ${i.quantity} ${i.unit || 'kg'}</span>
+          <strong>${Utils.formatVND(i.price * i.quantity)}</strong>
+        </div>
+      `).join('');
+
+      content.innerHTML = `
+        <div>
+          <div style="background:#f4f9f6; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
+            <p style="margin:0 0 4px;">Mã đơn: <strong>#${Utils.escapeHtml(o.orderCode || o.id)}</strong></p>
+            <p style="margin:0 0 4px;">Trạng thái: <strong>${Utils.escapeHtml(o.statusLabel || o.status)}</strong></p>
+            <p style="margin:0;">Địa chỉ giao: ${Utils.escapeHtml(o.shippingAddress)}</p>
+          </div>
+
+          <h4>Sản phẩm trong đơn:</h4>
+          ${itemsHtml}
+
+          <div style="display:flex; justify-content:space-between; margin-top:16px; font-size:16px; font-weight:700;">
+            <span>Tổng cộng:</span>
+            <span style="color:#094d34;">${Utils.formatVND(o.totalAmount)}</span>
+          </div>
+
+          <!-- Tracking Timeline -->
+          <h4 style="margin:20px 0 10px;">Hành trình nông sản:</h4>
+          <div style="border-left:2px solid #2e7d32; padding-left:14px; margin-left:8px; font-size:13px; display:flex; flex-direction:column; gap:12px;">
+            <div>
+              <strong style="color:#2e7d32;">● Đã tiếp nhận đơn hàng</strong>
+              <div class="muted">Nhà vườn đã xác nhận và chuẩn bị nông sản tươi.</div>
+            </div>
+            <div>
+              <strong style="color:#2e7d32;">● Đóng gói chuẩn bảo quản nông sản</strong>
+              <div class="muted">Kiểm tra tem mã QR truy xuất nguồn gốc.</div>
+            </div>
+            <div>
+              <strong style="color:${o.status === 'Shipping' || o.status === 'Delivered' ? '#2e7d32' : '#888'};">● Bàn giao đơn vị vận chuyển</strong>
+              <div class="muted">Đang trên xe lạnh giao hàng liên tỉnh.</div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      Utils.showModal('order-detail-modal');
+    }
+
+    function closeDetailModal() {
+      Utils.hideModal('order-detail-modal');
+    }
+  </script>
+</body>
+</html>

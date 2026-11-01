@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đánh Giá Nông Sản - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <header id="app-header" class="app-header"></header>
+
+  <div class="app-container">
+    <aside id="app-sidebar" class="app-sidebar"></aside>
+
+    <main class="main-content">
+      <div class="page-body">
+        
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Đánh Giá & Phản Hồi Chất Lượng Nông Sản</h1>
+            <p class="page-subtitle">Ý kiến đóng góp của bạn giúp bà con nông dân nâng cao chất lượng vụ mùa</p>
+          </div>
+          <div>
+            <a href="orders.html" class="btn btn-secondary">&larr; Quay lại danh sách đơn</a>
+          </div>
+        </div>
+
+        <div class="bento-grid">
+          <div class="bento-card bento-col-8">
+            <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:1.25rem;">Nội Dung Đánh Giá</h3>
+
+            <form id="feedback-form" onsubmit="handleSubmitFeedback(event)">
+              <div class="form-group">
+                <label class="form-label">Mức Độ Hài Lòng</label>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                  <label style="display:flex; align-items:center; gap:0.35rem; padding:0.5rem 0.85rem; border:1px solid var(--border-color); border-radius:var(--radius-md); cursor:pointer;">
+                    <input type="radio" name="rating" value="5" checked> ⭐⭐⭐⭐⭐ Rất hài lòng
+                  </label>
+                  <label style="display:flex; align-items:center; gap:0.35rem; padding:0.5rem 0.85rem; border:1px solid var(--border-color); border-radius:var(--radius-md); cursor:pointer;">
+                    <input type="radio" name="rating" value="4"> ⭐⭐⭐⭐ Hài lòng
+                  </label>
+                  <label style="display:flex; align-items:center; gap:0.35rem; padding:0.5rem 0.85rem; border:1px solid var(--border-color); border-radius:var(--radius-md); cursor:pointer;">
+                    <input type="radio" name="rating" value="3"> ⭐⭐⭐ Bình thường
+                  </label>
+                  <label style="display:flex; align-items:center; gap:0.35rem; padding:0.5rem 0.85rem; border:1px solid var(--border-color); border-radius:var(--radius-md); cursor:pointer;">
+                    <input type="radio" name="rating" value="2"> ⭐⭐ Chưa hài lòng
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="fb-reason">Vấn Đề Gặp Phải (Nếu Có)</label>
+                <select id="fb-reason" class="select-input" style="width:100%;">
+                  <option value="">Không có vấn đề gì (Hàng rất tươi ngon)</option>
+                  <option value="NotAsDescribed">Sản phẩm không đúng mô tả</option>
+                  <option value="Damaged">Sản phẩm bị dập nát / hư hại</option>
+                  <option value="MissingItems">Giao thiếu số lượng đặt</option>
+                  <option value="Other">Lý do khác</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="fb-comments">Nhận Xét Chi Tiết</label>
+                <textarea id="fb-comments" class="form-control" style="width:100%; height:110px;" placeholder="Hãy chia sẻ cảm nhận về độ tươi ngon, quy cách đóng gói và thời gian giao hàng..."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Ảnh Chụp Thực Tế (Tùy chọn)</label>
+                <input type="file" class="form-control" accept="image/*" multiple style="width:100%;">
+                <small style="color:var(--text-muted); display:block; margin-top:0.3rem;">Hỗ trợ tối đa 5 ảnh (JPG, PNG không quá 5MB/ảnh)</small>
+              </div>
+
+              <div style="margin-top:1.5rem;">
+                <button type="submit" id="btn-submit-fb" class="btn btn-primary" style="padding:0.75rem 1.5rem;">
+                  Gửi Đánh Giá Nông Sản
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="bento-card bento-col-4">
+            <h3 style="font-size:1.15rem; font-weight:700; margin-bottom:1rem;">Cam Kết Từ Sàn</h3>
+            <p style="font-size:0.875rem; color:var(--text-muted); line-height:1.6; margin-bottom:1rem;">
+              AgriSustain bảo vệ quyền lợi 100% người mua hàng. Nếu nông sản giao đến bị hư hỏng hoặc không đúng tiêu chuẩn VietGAP, bạn sẽ được hỗ trợ hoàn tiền hoặc đổi bù hàng mới trong vòng 24 giờ.
+            </p>
+            <div style="padding:1rem; background:var(--status-green-bg); border-radius:var(--radius-md);">
+              <strong style="color:var(--status-green);">🛡️ Bảo Chứng Nông Sản Tươi</strong>
+              <div style="font-size:0.8rem; color:var(--text-main); margin-top:0.35rem;">Bồi thường đổi trả minh bạch</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/order.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      Auth.guard(['RetailCustomer', 'Customer']);
+    });
+
+    function handleSubmitFeedback(e) {
+      e.preventDefault();
+      const rating = document.querySelector('input[name="rating"]:checked')?.value || 5;
+      const reason = document.getElementById('fb-reason').value;
+      const comments = document.getElementById('fb-comments').value.trim();
+      const btn = document.getElementById('btn-submit-fb');
+
+      btn.disabled = true;
+      btn.innerText = 'Đang gửi phản hồi...';
+
+      setTimeout(() => {
+        Utils.showToast(Messages.order.feedbackSuccess, 'success');
+        setTimeout(() => {
+          window.location.href = 'orders.html';
+        }, 1000);
+      }, 700);
+    }
+  </script>
+</body>
+</html>
