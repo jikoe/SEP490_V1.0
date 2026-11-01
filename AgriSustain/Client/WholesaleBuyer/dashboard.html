@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mua buôn B2B - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="wholesale-dashboard" style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">KHÁCH HÀNG DOANH NGHIỆP B2B</p>
+              <h1>Bảng Điều Khiển Mua Buôn</h1>
+              <p class="muted">Theo dõi tiến độ hợp đồng thu mua bao tiêu, đặt hàng trước theo mùa vụ và đối soát hóa đơn sỉ.</p>
+            </div>
+            <a href="../RetailCustomer/index.html" class="primary" style="text-decoration:none; padding:10px 18px; border-radius:7px; font-weight:600;">
+              ✦ Khám phá nông sản sỉ
+            </a>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="metric-card">
+              <div class="metric-icon blue">📜</div>
+              <div class="metric-info">
+                <p class="metric-label">Hợp đồng B2B hiệu lực</p>
+                <h3 class="metric-value">4 hợp đồng</h3>
+                <p class="metric-sub">Lâm Đồng &amp; Vĩnh Long</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon green">🚛</div>
+              <div class="metric-info">
+                <p class="metric-label">Đơn hàng sỉ đang giao</p>
+                <h3 class="metric-value">2 đơn</h3>
+                <p class="metric-sub">1.200 kg nông sản tươi</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon gold">💳</div>
+              <div class="metric-info">
+                <p class="metric-label">Hạn mức giao dịch</p>
+                <h3 class="metric-value">180.000.000 ₫</h3>
+                <p class="metric-sub">Đã bảo lãnh thanh toán</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon purple">🏷️</div>
+              <div class="metric-info">
+                <p class="metric-label">Chiết khấu bao tiêu</p>
+                <h3 class="metric-value">14,5%</h3>
+                <p class="metric-sub">Cam kết kỳ hạn vụ mùa</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-sections">
+            <div class="panel padded">
+              <div class="record-heading" style="padding: 0 0 16px;">
+                <h2>Hợp đồng thu mua nông sản theo vụ</h2>
+                <span class="badge Active">Ký số điện tử</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã hợp đồng</th>
+                      <th>Đối tác cung ứng</th>
+                      <th>Nông sản</th>
+                      <th>Khối lượng cam kết</th>
+                      <th>Hạn hợp đồng</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>B2B-2026-DL01</strong></td>
+                      <td>HTX Rau Sạch Đà Lạt</td>
+                      <td>Rau củ hữu cơ tổng hợp</td>
+                      <td>2.5 tấn/tháng</td>
+                      <td>31/12/2026</td>
+                      <td><span class="badge Active">Đang thực hiện</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>B2B-2026-TG04</strong></td>
+                      <td>Vườn Cam Tân Phú (Vĩnh Long)</td>
+                      <td>Cam sành loại 1 xuất khẩu</td>
+                      <td>5.0 tấn/vụ</td>
+                      <td>15/11/2026</td>
+                      <td><span class="badge Pending">Đang giao nhận</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>B2B-2026-ST02</strong></td>
+                      <td>HTX Lúa Thơm Sóc Trăng</td>
+                      <td>Gạo ST25 chuẩn hữu cơ</td>
+                      <td>10.0 tấn/vụ</td>
+                      <td>28/02/2027</td>
+                      <td><span class="badge Active">Đã ký kết</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền WholesaleBuyer
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+</body>
+</html>

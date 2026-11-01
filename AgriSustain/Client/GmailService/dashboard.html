@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dịch vụ thông báo Gmail - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="notification-service-dashboard" style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">DỊCH VỤ THÔNG BÁO TỰ ĐỘNG</p>
+              <h1>Bảng Điều Khiển Gmail Notification Service API</h1>
+              <p class="muted">Giám sát hàng đợi gửi email xác thực, biên nhận đơn hàng và các luồng thông báo đẩy thời gian thực.</p>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="metric-card">
+              <div class="metric-icon blue">✉️</div>
+              <div class="metric-info">
+                <p class="metric-label">Email đã gửi 24h</p>
+                <h3 class="metric-value">418 email</h3>
+                <p class="metric-sub">Đơn hàng &amp; duyệt sản phẩm</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon green">✓</div>
+              <div class="metric-info">
+                <p class="metric-label">Tỷ lệ gửi thành công</p>
+                <h3 class="metric-value">99,9%</h3>
+                <p class="metric-sub">0 thư bị trả về (bounce = 0%)</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon gold">🔔</div>
+              <div class="metric-info">
+                <p class="metric-label">Thông báo In-App</p>
+                <h3 class="metric-value">620 tin</h3>
+                <p class="metric-sub">Đẩy tức thời qua SignalR</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon purple">⚙️</div>
+              <div class="metric-info">
+                <p class="metric-label">Trạng thái Gmail API</p>
+                <h3 class="metric-value" style="font-size:18px; color:#2e7d32;">Connected</h3>
+                <p class="metric-sub">OAuth 2.0 Token hợp lệ</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-sections">
+            <div class="panel padded">
+              <div class="record-heading" style="padding: 0 0 16px;">
+                <h2>Nhật ký gửi thông báo gần nhất</h2>
+                <span class="badge Active">Queue: Trống (0 pending)</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã thông báo</th>
+                      <th>Kênh phát</th>
+                      <th>Người nhận</th>
+                      <th>Tiêu đề thông báo</th>
+                      <th>Thời gian</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>NOTIF-8821</strong></td>
+                      <td>Email + In-App</td>
+                      <td>mai.nguyen@example.test</td>
+                      <td>Sản phẩm “Cải ngọt hữu cơ” đã được duyệt</td>
+                      <td>10:40:12</td>
+                      <td><span class="badge Active">Đã gửi</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>NOTIF-8820</strong></td>
+                      <td>Email</td>
+                      <td>customer.duc@example.test</td>
+                      <td>Xác nhận đơn hàng #ORD-98231</td>
+                      <td>10:35:10</td>
+                      <td><span class="badge Active">Đã gửi</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>NOTIF-8819</strong></td>
+                      <td>In-App</td>
+                      <td>hung.tran@example.test</td>
+                      <td>Đợt chi trả doanh thu kỳ 1 đã được duyệt</td>
+                      <td>10:15:00</td>
+                      <td><span class="badge Active">Đã gửi</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>NOTIF-8818</strong></td>
+                      <td>Email</td>
+                      <td>verify.tam@example.test</td>
+                      <td>Cảnh báo chứng chỉ VietGAP hết hạn sau 30 ngày</td>
+                      <td>08:00:22</td>
+                      <td><span class="badge Active">Đã gửi</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Gmail Notification Service
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+</body>
+</html>

@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hồ sơ nông hộ & KYC - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/profile.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="farmer-profile-container">
+          <!-- Top Banner Hero matching ProfileScreen.jsx -->
+          <div class="farmer-hero-card">
+            <div class="farmer-hero-left">
+              <div id="hero-avatar" class="farmer-hero-avatar">
+                F
+              </div>
+              <label class="farmer-hero-upload-label">
+                <span id="avatar-upload-text">Đổi ảnh</span>
+                <input
+                  type="file"
+                  id="avatar-file-input"
+                  accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                  hidden
+                  onchange="handleAvatarChange(event)"
+                >
+              </label>
+              <div>
+                <div class="farmer-hero-meta">
+                  <h1 id="hero-fullname" class="farmer-hero-title">
+                    Tài khoản Nông hộ
+                  </h1>
+                  <span class="farmer-role-pill">
+                    Farmer
+                  </span>
+                </div>
+                <p id="hero-subtext" class="farmer-hero-subtext">
+                  farmer@agrisustain.vn • SĐT: Chưa cập nhật
+                </p>
+              </div>
+            </div>
+
+            <div class="farmer-hero-stats">
+              <div class="farmer-stat-card">
+                <div class="farmer-stat-label">ĐIỂM UY TÍN NHÀ VƯỜN</div>
+                <div id="hero-score" class="farmer-stat-value">⭐ 5.0 / 5.0</div>
+              </div>
+
+              <div class="farmer-stat-card">
+                <div class="farmer-stat-label">TRẠNG THÁI KYC</div>
+                <div id="hero-kyc-badge" class="farmer-hero-kyc-wrap">
+                  <span class="status-badge kyc-badge-not-submitted">Chưa nộp KYC</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alert Notices -->
+          <div id="profile-notice" class="notice farmer-field-mb-20" style="display:none;"></div>
+
+          <!-- Reject Reason Banner if KYC is Rejected -->
+          <div id="kyc-reject-banner" class="farmer-kyc-reject-banner" style="display:none;">
+            <strong>Lý do từ chối thẩm định trước đó:</strong> <span id="kyc-reject-text">---</span>.
+            <div class="farmer-reject-subtext">Vui lòng kiểm tra lại thông tin nông trại và nộp lại hồ sơ thẩm định.</div>
+          </div>
+
+          <div class="farmer-profile-layout">
+            <!-- Left Sidebar Navigation -->
+            <aside class="panel padded farmer-profile-sidebar">
+              <h3 class="farmer-sidebar-title">
+                QUẢN LÝ TÀI KHOẢN
+              </h3>
+              <div class="farmer-nav-menu">
+                <button
+                  type="button"
+                  class="farmer-nav-btn active"
+                >
+                  👤 Hồ sơ nông hộ & KYC
+                </button>
+                <button
+                  type="button"
+                  class="farmer-nav-btn"
+                  onclick="window.location.href='orders.html'"
+                >
+                  📦 Đơn hàng của nông trại
+                </button>
+                <button
+                  type="button"
+                  class="farmer-nav-btn"
+                  onclick="openPasswordModal()"
+                >
+                  🔑 Đổi mật khẩu & Bảo mật
+                </button>
+              </div>
+
+              <div class="farmer-sidebar-footer">
+                <div class="farmer-sidebar-info-row">
+                  <strong>Xác minh KYC:</strong> <span id="sidebar-kyc-badge">---</span>
+                </div>
+                <div class="farmer-sidebar-info-row farmer-field-mb-12">
+                  <strong>Điểm uy tín nhà vườn:</strong> <span id="sidebar-reputation-score">⭐ 5.0 / 5.0</span>
+                </div>
+
+                <button
+                  type="button"
+                  id="btn-submit-kyc"
+                  class="primary farmer-btn-kyc-submit"
+                  onclick="handleSubmitKyc()"
+                >
+                  Gửi thẩm định KYC
+                </button>
+              </div>
+            </aside>
+
+            <!-- Right Form Panel matching ProfileScreen.jsx -->
+            <main class="panel padded farmer-profile-content">
+              <form id="farmer-profile-form" onsubmit="handleSaveProfile(event)" novalidate>
+                <div class="farmer-section-header">
+                  <h2>1. Thông tin cá nhân cơ bản</h2>
+                  <p class="muted">
+                    Thông tin dùng để định danh và liên hệ trên hệ thống.
+                  </p>
+                </div>
+
+                <div class="farmer-form-grid-2">
+                  <label class="field">
+                    <span>Họ và tên người dùng *</span>
+                    <input
+                      type="text"
+                      id="profile-fullname"
+                      required
+                      maxlength="50"
+                      placeholder="Nhập họ và tên"
+                    >
+                  </label>
+
+                  <label class="field">
+                    <span>Số điện thoại di động *</span>
+                    <input
+                      type="tel"
+                      id="profile-phone"
+                      required
+                      maxlength="11"
+                      placeholder="Ví dụ: 0912345678"
+                      oninput="handlePhoneInput(event)"
+                    >
+                    <small id="phone-notice" class="farmer-phone-notice" style="display:none;"></small>
+                  </label>
+                </div>
+
+                <div class="farmer-form-grid-3">
+                  <label class="field">
+                    <span>Địa chỉ Email (Cố định)</span>
+                    <input
+                      type="email"
+                      id="profile-email"
+                      disabled
+                      class="farmer-field-readonly"
+                    >
+                  </label>
+
+                  <label class="field">
+                    <span>Giới tính</span>
+                    <select id="profile-gender">
+                      <option value="">-- Chọn giới tính --</option>
+                      <option value="Male">Nam</option>
+                      <option value="Female">Nữ</option>
+                      <option value="Other">Khác</option>
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span>Ngày sinh</span>
+                    <input type="date" id="profile-birthdate">
+                  </label>
+                </div>
+
+                <!-- Section 2: Farmer Specific Fields -->
+                <div class="farmer-section-divider">
+                  <h2 class="farmer-section-title">
+                    2. Thông tin Nông trại & Hợp tác xã (Hồ sơ nông hộ)
+                  </h2>
+                  <p class="muted farmer-section-desc">
+                    Dữ liệu dùng để cấp mã truy xuất nguồn gốc nông sản và thẩm định hồ sơ VietGAP.
+                  </p>
+
+                  <div class="farmer-form-grid-2">
+                    <label class="field">
+                      <span>Tên Nông trại / Hợp tác xã *</span>
+                      <input
+                        type="text"
+                        id="farm-name"
+                        required
+                        maxlength="100"
+                        placeholder="Ví dụ: Trang trại Nông sản Đà Lạt"
+                      >
+                    </label>
+
+                    <label class="field">
+                      <span>Tên người đại diện pháp luật *</span>
+                      <input
+                        type="text"
+                        id="farm-rep-name"
+                        required
+                        maxlength="50"
+                        placeholder="Họ và tên chủ hộ / người đại diện"
+                      >
+                    </label>
+                  </div>
+
+                  <div class="farmer-form-grid-2">
+                    <label class="field">
+                      <span>Quy mô canh tác</span>
+                      <input
+                        type="text"
+                        id="farm-scale"
+                        maxlength="100"
+                        placeholder="Ví dụ: 3.5 ha canh tác nhà kính"
+                      >
+                    </label>
+
+                    <label class="field">
+                      <span>Vùng canh tác trọng điểm *</span>
+                      <input
+                        type="text"
+                        id="farm-zone"
+                        maxlength="150"
+                        placeholder="Ví dụ: Lâm Hà - Đà Lạt - Lâm Đồng"
+                      >
+                    </label>
+                  </div>
+
+                  <div class="farmer-form-grid-2">
+                    <label class="field">
+                      <span>Số ĐKKD / Mã số nông hộ *</span>
+                      <input
+                        type="text"
+                        id="farm-license"
+                        maxlength="100"
+                        placeholder="Ví dụ: BL-2026-LD-889"
+                      >
+                    </label>
+
+                    <label class="field">
+                      <span>Tọa độ GPS vườn (Vĩ độ, Kinh độ)</span>
+                      <input
+                        type="text"
+                        id="farm-gps"
+                        maxlength="100"
+                        placeholder="Ví dụ: 11.9404, 108.4583"
+                      >
+                    </label>
+                  </div>
+
+                  <label class="field farmer-field-mb-16">
+                    <span>Địa chỉ nông trại canh tác *</span>
+                    <input
+                      type="text"
+                      id="farm-address"
+                      required
+                      maxlength="200"
+                      placeholder="Ví dụ: Thôn 4, Xã Đạ Đờn, Huyện Lâm Hà, Tỉnh Lâm Đồng"
+                    >
+                  </label>
+
+                  <div class="farmer-form-grid-2">
+                    <label class="field">
+                      <span>Diện tích canh tác (ha)</span>
+                      <input
+                        type="number"
+                        id="farm-area"
+                        min="0.01"
+                        step="any"
+                        placeholder="Ví dụ: 2.5"
+                      >
+                    </label>
+
+                    <label class="field">
+                      <span>Loại hình</span>
+                      <select id="farm-model">
+                        <option value="">-- Chọn loại hình --</option>
+                        <option value="Individual">Cá nhân</option>
+                        <option value="Cooperative">Hợp tác xã</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <label class="field farmer-field-mb-24">
+                    <span id="desc-count-label">Mô tả ngắn (0/300)</span>
+                    <textarea
+                      id="farm-desc"
+                      rows="3"
+                      maxlength="300"
+                      placeholder="Giới thiệu ngắn về nông trại và sản phẩm chủ lực"
+                      oninput="handleDescInput(event)"
+                    ></textarea>
+                  </label>
+                </div>
+
+                <div class="farmer-form-actions">
+                  <button
+                    type="button"
+                    class="farmer-btn-cancel"
+                    onclick="handleCancelEdit()"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    id="btn-save-profile"
+                    class="primary farmer-btn-save"
+                  >
+                    Lưu Thay Đổi Hồ Sơ
+                  </button>
+                </div>
+              </form>
+            </main>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Farmer
+      </footer>
+    </div>
+  </div>
+
+  <!-- Modal Đổi Mật Khẩu matching ProfileScreen.jsx -->
+  <div id="password-modal" class="modal-backdrop" style="display:none;">
+    <div class="modal farmer-modal-dialog">
+      <div class="modal-header farmer-modal-header">
+        <h3>Đổi Mật Khẩu &amp; Bảo Mật</h3>
+        <button type="button" class="modal-close" onclick="closePasswordModal()">&times;</button>
+      </div>
+      <form onsubmit="handleChangePassword(event)" class="farmer-modal-form">
+        <div id="modal-pwd-notice" class="notice farmer-field-mb-16" style="display:none;"></div>
+
+        <label class="field farmer-modal-field">
+          <span>Mật khẩu hiện tại *</span>
+          <input type="password" id="pwd-current" required placeholder="Nhập mật khẩu hiện tại">
+        </label>
+
+        <label class="field farmer-modal-field">
+          <span>Mật khẩu mới *</span>
+          <input type="password" id="pwd-new" required minlength="8" placeholder="Tối thiểu 8 ký tự, có hoa, thường, số">
+        </label>
+
+        <label class="field farmer-field-mb-20">
+          <span>Xác nhận mật khẩu mới *</span>
+          <input type="password" id="pwd-confirm" required placeholder="Nhập lại mật khẩu mới">
+        </label>
+
+        <div class="farmer-modal-actions">
+          <button type="button" onclick="closePasswordModal()">Hủy</button>
+          <button type="submit" class="primary" id="btn-save-password">Lưu mật khẩu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let savedProfile = null;
+    let currentProfile = {};
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      Components.init();
+      if (!Auth.requireAuth('Farmer')) return;
+      await loadProfile();
+    });
+
+    const statusBadgeMap = {
+      NotSubmitted: '<span class="status-badge kyc-badge-not-submitted">Chưa nộp KYC</span>',
+      PendingApproval: '<span class="status-badge kyc-badge-pending">Chờ phê duyệt</span>',
+      Approved: '<span class="status-badge kyc-badge-approved">Đã xác thực</span>',
+      Rejected: '<span class="status-badge kyc-badge-rejected">Bị từ chối</span>'
+    };
+
+    async function loadProfile() {
+      try {
+        const res = await API.getProfile();
+        if (res.success && res.data) {
+          populateProfile(res.data);
+        } else {
+          showNotice(res.error || 'Không thể tải thông tin hồ sơ từ máy chủ. Vui lòng đăng nhập.', true);
+        }
+      } catch (err) {
+        showNotice('Không thể kết nối đến máy chủ backend để tải hồ sơ.', true);
+      }
+    }
+
+    function populateProfile(data) {
+      const fp = data.farmerProfile || {};
+      currentProfile = {
+        fullName: data.fullName || '',
+        phoneNumber: data.phoneNumber || '',
+        email: data.email || '',
+        gender: data.gender || '',
+        birthDate: data.birthDate ? String(data.birthDate).slice(0, 10) : '',
+        avatarUrl: data.avatarUrl || '',
+        // Farmer fields
+        farmName: fp.farmName || '',
+        representativeName: fp.representativeName || data.fullName || '',
+        productionScale: fp.productionScale || '',
+        cultivationZone: fp.cultivationZone || '',
+        businessLicenseNumber: fp.businessLicenseNumber || '',
+        gpsCoordinates: fp.gpsCoordinates || fp.gpscoordinates || '',
+        farmAddress: fp.address || '',
+        cultivatedArea: fp.cultivatedArea ?? '',
+        productionModel: fp.productionModel || '',
+        shortDescription: fp.shortDescription || '',
+        verificationStatus: fp.verificationStatus || 'NotSubmitted',
+        reputationScore: fp.reputationScore ?? 5.0,
+        rejectReason: fp.rejectReason || null
+      };
+
+      savedProfile = { ...currentProfile };
+
+      // Render Hero Banner
+      document.getElementById('hero-fullname').textContent = currentProfile.fullName || 'Tài khoản Nông hộ';
+      document.getElementById('hero-subtext').textContent = `${currentProfile.email || 'farmer@agrisustain.vn'} • SĐT: ${currentProfile.phoneNumber || 'Chưa cập nhật'}`;
+      document.getElementById('hero-score').textContent = `⭐ ${currentProfile.reputationScore || 5.0} / 5.0`;
+
+      const kycHtml = statusBadgeMap[currentProfile.verificationStatus] || currentProfile.verificationStatus;
+      document.getElementById('hero-kyc-badge').innerHTML = kycHtml;
+      document.getElementById('sidebar-kyc-badge').innerHTML = kycHtml;
+      document.getElementById('sidebar-reputation-score').textContent = `⭐ ${currentProfile.reputationScore || 5.0} / 5.0`;
+
+      // Avatar
+      const avatarEl = document.getElementById('hero-avatar');
+      if (currentProfile.avatarUrl) {
+        avatarEl.innerHTML = `<img src="${currentProfile.avatarUrl}" alt="Avatar" class="farmer-avatar-img">`;
+      } else {
+        const initials = currentProfile.fullName ? currentProfile.fullName.charAt(0).toUpperCase() : 'F';
+        avatarEl.textContent = initials;
+      }
+
+      // KYC reject reason banner
+      const rejectBanner = document.getElementById('kyc-reject-banner');
+      if (currentProfile.rejectReason) {
+        rejectBanner.style.display = 'block';
+        document.getElementById('kyc-reject-text').textContent = currentProfile.rejectReason;
+      } else {
+        rejectBanner.style.display = 'none';
+      }
+
+      // KYC Submit button in sidebar
+      const kycBtn = document.getElementById('btn-submit-kyc');
+      if (currentProfile.verificationStatus === 'NotSubmitted' || currentProfile.verificationStatus === 'Rejected') {
+        kycBtn.style.display = 'block';
+      } else {
+        kycBtn.style.display = 'none';
+      }
+
+      // Populate Inputs
+      document.getElementById('profile-fullname').value = currentProfile.fullName;
+      document.getElementById('profile-phone').value = currentProfile.phoneNumber;
+      document.getElementById('profile-email').value = currentProfile.email;
+      document.getElementById('profile-gender').value = currentProfile.gender;
+      document.getElementById('profile-birthdate').value = currentProfile.birthDate;
+
+      document.getElementById('farm-name').value = currentProfile.farmName;
+      document.getElementById('farm-rep-name').value = currentProfile.representativeName;
+      document.getElementById('farm-scale').value = currentProfile.productionScale;
+      document.getElementById('farm-zone').value = currentProfile.cultivationZone;
+      document.getElementById('farm-license').value = currentProfile.businessLicenseNumber;
+      document.getElementById('farm-gps').value = currentProfile.gpsCoordinates;
+      document.getElementById('farm-address').value = currentProfile.farmAddress;
+      document.getElementById('farm-area').value = currentProfile.cultivatedArea;
+      document.getElementById('farm-model').value = currentProfile.productionModel;
+      document.getElementById('farm-desc').value = currentProfile.shortDescription;
+      document.getElementById('desc-count-label').textContent = `Mô tả ngắn (${currentProfile.shortDescription.length}/300)`;
+    }
+
+    function handlePhoneInput(e) {
+      const raw = e.target.value;
+      const digitsOnly = raw.replace(/\D/g, '');
+      const notice = document.getElementById('phone-notice');
+
+      if (digitsOnly.length > 10) {
+        e.target.value = digitsOnly.slice(0, 10);
+        notice.textContent = 'Số điện thoại chỉ lấy 10 số đầu. Các số sau tự động bị xóa.';
+        notice.style.display = 'block';
+      } else {
+        e.target.value = digitsOnly;
+        if (digitsOnly.length === 10) {
+          notice.textContent = 'Đã nhập đủ 10 chữ số hợp lệ.';
+          notice.style.display = 'block';
+        } else {
+          notice.style.display = 'none';
+        }
+      }
+    }
+
+    function handleDescInput(e) {
+      const len = e.target.value.length;
+      document.getElementById('desc-count-label').textContent = `Mô tả ngắn (${len}/300)`;
+    }
+
+    function handleCancelEdit() {
+      if (savedProfile) {
+        populateProfile({
+          fullName: savedProfile.fullName,
+          email: savedProfile.email,
+          phoneNumber: savedProfile.phoneNumber,
+          gender: savedProfile.gender,
+          birthDate: savedProfile.birthDate,
+          avatarUrl: savedProfile.avatarUrl,
+          farmerProfile: {
+            farmName: savedProfile.farmName,
+            representativeName: savedProfile.representativeName,
+            productionScale: savedProfile.productionScale,
+            cultivationZone: savedProfile.cultivationZone,
+            businessLicenseNumber: savedProfile.businessLicenseNumber,
+            gpsCoordinates: savedProfile.gpsCoordinates,
+            address: savedProfile.farmAddress,
+            cultivatedArea: savedProfile.cultivatedArea,
+            productionModel: savedProfile.productionModel,
+            shortDescription: savedProfile.shortDescription,
+            verificationStatus: savedProfile.verificationStatus,
+            reputationScore: savedProfile.reputationScore,
+            rejectReason: savedProfile.rejectReason
+          }
+        });
+      }
+      showNotice('Đã hủy các thay đổi chưa lưu.');
+    }
+
+    function showNotice(msg, isError = false) {
+      const el = document.getElementById('profile-notice');
+      el.className = `notice ${isError ? 'error' : ''}`;
+      el.textContent = msg;
+      el.style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function handleAvatarChange(e) {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+
+      if (!/\.(png|jpe?g)$/i.test(file.name) || file.size > 5 * 1024 * 1024) {
+        showNotice('Vui lòng chọn ảnh PNG hoặc JPG có dung lượng tối đa 5 MB.', true);
+        return;
+      }
+
+      const textEl = document.getElementById('avatar-upload-text');
+      textEl.textContent = 'Đang tải...';
+
+      try {
+        const res = await API.uploadAvatar(file);
+        if (res.success && res.data && res.data.avatarUrl) {
+          currentProfile.avatarUrl = res.data.avatarUrl;
+          if (savedProfile) savedProfile.avatarUrl = res.data.avatarUrl;
+          document.getElementById('hero-avatar').innerHTML = `<img src="${res.data.avatarUrl}" alt="Avatar" class="farmer-avatar-img">`;
+          showNotice('Cập nhật ảnh đại diện thành công!');
+        } else {
+          showNotice(res.error || 'Tải ảnh đại diện lên máy chủ thất bại.', true);
+        }
+      } catch (err) {
+        showNotice(err.message || 'Không thể kết nối đến máy chủ để tải ảnh đại diện.', true);
+      } finally {
+        textEl.textContent = 'Đổi ảnh';
+      }
+    }
+
+    function validateProfileForm() {
+      const fullName = document.getElementById('profile-fullname').value.trim();
+      const phone = document.getElementById('profile-phone').value.trim();
+      const farmName = document.getElementById('farm-name').value.trim();
+      const repName = document.getElementById('farm-rep-name').value.trim();
+      const farmAddress = document.getElementById('farm-address').value.trim();
+      const cultivatedArea = document.getElementById('farm-area').value.trim();
+
+      if (!fullName) return 'Họ và tên không được để trống.';
+      if (fullName.length < 2 || fullName.length > 50) return 'Họ và tên phải từ 2 đến 50 ký tự.';
+      if (!phone) return 'Số điện thoại không được để trống.';
+      if (!/^0\d{9}$/.test(phone)) return 'Số điện thoại không hợp lệ. Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.';
+
+      if (!farmName) return 'Tên nông trại / hợp tác xã không được để trống.';
+      if (!repName) return 'Tên người đại diện không được để trống.';
+      if (!farmAddress) return 'Địa chỉ nông trại không được để trống.';
+
+      if (cultivatedArea !== '' && !(Number(cultivatedArea) > 0)) {
+        return 'Diện tích canh tác phải là số dương (> 0).';
+      }
+
+      return null;
+    }
+
+    async function handleSaveProfile(e) {
+      e.preventDefault();
+      const err = validateProfileForm();
+      if (err) {
+        showNotice(err, true);
+        return;
+      }
+
+      const areaVal = document.getElementById('farm-area').value.trim();
+      const payload = {
+        fullName: document.getElementById('profile-fullname').value.trim(),
+        phoneNumber: document.getElementById('profile-phone').value.trim(),
+        farmName: document.getElementById('farm-name').value.trim(),
+        representativeName: document.getElementById('farm-rep-name').value.trim(),
+        productionScale: document.getElementById('farm-scale').value.trim(),
+        cultivatedArea: areaVal ? Number(areaVal) : null,
+        productionModel: document.getElementById('farm-model').value || null,
+        shortDescription: document.getElementById('farm-desc').value.trim() || null,
+        cultivationZone: document.getElementById('farm-zone').value.trim(),
+        businessLicenseNumber: document.getElementById('farm-license').value.trim(),
+        address: document.getElementById('farm-address').value.trim(),
+        provinceCode: null,
+        gpsCoordinates: document.getElementById('farm-gps').value.trim()
+      };
+
+      const btn = document.getElementById('btn-save-profile');
+      btn.disabled = true;
+      btn.textContent = 'Đang lưu...';
+
+      try {
+        const res = await API.updateFarmerProfile(payload);
+        if (res.success) {
+          const previousStatus = currentProfile.verificationStatus;
+          const newStatus = res.data?.farmerProfile?.verificationStatus || currentProfile.verificationStatus;
+          currentProfile.verificationStatus = newStatus;
+
+          // Update saved cache
+          savedProfile = {
+            ...savedProfile,
+            ...payload,
+            farmAddress: payload.address,
+            gender: document.getElementById('profile-gender').value,
+            birthDate: document.getElementById('profile-birthdate').value
+          };
+
+          // Update header user name in UI
+          const user = Auth.getUserInfo() || {};
+          user.fullName = payload.fullName;
+          user.phoneNumber = payload.phoneNumber;
+          Auth.setUserInfo(user);
+
+          const noticeMsg = (previousStatus === 'Approved' && newStatus === 'PendingApproval')
+            ? 'Cập nhật hồ sơ thành công! Bạn đã thay đổi thông tin pháp lý nên hồ sơ cần được Nhân viên xác minh duyệt lại.'
+            : 'Cập nhật hồ sơ thành công!';
+          showNotice(noticeMsg);
+          Utils.showToast(noticeMsg, 'success');
+        } else {
+          showNotice(res.error || 'Cập nhật hồ sơ thất bại.', true);
+        }
+      } catch (err) {
+        showNotice(err.message || 'Lỗi khi lưu thông tin hồ sơ lên máy chủ.', true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Lưu Thay Đổi Hồ Sơ';
+      }
+    }
+
+    async function handleSubmitKyc() {
+      if (!confirm(Messages.common.kycConfirmPrompt)) return;
+
+      const btn = document.getElementById('btn-submit-kyc');
+      btn.disabled = true;
+
+      try {
+        const res = await API.submitFarmerKyc();
+        if (res.success) {
+          currentProfile.verificationStatus = 'PendingApproval';
+          const kycHtml = statusBadgeMap['PendingApproval'];
+          document.getElementById('hero-kyc-badge').innerHTML = kycHtml;
+          document.getElementById('sidebar-kyc-badge').innerHTML = kycHtml;
+          btn.style.display = 'none';
+          showNotice(Messages.common.kycSubmitted);
+          Utils.showToast(Messages.common.kycSubmitted, 'success');
+        } else {
+          showNotice(res.error || Messages.common.operationFailed, true);
+        }
+      } catch (err) {
+        showNotice(err.message || Messages.common.networkError, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    /* Modal Change Password */
+    function openPasswordModal() {
+      document.getElementById('password-modal').style.display = 'flex';
+      document.getElementById('modal-pwd-notice').style.display = 'none';
+      document.getElementById('pwd-current').value = '';
+      document.getElementById('pwd-new').value = '';
+      document.getElementById('pwd-confirm').value = '';
+    }
+
+    function closePasswordModal() {
+      document.getElementById('password-modal').style.display = 'none';
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const currentPassword = document.getElementById('pwd-current').value;
+      const newPassword = document.getElementById('pwd-new').value;
+      const confirmPassword = document.getElementById('pwd-confirm').value;
+
+      const noticeEl = document.getElementById('modal-pwd-notice');
+      noticeEl.style.display = 'none';
+
+      if (!currentPassword) {
+        showModalNotice('Vui lòng nhập mật khẩu hiện tại.', true);
+        return;
+      }
+      if (newPassword.length < 8) {
+        showModalNotice('Mật khẩu mới phải có ít nhất 8 ký tự.', true);
+        return;
+      }
+      const hasUpper = /[A-Z]/.test(newPassword);
+      const hasLower = /[a-z]/.test(newPassword);
+      if (!hasUpper || !hasLower) {
+        showModalNotice('Mật khẩu mới phải có ít nhất 1 chữ hoa và 1 chữ thường.', true);
+        return;
+      }
+      if (!/[0-9]/.test(newPassword)) {
+        showModalNotice('Mật khẩu phải có ít nhất 1 chữ số.', true);
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        showModalNotice('Mật khẩu xác nhận không khớp.', true);
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-password');
+      btn.disabled = true;
+
+      try {
+        const res = await API.changePassword({
+          currentPassword,
+          newPassword,
+          confirmPassword
+        });
+
+        if (res.success) {
+          showModalNotice(Messages.common.changePasswordSuccess, false);
+          setTimeout(() => {
+            closePasswordModal();
+            Utils.showToast(Messages.common.changePasswordSuccess, 'success');
+          }, 1500);
+        } else {
+          showModalNotice(res.error || Messages.common.operationFailed, true);
+        }
+      } catch (err) {
+        showModalNotice(err.message || Messages.common.networkError, true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function showModalNotice(msg, isError) {
+      const el = document.getElementById('modal-pwd-notice');
+      el.className = `notice ${isError ? 'error' : ''}`;
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
