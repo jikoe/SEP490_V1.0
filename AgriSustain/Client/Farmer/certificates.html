@@ -6,6 +6,7 @@
   <title>Chứng nhận chất lượng - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/account.css">
   <style>.err { color: #b3261e; font-size: 12px; } .tab-btn.active { background: #1e6546; color: #fff; }</style>
 </head>
 <body>
@@ -15,33 +16,55 @@
       <header id="app-header"></header>
       <main>
         <div style="padding:24px 32px; max-width:1200px; margin:0 auto;">
-          <div class="section-heading" style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:20px;">
-            <div>
-              <p class="eyebrow" style="color:#2e7d32; font-size:11px; font-weight:700;">CHỨNG NHẬN · UC-FAR-07</p>
-              <h1 style="color:#103e2d; margin:4px 0;">Chứng nhận &amp; Huy hiệu chất lượng</h1>
-              <p class="muted">Nộp VietGAP, GlobalGAP, Organic, OCOP để Nhân viên thẩm định xác minh và gắn huy hiệu cho sản phẩm.</p>
-            </div>
-            <button type="button" class="primary" id="btn-add">+ Thêm chứng nhận</button>
+          <!-- SCR-FAR-07 (Figma): form on the page, submitted dossiers below -->
+          <div style="margin-bottom:28px;">
+            <p style="color:#1e6546; font-size:11px; font-weight:700; margin:0;">✓ CHỨNG NHẬN CHẤT LƯỢNG</p>
+            <h1 style="color:#1c2e24; margin:6px 0; font-size:30px;">Nộp hồ sơ chứng chỉ chất lượng</h1>
+            <p class="muted" style="margin:0;">Nộp hồ sơ để Nhân viên thẩm định xác minh và gắn badge chất lượng.</p>
           </div>
           <div id="page-notice" class="notice error" style="display:none;"></div>
-          <div class="panel" id="cert-list"><p class="muted" style="padding:20px;">Đang tải…</p></div>
 
-          <dialog id="cert-dialog">
-            <div class="modal-heading"><h2>Thêm chứng nhận mới</h2><button type="button" data-close>&times;</button></div>
-            <form id="cert-form" novalidate style="margin-top:16px;">
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 16px;">
-                <label class="field"><span>Loại chứng nhận *</span>
+          <section class="acc-card" id="cert-card">
+            <div style="display:flex; gap:14px; align-items:center; padding-bottom:20px; border-bottom:1px solid #e3e8e2; margin-bottom:22px;">
+              <span class="acc-empty-icon" style="border-radius:10px;">📄</span>
+              <div><h2 style="margin:0;">Thông tin chứng chỉ</h2>
+                <p class="acc-desc" style="margin:4px 0 0;">Vui lòng nhập chính xác thông tin trên chứng chỉ gốc. Các trường có dấu * là bắt buộc.</p></div>
+            </div>
+            <form id="cert-form" novalidate>
+              <div class="acc-grid3">
+                <label class="field"><span>Loại chứng chỉ *</span>
                   <select name="certificateType"><option value="">-- Chọn loại --</option><option>VietGAP</option><option>GlobalGAP</option><option>Organic</option><option>OCOP</option></select>
-                  <small class="err" data-error="certificateType"></small></label>
-                <label class="field"><span>Số chứng nhận *</span><input name="certificateNumber" maxlength="100"><small class="err" data-error="certificateNumber"></small></label>
-                <label class="field" style="grid-column:1 / -1;"><span>Cơ quan cấp *</span><input name="issuedBy" maxlength="200"><small class="err" data-error="issuedBy"></small></label>
-                <label class="field"><span>Ngày cấp *</span><input type="date" name="issueDate"><small class="err" data-error="issueDate"></small></label>
-                <label class="field"><span>Ngày hết hạn *</span><input type="date" name="expiryDate"><small class="err" data-error="expiryDate"></small></label>
-                <label class="field" style="grid-column:1 / -1;"><span>Tệp hồ sơ (PDF/JPG/PNG, tối đa 5 MB) *</span><input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png"><small class="err" data-error="file"></small></label>
+                  <small class="acc-err" data-error="certificateType"></small></label>
+                <label class="field"><span>Số chứng chỉ *</span><input name="certificateNumber" maxlength="100" placeholder="Nhập số chứng chỉ"><small class="acc-err" data-error="certificateNumber"></small></label>
+                <label class="field"><span>Cơ quan cấp *</span><input name="issuedBy" maxlength="200" placeholder="Nhập cơ quan cấp"><small class="acc-err" data-error="issuedBy"></small></label>
               </div>
-              <div class="modal-actions"><button type="button" data-close>Hủy</button><button type="submit" class="primary" id="btn-submit">Gửi thẩm định</button></div>
+              <div class="acc-grid">
+                <label class="field"><span>Ngày cấp *</span><input type="date" name="issueDate"><small class="acc-err" data-error="issueDate"></small></label>
+                <label class="field"><span>Ngày hết hạn *</span><input type="date" name="expiryDate"><small class="acc-err" data-error="expiryDate"></small></label>
+              </div>
+              <div class="field"><span>File chứng chỉ *</span>
+                <label for="cert-file" id="dropzone" class="acc-empty" style="display:block; cursor:pointer; padding:24px;">
+                  <span class="acc-empty-icon">⬆</span>
+                  <strong>Kéo thả file vào đây hoặc chọn file</strong>
+                  <p style="margin:0 auto;">PDF, JPG, PNG · tối đa 5MB</p>
+                </label>
+                <input type="file" id="cert-file" name="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+                <div id="file-chip"></div>
+                <small class="acc-err" data-error="file"></small>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:8px;">
+                <span class="acc-hint">🛡 Tài liệu chỉ được dùng cho mục đích xác minh.</span>
+                <div style="display:flex; gap:10px;">
+                  <button type="reset" class="acc-btn" id="btn-cancel" style="border-radius:999px;">Hủy</button>
+                  <button type="submit" class="acc-btn primary" id="btn-submit" style="border-radius:999px;">Gửi xác minh</button>
+                </div>
+              </div>
             </form>
-          </dialog>
+          </section>
+
+          <h2 style="margin:34px 0 4px; font-size:22px; color:#1c2e24;">Danh sách hồ sơ đã nộp</h2>
+          <p class="muted" style="margin:0 0 14px;">Theo dõi trạng thái xác minh của các chứng chỉ đã gửi.</p>
+          <div class="acc-card" id="cert-list" style="padding:0; overflow:hidden;"><p class="muted" style="padding:20px;">Đang tải…</p></div>
         </div>
       </main>
     </div>
@@ -54,10 +77,12 @@
   <script src="../js/dossier.js"></script>
   <script>
     /* UC-FAR-07 Submit Certificate Dossier (Farmer with an Approved farm profile). */
-    const STATUS = { PendingReview: ['Chờ thẩm định', 'Pending'], Verified: ['Đã xác minh', 'Active'], Rejected: ['Từ chối', 'Rejected'], Revoked: ['Đã thu hồi', 'Rejected'] };
+    const STATUS = {
+      PendingReview: ['Đang chờ duyệt', '#fbf3dc', '#8b6b26'], Verified: ['Đã xác minh', '#e6efe5', '#1e5a3c'],
+      Rejected: ['Từ chối', '#f8eeea', '#ad6955'], Revoked: ['Đã thu hồi', '#f8eeea', '#ad6955']
+    };
     const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
     const fmt = (d) => d ? new Date(`${d}T00:00:00`).toLocaleDateString('vi-VN') : '—';
-    const dlg = () => document.getElementById('cert-dialog');
     let docs = {};
 
     function setErrors(map) {
@@ -71,19 +96,31 @@
       if (!res.success) {
         notice.textContent = res.error; notice.style.display = 'block';
         box.innerHTML = '';
-        document.getElementById('btn-add').disabled = res.status === 403;
+        if (res.status === 403) document.getElementById('cert-card').style.display = 'none';
         return;
       }
       const items = res.data || [];
       docs = {};
       if (!items.length) { box.innerHTML = '<p class="muted" style="padding:20px;">Chưa có hồ sơ chứng nhận nào.</p>'; return; }
-      box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Loại</th><th>Số chứng nhận</th><th>Cơ quan cấp</th><th>Ngày cấp</th><th>Hết hạn</th><th>Trạng thái</th><th></th></tr></thead><tbody>
-        ${items.map((c) => { docs[c.farmCertificateId] = c.documentUrl; const s = STATUS[c.verificationStatus] || [c.verificationStatus, ''];
-          return `<tr><td><strong>${esc(c.certificateType)}</strong></td><td>${esc(c.certificateNumber)}</td><td>${esc(c.issuedBy)}</td>
-            <td>${fmt(c.issueDate)}</td><td>${fmt(c.expiryDate)}</td>
-            <td><span class="badge ${s[1]}">${esc(s[0])}</span>${c.revocationReason ? `<small>${esc(c.revocationReason)}</small>` : ''}</td>
-            <td><button type="button" class="text-button" onclick="Dossier.open(docs[${Number(c.farmCertificateId)}])">Xem tệp</button></td></tr>`; }).join('')}
+      box.innerHTML = `<div class="table-wrap" style="min-height:0;"><table style="min-width:0;"><thead><tr><th>Loại</th><th>Số CC</th><th>Cơ quan cấp</th><th>Ngày cấp</th><th>Hạn</th><th>Trạng thái</th><th>Xem</th></tr></thead><tbody>
+        ${items.map((c) => { docs[c.farmCertificateId] = c.documentUrl; const s = STATUS[c.verificationStatus] || [c.verificationStatus, '#eef3ef', '#4d695a'];
+          return `<tr><td><span style="background:#e6efe5; color:#1e5a3c; border-radius:999px; padding:4px 10px; font-weight:600;">${esc(c.certificateType)}</span></td>
+            <td><strong>${esc(c.certificateNumber)}</strong></td><td>${esc(c.issuedBy)}</td><td>${fmt(c.issueDate)}</td><td>${fmt(c.expiryDate)}</td>
+            <td><span style="background:${s[1]}; color:${s[2]}; border-radius:999px; padding:4px 10px; font-weight:600;">● ${esc(s[0])}</span>${c.revocationReason ? `<small>${esc(c.revocationReason)}</small>` : ''}</td>
+            <td><button type="button" class="text-button" onclick="Dossier.open(docs[${Number(c.farmCertificateId)}])">Xem ↗</button></td></tr>`; }).join('')}
         </tbody></table></div>`;
+    }
+
+    function showFile() {
+      const file = document.getElementById('cert-file').files[0];
+      const chip = document.getElementById('file-chip');
+      if (!file) { chip.innerHTML = ''; return; }
+      const ext = file.name.split('.').pop().toUpperCase();
+      chip.innerHTML = `<div style="display:flex; align-items:center; gap:12px; border:1px solid #e3e8e2; border-radius:10px; padding:10px 12px; margin-top:10px;">
+        <span style="background:#e6efe5; color:#1e5a3c; border-radius:6px; padding:8px 6px; font-size:10px; font-weight:700;">${esc(ext)}</span>
+        <div style="flex:1;"><strong style="font-size:13px;">${esc(file.name)}</strong><div class="acc-hint">${(file.size / 1048576).toFixed(1)} MB · ${esc(ext)}</div></div>
+        <button type="button" class="text-button" id="file-remove" title="Xóa tệp">🗑</button></div>`;
+      document.getElementById('file-remove').onclick = () => { document.getElementById('cert-file').value = ''; showFile(); };
     }
 
     function validate(form) {
@@ -94,8 +131,8 @@
       if (form.expiryDate.value && form.issueDate.value && form.expiryDate.value <= form.issueDate.value) e.expiryDate = 'Ngày hết hạn phải sau ngày cấp.';
       else if (form.expiryDate.value && form.expiryDate.value <= today) e.expiryDate = 'Chứng nhận đã hết hạn, không thể nộp.';
       const file = form.file.files[0];
-      e.file = file ? Dossier.check(file, ['pdf', 'jpg', 'jpeg', 'png']) : 'Vui lòng chọn tệp hồ sơ.';
-      if (!e.file) delete e.file;
+      const fileError = file ? Dossier.check(file, ['pdf', 'jpg', 'jpeg', 'png']) : 'Vui lòng chọn file chứng chỉ.';
+      if (fileError) e.file = fileError;
       return e;
     }
 
@@ -108,24 +145,30 @@
       const btn = document.getElementById('btn-submit');
       btn.disabled = true; btn.textContent = 'Đang gửi…';
       const res = await API.request('/farmer/certificates', { method: 'POST', body: new FormData(form), suppressErrorToast: true });
-      btn.disabled = false; btn.textContent = 'Gửi thẩm định';
+      btn.disabled = false; btn.textContent = 'Gửi xác minh';
       if (!res.success) {
         const fields = (res.data && res.data.errors) || {};
         setErrors(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])));
-        if (!Object.keys(fields).length) Utils.showToast(res.error, 'error');
+        Utils.showToast(res.error, 'error');
         return;
       }
-      dlg().close();
       form.reset();
+      showFile();
       Utils.showToast(res.data.message || 'Đã nộp hồ sơ chứng nhận.', 'success');
       load();
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       if (!Auth.requireAuth('Farmer')) return;
-      document.getElementById('btn-add').onclick = () => { setErrors({}); dlg().showModal(); };
-      document.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => dlg().close(); });
-      document.getElementById('cert-form').onsubmit = submit;
+      const form = document.getElementById('cert-form');
+      form.onsubmit = submit;
+      form.onreset = () => { setErrors({}); setTimeout(showFile); };
+      const input = document.getElementById('cert-file');
+      input.onchange = showFile;
+      const zone = document.getElementById('dropzone');
+      zone.ondragover = (e) => { e.preventDefault(); zone.style.background = '#f4f9f4'; };
+      zone.ondragleave = () => { zone.style.background = ''; };
+      zone.ondrop = (e) => { e.preventDefault(); zone.style.background = ''; input.files = e.dataTransfer.files; showFile(); };
       load();
     });
   </script>

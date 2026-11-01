@@ -1,8 +1,9 @@
 /* ==========================================================================
    AgriSustain - Bank Account panel (js/bank-account.js)
-   UC-AUTH-03 Manage Profile – "Tài khoản ngân hàng" tab (BR-BA-01..06).
+   UC-AUTH-03 Manage Profile – "Tài khoản ngân hàng" (BR-BA-01..06), layout of Figma page UC-AUTH-03.
    Farmer: account that receives payouts. RetailCustomer / WholesaleBuyer: default refund account.
-   Flow: choose bank → type number → lookup after 600 ms → tick confirmation → e-mail OTP → save.
+   Flow: choose bank → type number → lookup after 600 ms (or "Kiểm tra") → tick confirmation
+         → 6-digit e-mail OTP → save. Needs css/account.css.
    Usage: BankAccountPanel.mount(document.getElementById('bank-panel'));
    ========================================================================== */
 
@@ -11,10 +12,6 @@ const BankAccountPanel = (() => {
   const RESEND_SECONDS = 60;
   // MSG-BA-04
   const NOT_FOUND = 'Không tìm thấy tài khoản này tại ngân hàng đã chọn. Vui lòng kiểm tra lại ngân hàng và số tài khoản.';
-  const BADGE = {
-    Verified: '<span class="badge Active">Đã xác minh</span>',
-    Unverified: '<span class="badge Pending">Chưa xác minh</span>'
-  };
 
   let root = null;
   let overview = null;
@@ -34,6 +31,9 @@ const BankAccountPanel = (() => {
   }
 
   const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
+  const isFarmer = () => overview?.role === 'Farmer';
+  const unavailable = () => lookup.status === 'Unavailable';
+  const holderName = () => (lookup.status === 'Found' ? lookup.holder : form.accountHolder.trim());
 
   function formatTime(value) {
     if (!value) return '';
@@ -46,16 +46,16 @@ const BankAccountPanel = (() => {
     return Array.isArray(value) ? value[0] : value;
   }
 
-  function fieldsOf(res) {
-    return (res && res.data && typeof res.data === 'object' && res.data.errors) || {};
-  }
+  const fieldsOf = (res) => (res && res.data && typeof res.data === 'object' && res.data.errors) || {};
+  const flatten = (fields) => Object.fromEntries(Object.keys(fields).map((k) => [k, firstError(fields, k)]));
+  const err = (message) => (message ? `<small class="acc-err">${esc(message)}</small>` : '');
 
   async function load() {
     root.innerHTML = '<p class="muted">Đang tải tài khoản ngân hàng…</p>';
     const res = await API.request('/profile/bank-account', { suppressErrorToast: true });
     if (!res.success) {
       root.innerHTML = `<div class="notice error">${esc(res.error || 'Không tải được tài khoản ngân hàng.')}</div>
-        <button type="button" id="ba-retry">Thử lại</button>`;
+        <button type="button" class="acc-btn" id="ba-retry">Thử lại</button>`;
       root.querySelector('#ba-retry').onclick = load;
       return;
     }
@@ -63,118 +63,133 @@ const BankAccountPanel = (() => {
     render();
   }
 
-  function unavailable() { return lookup.status === 'Unavailable'; }
-
   function canSubmit() {
     return editing && form.confirmRecipient && !busy
       && (lookup.status === 'Found' || (unavailable() && form.accountHolder.trim().length > 0));
   }
 
   function render() {
-    const account = overview.account;
-    const isFarmer = overview.role === 'Farmer';
-    const holdActive = account?.payoutHoldUntil
-      && new Date(String(account.payoutHoldUntil).endsWith('Z') ? account.payoutHoldUntil : `${account.payoutHoldUntil}Z`) > new Date();
-
-    const card = account ? `
-      <div style="border:1px solid #d7e5dc; border-radius:12px; padding:20px; background:#f7fbf8; margin-bottom:20px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div>
-            <div style="font-weight:700; color:#1b4332; font-size:16px;">
-              ${esc(account.bankShortName)} <span style="letter-spacing:2px;">${esc(account.maskedAccountNumber)}</span>
-            </div>
-            <div style="color:#52695c; font-size:13px; margin-top:4px;">${esc(account.bankFullName)}</div>
-            <div style="margin-top:8px; font-size:14px;">Chủ tài khoản: <strong>${esc(account.accountHolder)}</strong></div>
-          </div>
-          ${BADGE[account.verificationStatus] || esc(account.verificationStatus)}
-        </div>
-        ${account.verificationStatus === 'Unverified' ? `<div style="margin-top:12px; font-size:13px; color:#92400e;">
-          Tài khoản chưa được ngân hàng xác minh${isFarmer ? ' nên chưa thể nhận tiền thanh toán. Vui lòng đổi lại tài khoản khi dịch vụ tra cứu hoạt động.' : '.'}</div>` : ''}
-        ${holdActive ? `<div style="margin-top:12px; font-size:13px; color:#92400e;">
-          Thanh toán đang tạm giữ đến ${esc(formatTime(account.payoutHoldUntil))} do vừa đổi tài khoản (48 giờ).</div>` : ''}
-        ${account.updatedAt ? `<div style="margin-top:8px; font-size:12px; color:#7a8f83;">Cập nhật: ${esc(formatTime(account.updatedAt))}</div>` : ''}
-      </div>` : `
-      <div class="notice">${isFarmer
-        ? 'Bạn chưa có tài khoản nhận tiền. Nông trại cần có tài khoản này trước khi gửi thẩm định KYC.'
-        : 'Bạn chưa lưu tài khoản ngân hàng nào.'}</div>`;
-
-    const buttons = editing ? '' : `
-      <div style="display:flex; gap:12px; margin-top:12px;">
-        <button type="button" class="primary" id="ba-edit">${account ? 'Đổi tài khoản' : 'Thêm tài khoản'}</button>
-        ${account && overview.canRemove ? '<button type="button" id="ba-remove" style="color:#b91c1c; border-color:#fca5a5;">Xóa tài khoản</button>' : ''}
-      </div>`;
-
-    root.innerHTML = `
-      <h3 style="margin:0 0 6px; color:#103e2d;">Tài khoản ngân hàng</h3>
-      <p class="muted" style="margin:0 0 20px; font-size:14px;">${esc(overview.purpose)}</p>
-      ${card}
-      ${buttons}
-      ${editing ? formHtml() : ''}
-      ${dialogsHtml()}`;
+    root.innerHTML = (editing ? formHtml() : viewHtml()) + dialogsHtml();
     bind();
   }
 
+  // (1) purpose, (2) change, (8) remove – Figma frames A0/A/C0/C.
+  function viewHtml() {
+    const account = overview.account;
+    const farmer = isFarmer();
+    const title = farmer ? 'Tài khoản nhận quyết toán' : 'Tài khoản nhận hoàn tiền';
+    const holdActive = account?.payoutHoldUntil
+      && new Date(String(account.payoutHoldUntil).endsWith('Z') ? account.payoutHoldUntil : `${account.payoutHoldUntil}Z`) > new Date();
+
+    if (!account) {
+      return `
+        <h2>${title}</h2>
+        <p class="acc-desc">${esc(overview.purpose)}</p>
+        ${farmer ? '<div class="acc-warn">⚠ Bạn cần thêm tài khoản nhận quyết toán trước khi gửi thẩm định KYC và nhận tiền bán hàng.</div>' : ''}
+        <div class="acc-empty">
+          <span class="acc-empty-icon">🏛</span>
+          <strong>${farmer ? 'Chưa có tài khoản nhận quyết toán' : 'Chưa có tài khoản ngân hàng'}</strong>
+          <p>${farmer
+            ? 'Thêm tài khoản ngân hàng để AgriSustain chuyển tiền quyết toán đơn hàng của nông trại.'
+            : 'Lưu một tài khoản để được điền sẵn khi nhận tiền hoàn. Bạn vẫn có thể nhập tài khoản khác cho từng yêu cầu hoàn tiền.'}</p>
+          <button type="button" class="acc-btn primary" id="ba-edit">+ Thêm tài khoản ngân hàng</button>
+        </div>`;
+    }
+
+    const verified = account.verificationStatus === 'Verified';
+    const badge = verified
+      ? `<span class="bank-badge">✓ Đã xác minh${farmer ? ' · nhận quyết toán' : ''}</span>`
+      : `<span class="bank-badge warn">Chưa xác minh${farmer ? ' · chưa nhận được tiền' : ''}</span>`;
+    return `
+      <h2>${title}</h2>
+      <p class="acc-desc">${esc(overview.purpose)}</p>
+      <div class="bank-card">
+        <div class="bank-icon">🏛</div>
+        <div style="flex:1;">
+          <div class="bank-name">${esc(account.bankShortName)} &nbsp;${esc(account.maskedAccountNumber)}</div>
+          <div class="bank-holder">${esc(account.accountHolder)}</div>
+          ${badge}
+        </div>
+        ${!farmer && overview.canRemove ? '<button type="button" class="acc-btn danger" id="ba-remove">Xóa</button>' : ''}
+        <button type="button" class="acc-btn" id="ba-edit">Thay đổi</button>
+      </div>
+      ${holdActive ? `<div class="acc-warn" style="margin-top:14px;">Thanh toán đang tạm giữ đến ${esc(formatTime(account.payoutHoldUntil))} do vừa đổi tài khoản (48 giờ).</div>` : ''}
+      <p class="acc-note">${farmer
+        ? 'Tài khoản nhận quyết toán là bắt buộc nên không thể xóa, chỉ có thể thay đổi. Khi thay đổi, hệ thống gửi mã OTP tới email để xác nhận, gửi email thông báo và tạm giữ quyết toán 48 giờ.'
+        : 'Khi thay đổi hoặc xóa, hệ thống gửi mã OTP tới email để xác nhận. Các yêu cầu hoàn tiền đã gửi vẫn giữ tài khoản bạn đã xác nhận.'}
+        ${account.updatedAt ? `<br>Cập nhật: ${esc(formatTime(account.updatedAt))}` : ''}</p>`;
+  }
+
+  // (3) bank, (4) number + Kiểm tra, (5) holder, (6) confirmation, (7) Hủy / Lưu – Figma frames B/C1.
   function formHtml() {
+    const account = overview.account;
     const banks = (overview.banks || []).map((b) =>
       `<option value="${esc(b.bankCode)}" ${b.bankCode === form.bankCode ? 'selected' : ''}>${esc(b.shortName)} – ${esc(b.fullName)}</option>`).join('');
     const numberError = errors.accountNumber || (lookup.status === 'NotFound' ? NOT_FOUND : '');
-    const hint = lookup.status === 'checking' ? 'Đang tra cứu tài khoản tại ngân hàng…' : '6–19 chữ số';
-    const isFarmer = overview.role === 'Farmer';
+    const hint = lookup.status === 'checking'
+      ? 'Đang tra cứu tài khoản tại ngân hàng…'
+      : 'Tự kiểm tra sau khi bạn ngừng gõ khoảng 0,6 giây. Bấm Kiểm tra để thử lại.';
+    const holderBox = lookup.status === 'Found'
+      ? `<div class="acc-holder">${esc(lookup.holder)}<span>✓ Đã xác minh với ngân hàng</span></div>`
+      : unavailable()
+        ? `<input id="ba-holder" maxlength="100" placeholder="VD: NGUYEN VAN A" value="${esc(form.accountHolder)}">
+           <small class="acc-hint">Hiện không tra cứu được ngân hàng. Tài khoản sẽ được lưu ở trạng thái Chưa xác minh${isFarmer() ? ' và chưa nhận được tiền quyết toán' : ''}.</small>`
+        : '<input value="" readonly placeholder="Tự điền sau khi kiểm tra số tài khoản">';
+    const disabled = busy ? 'disabled' : '';
     return `
-      <form id="ba-form" novalidate style="margin-top:8px; display:grid; gap:4px; max-width:520px;">
+      <h2>${account ? 'Thay đổi tài khoản ngân hàng' : 'Thêm tài khoản ngân hàng'}</h2>
+      <p class="acc-desc">${account
+        ? `Tài khoản hiện tại: ${esc(account.bankShortName)} ${esc(account.maskedAccountNumber)} – ${esc(account.accountHolder)}`
+        : esc(overview.purpose)}</p>
+      ${isFarmer() && account ? '<div class="acc-warn">⚠ Sau khi đổi, quyết toán sẽ tạm giữ 48 giờ và hệ thống gửi email thông báo tới email đăng ký.</div>' : ''}
+      <form id="ba-form" novalidate>
         <label class="field"><span>Ngân hàng *</span>
-          <select id="ba-bank" ${busy ? 'disabled' : ''}><option value="">-- Chọn ngân hàng --</option>${banks}</select>
-          ${err(errors.bankCode)}</label>
+          <select id="ba-bank" ${disabled}><option value="">-- Chọn ngân hàng --</option>${banks}</select>${err(errors.bankCode)}</label>
         <label class="field"><span>Số tài khoản *</span>
-          <input id="ba-number" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="Nhập số tài khoản"
-            value="${esc(form.accountNumber)}" ${busy ? 'disabled' : ''}>
-          <small id="ba-hint">${esc(hint)}</small>${err(numberError)}</label>
-        ${lookup.status === 'Found' ? `<label class="field"><span>Chủ tài khoản</span>
-          <input value="${esc(lookup.holder)}" readonly style="background:#f1f5f2; font-weight:700;">
-          <small>Tên do ngân hàng trả về, không thể sửa.</small></label>` : ''}
-        ${unavailable() ? `<div class="notice">Hiện không tra cứu được ngân hàng. Bạn vẫn có thể lưu tài khoản ở trạng thái
-            <strong>Chưa xác minh</strong>${isFarmer ? '; tài khoản này chưa nhận được tiền thanh toán cho đến khi được xác minh.' : '.'}</div>
-          <label class="field"><span>Tên chủ tài khoản *</span>
-            <input id="ba-holder" maxlength="100" placeholder="VD: NGUYEN VAN A" value="${esc(form.accountHolder)}" ${busy ? 'disabled' : ''}>
-            ${err(errors.accountHolder)}</label>` : ''}
-        ${lookup.status === 'Found' || unavailable() ? `<label style="display:flex; gap:8px; align-items:flex-start; font-size:14px; cursor:pointer; margin-bottom:12px;">
-            <input type="checkbox" id="ba-confirm" ${form.confirmRecipient ? 'checked' : ''} style="margin-top:3px;" ${busy ? 'disabled' : ''}>
-            Tôi xác nhận đây là đúng tài khoản nhận tiền của tôi.</label>${err(errors.confirmRecipient)}` : ''}
-        <div style="display:flex; gap:12px;">
-          <button type="submit" class="primary" id="ba-submit" ${canSubmit() ? '' : 'disabled'}>${busy ? 'Đang gửi mã…' : 'Lưu tài khoản'}</button>
-          <button type="button" id="ba-cancel" ${busy ? 'disabled' : ''}>Hủy</button>
+          <div class="acc-input-row">
+            <input id="ba-number" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="6–19 chữ số"
+              value="${esc(form.accountNumber)}" ${disabled}>
+            <button type="button" class="acc-btn" id="ba-check" ${disabled}>Kiểm tra</button>
+          </div>
+          <small class="acc-hint">${esc(hint)}</small>${err(numberError)}</label>
+        <label class="field"><span>Tên chủ tài khoản (tự điền) *</span>${holderBox}${err(errors.accountHolder)}</label>
+        <label style="display:flex; gap:8px; align-items:center; font-size:13px; cursor:pointer; margin:4px 0 6px;">
+          <input type="checkbox" id="ba-confirm" ${form.confirmRecipient ? 'checked' : ''}
+            ${lookup.status === 'Found' || unavailable() ? '' : 'disabled'} ${disabled}>
+          Tôi xác nhận nhận tiền vào tài khoản${holderName() ? ` của ${esc(holderName())}` : ' này'}</label>
+        ${err(errors.confirmRecipient)}
+        <div class="acc-info">✉ Sau khi bấm Lưu, mã OTP 6 số sẽ được gửi tới email đăng ký để xác nhận thay đổi.</div>
+        <div class="acc-footer">
+          <button type="button" class="acc-btn" id="ba-cancel" ${disabled}>Hủy</button>
+          <button type="submit" class="acc-btn primary" id="ba-submit" ${canSubmit() ? '' : 'disabled'}>${busy ? 'Đang gửi mã…' : 'Lưu tài khoản'}</button>
         </div>
       </form>`;
-  }
-
-  function err(message) {
-    return message ? `<small style="color:#b3261e; font-size:12px;">${esc(message)}</small>` : '';
   }
 
   function dialogsHtml() {
     const account = overview.account;
     return `
-      <dialog id="ba-remove-dialog">
-        <div class="modal-heading"><h2>Xóa tài khoản ngân hàng</h2>
+      <dialog id="ba-remove-dialog" style="width:460px;">
+        <div class="modal-heading"><h2 style="font-size:18px;">Xóa tài khoản ngân hàng?</h2>
           <button type="button" data-close="ba-remove-dialog">&times;</button></div>
-        <p>Xóa tài khoản ${esc(account?.bankShortName)} ${esc(account?.maskedAccountNumber)}? Các yêu cầu hoàn tiền
-          đã gửi vẫn giữ tài khoản bạn đã xác nhận.</p>
+        <p style="font-size:13px;">${esc(account?.bankShortName)} ${esc(account?.maskedAccountNumber)} sẽ không còn được gợi ý khi nhận tiền hoàn.
+          Các yêu cầu hoàn tiền đã gửi vẫn giữ tài khoản bạn đã xác nhận.</p>
         <div class="modal-actions">
-          <button type="button" data-close="ba-remove-dialog">Không</button>
-          <button type="button" class="primary" id="ba-remove-otp">Gửi mã OTP để xóa</button>
+          <button type="button" class="acc-btn" data-close="ba-remove-dialog">Hủy</button>
+          <button type="button" class="acc-btn danger" id="ba-remove-otp">Gửi mã OTP để xóa</button>
         </div>
       </dialog>
-      <dialog id="ba-otp-dialog">
-        <div class="modal-heading"><h2>Xác nhận bằng mã OTP</h2>
-          <button type="button" data-close="ba-otp-dialog">&times;</button></div>
-        <form id="ba-otp-form" novalidate style="display:grid; gap:8px; margin-top:12px;">
-          <p id="ba-otp-info" style="margin:0; font-size:14px; color:#3f5a4b;"></p>
-          <label class="field"><span>Mã OTP (6 chữ số)</span>
-            <input id="ba-otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
-            <small id="ba-otp-error" style="color:#b3261e; font-size:12px;"></small></label>
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-            <button type="button" class="text-button" id="ba-resend"></button>
-            <button type="submit" class="primary" id="ba-otp-submit"></button>
+      <dialog id="ba-otp-dialog" style="width:440px;">
+        <form id="ba-otp-form" novalidate>
+          <h2 style="font-size:18px; margin:0 0 6px;" id="ba-otp-title"></h2>
+          <p id="ba-otp-info" style="margin:0; font-size:12px; color:#5d6f63;"></p>
+          <div class="otp-boxes">${[0, 1, 2, 3, 4, 5].map((i) =>
+            `<input class="ba-otp-digit" data-i="${i}" inputmode="numeric" maxlength="1" autocomplete="${i === 0 ? 'one-time-code' : 'off'}">`).join('')}</div>
+          <div class="otp-meta"><button type="button" id="ba-resend"></button></div>
+          <div style="text-align:center;"><small class="acc-err" id="ba-otp-error"></small></div>
+          <div class="acc-footer">
+            <button type="button" class="acc-btn" data-close="ba-otp-dialog">Hủy</button>
+            <button type="submit" class="acc-btn primary" id="ba-otp-submit">Xác nhận</button>
           </div>
         </form>
       </dialog>`;
@@ -182,15 +197,13 @@ const BankAccountPanel = (() => {
 
   function bind() {
     const $ = (id) => root.querySelector(`#${id}`);
-    root.querySelectorAll('[data-close]').forEach((b) => {
-      b.onclick = () => { if (!busy) $(b.dataset.close).close(); };
-    });
+    root.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => { if (!busy) $(b.dataset.close).close(); }; });
     if ($('ba-edit')) $('ba-edit').onclick = startEdit;
     if ($('ba-remove')) $('ba-remove').onclick = () => $('ba-remove-dialog').showModal();
     $('ba-remove-otp').onclick = async () => { $('ba-remove-dialog').close(); await sendOtp('remove'); };
     $('ba-otp-form').onsubmit = confirmOtp;
     $('ba-resend').onclick = () => sendOtp(otpFor);
-    $('ba-otp').oninput = (e) => { e.target.value = e.target.value.replace(/\D/g, ''); $('ba-otp-error').textContent = ''; };
+    bindOtpBoxes();
     if (!editing) return;
 
     $('ba-bank').onchange = (e) => { form.bankCode = e.target.value; errors.bankCode = ''; scheduleLookup(); };
@@ -200,11 +213,32 @@ const BankAccountPanel = (() => {
       errors.accountNumber = '';
       scheduleLookup();
     };
+    $('ba-check').onclick = () => scheduleLookup(0);
     if ($('ba-holder')) $('ba-holder').oninput = (e) => { form.accountHolder = e.target.value; refreshSubmit(); };
-    if ($('ba-confirm')) $('ba-confirm').onchange = (e) => { form.confirmRecipient = e.target.checked; refreshSubmit(); };
+    $('ba-confirm').onchange = (e) => { form.confirmRecipient = e.target.checked; refreshSubmit(); };
     $('ba-form').onsubmit = handleSave;
     $('ba-cancel').onclick = () => { editing = false; form = emptyForm(); errors = {}; render(); };
   }
+
+  function bindOtpBoxes() {
+    const boxes = [...root.querySelectorAll('.ba-otp-digit')];
+    boxes.forEach((box, i) => {
+      box.oninput = () => {
+        const digits = box.value.replace(/\D/g, '');
+        if (digits.length > 1) { // pasted code
+          digits.slice(0, 6).split('').forEach((d, k) => { if (boxes[k]) boxes[k].value = d; });
+          boxes[Math.min(digits.length, 6) - 1].focus();
+        } else {
+          box.value = digits;
+          if (digits && boxes[i + 1]) boxes[i + 1].focus();
+        }
+        root.querySelector('#ba-otp-error').textContent = '';
+      };
+      box.onkeydown = (e) => { if (e.key === 'Backspace' && !box.value && boxes[i - 1]) boxes[i - 1].focus(); };
+    });
+  }
+
+  const otpValue = () => [...root.querySelectorAll('.ba-otp-digit')].map((b) => b.value).join('');
 
   function refreshSubmit() {
     const btn = root.querySelector('#ba-submit');
@@ -219,8 +253,8 @@ const BankAccountPanel = (() => {
     render();
   }
 
-  // Step 3: look the account up about 600 ms after the user stops typing.
-  function scheduleLookup() {
+  // Step 3: look the account up about 600 ms after the user stops typing ("Kiểm tra" looks up at once).
+  function scheduleLookup(delay = LOOKUP_DELAY_MS) {
     clearTimeout(lookupTimer);
     form.confirmRecipient = false;
     const { bankCode, accountNumber } = form;
@@ -241,7 +275,7 @@ const BankAccountPanel = (() => {
         errors = { ...errors, ...flatten(fieldsOf(res)) };
         setLookup({ status: 'error', holder: '' });
       }
-    }, LOOKUP_DELAY_MS);
+    }, delay);
   }
 
   // Re-render the form but keep the caret in the field being typed in.
@@ -258,10 +292,6 @@ const BankAccountPanel = (() => {
     }
   }
 
-  function flatten(fields) {
-    return Object.fromEntries(Object.keys(fields).map((k) => [k, firstError(fields, k)]));
-  }
-
   async function sendOtp(purpose) {
     busy = true;
     const res = await API.request('/profile/bank-account/otp', { method: 'POST', suppressErrorToast: true });
@@ -272,13 +302,20 @@ const BankAccountPanel = (() => {
     }
     otpFor = purpose;
     const data = res.data;
-    const message = typeof data === 'string' ? data : (data && data.message) || 'Mã OTP đã được gửi tới email của bạn.';
-    const dlg = root.querySelector('#ba-otp-dialog');
-    root.querySelector('#ba-otp-info').textContent = message;
-    root.querySelector('#ba-otp').value = '';
+    const message = typeof data === 'string' ? data : (data && data.message) || 'Mã OTP 6 số đã được gửi tới email của bạn.';
+    const target = purpose === 'remove'
+      ? `${overview.account?.bankShortName || ''} ${overview.account?.maskedAccountNumber || ''}`
+      : `${(overview.banks || []).find((b) => b.bankCode === form.bankCode)?.shortName || form.bankCode} •••• ${form.accountNumber.slice(-4)} – ${holderName()}`;
+    root.querySelector('#ba-otp-title').textContent = purpose === 'remove' ? 'Xác nhận xóa tài khoản' : 'Xác nhận thay đổi tài khoản';
+    root.querySelector('#ba-otp-info').textContent = `${message} Nhập mã để ${purpose === 'remove' ? 'xóa' : 'lưu'} ${target}.`;
+    root.querySelectorAll('.ba-otp-digit').forEach((b) => { b.value = ''; });
     root.querySelector('#ba-otp-error').textContent = '';
-    root.querySelector('#ba-otp-submit').textContent = purpose === 'remove' ? 'Xác nhận xóa' : 'Xác nhận lưu';
+    const submit = root.querySelector('#ba-otp-submit');
+    submit.textContent = purpose === 'remove' ? 'Xóa tài khoản' : 'Xác nhận';
+    submit.className = `acc-btn ${purpose === 'remove' ? 'danger' : 'primary'}`;
+    const dlg = root.querySelector('#ba-otp-dialog');
     if (!dlg.open) dlg.showModal();
+    root.querySelector('.ba-otp-digit').focus();
     startResendCountdown();
   }
 
@@ -289,7 +326,7 @@ const BankAccountPanel = (() => {
       const btn = root.querySelector('#ba-resend');
       if (!btn) { clearInterval(resendTimer); return; }
       btn.disabled = resendIn > 0;
-      btn.textContent = resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã';
+      btn.textContent = resendIn > 0 ? `Mã hết hạn sau 5 phút · Gửi lại mã sau ${resendIn} giây` : 'Gửi lại mã';
       if (resendIn <= 0) clearInterval(resendTimer);
       resendIn -= 1;
     };
@@ -315,13 +352,12 @@ const BankAccountPanel = (() => {
 
   async function confirmOtp(event) {
     event.preventDefault();
-    const otp = root.querySelector('#ba-otp').value;
+    const otp = otpValue();
     const otpError = root.querySelector('#ba-otp-error');
     if (!/^\d{6}$/.test(otp)) { otpError.textContent = 'Mã OTP gồm 6 chữ số.'; return; }
     busy = true;
     const submit = root.querySelector('#ba-otp-submit');
     submit.disabled = true;
-    submit.textContent = 'Đang xác nhận…';
     const res = otpFor === 'remove'
       ? await API.request('/profile/bank-account/remove', { method: 'POST', body: { otpCode: otp }, suppressErrorToast: true })
       : await API.request('/profile/bank-account', {
@@ -337,7 +373,6 @@ const BankAccountPanel = (() => {
       });
     busy = false;
     submit.disabled = false;
-    submit.textContent = otpFor === 'remove' ? 'Xác nhận xóa' : 'Xác nhận lưu';
 
     if (res.success) {
       root.querySelector('#ba-otp-dialog').close();

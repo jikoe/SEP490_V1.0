@@ -6,7 +6,7 @@
   <title>Hồ sơ doanh nghiệp - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
-  <style>.err { color: #b3261e; font-size: 12px; } .tab-btn[data-tab] { background: transparent; } .tab-btn[data-tab].active { background: #eaf4e9; color: #1e6546; font-weight: 700; }</style>
+  <link rel="stylesheet" href="../css/account.css">
 </head>
 <body>
   <div class="app-shell">
@@ -14,88 +14,75 @@
     <div class="workspace">
       <header id="app-header"></header>
       <main>
-        <div style="padding:24px 32px; max-width:1200px; margin:0 auto;">
 
-    <div class="section-heading" style="margin-bottom:24px;">
-      <div>
-        <p class="eyebrow" style="color:#2e7d32; font-size:11px; text-transform:uppercase; font-weight:700;">HỒ SƠ NGƯỜI DÙNG · UC-AUTH-03</p>
-        <h1 style="color:#103e2d; margin:4px 0;">Hồ sơ cá nhân &amp; Sổ địa chỉ</h1>
-        <p class="muted">Quản lý thông tin liên hệ, địa chỉ nhận hàng, tài khoản ngân hàng và bảo mật tài khoản.</p>
-      </div>
-    </div>
+        <div class="acc-page">
+          <div class="acc-crumb">Trang chủ / Tài khoản / <span id="crumb-current">Thông tin cá nhân</span></div>
+          <h1 class="acc-title" id="page-title">Thông tin cá nhân</h1>
+          <p class="acc-sub" id="page-sub">Quản lý thông tin liên hệ và địa chỉ giao hàng mặc định.</p>
+          <div id="profile-alert" class="notice" style="display:none;"></div>
 
-    <div id="profile-alert" class="notice" style="display:none; margin-bottom:16px;"></div>
+          <div class="acc-layout">
+            <nav class="acc-nav">
+              <p class="acc-nav-title">QUẢN LÝ TÀI KHOẢN</p>
+              <button type="button" class="tab-btn" data-tab="business">Hồ sơ doanh nghiệp &amp; KYC</button>
+              <button type="button" class="tab-btn" data-tab="info">Thông tin cá nhân &amp; Địa chỉ</button>
+              <button type="button" class="tab-btn" data-tab="bank">Tài khoản ngân hàng</button>
+              <a href="dashboard.html">Lịch sử đơn mua hàng</a>
+              <button type="button" class="tab-btn" data-tab="security">Đổi mật khẩu &amp; Bảo mật</button>
+              <hr>
+              <div class="acc-points-label">Điểm thưởng hiện có</div>
+              <div class="acc-points" id="prof-points">0 điểm</div>
+            </nav>
 
-    <div style="display:grid; grid-template-columns:260px 1fr; gap:24px; align-items:start;">
-      <div class="panel padded" style="display:flex; flex-direction:column; gap:4px; padding:12px;">
-        <div style="text-align:center; padding:12px 0 16px; border-bottom:1px solid #e7eceb; margin-bottom:8px;">
-          <label for="avatar-input" title="Đổi ảnh đại diện" style="cursor:pointer; display:inline-block;">
-            <div id="prof-avatar" style="width:84px; height:84px; border-radius:50%; background:#1e6546; color:#fff; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:800; margin:0 auto;"></div>
-          </label>
-          <input type="file" id="avatar-input" accept=".png,.jpg,.jpeg" style="display:none;">
-          <strong id="hero-name" style="display:block; margin-top:10px; color:#103e2d;"></strong>
-          <small id="hero-email" class="muted"></small>
-          <div style="margin-top:8px; font-size:13px;">Điểm thưởng: <strong id="prof-points">⭐ 0</strong></div>
-        </div>
-        <button type="button" class="tab-btn" data-tab="business" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">🏢 Hồ sơ doanh nghiệp &amp; KYC</button>
-        <button type="button" class="tab-btn active" data-tab="info" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">👤 Thông tin cá nhân</button>
-        <button type="button" class="tab-btn" data-tab="address" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">📍 Địa chỉ nhận hàng</button>
-        <button type="button" class="tab-btn" data-tab="bank" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">🏦 Tài khoản ngân hàng</button>
-        <button type="button" class="tab-btn" data-tab="security" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">🔒 Bảo mật &amp; Đổi mật khẩu</button>
-      </div>
+            <div>
+              <section id="tab-business" class="acc-card" style="display:none;"><div id="business-panel"></div></section>
+              <section id="tab-info" class="acc-card" style="display:none;">
+                <form id="form-info" novalidate>
+                  <h2>Thông tin cơ bản</h2>
+                  <div class="acc-avatar-row">
+                    <div class="acc-avatar" id="prof-avatar"></div>
+                    <div>
+                      <label for="avatar-input" class="acc-btn" style="display:inline-block;">Đổi ảnh</label>
+                      <input type="file" id="avatar-input" accept=".png,.jpg,.jpeg" style="display:none;">
+                      <div class="acc-hint" style="margin-top:6px;">PNG, JPG tối đa 5 MB</div>
+                    </div>
+                  </div>
+                  <div class="acc-grid">
+                    <label class="field"><span>Họ và tên *</span><input type="text" id="prof-name" maxlength="50"><small class="acc-err" data-error="fullName"></small></label>
+                    <label class="field"><span>Số điện thoại *</span><input type="tel" id="prof-phone" maxlength="10"><small class="acc-err" data-error="phoneNumber"></small></label>
+                    <label class="field"><span>Email</span><input type="email" id="prof-email" disabled><small class="acc-hint">Email dùng để đăng nhập, không thể thay đổi tại đây.</small></label>
+                    <label class="field"><span>Giới tính</span>
+                      <select id="prof-gender"><option value="">-- Chọn --</option><option value="Male">Nam</option><option value="Female">Nữ</option><option value="Other">Khác</option></select>
+                      <small class="acc-err" data-error="gender"></small></label>
+                    <label class="field"><span>Ngày sinh</span><input type="date" id="prof-birth"><small class="acc-err" data-error="birthDate"></small></label>
+                  </div>
 
-      <div class="panel padded">
-        <div id="tab-info">
-          <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Thông tin cá nhân</h3>
-          <form id="form-info" novalidate style="margin-top:16px;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-              <label class="field"><span>Họ và tên *</span><input type="text" id="prof-name" maxlength="50"><small data-error="fullName" style="color:#b3261e;"></small></label>
-              <label class="field"><span>Email</span><input type="email" id="prof-email" disabled style="background:#f5f8f6;"></label>
-              <label class="field"><span>Số điện thoại *</span><input type="tel" id="prof-phone" maxlength="10"><small data-error="phoneNumber" style="color:#b3261e;"></small></label>
-              <label class="field"><span>Giới tính</span>
-                <select id="prof-gender"><option value="">-- Chọn --</option><option value="Male">Nam</option><option value="Female">Nữ</option><option value="Other">Khác</option></select>
-                <small data-error="gender" style="color:#b3261e;"></small></label>
-              <label class="field"><span>Ngày sinh</span><input type="date" id="prof-birth"><small data-error="birthDate" style="color:#b3261e;"></small></label>
+                  <h3>Địa chỉ giao hàng mặc định</h3>
+                  <div class="acc-grid3">
+                    <label class="field"><span>Tỉnh/Thành phố *</span><select id="addr-province"></select><small class="acc-err" data-error="provinceCode"></small></label>
+                    <label class="field"><span>Quận/Huyện *</span><select id="addr-district" disabled></select><small class="acc-err" data-error="districtCode"></small></label>
+                    <label class="field"><span>Phường/Xã *</span><select id="addr-ward" disabled></select><small class="acc-err" data-error="wardCode"></small></label>
+                  </div>
+                  <label class="field"><span>Địa chỉ chi tiết *</span><input type="text" id="addr-detail" maxlength="150"><small class="acc-hint">Tối đa 150 ký tự.</small><small class="acc-err" data-error="addressDetail"></small></label>
+
+                  <div class="acc-footer"><button type="submit" class="acc-btn primary btn-save-profile">Lưu thay đổi</button></div>
+                </form>
+              </section>
+
+              <section id="tab-bank" class="acc-card" style="display:none;"><div id="bank-panel"></div></section>
+
+              <section id="tab-security" class="acc-card" style="display:none;">
+                <h2>Đổi mật khẩu &amp; Bảo mật</h2>
+                <p class="acc-desc">Mật khẩu mới tối thiểu 8 ký tự, gồm chữ hoa, chữ thường và số.</p>
+                <form id="form-password" novalidate style="max-width:440px;">
+                  <label class="field"><span>Mật khẩu hiện tại *</span><input type="password" id="old-pass" autocomplete="current-password"><small class="acc-err" data-error="currentPassword"></small></label>
+                  <label class="field"><span>Mật khẩu mới *</span><input type="password" id="new-pass" autocomplete="new-password"><small class="acc-err" data-error="newPassword"></small></label>
+                  <label class="field"><span>Xác nhận mật khẩu mới *</span><input type="password" id="confirm-pass" autocomplete="new-password"><small class="acc-err" data-error="confirmPassword"></small></label>
+                  <div class="acc-footer"><button type="submit" class="acc-btn primary">Cập nhật mật khẩu</button></div>
+                </form>
+              </section>
             </div>
-            <div style="margin-top:20px; display:flex; justify-content:flex-end;">
-              <button type="submit" class="primary btn-save-profile">Lưu thay đổi</button>
-            </div>
-          </form>
-        </div>
-
-        <div id="tab-address" style="display:none;">
-          <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Địa chỉ nhận hàng mặc định</h3>
-          <div id="addr-summary" style="padding:14px; border:1px solid #2e7d32; border-radius:8px; background:#f4f9f6; margin:16px 0;"></div>
-          <form id="form-address" novalidate>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-              <label class="field"><span>Họ tên người nhận</span><input type="text" id="addr-recipient" maxlength="50"><small data-error="recipientName" style="color:#b3261e;"></small></label>
-              <label class="field"><span>Số điện thoại người nhận</span><input type="tel" id="addr-phone" maxlength="10"><small data-error="recipientPhone" style="color:#b3261e;"></small></label>
-              <label class="field"><span>Tỉnh / Thành phố</span><select id="addr-province"></select><small data-error="provinceCode" style="color:#b3261e;"></small></label>
-              <label class="field"><span>Quận / Huyện</span><select id="addr-district" disabled></select><small data-error="districtCode" style="color:#b3261e;"></small></label>
-              <label class="field"><span>Phường / Xã</span><select id="addr-ward" disabled></select><small data-error="wardCode" style="color:#b3261e;"></small></label>
-              <label class="field"><span>Số nhà, tên đường</span><input type="text" id="addr-detail" maxlength="255"><small data-error="addressDetail" style="color:#b3261e;"></small></label>
-            </div>
-            <div style="margin-top:20px; display:flex; justify-content:flex-end;">
-              <button type="submit" class="primary btn-save-profile">Lưu địa chỉ</button>
-            </div>
-          </form>
-        </div>
-
-        <div id="tab-business" style="display:none;"><div id="business-panel"></div></div>
-
-        <div id="tab-bank" style="display:none;"><div id="bank-panel"></div></div>
-
-        <div id="tab-security" style="display:none;">
-          <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Đổi mật khẩu tài khoản</h3>
-          <form id="form-password" novalidate style="margin-top:16px; max-width:440px;">
-            <label class="field"><span>Mật khẩu hiện tại *</span><input type="password" id="old-pass" autocomplete="current-password"><small data-error="currentPassword" style="color:#b3261e;"></small></label>
-            <label class="field"><span>Mật khẩu mới *</span><input type="password" id="new-pass" autocomplete="new-password" placeholder="Ít nhất 8 ký tự, có chữ hoa, chữ thường và số"><small data-error="newPassword" style="color:#b3261e;"></small></label>
-            <label class="field"><span>Xác nhận mật khẩu mới *</span><input type="password" id="confirm-pass" autocomplete="new-password"><small data-error="confirmPassword" style="color:#b3261e;"></small></label>
-            <div style="margin-top:20px;"><button type="submit" class="primary">Cập nhật mật khẩu</button></div>
-          </form>
-        </div>
-      </div>
-    </div>
+          </div>
         </div>
       </main>
     </div>

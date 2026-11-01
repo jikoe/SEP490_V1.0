@@ -12,7 +12,7 @@ const ConsumerProfile = (() => {
   let saved = null;
   let bankMounted = false;
   let businessMounted = false;
-  const TAB_NAMES = ['business', 'info', 'address', 'bank', 'security'];
+  const TAB_NAMES = ['business', 'info', 'bank', 'security'];
 
   function setError(field, message) {
     const el = document.querySelector(`[data-error="${field}"]`);
@@ -37,6 +37,17 @@ const ConsumerProfile = (() => {
       if (panel) panel.style.display = name === tab ? 'block' : 'none';
     });
     document.querySelectorAll('.tab-btn[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    const head = {
+      business: ['Hồ sơ doanh nghiệp', 'Hồ sơ doanh nghiệp & KYC', 'Gửi thông tin doanh nghiệp để được thẩm định trước khi đặt hàng sỉ và ký hợp đồng bao tiêu.'],
+      info: ['Thông tin cá nhân', 'Thông tin cá nhân', 'Quản lý thông tin liên hệ và địa chỉ giao hàng mặc định.'],
+      bank: ['Tài khoản ngân hàng', 'Tài khoản ngân hàng', 'Tài khoản nhận tiền được giữ lại sẵn khi nhận tiền hoàn.'],
+      security: ['Đổi mật khẩu & Bảo mật', 'Đổi mật khẩu & Bảo mật', 'Thay đổi mật khẩu đăng nhập của tài khoản.']
+    }[tab];
+    if (head && $('page-title')) {
+      $('crumb-current').textContent = head[0];
+      $('page-title').textContent = head[1];
+      $('page-sub').textContent = head[2];
+    }
     if (tab === 'bank' && !bankMounted) {
       BankAccountPanel.mount($('bank-panel'));
       bankMounted = true;
@@ -83,33 +94,13 @@ const ConsumerProfile = (() => {
     $('prof-phone').value = d.phoneNumber || '';
     $('prof-gender').value = GENDER[d.gender] || '';
     $('prof-birth').value = d.birthDate ? String(d.birthDate).slice(0, 10) : '';
-    $('prof-points').textContent = `⭐ ${d.rewardPoints ?? 0}`;
-    $('hero-name').textContent = d.fullName || '';
-    $('hero-email').textContent = d.email || '';
+    $('prof-points').textContent = `${Number(d.rewardPoints ?? 0).toLocaleString('vi-VN')} điểm`;
     renderAvatar(d.avatarUrl, d.fullName);
 
-    $('addr-recipient').value = a.recipientName || '';
-    $('addr-phone').value = a.recipientPhone || '';
     $('addr-detail').value = a.addressDetail || '';
     await loadOptions($('addr-province'), provincesPath(), a.provinceCode, '-- Chọn Tỉnh / Thành phố --');
     await loadOptions($('addr-district'), districtsPath(a.provinceCode), a.districtCode, '-- Chọn Quận / Huyện --');
     await loadOptions($('addr-ward'), wardsPath(a.districtCode), a.wardCode, '-- Chọn Phường / Xã --');
-    renderAddressSummary(a);
-  }
-
-  function renderAddressSummary(a) {
-    const box = $('addr-summary');
-    if (!a || !a.addressDetail) {
-      box.innerHTML = '<p class="muted" style="margin:0;">Chưa có địa chỉ nhận hàng mặc định.</p>';
-      return;
-    }
-    const parts = [a.addressDetail, a.ward, a.district, a.provinceCity].filter(Boolean).join(', ');
-    box.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <strong>${Utils.escapeHtml(a.recipientName || '')}</strong><span class="badge Active">Mặc định</span>
-      </div>
-      <p style="margin:4px 0; font-size:13px; color:#405247;">Số điện thoại: ${Utils.escapeHtml(a.recipientPhone || '')}</p>
-      <p style="margin:4px 0; font-size:13px; color:#405247;">Địa chỉ: ${Utils.escapeHtml(parts)}</p>`;
   }
 
   function selectedText(select) {
@@ -126,15 +117,13 @@ const ConsumerProfile = (() => {
     else if (!/^0\d{9}$/.test(phone)) e.phoneNumber = 'Số điện thoại không hợp lệ. Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.';
     const birth = $('prof-birth').value;
     if (birth && birth > new Date().toISOString().slice(0, 10)) e.birthDate = 'Ngày sinh không được ở tương lai.';
-    const rPhone = $('addr-phone').value.trim();
-    if (rPhone && !/^0\d{9}$/.test(rPhone)) e.recipientPhone = 'Số điện thoại không hợp lệ. Số điện thoại phải gồm đúng 10 chữ số và bắt đầu bằng 0.';
-    if ($('addr-recipient').value.trim().length > 50) e.recipientName = 'Họ tên người nhận không quá 50 ký tự.';
     const anyAddress = $('addr-province').value || $('addr-detail').value.trim();
     if (anyAddress) {
       if (!$('addr-province').value) e.provinceCode = 'Vui lòng chọn Tỉnh / Thành phố.';
       if (!$('addr-district').value) e.districtCode = 'Vui lòng chọn Quận / Huyện.';
       if (!$('addr-ward').value) e.wardCode = 'Vui lòng chọn Phường / Xã.';
       if (!$('addr-detail').value.trim()) e.addressDetail = 'Vui lòng nhập số nhà, tên đường.';
+      else if ($('addr-detail').value.trim().length > 150) e.addressDetail = 'Địa chỉ chi tiết tối đa 150 ký tự.';
     }
     return e;
   }
@@ -162,8 +151,9 @@ const ConsumerProfile = (() => {
       provinceCode: $('addr-province').value || null,
       districtCode: $('addr-district').value || null,
       wardCode: $('addr-ward').value || null,
-      recipientName: $('addr-recipient').value.trim() || null,
-      recipientPhone: $('addr-phone').value.trim() || null
+      // Figma SCR AUTH-03 has no separate recipient fields: keep the saved ones, else use the account owner.
+      recipientName: saved?.deliveryAddress?.recipientName || $('prof-name').value.trim(),
+      recipientPhone: saved?.deliveryAddress?.recipientPhone || $('prof-phone').value.trim()
     };
     const buttons = document.querySelectorAll('.btn-save-profile');
     buttons.forEach((b) => { b.disabled = true; });
@@ -224,7 +214,6 @@ const ConsumerProfile = (() => {
   function bind() {
     document.querySelectorAll('.tab-btn[data-tab]').forEach((b) => { b.onclick = () => switchTab(b.dataset.tab); });
     $('form-info').onsubmit = save;
-    $('form-address').onsubmit = save;
     $('form-password').onsubmit = changePassword;
     $('avatar-input').onchange = uploadAvatar;
     $('addr-province').onchange = async () => {

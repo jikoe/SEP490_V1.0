@@ -15,28 +15,27 @@
       <header id="app-header"></header>
 
       <main style="max-width:1150px; margin:32px auto; padding:0 24px;">
-    <div class="section-heading" style="margin-bottom:24px;">
+    <!-- SCR-12 Order History (Figma UC-RC-04): (1) tabs, (2) search, (3)-(6) order cards, (7) paging -->
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
       <div>
-        <p class="eyebrow" style="color:#2e7d32; font-size:11px; text-transform:uppercase; font-weight:700;">ĐƠN HÀNG CỦA TÔI · UC-RC-04</p>
-        <h1 style="color:#103e2d; margin:4px 0;">Lịch sử &amp; Theo dõi đơn hàng</h1>
-        <p class="muted">Tra cứu hành trình vận chuyển, tình trạng giao nhận nông sản tươi từ nhà vườn.</p>
+        <span style="font-size:11px; font-weight:700; letter-spacing:1.2px; color:#1e6546;">THEO DÕI ĐƠN HÀNG</span>
+        <h1 style="font-size:26px; margin:4px 0 6px; color:#1b4332; font-weight:800;">Lịch sử mua hàng</h1>
+        <p class="muted" style="margin:0; font-size:13px;">Theo dõi trạng thái giao hàng và tra cứu mã lô truy xuất nguồn gốc.</p>
       </div>
+      <form id="track-search-form" style="display:flex; gap:8px; width:420px; max-width:100%;">
+        <input type="search" id="track-search" maxlength="100" placeholder="Mã đơn (#ORD-...) hoặc tên sản phẩm"
+          style="flex:1; border-radius:20px; padding:9px 16px; border:1px solid #cce0d2;">
+        <button class="primary" type="submit" style="border-radius:20px;">Tìm kiếm</button>
+      </form>
     </div>
 
     <div id="orders-notice" class="notice" style="display:none;"></div>
 
     <!-- Status tabs (SRS III.6.3.1 (1)) -->
-    <div class="commerce-tabs" id="track-tabs" style="display:flex; gap:8px; margin-bottom:20px;">
+    <div id="track-tabs" role="tablist" style="display:flex; gap:10px; border-bottom:2px solid #e2eae4; margin-bottom:24px;">
       <button type="button" class="tab-btn active" data-tab="All">Tất cả</button>
       <button type="button" class="tab-btn" data-tab="Completed">Hoàn thành</button>
       <button type="button" class="tab-btn" data-tab="Cancelled">Đã hủy</button>
-    </div>
-
-    <div class="panel" style="padding:14px 20px; margin-bottom:20px;">
-      <form id="track-search-form" style="display:flex; gap:12px;">
-        <input type="search" id="track-search" maxlength="100" placeholder="Mã đơn (#ORD-...) hoặc tên sản phẩm" style="flex:1;">
-        <button class="primary" type="submit">Tìm kiếm</button>
-      </form>
     </div>
 
     <div id="orders-list-container" style="display:flex; flex-direction:column; gap:16px;"></div>
@@ -197,10 +196,11 @@
             ${[10, 20, 50].map((n) => `<option value="${n}" ${n === state.pageSize ? 'selected' : ''}>${n} / trang</option>`).join('')}
           </select>
         </label>
-        <div style="display:flex; align-items:center; gap:8px; font-size:13px;">
-          <button type="button" ${state.page <= 1 ? 'disabled' : ''} onclick="goPage(${state.page - 1})">‹ Trước</button>
-          <span>Trang ${state.page} / ${pages} · ${total} đơn</span>
-          <button type="button" ${state.page >= pages ? 'disabled' : ''} onclick="goPage(${state.page + 1})">Sau ›</button>
+        <div style="display:flex; align-items:center; gap:6px; font-size:13px;">
+          <button type="button" style="width:32px; padding:6px 0;" ${state.page <= 1 ? 'disabled' : ''} onclick="goPage(${state.page - 1})">‹</button>
+          ${Array.from({ length: pages }, (_, i) => i + 1).filter((n) => pages <= 7 || Math.abs(n - state.page) <= 2 || n === 1 || n === pages)
+            .map((n) => `<button type="button" style="width:32px; padding:6px 0; ${n === state.page ? 'background:#1e6546; color:#fff; border-color:#1e6546;' : ''}" onclick="goPage(${n})">${n}</button>`).join('')}
+          <button type="button" style="width:32px; padding:6px 0;" ${state.page >= pages ? 'disabled' : ''} onclick="goPage(${state.page + 1})">›</button>
         </div>`;
       document.getElementById('page-size').onchange = (e) => {
         state.pageSize = Number(e.target.value);
@@ -331,14 +331,22 @@
       document.getElementById('batch-modal').showModal();
     }
 
+    function paintTabs() {
+      document.querySelectorAll('#track-tabs .tab-btn').forEach((x) => {
+        const on = x.dataset.tab === state.tab;
+        x.style.cssText = `border:none; padding:9px 18px; border-radius:8px 8px 0 0; cursor:pointer; background:${on ? '#1e6546' : 'transparent'}; color:${on ? '#fff' : '#4d695a'}; font-weight:${on ? 700 : 500};`;
+      });
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       Components.init();
+      paintTabs();
       if (!Auth.requireAuth('RetailCustomer')) return;
       document.querySelectorAll('#track-tabs .tab-btn').forEach((b) => {
         b.onclick = () => {
           state.tab = b.dataset.tab;
           state.page = 1;
-          document.querySelectorAll('#track-tabs .tab-btn').forEach((x) => x.classList.toggle('active', x === b));
+          paintTabs();
           loadOrders();
         };
       });
