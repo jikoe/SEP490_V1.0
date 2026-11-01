@@ -6,187 +6,102 @@
   <title>Hồ sơ cá nhân - Sàn Nông Sản Việt</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
+  <style>.tab-btn[data-tab] { background: transparent; } .tab-btn[data-tab].active { background: #eaf4e9; color: #1e6546; font-weight: 700; }</style>
 </head>
 <body>
   <div class="app-shell">
     <aside id="app-sidebar" class="sidebar" style="display:none;"></aside>
-
     <div class="workspace no-sidebar">
       <header id="app-header"></header>
-
       <main style="max-width:1150px; margin:32px auto; padding:0 24px;">
+
     <div class="section-heading" style="margin-bottom:24px;">
       <div>
         <p class="eyebrow" style="color:#2e7d32; font-size:11px; text-transform:uppercase; font-weight:700;">HỒ SƠ NGƯỜI DÙNG · UC-AUTH-03</p>
         <h1 style="color:#103e2d; margin:4px 0;">Hồ sơ cá nhân &amp; Sổ địa chỉ</h1>
-        <p class="muted">Quản lý thông tin liên hệ, sổ địa chỉ nhận hàng và bảo mật tài khoản.</p>
+        <p class="muted">Quản lý thông tin liên hệ, địa chỉ nhận hàng, tài khoản ngân hàng và bảo mật tài khoản.</p>
       </div>
     </div>
 
     <div id="profile-alert" class="notice" style="display:none; margin-bottom:16px;"></div>
 
     <div style="display:grid; grid-template-columns:260px 1fr; gap:24px; align-items:start;">
-      <!-- Navigation Tabs -->
       <div class="panel padded" style="display:flex; flex-direction:column; gap:4px; padding:12px;">
-        <button type="button" class="tab-btn active" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;" onclick="switchProfileTab('info')">
-          👤 Thông tin cá nhân
-        </button>
-        <button type="button" class="tab-btn" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;" onclick="switchProfileTab('address')">
-          📍 Sổ địa chỉ nhận hàng
-        </button>
-        <button type="button" class="tab-btn" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;" onclick="switchProfileTab('security')">
-          🔒 Bảo mật &amp; Đổi mật khẩu
-        </button>
+        <div style="text-align:center; padding:12px 0 16px; border-bottom:1px solid #e7eceb; margin-bottom:8px;">
+          <label for="avatar-input" title="Đổi ảnh đại diện" style="cursor:pointer; display:inline-block;">
+            <div id="prof-avatar" style="width:84px; height:84px; border-radius:50%; background:#1e6546; color:#fff; display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:800; margin:0 auto;"></div>
+          </label>
+          <input type="file" id="avatar-input" accept=".png,.jpg,.jpeg" style="display:none;">
+          <strong id="hero-name" style="display:block; margin-top:10px; color:#103e2d;"></strong>
+          <small id="hero-email" class="muted"></small>
+          <div style="margin-top:8px; font-size:13px;">Điểm thưởng: <strong id="prof-points">⭐ 0</strong></div>
+        </div>
+        <button type="button" class="tab-btn active" data-tab="info" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">👤 Thông tin cá nhân</button>
+        <button type="button" class="tab-btn" data-tab="address" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">📍 Địa chỉ nhận hàng</button>
+        <button type="button" class="tab-btn" data-tab="bank" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">🏦 Tài khoản ngân hàng</button>
+        <button type="button" class="tab-btn" data-tab="security" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">🔒 Bảo mật &amp; Đổi mật khẩu</button>
       </div>
 
-      <!-- Tab Content Area -->
       <div class="panel padded">
-        <!-- 1. Personal Info -->
         <div id="tab-info">
           <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Thông tin cá nhân</h3>
-          <form onsubmit="handleSaveInfo(event)" style="margin-top:16px;">
+          <form id="form-info" novalidate style="margin-top:16px;">
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-              <label class="field">
-                <span>Họ và tên *</span>
-                <input type="text" id="prof-name" required value="Lê Thị Mai">
-              </label>
-
-              <label class="field">
-                <span>Email *</span>
-                <input type="email" id="prof-email" required value="mai.le@example.test" disabled style="background:#f5f8f6;">
-              </label>
-
-              <label class="field">
-                <span>Số điện thoại *</span>
-                <input type="tel" id="prof-phone" required value="0901234567">
-              </label>
-
-              <label class="field">
-                <span>Giới tính</span>
-                <select id="prof-gender">
-                  <option value="Female" selected>Nữ</option>
-                  <option value="Male">Nam</option>
-                  <option value="Other">Khác</option>
-                </select>
-              </label>
+              <label class="field"><span>Họ và tên *</span><input type="text" id="prof-name" maxlength="50"><small data-error="fullName" style="color:#b3261e;"></small></label>
+              <label class="field"><span>Email</span><input type="email" id="prof-email" disabled style="background:#f5f8f6;"></label>
+              <label class="field"><span>Số điện thoại *</span><input type="tel" id="prof-phone" maxlength="10"><small data-error="phoneNumber" style="color:#b3261e;"></small></label>
+              <label class="field"><span>Giới tính</span>
+                <select id="prof-gender"><option value="">-- Chọn --</option><option value="Male">Nam</option><option value="Female">Nữ</option><option value="Other">Khác</option></select>
+                <small data-error="gender" style="color:#b3261e;"></small></label>
+              <label class="field"><span>Ngày sinh</span><input type="date" id="prof-birth"><small data-error="birthDate" style="color:#b3261e;"></small></label>
             </div>
-
             <div style="margin-top:20px; display:flex; justify-content:flex-end;">
-              <button type="submit" class="primary">Lưu thay đổi</button>
+              <button type="submit" class="primary btn-save-profile">Lưu thay đổi</button>
             </div>
           </form>
         </div>
 
-        <!-- 2. Address Book -->
         <div id="tab-address" style="display:none;">
-          <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Sổ địa chỉ nhận hàng</h3>
-          <div style="padding:14px; border:1px solid #2e7d32; border-radius:8px; background:#f4f9f6; margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <strong>Lê Thị Mai</strong>
-              <span class="badge Active">Mặc định</span>
+          <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Địa chỉ nhận hàng mặc định</h3>
+          <div id="addr-summary" style="padding:14px; border:1px solid #2e7d32; border-radius:8px; background:#f4f9f6; margin:16px 0;"></div>
+          <form id="form-address" novalidate>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <label class="field"><span>Họ tên người nhận</span><input type="text" id="addr-recipient" maxlength="50"><small data-error="recipientName" style="color:#b3261e;"></small></label>
+              <label class="field"><span>Số điện thoại người nhận</span><input type="tel" id="addr-phone" maxlength="10"><small data-error="recipientPhone" style="color:#b3261e;"></small></label>
+              <label class="field"><span>Tỉnh / Thành phố</span><select id="addr-province"></select><small data-error="provinceCode" style="color:#b3261e;"></small></label>
+              <label class="field"><span>Quận / Huyện</span><select id="addr-district" disabled></select><small data-error="districtCode" style="color:#b3261e;"></small></label>
+              <label class="field"><span>Phường / Xã</span><select id="addr-ward" disabled></select><small data-error="wardCode" style="color:#b3261e;"></small></label>
+              <label class="field"><span>Số nhà, tên đường</span><input type="text" id="addr-detail" maxlength="255"><small data-error="addressDetail" style="color:#b3261e;"></small></label>
             </div>
-            <p style="margin:4px 0; font-size:13px; color:#405247;">Số điện thoại: 0901234567</p>
-            <p style="margin:4px 0; font-size:13px; color:#405247;">Địa chỉ: 123 Nguyễn Thị Minh Khai, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh</p>
-          </div>
-          <button class="primary" onclick="Utils.showToast('Tính năng thêm nhiều sổ địa chỉ đang được cập nhật.', 'info')">+ Thêm địa chỉ mới</button>
+            <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+              <button type="submit" class="primary btn-save-profile">Lưu địa chỉ</button>
+            </div>
+          </form>
         </div>
 
-        <!-- 3. Security -->
+        <div id="tab-bank" style="display:none;"><div id="bank-panel"></div></div>
+
         <div id="tab-security" style="display:none;">
           <h3 style="margin-top:0; color:#103e2d; border-bottom:1px solid #e7eceb; padding-bottom:12px;">Đổi mật khẩu tài khoản</h3>
-          <form onsubmit="handleChangePassword(event)" style="margin-top:16px; max-width:440px;">
-            <label class="field">
-              <span>Mật khẩu hiện tại *</span>
-              <input type="password" id="old-pass" required placeholder="Nhập mật khẩu hiện tại">
-            </label>
-
-            <label class="field">
-              <span>Mật khẩu mới *</span>
-              <input type="password" id="new-pass" required minlength="6" placeholder="Mật khẩu từ 6 ký tự">
-            </label>
-
-            <label class="field">
-              <span>Xác nhận mật khẩu mới *</span>
-              <input type="password" id="confirm-pass" required minlength="6" placeholder="Nhập lại mật khẩu mới">
-            </label>
-
-            <div style="margin-top:20px;">
-              <button type="submit" class="primary">Cập nhật mật khẩu</button>
-            </div>
+          <form id="form-password" novalidate style="margin-top:16px; max-width:440px;">
+            <label class="field"><span>Mật khẩu hiện tại *</span><input type="password" id="old-pass" autocomplete="current-password"><small data-error="currentPassword" style="color:#b3261e;"></small></label>
+            <label class="field"><span>Mật khẩu mới *</span><input type="password" id="new-pass" autocomplete="new-password" placeholder="Ít nhất 8 ký tự, có chữ hoa, chữ thường và số"><small data-error="newPassword" style="color:#b3261e;"></small></label>
+            <label class="field"><span>Xác nhận mật khẩu mới *</span><input type="password" id="confirm-pass" autocomplete="new-password"><small data-error="confirmPassword" style="color:#b3261e;"></small></label>
+            <div style="margin-top:20px;"><button type="submit" class="primary">Cập nhật mật khẩu</button></div>
           </form>
         </div>
       </div>
     </div>
-  </main>
+      </main>
+    </div>
   </div>
-  </div>
-
   <script src="../js/config.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      Components.init();
-    });
-    function switchProfileTab(tab) {
-      document.getElementById('tab-info').style.display = tab === 'info' ? 'block' : 'none';
-      document.getElementById('tab-address').style.display = tab === 'address' ? 'block' : 'none';
-      document.getElementById('tab-security').style.display = tab === 'security' ? 'block' : 'none';
-
-      const btns = document.querySelectorAll('.tab-btn');
-      btns.forEach((b, idx) => {
-        b.classList.toggle('active', (tab === 'info' && idx === 0) || (tab === 'address' && idx === 1) || (tab === 'security' && idx === 2));
-      });
-    }
-
-    function handleSaveInfo(e) {
-      e.preventDefault();
-      const name = document.getElementById('prof-name').value.trim();
-      const phone = document.getElementById('prof-phone').value.trim();
-
-      const user = Auth.getUserInfo() || {};
-      user.fullName = name;
-      user.phone = phone;
-      Auth.setUserInfo(user);
-
-      showProfileAlert('Đã cập nhật thông tin cá nhân thành công!', 'success');
-    }
-
-    async function handleChangePassword(e) {
-      e.preventDefault();
-      const oldPass = document.getElementById('old-pass').value;
-      const newPass = document.getElementById('new-pass').value;
-      const confirmPass = document.getElementById('confirm-pass').value;
-
-      if (newPass !== confirmPass) {
-        showProfileAlert('Mật khẩu xác nhận không khớp.', 'error');
-        return;
-      }
-
-      try {
-        await API.changePassword({ oldPassword: oldPass, newPassword: newPass });
-        showProfileAlert('Đổi mật khẩu thành công!', 'success');
-        document.getElementById('old-pass').value = '';
-        document.getElementById('new-pass').value = '';
-        document.getElementById('confirm-pass').value = '';
-      } catch (err) {
-        showProfileAlert(err.message || 'Không thể đổi mật khẩu. Vui lòng kiểm tra lại.', 'error');
-      }
-    }
-
-    function showProfileAlert(msg, type = 'success') {
-      const el = document.getElementById('profile-alert');
-      if (el) {
-        el.className = `notice ${type === 'error' ? 'error' : ''}`;
-        el.textContent = msg;
-        el.style.display = 'block';
-        setTimeout(() => { el.style.display = 'none'; }, 4000);
-      }
-      Utils.showToast(msg, type);
-    }
-  </script>
+  <script src="../js/bank-account.js"></script>
+  <script src="../js/consumer-profile.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', () => ConsumerProfile.init('RetailCustomer'));</script>
 </body>
 </html>

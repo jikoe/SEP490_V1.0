@@ -517,11 +517,8 @@ const API = {
   },
 
   async changePassword(data) {
-    const res = await this.request('/auth/change-password', { method: 'POST', body: data, suppressErrorToast: true });
-    if (!res.success) {
-      return this.request('/account/password', { method: 'POST', body: data });
-    }
-    return res;
+    // Backend expects { currentPassword, newPassword, confirmPassword } (UC-AUTH-05).
+    return this.request('/auth/change-password', { method: 'POST', body: data, suppressErrorToast: true });
   },
 
   /* ---------------- PROFILE MODULE ---------------- */
