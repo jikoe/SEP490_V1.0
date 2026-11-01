@@ -162,6 +162,12 @@ builder.Services.AddScoped<IEmailOtpVerifier, EmailOtpVerifier>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+// UC-AUTH-03 Manage Bank Account (BR-BA-01..06). The VietQR lookup is faked in development.
+builder.Services.AddScoped<AgriSustain.Application.Interfaces.Repositories.IBankAccountRepository,
+    AgriSustain.Infrastructure.Repositories.BankAccountRepository>();
+builder.Services.AddScoped<IBankAccountLookup, AgriSustain.Infrastructure.Banking.FakeBankAccountLookup>();
+builder.Services.AddSingleton<IBankAccountEmailSender, AgriSustain.Infrastructure.Email.BankAccountEmailSender>();
+builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 
 // DuND Validators

@@ -1938,6 +1938,11 @@ public partial class AgriSustainContext : DbContext
                 .IsUnicode(false);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.IsDefault).HasDefaultValue(true);
+            entity.Property(e => e.VerificationStatus)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasDefaultValue("Unverified");
+            entity.Property(e => e.QrImageUrl).HasMaxLength(500);
 
             entity.HasOne(d => d.BankCodeNavigation).WithMany(p => p.UserBankAccounts)
                 .HasForeignKey(d => d.BankCode)
