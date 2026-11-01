@@ -424,9 +424,10 @@
     }
 
     async function updateCartBadge() {
-      if (!Auth.isAuthenticated()) return;
+      // The cart belongs to RetailCustomer only; other roles (e.g. WholesaleBuyer browsing) get 403.
+      if (!Auth.isAuthenticated() || !/retail/i.test(Auth.getUserRole() || '')) return;
       try {
-        const res = await API.getCart();
+        const res = await API.getCart({ suppressErrorToast: true });
         if (res.success && res.data) {
           const items = res.data.items || [];
           const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
