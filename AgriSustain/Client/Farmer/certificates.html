@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chứng nhận chất lượng - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>.err { color: #b3261e; font-size: 12px; } .tab-btn.active { background: #1e6546; color: #fff; }</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+    <div class="workspace">
+      <header id="app-header"></header>
+      <main>
+        <div style="padding:24px 32px; max-width:1200px; margin:0 auto;">
+          <div class="section-heading" style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:20px;">
+            <div>
+              <p class="eyebrow" style="color:#2e7d32; font-size:11px; font-weight:700;">CHỨNG NHẬN · UC-FAR-07</p>
+              <h1 style="color:#103e2d; margin:4px 0;">Chứng nhận &amp; Huy hiệu chất lượng</h1>
+              <p class="muted">Nộp VietGAP, GlobalGAP, Organic, OCOP để Nhân viên thẩm định xác minh và gắn huy hiệu cho sản phẩm.</p>
+            </div>
+            <button type="button" class="primary" id="btn-add">+ Thêm chứng nhận</button>
+          </div>
+          <div id="page-notice" class="notice error" style="display:none;"></div>
+          <div class="panel" id="cert-list"><p class="muted" style="padding:20px;">Đang tải…</p></div>
+
+          <dialog id="cert-dialog">
+            <div class="modal-heading"><h2>Thêm chứng nhận mới</h2><button type="button" data-close>&times;</button></div>
+            <form id="cert-form" novalidate style="margin-top:16px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 16px;">
+                <label class="field"><span>Loại chứng nhận *</span>
+                  <select name="certificateType"><option value="">-- Chọn loại --</option><option>VietGAP</option><option>GlobalGAP</option><option>Organic</option><option>OCOP</option></select>
+                  <small class="err" data-error="certificateType"></small></label>
+                <label class="field"><span>Số chứng nhận *</span><input name="certificateNumber" maxlength="100"><small class="err" data-error="certificateNumber"></small></label>
+                <label class="field" style="grid-column:1 / -1;"><span>Cơ quan cấp *</span><input name="issuedBy" maxlength="200"><small class="err" data-error="issuedBy"></small></label>
+                <label class="field"><span>Ngày cấp *</span><input type="date" name="issueDate"><small class="err" data-error="issueDate"></small></label>
+                <label class="field"><span>Ngày hết hạn *</span><input type="date" name="expiryDate"><small class="err" data-error="expiryDate"></small></label>
+                <label class="field" style="grid-column:1 / -1;"><span>Tệp hồ sơ (PDF/JPG/PNG, tối đa 5 MB) *</span><input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png"><small class="err" data-error="file"></small></label>
+              </div>
+              <div class="modal-actions"><button type="button" data-close>Hủy</button><button type="submit" class="primary" id="btn-submit">Gửi thẩm định</button></div>
+            </form>
+          </dialog>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/dossier.js"></script>
+  <script>
+    /* UC-FAR-07 Submit Certificate Dossier (Farmer with an Approved farm profile). */
+    const STATUS = { PendingReview: ['Chờ thẩm định', 'Pending'], Verified: ['Đã xác minh', 'Active'], Rejected: ['Từ chối', 'Rejected'], Revoked: ['Đã thu hồi', 'Rejected'] };
+    const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
+    const fmt = (d) => d ? new Date(`${d}T00:00:00`).toLocaleDateString('vi-VN') : '—';
+    const dlg = () => document.getElementById('cert-dialog');
+    let docs = {};
+
+    function setErrors(map) {
+      document.querySelectorAll('[data-error]').forEach((el) => { el.textContent = map[el.dataset.error] || ''; });
+    }
+
+    async function load() {
+      const res = await API.request('/farmer/certificates', { suppressErrorToast: true });
+      const box = document.getElementById('cert-list');
+      const notice = document.getElementById('page-notice');
+      if (!res.success) {
+        notice.textContent = res.error; notice.style.display = 'block';
+        box.innerHTML = '';
+        document.getElementById('btn-add').disabled = res.status === 403;
+        return;
+      }
+      const items = res.data || [];
+      docs = {};
+      if (!items.length) { box.innerHTML = '<p class="muted" style="padding:20px;">Chưa có hồ sơ chứng nhận nào.</p>'; return; }
+      box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Loại</th><th>Số chứng nhận</th><th>Cơ quan cấp</th><th>Ngày cấp</th><th>Hết hạn</th><th>Trạng thái</th><th></th></tr></thead><tbody>
+        ${items.map((c) => { docs[c.farmCertificateId] = c.documentUrl; const s = STATUS[c.verificationStatus] || [c.verificationStatus, ''];
+          return `<tr><td><strong>${esc(c.certificateType)}</strong></td><td>${esc(c.certificateNumber)}</td><td>${esc(c.issuedBy)}</td>
+            <td>${fmt(c.issueDate)}</td><td>${fmt(c.expiryDate)}</td>
+            <td><span class="badge ${s[1]}">${esc(s[0])}</span>${c.revocationReason ? `<small>${esc(c.revocationReason)}</small>` : ''}</td>
+            <td><button type="button" class="text-button" onclick="Dossier.open(docs[${Number(c.farmCertificateId)}])">Xem tệp</button></td></tr>`; }).join('')}
+        </tbody></table></div>`;
+    }
+
+    function validate(form) {
+      const e = {};
+      const today = new Date().toISOString().slice(0, 10);
+      ['certificateType', 'certificateNumber', 'issuedBy', 'issueDate', 'expiryDate'].forEach((k) => { if (!form[k].value.trim()) e[k] = 'Trường này là bắt buộc.'; });
+      if (form.issueDate.value && form.issueDate.value > today) e.issueDate = 'Ngày cấp không được ở tương lai.';
+      if (form.expiryDate.value && form.issueDate.value && form.expiryDate.value <= form.issueDate.value) e.expiryDate = 'Ngày hết hạn phải sau ngày cấp.';
+      else if (form.expiryDate.value && form.expiryDate.value <= today) e.expiryDate = 'Chứng nhận đã hết hạn, không thể nộp.';
+      const file = form.file.files[0];
+      e.file = file ? Dossier.check(file, ['pdf', 'jpg', 'jpeg', 'png']) : 'Vui lòng chọn tệp hồ sơ.';
+      if (!e.file) delete e.file;
+      return e;
+    }
+
+    async function submit(event) {
+      event.preventDefault();
+      const form = event.target;
+      const e = validate(form);
+      setErrors(e);
+      if (Object.keys(e).length) return;
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true; btn.textContent = 'Đang gửi…';
+      const res = await API.request('/farmer/certificates', { method: 'POST', body: new FormData(form), suppressErrorToast: true });
+      btn.disabled = false; btn.textContent = 'Gửi thẩm định';
+      if (!res.success) {
+        const fields = (res.data && res.data.errors) || {};
+        setErrors(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])));
+        if (!Object.keys(fields).length) Utils.showToast(res.error, 'error');
+        return;
+      }
+      dlg().close();
+      form.reset();
+      Utils.showToast(res.data.message || 'Đã nộp hồ sơ chứng nhận.', 'success');
+      load();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!Auth.requireAuth('Farmer')) return;
+      document.getElementById('btn-add').onclick = () => { setErrors({}); dlg().showModal(); };
+      document.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => dlg().close(); });
+      document.getElementById('cert-form').onsubmit = submit;
+      load();
+    });
+  </script>
+</body>
+</html>

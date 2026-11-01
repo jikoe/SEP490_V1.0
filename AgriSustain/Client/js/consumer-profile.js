@@ -11,6 +11,8 @@ const ConsumerProfile = (() => {
   const $ = (id) => document.getElementById(id);
   let saved = null;
   let bankMounted = false;
+  let businessMounted = false;
+  const TAB_NAMES = ['business', 'info', 'address', 'bank', 'security'];
 
   function setError(field, message) {
     const el = document.querySelector(`[data-error="${field}"]`);
@@ -30,7 +32,7 @@ const ConsumerProfile = (() => {
   }
 
   function switchTab(tab) {
-    ['info', 'address', 'bank', 'security'].forEach((name) => {
+    TAB_NAMES.forEach((name) => {
       const panel = $(`tab-${name}`);
       if (panel) panel.style.display = name === tab ? 'block' : 'none';
     });
@@ -38,6 +40,11 @@ const ConsumerProfile = (() => {
     if (tab === 'bank' && !bankMounted) {
       BankAccountPanel.mount($('bank-panel'));
       bankMounted = true;
+    }
+    // WholesaleBuyer only: company dossier for KYC (UC-AUTH-02).
+    if (tab === 'business' && !businessMounted && typeof BusinessProfilePanel !== 'undefined') {
+      BusinessProfilePanel.mount($('business-panel'));
+      businessMounted = true;
     }
   }
 
@@ -237,7 +244,7 @@ const ConsumerProfile = (() => {
       if (!Auth.requireAuth(role)) return;
       bind();
       const tab = new URLSearchParams(window.location.search).get('tab');
-      switchTab(['info', 'address', 'bank', 'security'].includes(tab) ? tab : 'info');
+      switchTab(TAB_NAMES.includes(tab) && $(`tab-${tab}`) ? tab : 'info');
       load();
     }
   };

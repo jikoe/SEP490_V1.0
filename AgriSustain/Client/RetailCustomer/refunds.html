@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hoàn tiền của tôi - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>.err { color: #b3261e; font-size: 12px; }</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display:none;"></aside>
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+      <main style="max-width:1100px; margin:32px auto; padding:0 24px; display:grid; gap:20px;">
+        <section>
+          <p class="eyebrow" style="color:#2e7d32; font-size:11px; font-weight:700; margin:0;">HOÀN TIỀN · UC-FIN-08</p>
+          <h1 style="color:#103e2d; margin:4px 0;">Tài khoản nhận hoàn tiền</h1>
+          <p class="muted">Cung cấp hoặc xác nhận tài khoản ngân hàng để AgriSustain chuyển khoản tiền hoàn đã được duyệt.</p>
+        </section>
+        <div id="refund-notice" class="notice error" style="display:none;"></div>
+        <div id="refund-list" class="panel"></div>
+        <div id="refund-detail"></div>
+
+        <dialog id="otp-dialog">
+          <div class="modal-heading"><h2>Xác nhận bằng mã OTP</h2><button type="button" onclick="document.getElementById('otp-dialog').close()">&times;</button></div>
+          <p class="muted" id="otp-info" style="margin-top:12px;"></p>
+          <label class="field"><span>Mã OTP (6 chữ số)</span><input id="otp-code" inputmode="numeric" maxlength="6"><small class="err" id="otp-error"></small></label>
+          <div class="modal-actions"><button type="button" class="primary" id="otp-confirm">Xác nhận</button></div>
+        </dialog>
+      </main>
+    </div>
+  </div>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+    /*
+     * UC-FIN-08 Provide Refund Account (RetailCustomer, WholesaleBuyer).
+     * The default bank account (UC-AUTH-03) is offered first; another account is looked up at the bank.
+     */
+    const STATE = {
+      AwaitingAccount: ['Chờ cung cấp tài khoản', 'Pending'],
+      ReadyForTransfer: ['Chờ chuyển khoản', 'Approved'],
+      TransferFailed: ['Chuyển khoản thất bại', 'Rejected'],
+      Completed: ['Đã hoàn tiền', 'Active']
+    };
+    const NOT_FOUND = 'Không tìm thấy tài khoản này tại ngân hàng đã chọn. Vui lòng kiểm tra lại ngân hàng và số tài khoản.';
+    const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
+    const time = (v) => v ? Utils.formatDateTime(String(v).match(/[zZ]|[+-]\d\d:\d\d$/) ? v : `${v}Z`) : '—';
+    let detail = null;
+    let lookup = { status: 'idle', holder: '' };
+    let lookupTimer = null;
+    let lookupSeq = 0;
+
+    function stateBadge(s) { const x = STATE[s] || [s, '']; return `<span class="badge ${x[1]}">${esc(x[0])}</span>`; }
+
+    async function loadList() {
+      const res = await API.request('/profile/refunds', { suppressErrorToast: true });
+      const box = document.getElementById('refund-list');
+      if (!res.success) { box.innerHTML = `<div class="notice error" style="margin:16px;">${esc(res.error)}</div>`; return; }
+      const items = res.data || [];
+      if (!items.length) { box.innerHTML = '<p class="empty">Bạn chưa có yêu cầu hoàn tiền nào.</p>'; return; }
+      box.innerHTML = `<div class="table-wrap" style="min-height:0;"><table><thead><tr><th>Mã hoàn tiền</th><th>Đơn hàng</th><th>Số tiền</th><th>Trạng thái</th><th>Tài khoản nhận</th><th></th></tr></thead><tbody>
+        ${items.map((r) => `<tr><td><strong>${esc(r.refundCode)}</strong></td><td>${esc(r.orderCode || '—')}</td>
+          <td>${Utils.formatVND(r.amount)}</td><td>${stateBadge(r.accountState)}</td><td>${esc(r.maskedAccount || '—')}</td>
+          <td><button type="button" class="${r.accountState === 'AwaitingAccount' || r.accountState === 'TransferFailed' ? 'primary' : ''}" onclick="openDetail(${Number(r.refundId)})">
+            ${r.accountState === 'AwaitingAccount' ? 'Cung cấp tài khoản' : r.accountState === 'TransferFailed' ? 'Sửa tài khoản' : 'Xem'}</button></td></tr>`).join('')}
+        </tbody></table></div>`;
+    }
+
+    async function openDetail(id) {
+      const res = await API.request(`/profile/refunds/${id}`, { suppressErrorToast: true });
+      if (!res.success) { Utils.showToast(res.error, 'error'); return; }
+      detail = res.data;
+      lookup = { status: 'idle', holder: '' };
+      history.replaceState(null, '', `?id=${id}`);
+      renderDetail();
+      document.getElementById('refund-detail').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderDetail() {
+      const d = detail;
+      const banks = (d.banks || []).map((b) => `<option value="${esc(b.bankCode)}">${esc(b.shortName)} – ${esc(b.fullName)}</option>`).join('');
+      const hasDefault = Boolean(d.defaultAccount);
+      document.getElementById('refund-detail').innerHTML = `
+        <section class="panel padded">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <h2 style="margin:0;">${esc(d.refundCode)}</h2>${stateBadge(d.accountState)}
+          </div>
+          <div style="display:grid; grid-template-columns:170px 1fr; gap:8px; font-size:14px; margin-top:14px;">
+            <span class="muted">Đơn hàng</span><span>${esc(d.orderCode || '—')}${d.farmName ? ` · ${esc(d.farmName)}` : ''}</span>
+            <span class="muted">Số tiền được hoàn</span><strong style="color:#1e6546;">${Utils.formatVND(d.amount)}</strong>
+            <span class="muted">Lý do</span><span>${esc(d.reason || '—')}</span>
+            <span class="muted">Tài khoản nhận</span><span>${d.receiver ? `${esc(d.receiver.bankShortName)} ${esc(d.receiver.maskedAccountNumber)} · ${esc(d.receiver.accountHolder)}` : '—'}</span>
+          </div>
+          ${d.accountState === 'TransferFailed' ? `<div class="notice error" style="margin-top:14px;">Chuyển khoản thất bại${d.lastFailureReason ? `: ${esc(d.lastFailureReason)}` : ''}. Vui lòng kiểm tra và cập nhật tài khoản nhận tiền.</div>` : ''}
+          ${!d.canEdit ? `<div class="notice" style="margin-top:14px;">Yêu cầu hoàn tiền đang ở trạng thái ${esc((STATE[d.accountState] || [d.accountState])[0])}. Tài khoản nhận tiền không thể thay đổi nữa.</div>` : `
+          <form id="account-form" novalidate style="margin-top:18px; max-width:560px;">
+            <h3 style="margin:0 0 10px;">Tài khoản nhận tiền</h3>
+            ${hasDefault ? `<label style="display:flex; gap:8px; margin-bottom:8px; font-size:14px;"><input type="radio" name="mode" value="default" checked>
+              Dùng tài khoản mặc định: <strong>${esc(d.defaultAccount.bankShortName)} ${esc(d.defaultAccount.maskedAccountNumber)} · ${esc(d.defaultAccount.accountHolder)}</strong></label>` : ''}
+            <label style="display:flex; gap:8px; margin-bottom:12px; font-size:14px;"><input type="radio" name="mode" value="other" ${hasDefault ? '' : 'checked'}> Dùng tài khoản khác</label>
+            <div id="other-fields" style="display:${hasDefault ? 'none' : 'block'};">
+              <label class="field"><span>Ngân hàng *</span><select id="f-bank"><option value="">-- Chọn ngân hàng --</option>${banks}</select><small class="err" data-error="bankCode"></small></label>
+              <label class="field"><span>Số tài khoản *</span><input id="f-number" inputmode="numeric" maxlength="19" placeholder="6–19 chữ số"><small id="f-hint">6–19 chữ số</small><small class="err" data-error="accountNumber"></small></label>
+              <div id="holder-box"></div>
+              <label style="display:flex; gap:8px; font-size:14px; margin-bottom:12px;"><input type="checkbox" id="f-save"> Lưu làm tài khoản ngân hàng mặc định (cần mã OTP gửi về email)</label>
+            </div>
+            <label style="display:flex; gap:8px; font-size:14px; margin-bottom:6px;"><input type="checkbox" id="f-confirm"> Tôi xác nhận đây là đúng tài khoản nhận tiền của tôi.</label>
+            <small class="err" data-error="confirmRecipient"></small>
+            <div style="display:flex; gap:12px; margin-top:12px;">
+              <button type="submit" class="primary" id="f-submit">Xác nhận tài khoản</button>
+              <button type="button" onclick="closeDetail()">Hủy</button>
+            </div>
+          </form>`}
+          ${(d.history || []).length ? `<h3 style="margin:22px 0 8px;">Lịch sử</h3><ol style="margin:0; padding-left:18px; font-size:13px;">
+            ${d.history.map((h) => `<li>${esc(time(h.occurredAt))} — <strong>${esc(h.action)}</strong> (${esc(h.actor)})${h.detail ? `: ${esc(h.detail)}` : ''}</li>`).join('')}</ol>` : ''}
+        </section>`;
+      if (d.canEdit) bindForm();
+    }
+
+    function closeDetail() {
+      detail = null;
+      document.getElementById('refund-detail').innerHTML = '';
+      history.replaceState(null, '', window.location.pathname);
+    }
+
+    const mode = () => document.querySelector('input[name="mode"]:checked')?.value || 'other';
+    function setErrors(map) { document.querySelectorAll('[data-error]').forEach((el) => { el.textContent = map[el.dataset.error] || ''; }); }
+
+    function bindForm() {
+      document.querySelectorAll('input[name="mode"]').forEach((r) => { r.onchange = () => {
+        document.getElementById('other-fields').style.display = mode() === 'other' ? 'block' : 'none';
+      }; });
+      document.getElementById('f-bank').onchange = scheduleLookup;
+      document.getElementById('f-number').oninput = (e) => { e.target.value = e.target.value.replace(/\D/g, ''); scheduleLookup(); };
+      document.getElementById('account-form').onsubmit = submit;
+    }
+
+    function renderHolder() {
+      const box = document.getElementById('holder-box');
+      const hint = document.getElementById('f-hint');
+      hint.textContent = lookup.status === 'checking' ? 'Đang tra cứu tài khoản tại ngân hàng…' : '6–19 chữ số';
+      document.querySelector('[data-error="accountNumber"]').textContent = lookup.status === 'NotFound' ? NOT_FOUND : '';
+      box.innerHTML = lookup.status === 'Found'
+        ? `<label class="field"><span>Chủ tài khoản</span><input value="${esc(lookup.holder)}" readonly style="background:#f1f5f2; font-weight:700;"><small>Tên do ngân hàng trả về, không thể sửa.</small></label>`
+        : lookup.status === 'Unavailable'
+          ? `<div class="notice">Hiện không tra cứu được ngân hàng. Vui lòng nhập tên chủ tài khoản.</div>
+             <label class="field"><span>Tên chủ tài khoản *</span><input id="f-holder" maxlength="100" placeholder="VD: NGUYEN VAN A"><small class="err" data-error="accountHolder"></small></label>`
+          : '';
+    }
+
+    // Step 4: look the account up about 600 ms after the user stops typing (BR-BA-06).
+    function scheduleLookup() {
+      clearTimeout(lookupTimer);
+      const bankCode = document.getElementById('f-bank').value;
+      const accountNumber = document.getElementById('f-number').value;
+      const seq = ++lookupSeq;
+      if (!bankCode || !/^\d{6,19}$/.test(accountNumber)) { lookup = { status: 'idle', holder: '' }; renderHolder(); return; }
+      lookup = { status: 'checking', holder: '' };
+      renderHolder();
+      lookupTimer = setTimeout(async () => {
+        const res = await API.request('/profile/bank-account/lookup', { method: 'POST', body: { bankCode, accountNumber }, suppressErrorToast: true });
+        if (seq !== lookupSeq) return;
+        lookup = res.success ? { status: res.data.status, holder: res.data.accountHolder || '' } : { status: 'error', holder: '' };
+        renderHolder();
+      }, 600);
+    }
+
+    function buildBody(otpCode) {
+      const useDefault = mode() === 'default';
+      return {
+        useDefaultAccount: useDefault,
+        bankCode: useDefault ? null : document.getElementById('f-bank').value,
+        accountNumber: useDefault ? null : document.getElementById('f-number').value,
+        accountHolder: !useDefault && lookup.status === 'Unavailable' ? (document.getElementById('f-holder')?.value.trim() || null) : null,
+        confirmRecipient: document.getElementById('f-confirm').checked,
+        saveAsDefault: !useDefault && document.getElementById('f-save').checked,
+        otpCode: otpCode || null
+      };
+    }
+
+    async function submit(event) {
+      event.preventDefault();
+      const body = buildBody();
+      const e = {};
+      if (!body.useDefaultAccount) {
+        if (!body.bankCode) e.bankCode = 'Trường này là bắt buộc.';
+        if (!/^\d{6,19}$/.test(body.accountNumber || '')) e.accountNumber = 'Số tài khoản chỉ gồm chữ số, dài từ 6 đến 19 ký tự.';
+        else if (lookup.status === 'NotFound') e.accountNumber = NOT_FOUND;
+        else if (lookup.status === 'checking') e.accountNumber = 'Đang tra cứu tài khoản, vui lòng đợi.';
+        if (lookup.status === 'Unavailable' && !body.accountHolder) e.accountHolder = 'Trường này là bắt buộc.';
+      }
+      if (!body.confirmRecipient) e.confirmRecipient = 'Vui lòng xác nhận đây là đúng tài khoản nhận tiền.';
+      setErrors(e);
+      if (Object.keys(e).length) return;
+      if (body.saveAsDefault) { await sendOtp(); return; }
+      await save(body);
+    }
+
+    async function sendOtp() {
+      const res = await API.request('/profile/refunds/otp', { method: 'POST', suppressErrorToast: true });
+      if (!res.success) { Utils.showToast(res.error, 'error'); return; }
+      document.getElementById('otp-info').textContent = res.data?.message || 'Mã OTP đã được gửi tới email của bạn.';
+      document.getElementById('otp-code').value = '';
+      document.getElementById('otp-error').textContent = '';
+      document.getElementById('otp-dialog').showModal();
+    }
+
+    async function save(body) {
+      const btn = document.getElementById('f-submit');
+      btn.disabled = true; btn.textContent = 'Đang lưu…';
+      const res = await API.request(`/profile/refunds/${detail.refundId}/account`, { method: 'PUT', body, suppressErrorToast: true });
+      btn.disabled = false; btn.textContent = 'Xác nhận tài khoản';
+      if (!res.success) {
+        const fields = (res.data && res.data.errors) || {};
+        if (fields.otpCode) { document.getElementById('otp-error').textContent = fields.otpCode[0]; return false; }
+        setErrors(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v])));
+        Utils.showToast(res.error, 'error');
+        return true;
+      }
+      Utils.showToast(res.data.message, 'success');
+      detail = res.data.refund;
+      renderDetail();
+      loadList();
+      return true;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!Auth.requireAuth()) return;
+      const role = (Auth.getUserRole() || '').toLowerCase();
+      if (!role.includes('retail') && !role.includes('wholesale')) { window.location.href = Auth.getLandingPageForRole(role); return; }
+      document.getElementById('otp-confirm').onclick = async () => {
+        const code = document.getElementById('otp-code').value.replace(/\D/g, '');
+        if (!/^\d{6}$/.test(code)) { document.getElementById('otp-error').textContent = 'Mã OTP gồm 6 chữ số.'; return; }
+        if (await save(buildBody(code))) document.getElementById('otp-dialog').close();
+      };
+      loadList();
+      const id = new URLSearchParams(window.location.search).get('id');
+      if (id) openDetail(Number(id));
+    });
+  </script>
+</body>
+</html>

@@ -6,7 +6,7 @@
   <title>Hồ sơ doanh nghiệp - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
-  <style>.tab-btn[data-tab] { background: transparent; } .tab-btn[data-tab].active { background: #eaf4e9; color: #1e6546; font-weight: 700; }</style>
+  <style>.err { color: #b3261e; font-size: 12px; } .tab-btn[data-tab] { background: transparent; } .tab-btn[data-tab].active { background: #eaf4e9; color: #1e6546; font-weight: 700; }</style>
 </head>
 <body>
   <div class="app-shell">
@@ -37,6 +37,7 @@
           <small id="hero-email" class="muted"></small>
           <div style="margin-top:8px; font-size:13px;">Điểm thưởng: <strong id="prof-points">⭐ 0</strong></div>
         </div>
+        <button type="button" class="tab-btn" data-tab="business" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">🏢 Hồ sơ doanh nghiệp &amp; KYC</button>
         <button type="button" class="tab-btn active" data-tab="info" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">👤 Thông tin cá nhân</button>
         <button type="button" class="tab-btn" data-tab="address" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">📍 Địa chỉ nhận hàng</button>
         <button type="button" class="tab-btn" data-tab="bank" style="text-align:left; border:none; padding:10px 14px; border-radius:8px; cursor:pointer;">🏦 Tài khoản ngân hàng</button>
@@ -80,6 +81,8 @@
           </form>
         </div>
 
+        <div id="tab-business" style="display:none;"><div id="business-panel"></div></div>
+
         <div id="tab-bank" style="display:none;"><div id="bank-panel"></div></div>
 
         <div id="tab-security" style="display:none;">
@@ -103,6 +106,8 @@
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
   <script src="../js/bank-account.js"></script>
+  <script src="../js/dossier.js"></script>
+  <script src="../js/business-profile.js"></script>
   <script src="../js/consumer-profile.js"></script>
   <script>document.addEventListener('DOMContentLoaded', () => ConsumerProfile.init('WholesaleBuyer'));</script>
 </body>

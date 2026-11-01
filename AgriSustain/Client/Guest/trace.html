@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tra cứu nguồn gốc - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>.err { color: #b3261e; font-size: 12px; }</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display:none;"></aside>
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+      <main style="max-width:1100px; margin:32px auto; padding:0 24px; display:grid; gap:20px;">
+        <section class="panel padded">
+          <p class="eyebrow" style="color:#2e7d32; font-size:11px; font-weight:700; margin:0;">TRUY XUẤT NGUỒN GỐC · UC-TRC-01</p>
+          <h1 style="color:#103e2d; margin:4px 0 8px;">Tra cứu nguồn gốc nông sản</h1>
+          <p class="muted">Nhập mã lô in trên bao bì hoặc dán đường dẫn từ mã QR.</p>
+          <form id="trace-form" style="display:flex; gap:12px; margin-top:12px;">
+            <input id="trace-code" maxlength="300" placeholder="VD: BATCH-DL-001 hoặc https://agrisustain.vn/trace/BATCH-DL-001" style="flex:1;">
+            <button type="submit" class="primary" id="trace-btn">Tra cứu</button>
+          </form>
+          <div id="trace-error" class="notice error" style="display:none; margin-top:12px;"></div>
+        </section>
+        <div id="trace-result" style="display:grid; gap:20px;"></div>
+      </main>
+    </div>
+  </div>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+    /* UC-TRC-01 View Product Traceability – public, read-only. ?code=... looks the code up directly. */
+    const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
+    const day = (v) => v ? new Date(`${String(v).slice(0, 10)}T00:00:00`).toLocaleDateString('vi-VN') : '—';
+
+    async function lookup(code) {
+      const err = document.getElementById('trace-error');
+      const box = document.getElementById('trace-result');
+      err.style.display = 'none';
+      box.innerHTML = '';
+      if (!code.trim()) { err.textContent = 'Vui lòng nhập mã lô hoặc mã QR.'; err.style.display = 'block'; return; }
+      const btn = document.getElementById('trace-btn');
+      btn.disabled = true; btn.textContent = 'Đang tra cứu…';
+      const res = await API.request(`/traceability?code=${encodeURIComponent(code.trim())}`, { suppressErrorToast: true });
+      btn.disabled = false; btn.textContent = 'Tra cứu';
+      if (!res.success) { err.textContent = res.error; err.style.display = 'block'; return; }
+      history.replaceState(null, '', `?code=${encodeURIComponent(code.trim())}`);
+      render(res.data);
+    }
+
+    function render(r) {
+      const box = document.getElementById('trace-result');
+      if (r.isRevoked) {
+        box.innerHTML = `<section class="panel padded" style="border-color:#fca5a5; background:#fef2f2;">
+          <h2 style="margin-top:0; color:#991b1b;">⚠ Lô ${esc(r.batchCode)} đã bị thu hồi</h2>
+          <p style="color:#991b1b;">${esc(r.recallMessage)}</p>
+          <p>Sản phẩm: <strong>${esc(r.productName)}</strong> · Nông trại: <strong>${esc(r.farmName)}</strong></p></section>`;
+        return;
+      }
+      const logs = r.cultivationLogs || [];
+      const certs = r.certificates || [];
+      box.innerHTML = `
+        <section class="panel padded" style="display:grid; grid-template-columns:${r.productImageUrl ? '180px 1fr' : '1fr'}; gap:20px;">
+          ${r.productImageUrl ? `<img src="${esc(r.productImageUrl)}" alt="${esc(r.productName)}" style="width:180px; height:180px; object-fit:cover; border-radius:12px;">` : ''}
+          <div>
+            <span class="badge Active">Đã xác thực nguồn gốc</span>
+            <h2 style="margin:8px 0;">${esc(r.productName)}</h2>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; font-size:14px;">
+              <div><small>Mã lô</small><strong>${esc(r.batchCode)}</strong></div>
+              <div><small>${r.harvestDateIsEstimated ? 'Ngày thu hoạch dự kiến' : 'Ngày thu hoạch'}</small><strong>${day(r.harvestDate)}</strong></div>
+              <div><small>Hạn sử dụng</small><strong>${day(r.expirationDate)}</strong></div>
+              <div><small>Nông trại</small><strong>${esc(r.farmName)}</strong></div>
+              <div><small>Vùng trồng</small><strong>${esc(r.cultivationZone || r.originProvince || '—')}</strong></div>
+              <div><small>Mùa vụ</small><strong>${esc(r.seasonName)} · ${esc(r.cropVariety)}</strong></div>
+            </div>
+            ${r.qualityNotes ? `<p style="margin-bottom:0;">Chất lượng: ${esc(r.qualityNotes)}</p>` : ''}
+            <p style="font-size:12px; color:#7a8f83; margin-bottom:0;">Lượt tra cứu: ${esc(r.scanCount)}</p>
+          </div>
+        </section>
+        <section class="panel padded">
+          <h3 style="margin-top:0;">Nhật ký canh tác</h3>
+          ${logs.length === 0 ? '<p class="muted">Chưa có nhật ký canh tác.</p>' : `<ol style="list-style:none; padding:0; margin:0; display:grid; gap:12px;">
+            ${logs.map((l) => `<li style="border-left:3px solid #2d6a4f; padding-left:14px;">
+              <strong>${day(l.actionDate)} · ${esc(l.actionType)}</strong>
+              ${l.detailDescription ? `<div>${esc(l.detailDescription)}</div>` : ''}
+              ${l.inputMaterial || l.dosage ? `<div style="font-size:13px; color:#557262;">Vật tư: ${esc(l.inputMaterial || '—')} ${l.dosage ? `· Liều lượng: ${esc(l.dosage)}` : ''}</div>` : ''}
+              ${l.imageUrl ? `<img src="${esc(l.imageUrl)}" alt="${esc(l.actionType)}" style="width:160px; border-radius:8px; margin-top:6px;">` : ''}
+            </li>`).join('')}</ol>`}
+        </section>
+        <section class="panel padded">
+          <h3 style="margin-top:0;">Chứng nhận chất lượng</h3>
+          ${certs.length === 0 ? '<p class="muted">Nông trại chưa có chứng nhận còn hiệu lực.</p>' : `<div style="display:flex; gap:12px; flex-wrap:wrap;">
+            ${certs.map((c) => `<div style="border:1px solid #cfe3d6; border-radius:12px; padding:12px; min-width:200px;">
+              <strong>🏅 ${esc(c.certificateType)}</strong>
+              <div style="font-size:13px;">Số: ${esc(c.certificateNumber)}</div>
+              <div style="font-size:13px;">Cấp bởi: ${esc(c.issuedBy)}</div>
+              <div style="font-size:13px;">Hiệu lực: ${day(c.issueDate)} – ${day(c.expiryDate)}</div></div>`).join('')}</div>`}
+        </section>
+        <div><a class="primary" style="display:inline-block; padding:10px 18px; border-radius:8px; background:#1e6546; color:#fff; text-decoration:none;"
+          href="../RetailCustomer/product-detail.html?id=${Number(r.productId)}">Xem sản phẩm trên sàn</a></div>`;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('trace-form');
+      const input = document.getElementById('trace-code');
+      form.onsubmit = (e) => { e.preventDefault(); lookup(input.value); };
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (code) { input.value = code; lookup(code); }
+    });
+  </script>
+</body>
+</html>
