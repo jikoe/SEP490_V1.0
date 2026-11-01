@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thẩm định chất lượng - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="verification-dashboard" style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CHUYÊN VIÊN THẨM ĐỊNH CHẤT LƯỢNG</p>
+              <h1>Bảng Thẩm Định &amp; Xác Minh Nông Trại</h1>
+              <p class="muted">Kiểm tra tính hợp lệ của chứng nhận VietGAP, GlobalGAP, Organic và xác minh pháp lý của nông hộ trước khi niêm yết.</p>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="metric-card">
+              <div class="metric-icon gold">📑</div>
+              <div class="metric-info">
+                <p class="metric-label">Chứng chỉ chờ duyệt</p>
+                <h3 class="metric-value">7 hồ sơ</h3>
+                <p class="metric-sub">VietGAP &amp; Hữu cơ nông nghiệp</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon blue">🏡</div>
+              <div class="metric-info">
+                <p class="metric-label">Hồ sơ nông trại mới</p>
+                <h3 class="metric-value">3 nông trại</h3>
+                <p class="metric-sub">Lâm Đồng, Đắk Lắk, Đồng Tháp</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon green">✓</div>
+              <div class="metric-info">
+                <p class="metric-label">Đã xác thực tháng này</p>
+                <h3 class="metric-value">18 chứng chỉ</h3>
+                <p class="metric-sub">Tỷ lệ đạt chuẩn 94,5%</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon purple">📍</div>
+              <div class="metric-info">
+                <p class="metric-label">Khảo sát thực địa</p>
+                <h3 class="metric-value">2 lịch hẹn</h3>
+                <p class="metric-sub">Trong 48 giờ tới</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-sections">
+            <div class="panel padded">
+              <div class="record-heading" style="padding: 0 0 16px;">
+                <h2>Hồ sơ chứng chỉ đang chờ xử lý</h2>
+                <span class="badge Pending">7 hồ sơ tồn đọng</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Nông trại đề nghị</th>
+                      <th>Loại chứng nhận</th>
+                      <th>Cơ quan cấp</th>
+                      <th>Ngày nộp</th>
+                      <th>Thời hạn</th>
+                      <th>Trạng thái</th>
+                      <th>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Nông trại Xanh Măng Đen</strong></td>
+                      <td>Chứng nhận Hữu cơ (Organic)</td>
+                      <td>Control Union</td>
+                      <td>20/10/2026</td>
+                      <td>20/10/2028</td>
+                      <td><span class="badge Pending">Chờ đối chiếu</span></td>
+                      <td><button class="primary" onclick="alert(Messages.common.certificateVerifiedNotice)">Xác thực</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Vườn Bưởi Da Xanh Bến Tre</strong></td>
+                      <td>VietGAP Trồng trọt</td>
+                      <td>Trung tâm Chất lượng NLTS</td>
+                      <td>18/10/2026</td>
+                      <td>18/10/2029</td>
+                      <td><span class="badge Pending">Đang thẩm định</span></td>
+                      <td><button class="primary" onclick="alert(Messages.common.certificateVerifiedNotice)">Xác thực</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>HTX Nấm Đông Trùng Tam Đảo</strong></td>
+                      <td>ISO 22000:2018</td>
+                      <td>Quacert</td>
+                      <td>15/10/2026</td>
+                      <td>15/10/2029</td>
+                      <td><span class="badge Pending">Chờ xác nhận</span></td>
+                      <td><button class="primary" onclick="alert(Messages.common.certificateVerifiedNotice)">Xác thực</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Verification Officer
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+</body>
+</html>

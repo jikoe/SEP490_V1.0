@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trung tâm hỗ trợ - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="support-dashboard" style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">CHĂM SÓC KHÁCH HÀNG &amp; HỖ TRỢ</p>
+              <h1>Trung Tâm Khiếu Nại &amp; Tranh Chấp</h1>
+              <p class="muted">Tiếp nhận yêu cầu từ người mua và nông dân, thu thập chứng cứ và điều phối phương án xử lý theo chính sách nền tảng.</p>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="metric-card">
+              <div class="metric-icon gold">🎫</div>
+              <div class="metric-info">
+                <p class="metric-label">Phiếu khiếu nại đang mở</p>
+                <h3 class="metric-value">5 phiếu</h3>
+                <p class="metric-sub">2 phiếu cần phản hồi gấp</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon red">⚖️</div>
+              <div class="metric-info">
+                <p class="metric-label">Tranh chấp chờ giải quyết</p>
+                <h3 class="metric-value">2 vụ</h3>
+                <p class="metric-sub">Chất lượng hàng &amp; Giao trễ</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon green">✓</div>
+              <div class="metric-info">
+                <p class="metric-label">Đã xử lý hôm nay</p>
+                <h3 class="metric-value">14 yêu cầu</h3>
+                <p class="metric-sub">Tỷ lệ hài lòng 98%</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon blue">⏱️</div>
+              <div class="metric-info">
+                <p class="metric-label">Thời gian xử lý TB</p>
+                <h3 class="metric-value">24 phút</h3>
+                <p class="metric-sub">Đạt chuẩn SLA hỗ trợ 1 giờ</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-sections">
+            <div class="panel padded">
+              <div class="record-heading" style="padding: 0 0 16px;">
+                <h2>Phiếu tranh chấp &amp; khiếu nại gần đây</h2>
+                <span class="badge Pending">Ưu tiên xử lý trong 24h</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã phiếu</th>
+                      <th>Khách hàng</th>
+                      <th>Mã đơn hàng</th>
+                      <th>Vấn đề phản ánh</th>
+                      <th>Mức độ</th>
+                      <th>Trạng thái</th>
+                      <th>Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>DSP-2610-09</strong></td>
+                      <td>Lê Hoàng Nam</td>
+                      <td>#ORD-98231</td>
+                      <td>Dập nát khi vận chuyển (Cam sành)</td>
+                      <td><span class="badge Suspended">Cao</span></td>
+                      <td><span class="badge Pending">Chờ bằng chứng ảnh</span></td>
+                      <td><button class="primary" onclick="alert(Messages.order.evidenceAuditNotice)">Xử lý ngay</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>DSP-2610-08</strong></td>
+                      <td>Trần Thị Thu</td>
+                      <td>#ORD-98190</td>
+                      <td>Sai quy cách đóng gói (Gạo ST25)</td>
+                      <td><span class="badge">Trung bình</span></td>
+                      <td><span class="badge Pending">Đang thương lượng hoàn tiền</span></td>
+                      <td><button class="primary" onclick="alert(Messages.order.evidenceAuditNotice)">Xử lý ngay</button></td>
+                    </tr>
+                    <tr>
+                      <td><strong>DSP-2610-06</strong></td>
+                      <td>Nguyễn Văn Đức</td>
+                      <td>#ORD-98045</td>
+                      <td>Hỏi cách tra cứu mã QR lô thu hoạch</td>
+                      <td><span class="badge">Thấp</span></td>
+                      <td><span class="badge Active">Đã giải quyết</span></td>
+                      <td><button onclick="alert(Messages.order.ticketArchivedNotice)">Xem hồ sơ</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Customer Support
+      </footer>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/order.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+</body>
+</html>

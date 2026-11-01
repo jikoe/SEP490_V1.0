@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xử lý khiếu nại - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <section style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">HỖ TRỢ &amp; GIẢI QUYẾT TRANH CHẤP</p>
+              <h1>Xử lý khiếu nại khách hàng</h1>
+              <p class="muted">Thẩm định chứng cứ thiệt hại, lỗi vận chuyển hoặc sai quy cách để đưa ra phương án đền bù hoặc hoàn tiền.</p>
+            </div>
+          </div>
+
+          <div class="panel record-panel">
+            <div class="record-heading">
+              <h2>Hàng đợi khiếu nại cần phân xử</h2>
+              <span class="count">3 khiếu nại</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã phiếu</th>
+                    <th>Người gửi</th>
+                    <th>Đơn hàng</th>
+                    <th>Nội dung phản ánh</th>
+                    <th>Thời gian gửi</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>KN-9921</strong></td>
+                    <td>Phạm Văn Hải</td>
+                    <td>#ORD-98210</td>
+                    <td>Dưa lưới bị nứt vỡ trong quá trình vận chuyển liên tỉnh</td>
+                    <td>Hôm nay 09:30</td>
+                    <td><span class="badge Pending">Chờ phản hồi</span></td>
+                    <td><button class="primary" onclick="alert(Messages.order.compensationApprovedNotice)">Chấp thuận hoàn 100%</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>KN-9918</strong></td>
+                    <td>Vũ Thu Trang</td>
+                    <td>#ORD-98150</td>
+                    <td>Giao thiếu 2kg cam trong đơn hàng sỉ</td>
+                    <td>Hôm qua 16:40</td>
+                    <td><span class="badge Pending">Đang xác minh</span></td>
+                    <td><button class="primary" onclick="alert(Messages.order.weightAuditRequestedNotice)">Yêu cầu HTX đối soát</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Customer Support
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+</body>
+</html>
