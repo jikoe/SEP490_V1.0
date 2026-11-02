@@ -11,6 +11,10 @@ public partial class Voucher
 
     public string VoucherCode { get; set; } = null!;
 
+    public string VoucherName { get; set; } = null!;
+
+    public string? Description { get; set; }
+
     public string DiscountType { get; set; } = null!;
 
     public decimal DiscountValue { get; set; }
@@ -22,6 +26,8 @@ public partial class Voucher
     public int? UsageLimit { get; set; }
 
     public int UsedCount { get; set; }
+
+    public int PerCustomerLimit { get; set; } = 1;
 
     public DateTime StartDate { get; set; }
 

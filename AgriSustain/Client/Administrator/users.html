@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý người dùng - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <section>
+          <div class="section-heading">
+            <div>
+              <h1>Quản lý người dùng</h1>
+              <p class="muted">Tìm kiếm tài khoản, xem xác minh và quản lý quyền truy cập nền tảng.</p>
+            </div>
+          </div>
+
+          <div id="alert-notice" class="notice" style="display:none; margin-bottom:16px;"></div>
+
+          <!-- Search Panel matching UsersScreen.jsx -->
+          <form class="panel search-panel" onsubmit="handleSearch(event)">
+            <label class="field">
+              <span>Từ khóa tìm kiếm</span>
+              <input type="text" id="search-keyword" maxlength="100" placeholder="Mã, tên, nông trại, công ty, email hoặc điện thoại">
+            </label>
+
+            <label class="field">
+              <span>Vai trò</span>
+              <select id="filter-role">
+                <option value="">Tất cả vai trò</option>
+                <option value="RetailCustomer">Người mua lẻ (RetailCustomer)</option>
+                <option value="Farmer">Nông dân (Farmer)</option>
+                <option value="WholesaleBuyer">Khách mua buôn (WholesaleBuyer)</option>
+                <option value="Administrator">Quản trị viên (Administrator)</option>
+                <option value="VerificationOfficer">Thẩm định viên (VerificationOfficer)</option>
+                <option value="ContentModerator">Kiểm duyệt viên (ContentModerator)</option>
+                <option value="CustomerSupport">Hỗ trợ khách hàng (CustomerSupport)</option>
+                <option value="PromotionStaff">Nhân viên khuyến mại (PromotionStaff)</option>
+                <option value="FinanceStaff">Nhân viên tài chính (FinanceStaff)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Trạng thái tài khoản</span>
+              <select id="filter-status">
+                <option value="">Tất cả trạng thái</option>
+                <option value="Active">Hoạt động</option>
+                <option value="Pending">Chờ xác nhận</option>
+                <option value="Rejected">Bị từ chối</option>
+                <option value="Suspended">Tạm ngưng</option>
+              </select>
+            </label>
+
+            <button class="primary" type="submit">Tìm kiếm</button>
+          </form>
+
+          <!-- Records Panel matching UsersScreen.jsx -->
+          <div class="panel record-panel">
+            <div class="record-heading">
+              <h2>Danh sách người dùng</h2>
+              <span id="user-count" class="count">0 tài khoản</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="user-table">
+                <thead>
+                  <tr>
+                    <th>Người dùng / Đơn vị</th>
+                    <th>Email</th>
+                    <th>Số điện thoại</th>
+                    <th>Vai trò</th>
+                    <th>Tài khoản</th>
+                    <th>KYC</th>
+                    <th>Ngày tạo</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="users-table-body">
+                  <tr>
+                    <td colspan="8" class="empty">Đang tải tài khoản…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pager -->
+            <div id="users-pager" class="pager" style="display:flex; justify-content:center; align-items:center; gap:8px; padding:16px 0;"></div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Administrator
+      </footer>
+    </div>
+  </div>
+
+  <!-- User Detail Modal -->
+  <dialog id="user-detail-modal">
+    <div class="modal-heading">
+      <h2>Chi tiết người dùng</h2>
+      <button type="button" onclick="closeDetailModal()">&times;</button>
+    </div>
+    <div id="user-detail-content" style="margin-top:16px;"></div>
+  </dialog>
+
+  <!-- Status Action Modal matching UsersScreen.jsx -->
+  <dialog id="status-action-modal">
+    <div class="modal-heading">
+      <h2 id="modal-action-title">Xác nhận thay đổi trạng thái</h2>
+      <button type="button" onclick="closeActionModal()">&times;</button>
+    </div>
+    <form onsubmit="handleStatusSubmit(event)" style="margin-top:16px;">
+      <p id="modal-action-desc"></p>
+      <div id="modal-suspend-warning" class="muted" style="display:none; margin-bottom:12px;">Tài khoản sẽ mất quyền truy cập cho đến khi được kích hoạt lại.</div>
+
+      <!-- Suspend / Reactivate require a preset reason or Other (BR-UM-04) -->
+      <label id="action-reason-field" class="field">
+        <span>Lý do *</span>
+        <select id="action-reason-choice" onchange="toggleOtherReason(this.value)"></select>
+      </label>
+
+      <label id="action-reason-other-field" class="field" style="display:none;">
+        <span>Ghi rõ lý do *</span>
+        <textarea id="action-reason-note" maxlength="480" placeholder="Mô tả chi tiết lý do..."></textarea>
+      </label>
+
+      <!-- Unlock takes an optional note of at most 500 characters (BR-UM-04) -->
+      <label id="action-unlock-note-field" class="field" style="display:none;">
+        <span>Ghi chú (không bắt buộc)</span>
+        <textarea id="action-unlock-note" maxlength="500" placeholder="Ghi chú cho thao tác mở khóa..."></textarea>
+      </label>
+
+      <div id="modal-action-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
+
+      <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" onclick="closeActionModal()">Hủy</button>
+        <button type="submit" id="modal-action-btn" class="primary">Xác nhận</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Scripts -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let currentPage = 1;
+    const pageSize = 10;
+    let pendingAction = null;
+    let usersCache = [];
+
+    const statusLabels = {
+      Active: 'Hoạt động',
+      Pending: 'Chờ duyệt',
+      Rejected: 'Bị từ chối',
+      Suspended: 'Tạm ngưng'
+    };
+
+    // Action-specific preset reasons (BR-UM-04); "Khác" requires an explanation.
+    const reasonPresets = {
+      suspend: [
+        'Vi phạm điều khoản sử dụng',
+        'Gian lận hoặc lừa đảo trong giao dịch',
+        'Đăng sản phẩm giả, kém chất lượng hoặc sai nguồn gốc',
+        'Nhiều khiếu nại chưa được giải quyết',
+        'Nghi ngờ tài khoản bị chiếm quyền'
+      ],
+      activate: [
+        'Đã khắc phục vi phạm',
+        'Đã xác minh lại chủ tài khoản',
+        'Khiếu nại đã được giải quyết',
+        'Tạm ngưng nhầm'
+      ]
+    };
+
+    /**
+     * Status actions offered for an account (BR-UM-02, BR-UM-03, BR-UM-05): none on the
+     * Administrator's own account; Suspend/Reactivate only for marketplace accounts;
+     * Unlock only for an Active account with an unexpired lock; nothing for Pending/Rejected.
+     */
+    function eligibleActions(user) {
+      if (user.id === user.currentActorId) return [];
+      const actions = [];
+      if (user.canSuspend && user.status === 'Active') actions.push('suspend');
+      if (user.canSuspend && user.status === 'Suspended') actions.push('activate');
+      if (user.isLocked && user.status === 'Active') actions.push('unlock');
+      return actions;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadUsers(1);
+    });
+
+    async function loadUsers(page = 1) {
+      currentPage = page;
+      const keyword = document.getElementById('search-keyword').value.trim();
+      const role = document.getElementById('filter-role').value;
+      const status = document.getElementById('filter-status').value;
+
+      const tbody = document.getElementById('users-table-body');
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">Đang tải tài khoản…</td></tr>';
+
+      try {
+        const res = await API.getUsers({
+          page,
+          pageSize,
+          keyword,
+          role,
+          status
+        });
+
+        if (res.success && res.data) {
+          const items = res.data.items || res.data.value || (Array.isArray(res.data) ? res.data : []);
+          const total = res.data.totalCount || res.data.total || items.length;
+          usersCache = items;
+
+          document.getElementById('user-count').textContent = `${total} tài khoản`;
+          renderUsersTable(items);
+          renderPager(total, page, pageSize);
+        } else {
+          usersCache = [];
+          document.getElementById('user-count').textContent = `0 tài khoản`;
+          renderUsersTable([]);
+          renderPager(0, 1, 10);
+          if (res.error) showAlert(res.error, 'error');
+        }
+      } catch (err) {
+        usersCache = [];
+        document.getElementById('user-count').textContent = `0 tài khoản`;
+        renderUsersTable([]);
+        renderPager(0, 1, 10);
+        showAlert('Không thể kết nối đến máy chủ backend để tải danh sách tài khoản.', 'error');
+      }
+    }
+
+    function renderUsersTable(items) {
+      const tbody = document.getElementById('users-table-body');
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">Không tìm thấy kết quả phù hợp. Hãy điều chỉnh từ khóa hoặc bộ lọc.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = items.map(user => {
+        const kycBadge = getKycBadge(user.verificationStatus);
+        const statusBadge = `<span class="badge ${user.status || 'Active'}">${statusLabels[user.status] || Utils.escapeHtml(user.status || '—')}</span>${user.isLocked ? ' <small style="color:#b23b3b;font-weight:700;">Khóa tạm</small>' : ''}`;
+        const createdDate = Utils.formatDate(user.createdAt || user.createdDate);
+
+        const actions = eligibleActions(user);
+        let actionBtns = '';
+        if (actions.includes('suspend')) {
+          actionBtns += `<button class="danger-link" type="button" onclick="prepareStatus(${user.id}, 'suspend')">Tạm ngưng</button>`;
+        }
+        if (actions.includes('activate')) {
+          actionBtns += `<button type="button" onclick="prepareStatus(${user.id}, 'activate')">Kích hoạt lại</button>`;
+        }
+        if (actions.includes('unlock')) {
+          actionBtns += `<button type="button" onclick="prepareStatus(${user.id}, 'unlock')">Mở khóa</button>`;
+        }
+
+        return `
+          <tr>
+            <td>
+              <button class="text-button name-link" type="button" onclick="viewDetail(${user.id})">
+                ${Utils.escapeHtml(user.organizationName || user.name || user.fullName || 'Người dùng')}
+              </button>
+              <small>#${user.id}</small>
+            </td>
+            <td>${Utils.escapeHtml(user.email || '—')}</td>
+            <td>${Utils.escapeHtml(user.phone || user.phoneNumber || '—')}</td>
+            <td><span class="badge role-badge">${Utils.escapeHtml(user.role || 'User')}</span></td>
+            <td>${statusBadge}</td>
+            <td>${kycBadge}</td>
+            <td>${createdDate}</td>
+            <td>
+              <div class="row-actions">
+                <button class="text-button" type="button" onclick="viewDetail(${user.id})">Xem chi tiết</button>
+                ${actionBtns}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function getKycBadge(status) {
+      if (status === 'Approved' || status === 'Verified') {
+        return '<span class="badge Active">✓ Đã xác minh</span>';
+      } else if (status === 'Pending') {
+        return '<span class="badge Pending">⏳ Đang duyệt KYC</span>';
+      } else if (status === 'Rejected') {
+        return '<span class="badge Suspended">✕ Từ chối KYC</span>';
+      }
+      return '<span class="badge">Chưa xác minh</span>';
+    }
+
+    function renderPager(total, page, size) {
+      const pagerEl = document.getElementById('users-pager');
+      const totalPages = Math.ceil(total / size) || 1;
+      if (totalPages <= 1) {
+        pagerEl.innerHTML = '';
+        return;
+      }
+
+      let html = `<button type="button" ${page <= 1 ? 'disabled' : ''} onclick="loadUsers(${page - 1})">‹ Trang trước</button>`;
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button type="button" class="${i === page ? 'primary' : ''}" onclick="loadUsers(${i})">${i}</button>`;
+      }
+      html += `<button type="button" ${page >= totalPages ? 'disabled' : ''} onclick="loadUsers(${page + 1})">Trang sau ›</button>`;
+      pagerEl.innerHTML = html;
+    }
+
+    function handleSearch(e) {
+      e.preventDefault();
+      loadUsers(1);
+    }
+
+    function viewDetail(userId) {
+      const u = usersCache.find(x => x.id === userId);
+      if (!u) return;
+
+      const content = document.getElementById('user-detail-content');
+      content.innerHTML = `
+        <article class="panel user-detail-card" style="padding:16px;">
+          <div class="identity-heading" style="display:flex; gap:16px; align-items:center; margin-bottom:16px;">
+            <div class="identity-avatar" style="width:50px;height:50px;border-radius:50%;background:#e5f4e9;color:#094d34;display:grid;place-items:center;font-size:20px;font-weight:700;">
+              ${(u.name || u.fullName || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h2 style="margin:0 0 4px;">${Utils.escapeHtml(u.organizationName || u.name || u.fullName)}</h2>
+              <p class="muted" style="margin:0;">Mã tài khoản: #${u.id}</p>
+              <span class="badge role-badge" style="margin-top:6px; display:inline-block;">${Utils.escapeHtml(u.role)}</span>
+            </div>
+          </div>
+
+          <div class="identity-information" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; border-top:1px solid #e7eceb; padding-top:16px;">
+            <div>
+              <span style="font-size:12px;color:#687b70;">Email:</span>
+              <p style="font-weight:600; margin:4px 0 12px;">${Utils.escapeHtml(u.email || '—')}</p>
+              <span style="font-size:12px;color:#687b70;">Trạng thái tài khoản:</span>
+              <p style="margin:4px 0 12px;"><span class="badge ${u.status || 'Active'}">${statusLabels[u.status] || Utils.escapeHtml(u.status || '—')}</span></p>
+              <span style="font-size:12px;color:#687b70;">Khóa đăng nhập tạm thời:</span>
+              <p style="margin:4px 0;">${u.isLocked ? `Đang khóa đến ${Utils.formatDateTime(u.lockedUntil)}` : 'Không khóa'} · Đăng nhập sai: ${u.failedLoginCount || 0} lần</p>
+            </div>
+            <div>
+              <span style="font-size:12px;color:#687b70;">Số điện thoại:</span>
+              <p style="font-weight:600; margin:4px 0 12px;">${Utils.escapeHtml(u.phone || 'Chưa cập nhật')}</p>
+              <span style="font-size:12px;color:#687b70;">Trạng thái xác minh / KYC:</span>
+              <p style="margin:4px 0;">${getKycBadge(u.verificationStatus)}</p>
+            </div>
+          </div>
+        </article>
+      `;
+      document.getElementById('user-detail-modal').showModal();
+    }
+
+    function closeDetailModal() {
+      document.getElementById('user-detail-modal').close();
+    }
+
+    function prepareStatus(userId, action) {
+      const u = usersCache.find(x => x.id === userId);
+      if (!u || !eligibleActions(u).includes(action)) return;
+
+      pendingAction = { user: u, action };
+      const titleMap = {
+        suspend: 'Tạm ngưng tài khoản',
+        activate: 'Kích hoạt lại tài khoản',
+        unlock: 'Mở khóa tài khoản'
+      };
+      document.getElementById('modal-action-title').textContent = titleMap[action] || 'Thay đổi trạng thái';
+      document.getElementById('modal-action-desc').innerHTML = `Xác nhận ${titleMap[action].toLowerCase()} <strong>${Utils.escapeHtml(u.organizationName || u.name || u.fullName)}</strong>?`;
+
+      const warningEl = document.getElementById('modal-suspend-warning');
+      const btnEl = document.getElementById('modal-action-btn');
+
+      if (action === 'suspend') {
+        warningEl.style.display = 'block';
+        btnEl.className = 'danger';
+        btnEl.textContent = 'Xác nhận tạm ngưng';
+      } else {
+        warningEl.style.display = 'none';
+        btnEl.className = 'primary';
+        btnEl.textContent = action === 'unlock' ? 'Xác nhận mở khóa' : 'Xác nhận kích hoạt lại';
+      }
+
+      const needsReason = action !== 'unlock';
+      const choiceEl = document.getElementById('action-reason-choice');
+      choiceEl.innerHTML = '<option value="">Chọn lý do</option>'
+        + (reasonPresets[action] || []).map(r => `<option value="${Utils.escapeHtml(r)}">${Utils.escapeHtml(r)}</option>`).join('')
+        + '<option value="Khác">Khác</option>';
+      choiceEl.required = needsReason;
+      choiceEl.value = '';
+      document.getElementById('action-reason-field').style.display = needsReason ? 'block' : 'none';
+      document.getElementById('action-reason-other-field').style.display = 'none';
+      document.getElementById('action-reason-note').value = '';
+      document.getElementById('action-reason-note').required = false;
+      document.getElementById('action-unlock-note-field').style.display = needsReason ? 'none' : 'block';
+      document.getElementById('action-unlock-note').value = '';
+      setActionError('');
+
+      document.getElementById('status-action-modal').showModal();
+    }
+
+    function closeActionModal() {
+      document.getElementById('status-action-modal').close();
+      pendingAction = null;
+    }
+
+    function toggleOtherReason(val) {
+      const field = document.getElementById('action-reason-other-field');
+      field.style.display = (val === 'Khác') ? 'block' : 'none';
+      document.getElementById('action-reason-note').required = val === 'Khác';
+    }
+
+    function setActionError(msg) {
+      const el = document.getElementById('modal-action-error');
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
+    }
+
+    async function handleStatusSubmit(e) {
+      e.preventDefault();
+      if (!pendingAction) return;
+
+      const { user, action } = pendingAction;
+      let reasonText = null;
+      if (action === 'unlock') {
+        reasonText = document.getElementById('action-unlock-note').value.trim() || null;
+      } else {
+        const choice = document.getElementById('action-reason-choice').value;
+        const note = document.getElementById('action-reason-note').value.trim();
+        if (!choice || (choice === 'Khác' && !note)) {
+          setActionError('Vui lòng chọn lý do hoặc ghi rõ lý do khác.');
+          return;
+        }
+        reasonText = choice === 'Khác' ? `Khác: ${note}` : choice;
+      }
+
+      const btnEl = document.getElementById('modal-action-btn');
+      btnEl.disabled = true;
+      setActionError('');
+      try {
+        const res = await API.updateUserStatus(user.id, {
+          action,
+          reason: reasonText,
+          confirmed: true
+        });
+
+        if (!res.success) {
+          // Stale state, ineligible action or missing record: refresh instead of retrying (MSG-UM-04/06).
+          if ([403, 404, 409].includes(res.status)) {
+            closeActionModal();
+            await loadUsers(currentPage);
+          } else {
+            setActionError(res.error || 'Không thể thực hiện thao tác. Vui lòng thử lại.');
+          }
+          return;
+        }
+
+        closeActionModal();
+        const doneMap = { suspend: 'tạm ngưng', activate: 'kích hoạt lại', unlock: 'mở khóa' };
+        showAlert(`Tài khoản #${user.id} đã được ${doneMap[action]}.`, 'success');
+        await loadUsers(currentPage);
+      } catch (err) {
+        setActionError(err.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.');
+      } finally {
+        btnEl.disabled = false;
+      }
+    }
+
+    function showAlert(msg, type = 'success') {
+      const el = document.getElementById('alert-notice');
+      if (el) {
+        el.className = `notice ${type === 'error' ? 'error' : ''}`;
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4000);
+      }
+      Utils.showToast(msg, type);
+    }
+  </script>
+</body>
+</html>

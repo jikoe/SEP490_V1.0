@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xử lý hoàn tiền - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/refund.css">
+</head>
+<body>
+  <div class="app-shell finance-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <!-- UC-FIN-03 Process Refund (Figma UC-FIN-03, nodes 34:533–34:538) -->
+        <section class="rf-page">
+          <p class="rf-crumbs">Tài chính / Hoàn tiền</p>
+          <h1 id="rf-title">Yêu cầu hoàn tiền</h1>
+          <p class="rf-sub">Hoàn từ khiếu nại hoặc đơn bị Nông dân từ chối; chuyển khoản và ghi nhận kết quả.</p>
+
+          <!-- (1)–(5) List -->
+          <div id="view-list">
+            <form class="rf-card rf-filters" onsubmit="event.preventDefault(); loadRefunds(1);">
+              <label>(1) Tìm kiếm
+                <input id="f-search" type="search" maxlength="50" placeholder="Mã hoàn, mã khiếu nại hoặc đơn nông trại"></label>
+              <label>(2) Trạng thái
+                <select id="f-status" onchange="loadRefunds(1)">
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="Pending">Chờ chuyển</option>
+                  <option value="Processing">Đang chuyển</option>
+                  <option value="Completed">Thành công</option>
+                  <option value="Failed">Thất bại</option>
+                  <option value="NeedsReconciliation">Cần đối soát</option>
+                </select></label>
+              <label>(3) Thời gian tạo
+                <span class="rf-dates">
+                  <input id="f-from" type="date" aria-label="Từ ngày" onchange="loadRefunds(1)">
+                  <span>–</span>
+                  <input id="f-to" type="date" aria-label="Đến ngày" onchange="loadRefunds(1)">
+                </span>
+                <span class="rf-field-error" id="f-date-error" hidden></span></label>
+            </form>
+
+            <div class="rf-card">
+              <h2>(4) Danh sách yêu cầu · <span id="rf-count">0</span> kết quả</h2>
+              <table class="rf-table">
+                <thead><tr><th>Mã hoàn / Đơn nông trại</th><th>Khoản hoàn</th><th>Ngày tạo</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                <tbody id="rf-rows"><tr><td colspan="5" class="empty">Đang tải...</td></tr></tbody>
+              </table>
+              <div class="rf-foot">
+                <span id="rf-range"></span>
+                <div class="rf-pager" id="rf-pager"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- (6)–(15) Refund facts, shared by the detail and the transfer view -->
+          <div class="rf-card" id="rf-facts-card" hidden>
+            <div class="rf-facts" id="rf-facts"></div>
+            <p class="rf-source" id="rf-source"></p>
+            <div id="rf-state"></div>
+          </div>
+
+          <!-- (17) Transfer history -->
+          <div class="rf-card" id="view-history" hidden>
+            <h2>(17) Lịch sử chuyển khoản</h2>
+            <ul class="rf-history" id="rf-history"></ul>
+          </div>
+
+          <!-- (17)–(23) Transfer view -->
+          <div class="rf-card rf-transfer" id="view-transfer" hidden>
+            <h2 id="t-title"></h2>
+            <p id="t-guide"></p>
+            <div class="rf-qr">
+              <figure id="t-qr"></figure>
+              <dl id="t-account"></dl>
+            </div>
+            <div class="rf-record">
+              <label>(18) Mã giao dịch ngân hàng *
+                <input id="t-reference" maxlength="150" placeholder="VD: VCB-231026-778812" autocomplete="off">
+                <span class="rf-field-error" id="t-reference-error" hidden></span></label>
+              <label>(19) Ghi chú / lý do
+                <textarea id="t-note" maxlength="500" placeholder="Bắt buộc khi ghi nhận thất bại hoặc cần đối soát"></textarea>
+                <span class="rf-field-error" id="t-note-error" hidden></span></label>
+            </div>
+            <div class="rf-buttons">
+              <button type="button" class="rf-btn primary" id="btn-success" onclick="recordSuccess()">(20) Ghi nhận thành công</button>
+              <button type="button" class="rf-btn" id="btn-failure" onclick="recordFailure()">(21) Ghi nhận thất bại</button>
+              <button type="button" class="rf-btn" id="btn-reconcile" onclick="recordReconciliation()">(22) Cần đối soát</button>
+              <button type="button" class="rf-btn" id="btn-cancel" onclick="cancelTransfer()">(23) Huỷ chuyển</button>
+              <button type="button" class="rf-btn" onclick="showDetail()">Quay lại chi tiết</button>
+            </div>
+          </div>
+        </section>
+
+        <dialog id="rf-dialog" class="rf-dialog">
+          <h2 id="dialog-title"></h2>
+          <p id="dialog-text"></p>
+          <div class="rf-buttons" style="justify-content: flex-end;">
+            <button type="button" class="rf-btn" id="dialog-back" onclick="closeDialog(false)">Quay lại</button>
+            <button type="button" class="rf-btn primary" id="dialog-ok" onclick="closeDialog(true)">Xác nhận</button>
+          </div>
+        </dialog>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Finance Staff
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    const pageSize = 10;
+    let currentPage = 1;
+    let refund = null;
+    let dialogResolve = null;
+
+    const statusLabels = {
+      Pending: 'Chờ chuyển', Processing: 'Đang chuyển', Completed: 'Thành công',
+      Failed: 'Thất bại', NeedsReconciliation: 'Cần đối soát'
+    };
+    const typeLabels = { Full: 'Hoàn toàn bộ', Partial: 'Hoàn một phần', Cancellation: 'Hoàn do huỷ đơn' };
+    const sellerOrderLabels = { Refunded: 'Đã hoàn tiền', PartiallyRefunded: 'Hoàn một phần', Cancelled: 'Đã huỷ' };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const id = Number(new URLSearchParams(location.search).get('id'));
+      if (id) openRefund(id); else loadRefunds(1);
+    });
+
+    /* ---------------- Formatting (VND, Vietnam time) ---------------- */
+
+    const esc = (s) => Utils.escapeHtml(s == null ? '' : String(s));
+    const money = (n) => `${Number(n || 0).toLocaleString('vi-VN')} đ`;
+
+    function vnParts(value) {
+      return Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+      }).formatToParts(new Date(value)).map(p => [p.type, p.value]));
+    }
+    const vnDateTime = (v) => { if (!v) return '—'; const p = vnParts(v); return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`; };
+    const ticketCode = (id, at) => `KN-${at ? vnParts(at).year : ''}-${String(id).padStart(3, '0')}`;
+
+    // "Awaiting customer account" is a readiness label on Pending (spec field 2).
+    function pill(status, hasAccount) {
+      if (status === 'Pending' && !hasAccount) return '<span class="rf-pill Waiting">Chờ tài khoản khách hàng</span>';
+      return `<span class="rf-pill ${esc(status)}">${esc(statusLabels[status] || status)}</span>`;
+    }
+
+    function setView(name) {
+      document.getElementById('view-list').hidden = name !== 'list';
+      document.getElementById('rf-facts-card').hidden = name === 'list';
+      document.getElementById('view-history').hidden = name !== 'detail';
+      document.getElementById('rf-state').hidden = name !== 'detail';
+      document.getElementById('view-transfer').hidden = name !== 'transfer';
+      document.getElementById('rf-title').textContent =
+        { list: 'Yêu cầu hoàn tiền', detail: 'Chi tiết hoàn tiền', transfer: 'Chuyển khoản hoàn tiền' }[name];
+      const url = name === 'list' ? location.pathname : `${location.pathname}?id=${refund.refundId}`;
+      history.replaceState(null, '', url);
+      window.scrollTo({ top: 0 });
+    }
+
+    /* ---------------- (1)–(5) List ---------------- */
+
+    async function loadRefunds(page) {
+      currentPage = page;
+      const fromDate = document.getElementById('f-from').value;
+      const toDate = document.getElementById('f-to').value;
+      const dateError = document.getElementById('f-date-error');
+      dateError.hidden = !(fromDate && toDate && fromDate > toDate);
+      dateError.textContent = 'Ngày bắt đầu không được sau ngày kết thúc.';
+      if (!dateError.hidden) return;
+
+      const res = await API.getRefunds({
+        search: document.getElementById('f-search').value.trim(),
+        status: document.getElementById('f-status').value,
+        fromDate, toDate, page, pageSize
+      }, { suppressErrorToast: true });
+      const rows = document.getElementById('rf-rows');
+      if (!res.success) {
+        rows.innerHTML = '<tr><td colspan="5" class="empty">Không thể tải danh sách hoàn tiền. Vui lòng thử lại.</td></tr>';
+        document.getElementById('rf-range').textContent = '';
+        document.getElementById('rf-pager').innerHTML = '';
+        return;
+      }
+      const data = res.data;
+      document.getElementById('rf-count').textContent = data.total;
+      rows.innerHTML = data.items.length ? data.items.map(r => `<tr>
+          <td class="code">${esc(r.refundCode)} / ${esc(r.sellerOrderCode || '—')}</td>
+          <td>${money(r.amount)}</td>
+          <td>${vnDateTime(r.requestedAt)}</td>
+          <td>${pill(r.refundStatus, r.hasReceivingAccount)}</td>
+          <td><button type="button" class="rf-btn" onclick="openRefund(${r.refundId})">Xem</button></td>
+        </tr>`).join('')
+        : '<tr><td colspan="5" class="empty">Không tìm thấy yêu cầu hoàn tiền phù hợp.</td></tr>';
+      const from = data.total ? (data.page - 1) * data.pageSize + 1 : 0;
+      const to = Math.min(data.page * data.pageSize, data.total);
+      document.getElementById('rf-range').textContent =
+        `(5) Hiển thị ${from}–${to} / ${data.total} yêu cầu · ${data.pageSize} dòng / trang`;
+      const pages = Math.ceil(data.total / data.pageSize);
+      document.getElementById('rf-pager').innerHTML = pages <= 1 ? '' : Array.from({ length: pages }, (_, i) =>
+        `<button type="button" class="${i + 1 === currentPage ? 'current' : ''}" onclick="loadRefunds(${i + 1})">${i + 1}</button>`).join('');
+    }
+
+    function backToList() {
+      refund = null;
+      setView('list');
+      loadRefunds(currentPage);
+    }
+
+    /* ---------------- (6)–(17) Detail ---------------- */
+
+    async function openRefund(id, view = 'detail') {
+      const res = await API.getRefund(id);
+      if (!res.success) {
+        if (!refund) backToList();
+        return;
+      }
+      refund = res.data;
+      renderFacts();
+      if (view === 'transfer' && ['Processing', 'NeedsReconciliation'].includes(refund.refundStatus)) {
+        showTransfer();
+      } else {
+        showDetail();
+      }
+    }
+
+    function accountText(r) {
+      return r.hasReceivingAccount
+        ? `${esc(r.receiverBankName)} · ${esc(r.receiverAccountMasked)} · ${esc(r.receiverAccountHolder)}`
+        : 'Chưa có — chờ khách hàng cung cấp';
+    }
+
+    function renderFacts() {
+      const r = refund;
+      const complaint = r.sourceType === 'Complaint';
+      const source = complaint ? `${ticketCode(r.ticketId, r.decidedAt)} · ${typeLabels[r.refundType]}` : 'Nông dân từ chối đơn';
+      // After success the seller order has nothing left for this refund.
+      const remaining = r.sellerOrderRefundableAmount == null ? null
+        : r.refundStatus === 'Completed' ? Math.max(0, r.sellerOrderRefundableAmount - r.amount) : r.sellerOrderRefundableAmount;
+      const fact = (label, value) => `<div><span>${label}</span><strong>${value}</strong></div>`;
+      document.getElementById('rf-facts').innerHTML = [
+        fact('(6) Mã hoàn tiền', esc(r.refundCode)),
+        `<div class="status">${pill(r.refundStatus, r.hasReceivingAccount)}</div>`,
+        '<div></div>',
+        fact('(7) Đơn nông trại / Thanh toán', `${esc(r.sellerOrderCode || '—')} / ${esc(r.paymentCode)}`),
+        fact('(8) Nguồn hoàn tiền', esc(source)),
+        fact('(9) Khách hàng', `${esc(r.buyerName || '—')}${r.buyerPhone ? ` · ${esc(r.buyerPhone)}` : ''}`),
+        fact('(10) Tài khoản nhận hoàn', accountText(r)),
+        fact('(11) Nội dung chuyển khoản', esc(r.refundCode)),
+        fact('(12) Còn hoàn được của đơn nông trại', remaining == null ? '—' : money(remaining)),
+        fact('(13) Số tiền được duyệt', money(r.amount)),
+        fact('(14) Loại hoàn tiền', esc(typeLabels[r.refundType] || r.refundType)),
+        fact(complaint ? '(15) Lý do quyết định' : '(15) Lý do từ chối', esc(r.resolutionNotes || r.reason || '—'))
+      ].join('');
+      const parts = [];
+      if (complaint && r.decidedAt) parts.push(`Quyết định của Chăm sóc khách hàng ngày ${vnDateTime(r.decidedAt)}`);
+      if (r.receiverAccountProvidedAt) parts.push(`Tài khoản nhận ghi nhận lúc ${vnDateTime(r.receiverAccountProvidedAt)}`);
+      parts.push(`Thanh toán gốc ${money(r.paymentAmount)}, còn hoàn được ${money(r.paymentRefundableAmount)}`);
+      document.getElementById('rf-source').textContent = `${parts.join(' · ')}.`;
+    }
+
+    function notice(kind, title, text) {
+      return `<div class="rf-notice ${kind}"><strong>${title}</strong><p>${text}</p></div>`;
+    }
+
+    function lastReason(action) {
+      const row = [...refund.history].reverse().find(h => h.action === action);
+      return row?.reason || '';
+    }
+
+    function showDetail() {
+      const r = refund;
+      const back = '<button type="button" class="rf-btn" onclick="backToList()">Về danh sách</button>';
+      let html;
+      switch (r.refundStatus) {
+        case 'Pending':
+          html = (r.hasReceivingAccount
+            ? notice('ok', 'Đã có tài khoản nhận', 'Kiểm tra tên chủ tài khoản trước khi chuyển. Bắt đầu chuyển chưa làm thay đổi tiền.')
+            : notice('idle', 'Chờ tài khoản khách hàng', 'Khách hàng chưa cung cấp tài khoản nhận hoàn tiền nên chưa thể bắt đầu chuyển.'))
+            + `<div class="rf-buttons"><button type="button" class="rf-btn primary" id="btn-start" onclick="startTransfer()"
+                ${r.canStartTransfer ? '' : 'disabled'}>(16) Bắt đầu chuyển</button>${back}</div>`;
+          break;
+        case 'Processing':
+          html = notice('warn', 'Đang chuyển · chờ ghi kết quả',
+              `Chuyển ${money(r.amount)} với nội dung ${esc(r.refundCode)}, sau đó ghi nhận kết quả.`)
+            + `<div class="rf-buttons"><button type="button" class="rf-btn primary" onclick="showTransfer()">Ghi kết quả</button>
+               <button type="button" class="rf-btn" onclick="cancelTransfer()">Huỷ chuyển</button>${back}</div>`;
+          break;
+        case 'NeedsReconciliation':
+          html = notice('warn', 'Ngân hàng chưa xác nhận giao dịch',
+              `Đối chiếu sao kê theo nội dung ${esc(r.refundCode)}, rồi ghi nhận thành công kèm mã giao dịch hoặc ghi nhận thất bại kèm lý do. Không chuyển thêm lần nữa.`)
+            + `<div class="rf-buttons"><button type="button" class="rf-btn primary" onclick="showTransfer()">Ghi kết quả</button>${back}</div>`;
+          break;
+        case 'Failed':
+          html = notice('bad', 'Chuyển khoản thất bại',
+              `Lý do: ${esc(lastReason('RefundTransferFailed') || '—')}. Đã gửi thông báo và email để người mua kiểm tra lại tài khoản; khi tài khoản được cập nhật thì chuyển lại.`)
+            + `<div class="rf-buttons"><button type="button" class="rf-btn primary" id="btn-start" onclick="startTransfer()"
+                ${r.canStartTransfer ? '' : 'disabled'}>Chuyển lại</button>${back}</div>`;
+          break;
+        default: {
+          const complaint = r.sourceType === 'Complaint';
+          const text = complaint
+            ? `Đã chuyển ${money(r.amount)} tới ${esc(r.receiverBankName || '')} ${esc(r.receiverAccountMasked || '')}. Khiếu nại ${ticketCode(r.ticketId, r.decidedAt)} đã đóng, đơn ${esc(r.sellerOrderCode)} chuyển ${esc(sellerOrderLabels[r.sellerOrderStatus] || r.sellerOrderStatus)}. Đã thông báo và gửi email cho người mua, thông báo cho Nông dân.`
+            : `Đã hoàn ${money(r.amount)} qua cổng thanh toán cho đơn bị Nông dân từ chối; đơn giữ trạng thái Đã huỷ.`;
+          html = notice('ok', 'Hoàn tiền thành công', text)
+            + `<div class="rf-facts" style="margin-bottom:16px">
+                 <div><span>Mã giao dịch ngân hàng</span><strong>${esc(r.transferReference || '—')}</strong></div>
+                 <div><span>Thời gian xử lý</span><strong>${vnDateTime(r.processedAt)}</strong></div>
+                 <div><span>Thông báo khách hàng</span><strong>Đã tạo thông báo</strong></div>
+               </div><div class="rf-buttons"><button type="button" class="rf-btn primary" onclick="backToList()">Về danh sách</button></div>`;
+        }
+      }
+      document.getElementById('rf-state').innerHTML = html;
+      renderHistory();
+      setView('detail');
+    }
+
+    const historyLabels = {
+      RequestCreated: 'Tạo yêu cầu', AccountProvided: 'Ghi nhận tài khoản nhận', StartTransfer: 'Bắt đầu chuyển',
+      TransferAgain: 'Chuyển lại', CancelTransfer: 'Huỷ chuyển', CompleteRefund: 'Ghi nhận thành công',
+      RefundTransferFailed: 'Ghi nhận thất bại', NeedsReconciliation: 'Chuyển sang cần đối soát'
+    };
+
+    function renderHistory() {
+      const r = refund;
+      const rows = r.history.map(h => {
+        let data = {};
+        try { data = JSON.parse(h.detail || '{}'); } catch { /* older rows hold plain text */ }
+        const actor = h.action === 'RequestCreated' ? 'Hệ thống'
+          : h.action === 'AccountProvided' ? 'Người mua' : (h.performedByName || 'Hệ thống');
+        const bits = [esc(historyLabels[h.action] || h.action)];
+        if (h.action === 'RequestCreated') {
+          bits[0] = r.sourceType === 'Complaint' ? `Tạo yêu cầu từ quyết định ${ticketCode(r.ticketId, r.decidedAt)}` : 'Tạo yêu cầu từ đơn bị từ chối';
+        }
+        if (h.action === 'AccountProvided') bits[0] = `Tài khoản ${esc(r.receiverBankName || '')} ${esc(data.Account || '')} · ${esc(r.receiverAccountHolder || '')}`;
+        if (data.Amount != null && h.action !== 'AccountProvided') bits.push(money(data.Amount));
+        if (data.Account && h.action !== 'AccountProvided') bits.push(esc(data.Account));
+        if (data.TransferReference) bits.push(`Mã GD ${esc(data.TransferReference)}`);
+        if (h.reason && h.action !== 'RequestCreated') bits.push(esc(h.reason));
+        return `<li>${vnDateTime(h.occurredAt)} · ${esc(actor)} · ${bits.join(' · ')}</li>`;
+      });
+      document.getElementById('rf-history').innerHTML = rows.join('') || '<li>Chưa có sự kiện.</li>';
+    }
+
+    /* ---------------- (16)–(23) Actions ---------------- */
+
+    function confirmBox(title, text, okLabel) {
+      document.getElementById('dialog-title').textContent = title;
+      document.getElementById('dialog-text').textContent = text;
+      document.getElementById('dialog-ok').textContent = okLabel || 'Xác nhận';
+      document.getElementById('dialog-back').hidden = false;
+      document.getElementById('rf-dialog').showModal();
+      return new Promise(resolve => { dialogResolve = resolve; });
+    }
+
+    function closeDialog(ok) {
+      document.getElementById('rf-dialog').close();
+      if (dialogResolve) dialogResolve(ok);
+      dialogResolve = null;
+    }
+
+    // MSG-RF-04: the request changed elsewhere; show it as it is now.
+    async function handleFailure(res, fieldMap = {}) {
+      if (res.status === 409 && res.code === 'REFUND_NOT_PENDING') {
+        document.getElementById('dialog-title').textContent = 'Yêu cầu đã thay đổi';
+        document.getElementById('dialog-text').textContent = res.error;
+        document.getElementById('dialog-ok').textContent = 'Tải lại';
+        document.getElementById('dialog-back').hidden = true;
+        document.getElementById('rf-dialog').showModal();
+        await new Promise(resolve => { dialogResolve = resolve; });
+        await openRefund(refund.refundId);
+        return;
+      }
+      const errors = res.data?.errors || {};
+      let shown = false;
+      for (const [field, target] of Object.entries(fieldMap)) {
+        if (errors[field]?.length) { setFieldError(target, errors[field][0]); shown = true; }
+      }
+      if (!shown) Utils.showToast(res.error, 'error');
+    }
+
+    function setFieldError(id, text) {
+      const el = document.getElementById(id);
+      el.textContent = text || '';
+      el.hidden = !text;
+    }
+
+    async function startTransfer() {
+      const button = document.getElementById('btn-start');
+      if (button) button.disabled = true;
+      const res = await API.startRefundTransfer(refund.refundId, refund.refundStatus);
+      if (!res.success) {
+        if (button) button.disabled = false;
+        return handleFailure(res);
+      }
+      Utils.showToast(res.data.message, 'success');
+      await openRefund(refund.refundId, 'transfer');
+    }
+
+    function showTransfer() {
+      const r = refund;
+      const processing = r.refundStatus === 'Processing';
+      document.getElementById('t-title').textContent = `(17) Chuyển ${money(r.amount)} cho ${r.receiverAccountHolder || ''}`;
+      document.getElementById('t-guide').textContent = processing
+        ? `Quét mã VietQR bằng ứng dụng ngân hàng của công ty. Nội dung chuyển khoản phải là ${r.refundCode}. Chuyển xong, nhập mã giao dịch ngân hàng rồi ghi nhận kết quả.`
+        : `Cần đối soát: không chuyển thêm. Đối chiếu sao kê theo nội dung ${r.refundCode} rồi ghi nhận thành công hoặc thất bại.`;
+      const qrUrl = `https://img.vietqr.io/image/${encodeURIComponent(r.receiverBankCode)}-${encodeURIComponent(r.receiverAccountNumber)}-compact.png`
+        + `?amount=${Math.round(r.amount)}&addInfo=${encodeURIComponent(r.refundCode)}&accountName=${encodeURIComponent(r.receiverAccountHolder || '')}`;
+      const qr = document.getElementById('t-qr');
+      qr.innerHTML = `<img alt="Mã VietQR chuyển ${esc(money(r.amount))}" src="${esc(qrUrl)}">`;
+      qr.querySelector('img').addEventListener('error', () => {
+        qr.innerHTML = '<figcaption>Không tạo được mã VietQR. Chuyển theo thông tin bên cạnh.</figcaption>';
+      });
+      document.getElementById('t-account').innerHTML = `
+        <dd>VietQR · ${esc(r.receiverBankName)}</dd>
+        <dd>Số tài khoản: ${esc((r.receiverAccountNumber || '').replace(/(\d{4})(?=\d)/g, '$1 '))}</dd>
+        <dd>Chủ tài khoản: ${esc(r.receiverAccountHolder)}</dd>
+        <dd>Số tiền: ${money(r.amount)}</dd>
+        <dd>Nội dung: ${esc(r.refundCode)}</dd>`;
+      document.getElementById('t-reference').value = '';
+      document.getElementById('t-note').value = '';
+      setFieldError('t-reference-error', '');
+      setFieldError('t-note-error', '');
+      document.getElementById('btn-reconcile').hidden = !processing;
+      document.getElementById('btn-cancel').hidden = !processing;
+      setView('transfer');
+    }
+
+    function setBusy(busy) {
+      ['btn-success', 'btn-failure', 'btn-reconcile', 'btn-cancel'].forEach(id => document.getElementById(id).disabled = busy);
+    }
+
+    // BR-RF-02: letters, digits, spaces and . _ - /, at most 150 characters.
+    function referenceError(value) {
+      if (!value) return 'Vui lòng sửa Mã giao dịch ngân hàng: bắt buộc nhập.';
+      if (value.length > 150) return 'Vui lòng sửa Mã giao dịch ngân hàng: tối đa 150 ký tự.';
+      if (!/^[A-Za-z0-9._\-/ ]+$/.test(value)) return 'Vui lòng sửa Mã giao dịch ngân hàng: chỉ gồm chữ, số, khoảng trắng và . _ - /.';
+      return '';
+    }
+
+    async function recordSuccess() {
+      const reference = document.getElementById('t-reference').value.trim();
+      const note = document.getElementById('t-note').value.trim();
+      setFieldError('t-note-error', '');
+      const error = referenceError(reference);
+      setFieldError('t-reference-error', error);
+      if (error) return;
+      if (!await confirmBox('Ghi nhận thành công',
+        `Xác nhận đã chuyển ${money(refund.amount)} tới ${refund.receiverBankName} ${refund.receiverAccountMasked} với mã giao dịch ${reference}?`)) return;
+      setBusy(true);
+      const res = await API.completeRefund(refund.refundId, reference, note);
+      setBusy(false);
+      if (!res.success) return handleFailure(res, { transferReference: 't-reference-error', note: 't-note-error' });
+      Utils.showToast(res.data.message, 'success');   // MSG-RF-01
+      await openRefund(refund.refundId);
+    }
+
+    async function recordFailure() {
+      const reason = document.getElementById('t-note').value.trim();
+      setFieldError('t-reference-error', '');
+      setFieldError('t-note-error', reason ? '' : 'Vui lòng sửa Lý do thất bại: bắt buộc nhập.');
+      if (!reason) return;
+      if (!await confirmBox('Ghi nhận thất bại',
+        'Chỉ ghi nhận khi ngân hàng đã xác nhận giao dịch không thành công. Người mua sẽ nhận thông báo và email để kiểm tra tài khoản.')) return;
+      setBusy(true);
+      const res = await API.failRefundTransfer(refund.refundId, reason);
+      setBusy(false);
+      if (!res.success) return handleFailure(res, { reason: 't-note-error' });
+      Utils.showToast(res.data.message, 'success');
+      await openRefund(refund.refundId);
+    }
+
+    async function recordReconciliation() {
+      const note = document.getElementById('t-note').value.trim();
+      setFieldError('t-reference-error', '');
+      setFieldError('t-note-error', note ? '' : 'Vui lòng sửa Ghi chú đối soát: bắt buộc nhập.');
+      if (!note) return;
+      setBusy(true);
+      const res = await API.markRefundReconciliation(refund.refundId, note);
+      setBusy(false);
+      if (!res.success) return handleFailure(res, { note: 't-note-error' });
+      Utils.showToast(res.data.message, 'success');
+      await openRefund(refund.refundId);
+    }
+
+    async function cancelTransfer() {
+      if (!await confirmBox('Huỷ chuyển',
+        'Chỉ huỷ khi chưa chuyển tiền. Yêu cầu sẽ trở lại trạng thái Chờ chuyển.', 'Huỷ chuyển')) return;
+      const res = await API.cancelRefundTransfer(refund.refundId, refund.refundStatus);
+      if (!res.success) return handleFailure(res);
+      Utils.showToast(res.data.message, 'success');
+      await openRefund(refund.refundId);
+    }
+  </script>
+</body>
+</html>

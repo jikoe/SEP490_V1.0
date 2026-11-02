@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thanh toán - Sàn Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display: none;"></aside>
+
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+
+      <main style="padding: 24px 20px; min-height: 80vh;">
+        <!-- Dynamic Checkout Page matching CheckoutScreen.jsx 1:1 -->
+        <section class="co-page" id="checkout-view">
+          <div class="co-wrap">
+            <div>
+              <nav class="co-crumbs" aria-label="Đường dẫn">
+                <button type="button" class="text-button" onclick="window.location.href='cart.html'" style="background:none;border:none;color:#52695c;cursor:pointer;padding:0;font-size:13px;text-decoration:underline;">Giỏ hàng</button>
+                <span aria-hidden="true">/</span>
+                <span>Thanh toán</span>
+              </nav>
+              <h1 style="margin:4px 0 0; font-size:26px; color:#103e2d;">Thanh toán</h1>
+              <p class="co-sub" id="co-subtitle" style="display: none;"></p>
+            </div>
+
+            <div id="load-error-notice" class="notice error" style="display: none;" role="alert"></div>
+            <div id="recovering-notice" class="notice" style="display: none;">Đang kiểm tra kết quả đơn hàng bạn vừa gửi…</div>
+            <p role="status" id="co-loading">Đang tải checkout…</p>
+
+            <div class="co-layout" id="co-layout" style="display: none;">
+              <!-- Main Form Steps 1 to 4 -->
+              <div class="co-main">
+                <!-- STEP 1: Giao đến -->
+                <fieldset class="co-card" id="card-address">
+                  <legend class="co-head"><span class="co-num">1</span>Giao đến</legend>
+
+                  <div class="co-chips" id="address-chips" style="display: none;"></div>
+
+                  <div class="co-grid-2">
+                    <label class="co-field">
+                      Tên người nhận *
+                      <input required minlength="2" maxlength="100" id="recipientName" oninput="handleAddressChange('recipientName', this.value)">
+                    </label>
+                    <label class="co-field">
+                      Số điện thoại *
+                      <input required type="tel" id="recipientPhone" oninput="handlePhoneInput(this.value)">
+                      <small class="co-hint-error" id="phone-hint-error" style="display: none;">Số di động Việt Nam gồm 10 số, ví dụ 0912345678.</small>
+                    </label>
+                  </div>
+
+                  <div class="co-grid-3">
+                    <label class="co-field">
+                      Tỉnh / thành phố *
+                      <select required id="provinceSelect" onchange="handleProvinceChange(this.value)">
+                        <option value="">Chọn tỉnh / thành phố</option>
+                      </select>
+                    </label>
+
+                    <label class="co-field">
+                      Quận / huyện *
+                      <select required id="districtSelect" disabled onchange="handleDistrictChange(this.value)">
+                        <option value="">Chọn tỉnh trước</option>
+                      </select>
+                    </label>
+
+                    <label class="co-field">
+                      Phường / xã *
+                      <select required id="wardSelect" disabled onchange="handleWardChange(this.value)">
+                        <option value="">Chọn quận trước</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="co-inline-error" id="district-error-box" style="display: none;">
+                    <span id="district-error-text"></span>
+                    <button type="button" onclick="reloadDistricts()">Tải lại quận / huyện</button>
+                  </div>
+
+                  <div class="co-inline-error" id="ward-error-box" style="display: none;">
+                    <span id="ward-error-text"></span>
+                    <button type="button" onclick="reloadWards()">Tải lại phường / xã</button>
+                  </div>
+
+                  <label class="co-field">
+                    Số nhà, tên đường *
+                    <input required maxlength="255" id="addressDetail" placeholder="Ví dụ: Số 12 Nguyễn Trãi" oninput="handleAddressChange('detail', this.value)">
+                  </label>
+
+                  <div class="notice error" id="address-error-notice" style="display: none;" role="alert"></div>
+                </fieldset>
+
+                <!-- STEP 2: Hình thức giao -->
+                <fieldset class="co-card" id="card-delivery">
+                  <legend class="co-head">
+                    <span class="co-num">2</span>Hình thức giao
+                    <span class="co-head-hint">Giá từ Goship theo địa chỉ</span>
+                  </legend>
+
+                  <div class="co-grid-2">
+                    <button type="button" class="co-choice" id="choice-Standard" aria-pressed="true" onclick="selectDeliveryMethod('Standard')">
+                      <span class="co-choice-row">
+                        <span class="co-choice-title">Giao tiêu chuẩn</span>
+                        <span class="co-choice-price" id="price-Standard">Nhập địa chỉ</span>
+                      </span>
+                      <span class="co-choice-desc">Hãng rẻ nhất cho từng kiện</span>
+                    </button>
+
+                    <button type="button" class="co-choice" id="choice-FreshExpress" aria-pressed="false" onclick="selectDeliveryMethod('FreshExpress')">
+                      <span class="co-choice-row">
+                        <span class="co-choice-title">Giao nhanh nông sản</span>
+                        <span class="co-choice-price" id="price-FreshExpress">Nhập địa chỉ</span>
+                      </span>
+                      <span class="co-choice-desc">Dịch vụ Nhanh / Hỏa tốc</span>
+                    </button>
+                  </div>
+
+                  <p class="co-muted" id="expected-delivery-hint" style="display: none;"></p>
+                  <div class="notice error" id="shipping-error-notice" style="display: none;" role="alert"></div>
+                </fieldset>
+
+                <!-- STEP 3: Kiện hàng -->
+                <section class="co-card" id="card-parcels">
+                  <h2 class="co-head"><span class="co-num">3</span>Kiện hàng</h2>
+                  <div id="parcels-container" style="display: flex; flex-direction: column; gap: 16px;"></div>
+                  <p id="no-items-warning" style="display: none;">Chưa có sản phẩm được chọn. Hãy cập nhật giỏ hàng.</p>
+                </section>
+
+                <!-- STEP 4: Thanh toán -->
+                <fieldset class="co-card" id="card-payment">
+                  <legend class="co-head"><span class="co-num">4</span>Thanh toán</legend>
+
+                  <div class="co-grid-2">
+                    <button type="button" class="co-choice" id="pay-PayOS" aria-pressed="true" onclick="selectPaymentMethod('PayOS')">
+                      <span class="co-choice-title">PayOS</span>
+                      <span class="co-choice-desc">Chuyển khoản qua cổng PayOS</span>
+                    </button>
+
+                    <button type="button" class="co-choice" id="pay-VietQR" aria-pressed="false" onclick="selectPaymentMethod('VietQR')">
+                      <span class="co-choice-title">VietQR</span>
+                      <span class="co-choice-desc">Quét mã bằng ứng dụng ngân hàng</span>
+                    </button>
+                  </div>
+
+                  <label class="co-field">
+                    Ghi chú cho người bán (không bắt buộc)
+                    <textarea maxlength="300" rows="2" id="orderNotes" placeholder="Ví dụ: gọi trước khi giao" oninput="handleNotesChange(this.value)"></textarea>
+                  </label>
+                </fieldset>
+              </div>
+
+              <!-- Aside: Sticky Order Summary -->
+              <aside class="co-aside">
+                <div class="co-card">
+                  <h2 class="co-head">Tóm tắt đơn hàng</h2>
+
+                  <fieldset class="co-plain" id="summary-controls">
+                    <!-- Voucher Picker -->
+                    <div class="co-voucher-picker" id="voucher-picker">
+                      <span class="co-label" id="co-voucher-label">Voucher</span>
+                      <div class="co-voucher-row">
+                        <button type="button" id="voucher-toggle-btn" class="co-voucher-field" aria-labelledby="co-voucher-label co-voucher-value" aria-expanded="false" onclick="toggleVoucherPanel()">
+                          <span id="co-voucher-value">
+                            <span class="co-placeholder">Chọn hoặc nhập mã voucher</span>
+                          </span>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" id="voucher-chevron">
+                            <path d="M6 9l6 6 6-6"></path>
+                          </svg>
+                        </button>
+                        <button type="button" id="btn-remove-voucher" class="text-button" style="display: none; background:none; border:none; color:#1e6546; cursor:pointer; font-size:13px; font-weight:600;" onclick="applyVoucher('')">Bỏ</button>
+                      </div>
+
+                      <div id="co-voucher-panel" class="co-voucher-panel" style="display: none;" role="group" aria-label="Chọn voucher">
+                        <div class="co-voucher-entry">
+                          <label class="co-field">
+                            Nhập mã voucher
+                            <input id="voucher-input" maxlength="100" placeholder="Ví dụ: WELCOME10" oninput="handleVoucherInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();applyVoucher(this.value);}">
+                          </label>
+                          <button type="button" id="btn-apply-voucher" class="co-btn-outline" disabled onclick="applyVoucher(document.getElementById('voucher-input').value)">Áp dụng</button>
+                        </div>
+                        <span class="co-label">Voucher dành cho bạn</span>
+                        <div class="co-vouchers" id="co-vouchers-list"></div>
+                      </div>
+                    </div>
+
+                    <div class="notice error" id="quote-warning-notice" style="display: none;" role="alert"></div>
+
+                    <!-- Points -->
+                    <div class="co-points">
+                      <label class="co-field">
+                        <span id="points-label">Điểm thưởng (0 khả dụng)</span>
+                        <input type="number" min="0" step="1" id="points-input" value="0" oninput="handlePointsChange(this.value)">
+                      </label>
+                      <button type="button" id="btn-use-all-points" class="co-btn-outline" disabled onclick="useAllPoints()">Dùng hết</button>
+                    </div>
+                  </fieldset>
+
+                  <!-- Cost Breakdown Lines -->
+                  <dl class="co-lines">
+                    <dt>Tiền hàng</dt>
+                    <dd id="breakdown-subtotal">0 ₫</dd>
+                    <dt id="breakdown-shipping-label">Phí giao (0 kiện)</dt>
+                    <dd id="breakdown-shipping">—</dd>
+                    <dt>Giảm voucher</dt>
+                    <dd id="breakdown-voucher">—</dd>
+                    <dt>Giảm điểm</dt>
+                    <dd id="breakdown-points">—</dd>
+                  </dl>
+
+                  <!-- Total -->
+                  <div class="co-total">
+                    <span>Tổng thanh toán</span>
+                    <span id="breakdown-total">—</span>
+                  </div>
+
+                  <p class="co-muted" id="breakdown-hint">Điền đủ người nhận, số điện thoại và địa chỉ để tính phí giao và tổng tiền.</p>
+                  <div class="notice error" id="summary-error-notice" style="display: none;" role="alert"></div>
+
+                  <button type="button" id="btn-confirm-order" class="co-btn-primary" disabled onclick="openConfirmModal()">
+                    Đặt hàng
+                  </button>
+
+                  <div class="co-inline-error" id="place-error-box" style="display: none;">
+                    <span id="place-error-msg"></span>
+                    <button type="button" id="btn-retry-place" style="display: none; background:none; border:none; text-decoration:underline; font-weight:600; color:inherit; cursor:pointer;" onclick="placeOrderAuthoritative(true)">Thử lại</button>
+                  </div>
+
+                  <p class="co-muted" id="quote-expiry-notice" style="display: none;"></p>
+                  <button type="button" class="text-button co-back" style="background:none; border:none; color:#1e6546; cursor:pointer; font-weight:500;" onclick="window.location.href='cart.html'">← Quay lại giỏ hàng</button>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <!-- Order Placement Confirmation Modal matching Frontend Modal -->
+        <dialog id="modal-checkout-confirm" style="border: 1px solid #dce5da; border-radius: 14px; padding: 24px; width: 460px; max-width: calc(100vw - 32px); box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #edf1ed; padding-bottom: 12px; margin-bottom: 16px;">
+            <h3 style="margin: 0; color: #103e2d; font-size: 18px;">Xác nhận đặt đơn bán lẻ</h3>
+            <button type="button" onclick="closeConfirmModal()" style="border: 0; background: transparent; font-size: 22px; cursor: pointer; color: #6b7c72;">&times;</button>
+          </div>
+          <p id="confirm-modal-description" style="font-size: 14px; color: #3d5a4c; line-height: 1.5; margin-bottom: 16px;"></p>
+          <div class="notice error" id="confirm-modal-error" style="display: none; margin-bottom: 16px;"></div>
+          <div class="co-actions">
+            <button type="button" id="btn-modal-cancel" onclick="closeConfirmModal()" style="padding: 9px 18px; border: 1px solid #cddbd5; border-radius: 7px; background: #fff; cursor: pointer;">Kiểm tra lại</button>
+            <button type="button" id="btn-modal-submit" class="primary" onclick="placeOrderAuthoritative(false)" style="padding: 9px 20px; border-radius: 7px; font-weight: 600; cursor: pointer;">Xác nhận và thanh toán</button>
+          </div>
+        </dialog>
+
+        <!-- SUCCESS VIEW: matching CheckoutScreen.jsx lines 325-343 -->
+        <section class="co-page" id="order-success-view" style="display: none;">
+          <div class="co-wrap">
+            <h1 style="color:#103e2d; margin:4px 0 0; font-size:26px;">Đặt hàng thành công</h1>
+            <div class="co-card">
+              <h2 style="margin-top:0; font-size:20px; color:#103e2d;">Thông tin đơn hàng</h2>
+              <dl class="details" style="display: grid; grid-template-columns: 180px 1fr; gap: 10px 16px; margin: 0 0 16px; font-size: 14px;">
+                <dt style="color:#62796c;">Mã đơn</dt><dd id="succ-code" style="font-weight: 700; color:#103e2d;"></dd>
+                <dt style="color:#62796c;">Trạng thái</dt><dd id="succ-status"></dd>
+                <dt style="color:#62796c;">Người nhận</dt><dd id="succ-recipient"></dd>
+                <dt style="color:#62796c;">Số điện thoại</dt><dd id="succ-phone"></dd>
+                <dt style="color:#62796c;">Địa chỉ</dt><dd id="succ-address"></dd>
+                <dt style="color:#62796c;">Vận chuyển</dt><dd id="succ-delivery"></dd>
+                <dt style="color:#62796c;">Ngày giao dự kiến</dt><dd id="succ-expected-date"></dd>
+                <dt style="color:#62796c;">Phương thức thanh toán</dt><dd id="succ-payment"></dd>
+                <dt style="color:#62796c;">Hạn giữ hàng</dt><dd id="succ-expires"></dd>
+                <dt style="color:#62796c;"><strong>Số tiền cần thanh toán</strong></dt><dd><strong id="succ-total" style="color: #1e6546; font-size: 18px;"></strong></dd>
+              </dl>
+              <div class="notice" id="succ-message" style="display: none; margin-bottom: 18px;"></div>
+              <div class="co-actions">
+                <button type="button" class="primary" onclick="window.location.href='orders.html'" style="padding: 10px 22px; font-weight: 600; border-radius: 8px;">Theo dõi đơn hàng</button>
+                <button type="button" onclick="window.location.href='cart.html'" style="padding: 10px 20px; border-radius: 8px; border: 1px solid #cddbd5; background: #fff; cursor: pointer;">Xem giỏ hàng còn lại</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/checkout.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    /* ==========================================================================
+        AgiSustain Checkout Client Controller
+        Replicates Frontend CheckoutScreen.jsx 1:1
+       ========================================================================== */
+
+    const emptyAddress = {
+      recipientName: '', phone: '', provinceCode: '', province: '',
+      districtCode: '', district: '', wardCode: '', ward: '', detail: '', catalogVersion: ''
+    };
+    const initial = {
+      address: { ...emptyAddress },
+      deliveryMethod: 'Standard',
+      paymentMethod: 'PayOS',
+      voucherCode: '',
+      points: 0,
+      notes: ''
+    };
+
+    const attemptStorage = 'agrisustain:checkout-placement';
+    const quoteStorage = 'agrisustain:checkout-placement-quote';
+    const legacyStorage = ['agrisustain:checkout-attempt', 'agrisustain:checkout-quote'];
+    const phonePattern = /^(0[35789][0-9]{8}|\+84[35789][0-9]{8})$/;
+    const addressErrors = ['ADDRESS_INVALID', 'VALIDATION'];
+    const shippingErrors = ['SHIPPING_RATE_UNAVAILABLE', 'MSG117'];
+    const trustedCatalog = 'goship-v2';
+
+    const methods = [
+      { value: 'Standard', title: 'Giao tiêu chuẩn', desc: 'Hãng rẻ nhất cho từng kiện' },
+      { value: 'FreshExpress', title: 'Giao nhanh nông sản', desc: 'Dịch vụ Nhanh / Hỏa tốc' },
+    ];
+    const payments = [
+      { value: 'PayOS', title: 'PayOS', desc: 'Chuyển khoản qua cổng PayOS' },
+      { value: 'VietQR', title: 'VietQR', desc: 'Quét mã bằng ứng dụng ngân hàng' },
+    ];
+
+    /** Compares place names without administrative prefixes matching Frontend */
+    function placeKey(name = '') {
+      return name.normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim()
+        .replace(/^(thành phố|tỉnh|tp\.?|quận|huyện|thị xã|thị trấn|phường|xã)\s+/u, '');
+    }
+
+    function findPlace(options, code, name) {
+      const byCode = code && options.find((item) => item.code === code);
+      if (byCode) return byCode;
+      const key = placeKey(name);
+      const matches = key ? options.filter((item) => placeKey(item.name) === key) : [];
+      return matches.length === 1 ? matches[0] : undefined;
+    }
+
+    function readJson(key) {
+      try { return JSON.parse(sessionStorage.getItem(key) || 'null'); } catch { return null; }
+    }
+
+    function voucherTitle(voucher) {
+      return voucher.discountType === 'Percentage'
+        ? `Giảm ${voucher.discountValue}%${voucher.maxDiscountAmount ? ` tối đa ${Utils.formatVND(voucher.maxDiscountAmount)}` : ''}`
+        : `Giảm ${Utils.formatVND(voucher.discountValue)}`;
+    }
+
+    function localTime(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return `${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} ngày ${d.toLocaleDateString('vi-VN')}`;
+      } catch {
+        return iso;
+      }
+    }
+
+    /* Controller State */
+    const state = {
+      context: null,
+      provinces: [],
+      districts: [],
+      districtLoading: false,
+      districtError: '',
+      wards: [],
+      wardLoading: false,
+      wardError: '',
+      form: { ...initial, address: { ...emptyAddress } },
+      savedIndex: -1,
+      voucherInput: '',
+      voucherOpen: false,
+      quote: null,
+      quotedFor: '',
+      quoteError: null,
+      quoting: false,
+      feeCache: { area: '', fees: {} },
+      order: null,
+      placeError: null,
+      loadError: '',
+      busy: false,
+      recovering: false,
+      loading: true,
+      inFlight: false,
+      debounceTimer: null
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      Components.init();
+      if (!Auth.isAuthenticated()) {
+        Utils.showToast(Messages.common.loginRequiredCheckout, 'warning');
+        setTimeout(() => { window.location.href = '../Guest/login.html'; }, 800);
+        return;
+      }
+
+      legacyStorage.forEach((key) => sessionStorage.removeItem(key));
+      await initCheckout();
+
+      // Check if recovering unconfirmed placement
+      if (readJson(attemptStorage)) {
+        state.recovering = true;
+        document.getElementById('recovering-notice').style.display = 'block';
+        void placeOrderAuthoritative(true);
+      }
+    });
+
+    // Close voucher picker on click outside
+    document.addEventListener('mousedown', (e) => {
+      const picker = document.getElementById('voucher-picker');
+      if (state.voucherOpen && picker && !picker.contains(e.target)) {
+        closeVouchers();
+      }
+    });
+
+    async function initCheckout() {
+      state.loading = true;
+      document.getElementById('co-loading').style.display = 'block';
+      document.getElementById('load-error-notice').style.display = 'none';
+
+      try {
+        const [contextRes, provincesRes] = await Promise.all([
+          API.getCheckoutContext(),
+          API.getProvinces()
+        ]);
+
+        if (!contextRes.success || !contextRes.data) {
+          throw new Error(contextRes.error || 'Không tải được dữ liệu giỏ hàng cần thanh toán.');
+        }
+        if (!provincesRes.success || !provincesRes.data) {
+          throw new Error(provincesRes.error || 'Không tải được danh mục tỉnh / thành phố Goship.');
+        }
+
+        state.context = contextRes.data;
+        state.provinces = provincesRes.data;
+
+        // Render Province Select options
+        const provEl = document.getElementById('provinceSelect');
+        provEl.innerHTML = '<option value="">Chọn tỉnh / thành phố</option>' +
+          state.provinces.map(p => `<option value="${p.code}">${Utils.escapeHtml(p.name)}</option>`).join('');
+
+        // Apply saved address or initial
+        if (state.context.addresses && state.context.addresses.length > 0) {
+          state.savedIndex = 0;
+          state.form.address = savedAddress(state.context.addresses[0], state.provinces);
+        }
+
+        // Available points
+        const pointsInput = document.getElementById('points-input');
+        const pointsLabel = document.getElementById('points-label');
+        const btnUseAll = document.getElementById('btn-use-all-points');
+        const availPts = state.context.availablePoints || 0;
+        pointsLabel.textContent = `Điểm thưởng (${availPts} khả dụng)`;
+        pointsInput.max = availPts;
+        btnUseAll.disabled = !availPts;
+
+        renderChips();
+        syncAddressFields();
+        renderParcels();
+        renderVouchersList();
+        renderDeliveryChoice();
+        renderPaymentChoice();
+
+        // Cascade fetch district if provinceCode is already set
+        if (state.form.address.provinceCode) {
+          await loadDistrictsForProvince(state.form.address.provinceCode, state.form.address.districtCode, state.form.address.district);
+        }
+
+        state.loading = false;
+        document.getElementById('co-loading').style.display = 'none';
+        document.getElementById('co-layout').style.display = 'flex';
+        updateSubtitle();
+        triggerQuoteDebounced();
+      } catch (err) {
+        state.loading = false;
+        state.loadError = err.message || 'Lỗi tải trang thanh toán.';
+        document.getElementById('co-loading').style.display = 'none';
+        const errNotice = document.getElementById('load-error-notice');
+        errNotice.textContent = state.loadError;
+        errNotice.style.display = 'block';
+      }
+    }
+
+    function savedAddress(saved, catalog = state.provinces) {
+      const values = { ...emptyAddress, ...saved, catalogVersion: '' };
+      const trusted = saved.catalogVersion === trustedCatalog;
+      const province = findPlace(catalog, trusted ? values.provinceCode : '', values.province);
+      if (!province) {
+        return { ...values, provinceCode: '', province: '', districtCode: '', district: '', wardCode: '', ward: '' };
+      }
+      return {
+        ...values,
+        provinceCode: province.code,
+        province: province.name,
+        districtCode: trusted ? values.districtCode : '',
+        wardCode: trusted ? values.wardCode : ''
+      };
+    }
+
+    function renderChips() {
+      const chipsEl = document.getElementById('address-chips');
+      const addrs = state.context?.addresses || [];
+      if (!addrs.length) {
+        chipsEl.style.display = 'none';
+        return;
+      }
+      chipsEl.style.display = 'flex';
+      let html = addrs.map((saved, idx) => {
+        const fullAddr = [saved.detail, saved.ward, saved.district, saved.province].filter(Boolean).join(', ');
+        const pressed = state.savedIndex === idx;
+        return `
+          <button type="button" class="co-chip" aria-pressed="${pressed}" onclick="pickSavedAddress(${idx})">
+            <strong>${Utils.escapeHtml(saved.recipientName || '')} · ${Utils.escapeHtml(saved.phone || '')}</strong>
+            <span>${Utils.escapeHtml(fullAddr)}</span>
+          </button>
+        `;
+      }).join('');
+
+      html += `<button type="button" class="co-chip co-chip-add" aria-pressed="${state.savedIndex === -1}" onclick="pickSavedAddress(-1)">+ Địa chỉ mới</button>`;
+      chipsEl.innerHTML = html;
+    }
+
+    function pickSavedAddress(index) {
+      state.savedIndex = index;
+      state.placeError = null;
+      if (index < 0) {
+        state.form.address = { ...emptyAddress };
+      } else {
+        state.form.address = savedAddress(state.context.addresses[index], state.provinces);
+      }
+      renderChips();
+      syncAddressFields();
+      if (state.form.address.provinceCode) {
+        loadDistrictsForProvince(state.form.address.provinceCode, state.form.address.districtCode, state.form.address.district);
+      } else {
+        resetDistrictsAndWards();
+      }
+      triggerQuoteDebounced();
+    }
+
+    function syncAddressFields() {
+      const a = state.form.address;
+      document.getElementById('recipientName').value = a.recipientName || '';
+      document.getElementById('recipientPhone').value = a.phone || '';
+      document.getElementById('provinceSelect').value = a.provinceCode || '';
+      document.getElementById('addressDetail').value = a.detail || '';
+      validatePhoneDisplay(a.phone);
+    }
+
+    function handleAddressChange(field, val) {
+      state.form.address[field] = val;
+      state.savedIndex = -1;
+      state.placeError = null;
+      renderChips();
+      triggerQuoteDebounced();
+    }
+
+    function handlePhoneInput(val) {
+      state.form.address.phone = val;
+      state.savedIndex = -1;
+      validatePhoneDisplay(val);
+      triggerQuoteDebounced();
+    }
+
+    function validatePhoneDisplay(val) {
+      const hint = document.getElementById('phone-hint-error');
+      if (val && !phonePattern.test(val.trim())) {
+        hint.style.display = 'block';
+      } else {
+        hint.style.display = 'none';
+      }
+    }
+
+    async function handleProvinceChange(code) {
+      const found = state.provinces.find(x => x.code === code);
+      state.form.address.provinceCode = code;
+      state.form.address.province = found ? found.name : '';
+      state.form.address.districtCode = '';
+      state.form.address.district = '';
+      state.form.address.wardCode = '';
+      state.form.address.ward = '';
+      state.form.address.catalogVersion = '';
+      state.savedIndex = -1;
+      renderChips();
+
+      if (code) {
+        await loadDistrictsForProvince(code);
+      } else {
+        resetDistrictsAndWards();
+      }
+      triggerQuoteDebounced();
+    }
+
+    async function loadDistrictsForProvince(provinceCode, targetCode, targetName) {
+      const distSelect = document.getElementById('districtSelect');
+      const distErrBox = document.getElementById('district-error-box');
+      distSelect.disabled = true;
+      distSelect.innerHTML = '<option value="">Đang tải…</option>';
+      distErrBox.style.display = 'none';
+      state.districtLoading = true;
+      resetWards();
+
+      try {
+        const res = await API.getDistricts(provinceCode);
+        if (res.success && res.data) {
+          state.districts = res.data;
+          distSelect.innerHTML = '<option value="">Chọn quận / huyện</option>' +
+            state.districts.map(d => `<option value="${d.code}">${Utils.escapeHtml(d.name)}</option>`).join('');
+          distSelect.disabled = false;
+
+          let selected = null;
+          if (targetCode || targetName) {
+            selected = findPlace(state.districts, targetCode, targetName);
+          }
+          if (selected) {
+            state.form.address.districtCode = selected.code;
+            state.form.address.district = selected.name;
+            distSelect.value = selected.code;
+            await loadWardsForDistrict(selected.code, state.form.address.wardCode, state.form.address.ward);
+          } else {
+            state.form.address.districtCode = '';
+            state.form.address.district = '';
+          }
+        } else {
+          state.districtError = res.error || 'Lỗi tải quận / huyện.';
+          document.getElementById('district-error-text').textContent = state.districtError;
+          distErrBox.style.display = 'flex';
+          distSelect.innerHTML = '<option value="">Chọn quận / huyện</option>';
+        }
+      } catch (err) {
+        state.districtError = err.message;
+        document.getElementById('district-error-text').textContent = state.districtError;
+        distErrBox.style.display = 'flex';
+      } finally {
+        state.districtLoading = false;
+        triggerQuoteDebounced();
+      }
+    }
+
+    function reloadDistricts() {
+      if (state.form.address.provinceCode) {
+        loadDistrictsForProvince(state.form.address.provinceCode, state.form.address.districtCode, state.form.address.district);
+      }
+    }
+
+    async function handleDistrictChange(code) {
+      const found = state.districts.find(x => x.code === code);
+      state.form.address.districtCode = code;
+      state.form.address.district = found ? found.name : '';
+      state.form.address.wardCode = '';
+      state.form.address.ward = '';
+      state.form.address.catalogVersion = '';
+      state.savedIndex = -1;
+      renderChips();
+
+      if (code) {
+        await loadWardsForDistrict(code);
+      } else {
+        resetWards();
+      }
+      triggerQuoteDebounced();
+    }
+
+    async function loadWardsForDistrict(districtCode, targetCode, targetName) {
+      const wardSelect = document.getElementById('wardSelect');
+      const wardErrBox = document.getElementById('ward-error-box');
+      wardSelect.disabled = true;
+      wardSelect.innerHTML = '<option value="">Đang tải…</option>';
+      wardErrBox.style.display = 'none';
+      state.wardLoading = true;
+
+      try {
+        const res = await API.getWards(districtCode);
+        if (res.success && res.data) {
+          state.wards = res.data;
+          wardSelect.innerHTML = '<option value="">Chọn phường / xã</option>' +
+            state.wards.map(w => `<option value="${w.code}">${Utils.escapeHtml(w.name)}</option>`).join('');
+          wardSelect.disabled = false;
+
+          let selected = null;
+          if (targetCode || targetName) {
+            selected = findPlace(state.wards, targetCode, targetName);
+          }
+          if (selected) {
+            state.form.address.wardCode = selected.code;
+            state.form.address.ward = selected.name;
+            wardSelect.value = selected.code;
+          } else {
+            state.form.address.wardCode = '';
+            state.form.address.ward = '';
+          }
+        } else {
+          state.wardError = res.error || 'Lỗi tải phường / xã.';
+          document.getElementById('ward-error-text').textContent = state.wardError;
+          wardErrBox.style.display = 'flex';
+          wardSelect.innerHTML = '<option value="">Chọn phường / xã</option>';
+        }
+      } catch (err) {
+        state.wardError = err.message;
+        document.getElementById('ward-error-text').textContent = state.wardError;
+        wardErrBox.style.display = 'flex';
+      } finally {
+        state.wardLoading = false;
+        triggerQuoteDebounced();
+      }
+    }
+
+    function reloadWards() {
+      if (state.form.address.districtCode) {
+        loadWardsForDistrict(state.form.address.districtCode, state.form.address.wardCode, state.form.address.ward);
+      }
+    }
+
+    function handleWardChange(code) {
+      const found = state.wards.find(x => x.code === code);
+      state.form.address.wardCode = code;
+      state.form.address.ward = found ? found.name : '';
+      state.form.address.catalogVersion = '';
+      state.savedIndex = -1;
+      renderChips();
+      triggerQuoteDebounced();
+    }
+
+    function resetDistrictsAndWards() {
+      state.districts = [];
+      state.wards = [];
+      const dSel = document.getElementById('districtSelect');
+      dSel.innerHTML = '<option value="">Chọn tỉnh trước</option>';
+      dSel.disabled = true;
+      resetWards();
+    }
+
+    function resetWards() {
+      state.wards = [];
+      const wSel = document.getElementById('wardSelect');
+      wSel.innerHTML = '<option value="">Chọn quận trước</option>';
+      wSel.disabled = true;
+    }
+
+    /* ---------------- STEP 2 & 4 CHOICES ---------------- */
+
+    function selectDeliveryMethod(method) {
+      state.form.deliveryMethod = method;
+      renderDeliveryChoice();
+      triggerQuoteDebounced();
+    }
+
+    function renderDeliveryChoice() {
+      methods.forEach(m => {
+        const btn = document.getElementById(`choice-${m.value}`);
+        if (btn) {
+          btn.setAttribute('aria-pressed', state.form.deliveryMethod === m.value);
+        }
+      });
+      updateMethodPrices();
+    }
+
+    function selectPaymentMethod(method) {
+      state.form.paymentMethod = method;
+      renderPaymentChoice();
+    }
+
+    function renderPaymentChoice() {
+      payments.forEach(p => {
+        const btn = document.getElementById(`pay-${p.value}`);
+        if (btn) {
+          btn.setAttribute('aria-pressed', state.form.paymentMethod === p.value);
+        }
+      });
+    }
+
+    function handleNotesChange(val) {
+      state.form.notes = val;
+    }
+
+    /* ---------------- VOUCHER PICKER ---------------- */
+
+    function toggleVoucherPanel() {
+      state.voucherOpen = !state.voucherOpen;
+      const panel = document.getElementById('co-voucher-panel');
+      const btn = document.getElementById('voucher-toggle-btn');
+      const chev = document.getElementById('voucher-chevron');
+      if (state.voucherOpen) {
+        panel.style.display = 'flex';
+        btn.setAttribute('aria-expanded', 'true');
+        chev.style.transform = 'rotate(180deg)';
+        const input = document.getElementById('voucher-input');
+        input.value = state.voucherInput;
+        setTimeout(() => input.focus(), 50);
+      } else {
+        closeVouchers();
+      }
+    }
+
+    function closeVouchers() {
+      state.voucherOpen = false;
+      const panel = document.getElementById('co-voucher-panel');
+      const btn = document.getElementById('voucher-toggle-btn');
+      const chev = document.getElementById('voucher-chevron');
+      if (panel) panel.style.display = 'none';
+      if (btn) {
+        btn.setAttribute('aria-expanded', 'false');
+        btn.focus();
+      }
+      if (chev) chev.style.transform = 'none';
+    }
+
+    function handleVoucherInput(val) {
+      state.voucherInput = val;
+      const applyBtn = document.getElementById('btn-apply-voucher');
+      applyBtn.disabled = !val.trim() || val.trim() === state.form.voucherCode;
+    }
+
+    function applyVoucher(code) {
+      const next = code.trim();
+      state.voucherInput = next;
+      state.form.voucherCode = next;
+      renderVoucherValue();
+      closeVouchers();
+      triggerQuoteDebounced();
+    }
+
+    function renderVoucherValue() {
+      const valEl = document.getElementById('co-voucher-value');
+      const btnRemove = document.getElementById('btn-remove-voucher');
+      if (state.form.voucherCode) {
+        const discountText = isFreshQuote() && state.quote.voucherDiscount > 0
+          ? ` · −${Utils.formatVND(state.quote.voucherDiscount)}` : '';
+        valEl.innerHTML = `<strong>${Utils.escapeHtml(state.form.voucherCode)}</strong>${discountText}`;
+        btnRemove.style.display = 'inline-block';
+      } else {
+        valEl.innerHTML = '<span class="co-placeholder">Chọn hoặc nhập mã voucher</span>';
+        btnRemove.style.display = 'none';
+      }
+      renderVouchersList();
+    }
+
+    function renderVouchersList() {
+      const listEl = document.getElementById('co-vouchers-list');
+      const vouchers = state.context?.vouchers || [];
+      if (!vouchers.length) {
+        listEl.innerHTML = '<p class="co-muted">Hiện chưa có voucher phù hợp với giỏ hàng.</p>';
+        return;
+      }
+      listEl.innerHTML = vouchers.map(v => {
+        const isSelected = v.code === state.form.voucherCode;
+        const isDisabled = !v.eligible && !isSelected;
+        const minOrder = v.minOrderAmount > 0 ? `Đơn từ ${Utils.formatVND(v.minOrderAmount)}` : 'Không yêu cầu tối thiểu';
+        const farmText = v.farmName ? ` · chỉ cho ${Utils.escapeHtml(v.farmName)}` : '';
+        const expiry = ` · HSD ${new Date(v.endDate).toLocaleDateString('vi-VN')}`;
+
+        return `
+          <button type="button" class="co-voucher" aria-pressed="${isSelected}" ${isDisabled ? 'disabled' : ''}
+            onclick="applyVoucher('${isSelected ? '' : Utils.escapeHtml(v.code)}')">
+            <span class="co-voucher-top">
+              <strong>${Utils.escapeHtml(v.code)}</strong>
+              <span>${Utils.escapeHtml(voucherTitle(v))}</span>
+            </span>
+            <small>${minOrder}${farmText}${expiry}</small>
+            ${!v.eligible ? '<small class="co-hint-error">Chưa đủ giá trị đơn tối thiểu</small>' : ''}
+          </button>
+        `;
+      }).join('');
+    }
+
+    /* ---------------- POINTS ---------------- */
+
+    function handlePointsChange(val) {
+      const maxPts = state.context?.availablePoints || 0;
+      let pts = Math.max(0, Math.floor(Number(val) || 0));
+      if (pts > maxPts) pts = maxPts;
+      state.form.points = pts;
+      triggerQuoteDebounced();
+    }
+
+    function useAllPoints() {
+      const maxPts = state.context?.availablePoints || 0;
+      state.form.points = maxPts;
+      document.getElementById('points-input').value = maxPts;
+      triggerQuoteDebounced();
+    }
+
+    /* ---------------- QUOTATION (DEBOUNCED) ---------------- */
+
+    function getAreaKey() {
+      const a = state.form.address;
+      return `${a.provinceCode}|${a.districtCode}|${a.wardCode}`;
+    }
+
+    function getFormKey() {
+      const body = {
+        ...state.form,
+        voucherCode: state.form.voucherCode || null,
+        points: Math.max(0, Math.floor(Number(state.form.points) || 0))
+      };
+      return JSON.stringify(body);
+    }
+
+    function isQuoteReady() {
+      const recipient = state.form.address;
+      const areaReady = Boolean(recipient.provinceCode && recipient.districtCode)
+        && !state.districtLoading && !state.wardLoading
+        && state.districts.some((item) => item.code === recipient.districtCode)
+        && state.wards.some((item) => item.code === recipient.wardCode);
+      const recipientReady = recipient.recipientName.trim().length >= 2
+        && phonePattern.test(recipient.phone.trim())
+        && recipient.detail.trim().length > 0;
+      const lines = state.context?.selectedItems || [];
+      return areaReady && recipientReady && lines.length > 0;
+    }
+
+    function isFreshQuote() {
+      return Boolean(state.quote) && state.quotedFor === getFormKey();
+    }
+
+    function updateSubtitle() {
+      const lines = (isFreshQuote() ? state.quote.lines : null) || state.context?.selectedItems || [];
+      const parcels = getParcels(lines);
+      const subEl = document.getElementById('co-subtitle');
+      subEl.textContent = `${lines.length} sản phẩm từ ${parcels.length} nông trại · mỗi nông trại gửi một kiện riêng qua Goship`;
+      subEl.style.display = 'block';
+    }
+
+    function triggerQuoteDebounced() {
+      if (state.debounceTimer) clearTimeout(state.debounceTimer);
+      if (!isQuoteReady() || state.order) {
+        state.quoting = false;
+        renderQuoteAndBreakdown();
+        return;
+      }
+
+      state.quoting = true;
+      renderQuoteAndBreakdown();
+
+      state.debounceTimer = setTimeout(async () => {
+        const formKey = getFormKey();
+        const body = {
+          ...state.form,
+          voucherCode: state.form.voucherCode || null,
+          points: Math.max(0, Math.floor(Number(state.form.points) || 0))
+        };
+
+        try {
+          const res = await API.quoteCheckout(body);
+          if (res.success && res.data) {
+            state.quote = res.data;
+            state.quotedFor = formKey;
+            state.quoteError = null;
+
+            // Cache delivery fee for this area
+            const areaKey = getAreaKey();
+            if (state.feeCache.area !== areaKey) {
+              state.feeCache = { area: areaKey, fees: {} };
+            }
+            state.feeCache.fees[body.deliveryMethod] = res.data.deliveryFee;
+          } else {
+            state.quote = null;
+            state.quotedFor = formKey;
+            state.quoteError = { code: res.code, message: res.error || 'Không tính được phí giao hàng.' };
+          }
+        } catch (err) {
+          state.quote = null;
+          state.quotedFor = formKey;
+          state.quoteError = { code: 'NETWORK_ERROR', message: err.message };
+        } finally {
+          state.quoting = false;
+          renderQuoteAndBreakdown();
+        }
+      }, 500);
+    }
+
+    function updateMethodPrices() {
+      const recipient = state.form.address;
+      const areaReady = Boolean(recipient.provinceCode && recipient.districtCode)
+        && !state.districtLoading && !state.wardLoading
+        && state.districts.some((item) => item.code === recipient.districtCode)
+        && state.wards.some((item) => item.code === recipient.wardCode);
+
+      const fees = state.feeCache.area === getAreaKey() ? state.feeCache.fees : {};
+
+      methods.forEach(m => {
+        const priceEl = document.getElementById(`price-${m.value}`);
+        if (!priceEl) return;
+        if (!areaReady) {
+          priceEl.textContent = 'Nhập địa chỉ';
+        } else if (fees[m.value] !== undefined) {
+          priceEl.textContent = Utils.formatVND(fees[m.value]);
+        } else if (state.form.deliveryMethod === m.value && state.quoting) {
+          priceEl.textContent = 'Đang tính…';
+        } else {
+          priceEl.textContent = 'Chọn để xem phí';
+        }
+      });
+    }
+
+    function getParcels(lines) {
+      const groups = new Map();
+      lines.forEach((line) => {
+        if (!groups.has(line.farmerId)) {
+          groups.set(line.farmerId, { farmerId: line.farmerId, sellerName: line.sellerName, lines: [] });
+        }
+        groups.get(line.farmerId).lines.push(line);
+      });
+      return [...groups.values()];
+    }
+
+    function renderParcels() {
+      const lines = (isFreshQuote() ? state.quote.lines : null) || state.context?.selectedItems || [];
+      const parcels = getParcels(lines);
+      const container = document.getElementById('parcels-container');
+      const warning = document.getElementById('no-items-warning');
+
+      if (!lines.length) {
+        container.innerHTML = '';
+        warning.style.display = 'block';
+        return;
+      }
+      warning.style.display = 'none';
+
+      container.innerHTML = parcels.map((parcel, idx) => {
+        let feeText = '—';
+        if (isFreshQuote() && state.quote.sellerDeliveryFees) {
+          const f = state.quote.sellerDeliveryFees[parcel.farmerId];
+          if (f !== undefined) feeText = Utils.formatVND(f);
+        }
+
+        const itemsHtml = parcel.lines.map(line => `
+          <div class="co-item">
+            ${line.imageUrl ? `<img class="co-thumb" src="${line.imageUrl}" alt="">` : '<span class="co-thumb" aria-hidden="true"></span>'}
+            <div class="co-item-name">
+              <span>${Utils.escapeHtml(line.productName)}</span>
+              <small>${line.quantity} ${Utils.escapeHtml(line.unit)} × ${Utils.formatVND(line.unitPrice)}</small>
+            </div>
+            <span class="co-item-price">${Utils.formatVND(line.subtotal)}</span>
+          </div>
+        `).join('');
+
+        return `
+          <div class="co-parcel">
+            <div class="co-parcel-head">
+              <strong>${Utils.escapeHtml(parcel.sellerName)}</strong>
+              <span>Kiện ${idx + 1} · phí giao <strong>${feeText}</strong></span>
+            </div>
+            ${itemsHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderQuoteAndBreakdown() {
+      updateMethodPrices();
+      updateSubtitle();
+      renderParcels();
+      renderVoucherValue();
+
+      const fresh = isFreshQuote();
+      const lines = (fresh ? state.quote.lines : null) || state.context?.selectedItems || [];
+      const parcels = getParcels(lines);
+      const subtotal = lines.reduce((sum, line) => sum + line.subtotal, 0);
+
+      // Expected delivery hint
+      const expHint = document.getElementById('expected-delivery-hint');
+      if (fresh && state.quote.expectedDeliveryAt) {
+        expHint.textContent = `Dự kiến giao: ${new Date(state.quote.expectedDeliveryAt).toLocaleDateString('vi-VN')}`;
+        expHint.style.display = 'block';
+      } else {
+        expHint.style.display = 'none';
+      }
+
+      // Errors by section matching CheckoutScreen.jsx
+      const qMsg = state.quoteError?.message || '';
+      const isAddrErr = addressErrors.includes(state.quoteError?.code);
+      const isShipErr = shippingErrors.includes(state.quoteError?.code);
+      const isSummErr = state.quoteError && !isAddrErr && !isShipErr;
+
+      const addrErrNotice = document.getElementById('address-error-notice');
+      addrErrNotice.textContent = isAddrErr ? qMsg : '';
+      addrErrNotice.style.display = isAddrErr ? 'block' : 'none';
+
+      const shipErrNotice = document.getElementById('shipping-error-notice');
+      shipErrNotice.textContent = isShipErr ? qMsg : '';
+      shipErrNotice.style.display = isShipErr ? 'block' : 'none';
+
+      const summErrNotice = document.getElementById('summary-error-notice');
+      summErrNotice.textContent = isSummErr ? qMsg : '';
+      summErrNotice.style.display = isSummErr ? 'block' : 'none';
+
+      // Warning inside quote
+      const warnNotice = document.getElementById('quote-warning-notice');
+      if (fresh && state.quote.warning) {
+        warnNotice.textContent = state.quote.warning;
+        warnNotice.style.display = 'block';
+      } else {
+        warnNotice.style.display = 'none';
+      }
+
+      // Cost breakdown
+      document.getElementById('breakdown-subtotal').textContent = Utils.formatVND(fresh ? state.quote.subtotal : subtotal);
+      document.getElementById('breakdown-shipping-label').textContent = `Phí giao (${parcels.length} kiện)`;
+      document.getElementById('breakdown-shipping').textContent = fresh ? Utils.formatVND(state.quote.deliveryFee) : '—';
+      document.getElementById('breakdown-voucher').textContent = fresh && state.quote.voucherDiscount > 0 ? `−${Utils.formatVND(state.quote.voucherDiscount)}` : '—';
+      document.getElementById('breakdown-points').textContent = fresh && state.quote.pointsDiscount > 0 ? `−${Utils.formatVND(state.quote.pointsDiscount)}` : '—';
+
+      const totalEl = document.getElementById('breakdown-total');
+      if (fresh) {
+        totalEl.textContent = Utils.formatVND(state.quote.total);
+      } else if (state.quoting) {
+        totalEl.textContent = 'Đang tính…';
+      } else {
+        totalEl.textContent = '—';
+      }
+
+      // Breakdown Hint
+      const hintEl = document.getElementById('breakdown-hint');
+      hintEl.style.display = isQuoteReady() ? 'none' : 'block';
+
+      // Submit Button
+      const btnPlace = document.getElementById('btn-confirm-order');
+      btnPlace.disabled = state.busy || !fresh || state.quoting;
+      btnPlace.textContent = fresh ? `Đặt hàng · ${Utils.formatVND(state.quote.total)}` : 'Đặt hàng';
+
+      // Quote Expiry Notice
+      const expNotice = document.getElementById('quote-expiry-notice');
+      if (fresh && state.quote.expiresAt) {
+        expNotice.textContent = `Giá giữ đến ${localTime(state.quote.expiresAt)}. Sau khi đặt, hàng được giữ để bạn hoàn tất thanh toán.`;
+        expNotice.style.display = 'block';
+      } else {
+        expNotice.style.display = 'none';
+      }
+
+      // Place error box
+      const placeErrBox = document.getElementById('place-error-box');
+      const placeErrMsg = document.getElementById('place-error-msg');
+      const btnRetryPlace = document.getElementById('btn-retry-place');
+      if (state.placeError) {
+        placeErrMsg.textContent = state.placeError.message;
+        btnRetryPlace.style.display = state.placeError.retry ? 'inline' : 'none';
+        placeErrBox.style.display = 'flex';
+      } else {
+        placeErrBox.style.display = 'none';
+      }
+    }
+
+    /* ---------------- CONFIRMATION MODAL & AUTHORITATIVE PLACEMENT ---------------- */
+
+    function openConfirmModal() {
+      if (!isFreshQuote() || state.busy) return;
+      const modal = document.getElementById('modal-checkout-confirm');
+      const desc = document.getElementById('confirm-modal-description');
+      const recipient = state.form.address;
+      // UC-RC-02 Step 6: payable amount, recipient, address and payment method.
+      const address = [recipient.detail, recipient.ward, recipient.district, recipient.province]
+        .filter(Boolean).join(', ');
+      desc.textContent = `Đặt đơn ${Utils.formatVND(state.quote.total)} giao đến ${recipient.recipientName} (${recipient.phone}), `
+        + `địa chỉ ${address}, thanh toán qua ${state.form.paymentMethod}, và giữ hàng để thanh toán?`;
+      document.getElementById('confirm-modal-error').style.display = 'none';
+      modal.showModal();
+    }
+
+    function closeConfirmModal() {
+      if (state.busy) return;
+      const modal = document.getElementById('modal-checkout-confirm');
+      modal.close();
+    }
+
+    async function placeOrderAuthoritative(retry = false) {
+      if (state.inFlight) return;
+      let pending = retry ? readJson(attemptStorage) : null;
+      if (!pending) {
+        if (retry) {
+          state.recovering = false;
+          document.getElementById('recovering-notice').style.display = 'none';
+          return;
+        }
+        if (!isFreshQuote()) return;
+        pending = {
+          quoteId: state.quote.id,
+          requestKey: crypto.randomUUID(),
+          confirmed: true
+        };
+        sessionStorage.setItem(attemptStorage, JSON.stringify(pending));
+        sessionStorage.setItem(quoteStorage, JSON.stringify(state.quote));
+      }
+
+      state.inFlight = true;
+      state.busy = true;
+      state.placeError = null;
+
+      const btnSubmitModal = document.getElementById('btn-modal-submit');
+      if (btnSubmitModal) {
+        btnSubmitModal.disabled = true;
+        btnSubmitModal.textContent = 'Đang đặt hàng…';
+      }
+
+      try {
+        const res = await API.placeOrder(pending, { suppressErrorToast: true });
+        if (res.success && res.data) {
+          const placedQuote = readJson(quoteStorage);
+          if (placedQuote) state.quote = placedQuote;
+          state.order = res.data;
+          sessionStorage.removeItem(attemptStorage);
+          sessionStorage.removeItem(quoteStorage);
+          closeConfirmModal();
+          renderSuccessView();
+        } else {
+          const unknown = !res.status;
+          if (!unknown) {
+            sessionStorage.removeItem(attemptStorage);
+            sessionStorage.removeItem(quoteStorage);
+          }
+          state.placeError = { message: res.error || 'Đặt hàng thất bại.', retry: unknown };
+
+          const modalErr = document.getElementById('confirm-modal-error');
+          if (modalErr) {
+            modalErr.textContent = res.error || 'Đặt hàng không thành công.';
+            modalErr.style.display = 'block';
+          }
+
+          if (['MSG88', 'MSG118', 'QUOTE_EXPIRED'].includes(res.code)) {
+            closeConfirmModal();
+            triggerQuoteDebounced();
+          }
+        }
+      } catch (err) {
+        state.placeError = { message: err.message || 'Lỗi mạng khi gửi đơn hàng.', retry: true };
+      } finally {
+        state.inFlight = false;
+        state.busy = false;
+        state.recovering = false;
+        document.getElementById('recovering-notice').style.display = 'none';
+        if (btnSubmitModal) {
+          btnSubmitModal.disabled = false;
+          btnSubmitModal.textContent = 'Xác nhận và thanh toán';
+        }
+        renderQuoteAndBreakdown();
+      }
+    }
+
+    function renderSuccessView() {
+      document.getElementById('checkout-view').style.display = 'none';
+      const successView = document.getElementById('order-success-view');
+      successView.style.display = 'block';
+
+      const o = state.order;
+      const q = state.quote;
+
+      document.getElementById('succ-code').textContent = o.code || '—';
+      document.getElementById('succ-status').textContent = o.status || 'Chờ thanh toán';
+      document.getElementById('succ-recipient').textContent = q?.input?.address?.recipientName || '—';
+      document.getElementById('succ-phone').textContent = q?.input?.address?.phone || '—';
+
+      if (q && q.input && q.input.address) {
+        const a = q.input.address;
+        document.getElementById('succ-address').textContent = `${a.detail}, ${a.ward}, ${a.district}, ${a.province}`;
+      }
+
+      document.getElementById('succ-delivery').textContent = q?.input?.deliveryMethod === 'Standard'
+        ? 'Giao tiêu chuẩn (Goship)'
+        : 'Giao nhanh nông sản (Goship)';
+
+      document.getElementById('succ-expected-date').textContent = q?.expectedDeliveryAt
+        ? new Date(q.expectedDeliveryAt).toLocaleDateString('vi-VN')
+        : '—';
+
+      document.getElementById('succ-payment').textContent = o.paymentMethod || 'PayOS';
+      document.getElementById('succ-expires').textContent = localTime(o.reservationExpiresAt);
+      document.getElementById('succ-total').textContent = Utils.formatVND(o.total || 0);
+
+      const msgEl = document.getElementById('succ-message');
+      if (o.message) {
+        msgEl.textContent = o.message;
+        msgEl.style.display = 'block';
+      } else {
+        msgEl.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

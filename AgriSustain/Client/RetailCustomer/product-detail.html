@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chi tiết sản phẩm - Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="marketplace">
+    <!-- Header matching Frontend Marketplace.jsx -->
+    <header class="mkt-header">
+      <a class="mkt-brand" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" />
+        </svg>
+        <span>Nông Sản Việt</span>
+      </a>
+      <p class="mkt-slogan">Nền tảng nông sản Việt – Kết nối nông dân, bền vững tương lai</p>
+
+      <form class="mkt-search" role="search" onsubmit="handleSearch(event)">
+        <button aria-label="Tìm kiếm" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0" />
+          </svg>
+        </button>
+        <input id="mkt-search-input" aria-label="Tìm kiếm sản phẩm" type="search" maxlength="150" placeholder="Tìm kiếm sản phẩm, danh mục…" autocomplete="off" spellcheck="false"><button class="mkt-search-clear" id="mkt-search-clear" aria-label="Xóa từ khóa" type="button" hidden>×</button>
+      </form>
+
+      <a id="mkt-cart-btn" class="mkt-cart-button" href="cart.html" title="Giỏ hàng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h3l3 12h11l3-9H6M9 21h.01M19 21h.01" />
+        </svg>
+        <span id="mkt-cart-badge" class="mkt-cart-count" style="display:none;">0</span>
+      </a>
+
+      <div id="mkt-account-container">
+        <a class="mkt-login" href="../Guest/login.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21a8 8 0 0 0-16 0M17 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0" />
+          </svg>
+          Đăng nhập
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Detail Screen matching ProductDetail.jsx 1:1 -->
+    <main class="mkt-detail" id="mkt-detail-container">
+      <div class="mkt-state" role="status" style="padding: 40px; text-align: center;">Đang tải chi tiết sản phẩm…</div>
+    </main>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/cart.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script type="module" src="../js/product-detail.js"></script>
+</body>
+</html>

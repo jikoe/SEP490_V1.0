@@ -33,6 +33,14 @@ public partial class RefundTransaction
 
     public string RequestKey { get; set; } = null!;
 
+    public string? ReceiverBankCode { get; set; }
+
+    public string? ReceiverAccountNumber { get; set; }
+
+    public string? ReceiverAccountHolder { get; set; }
+
+    public DateTime? ReceiverAccountProvidedAt { get; set; }
+
     public virtual ContractDepositAllocation? ContractDepositAllocation { get; set; }
 
     public virtual ContractTerminationRequest? ContractTerminationRequest { get; set; }
@@ -44,4 +52,6 @@ public partial class RefundTransaction
     public virtual PaymentTransaction PaymentTransaction { get; set; } = null!;
 
     public virtual User ProcessedByUser { get; set; } = null!;
+
+    public virtual SupportedBank? ReceiverBankCodeNavigation { get; set; }
 }

@@ -1,0 +1,76 @@
+/* ==========================================================================
+   AgriSustain - Account screens (css/account.css)
+   Layout of Figma pages UC-AUTH-03 (profile, bank account), UC-FIN-08, UC-AUTH-02 dossier.
+   ========================================================================== */
+.acc-page { max-width: 1120px; margin: 0 auto; padding: 32px 24px 48px; color: #23362b; }
+.acc-crumb { font-size: 11px; color: #7a8a7f; margin-bottom: 8px; }
+.acc-crumb a { color: inherit; text-decoration: none; }
+.acc-title { font-size: 30px; font-weight: 400; color: #1c2e24; margin: 0 0 6px; }
+.acc-sub { font-size: 13px; color: #5d6f63; margin: 0 0 24px; }
+.acc-layout { display: grid; grid-template-columns: 250px 1fr; gap: 22px; align-items: start; }
+.acc-nav { background: #fff; border: 1px solid #e3e8e2; border-radius: 16px; padding: 16px 14px; }
+.acc-nav-title { font-size: 10px; font-weight: 700; letter-spacing: .4px; color: #5d6f63; margin: 0 0 6px 2px; }
+.acc-nav button, .acc-nav a { display: block; width: 100%; text-align: left; border: 0; background: transparent;
+  padding: 9px 10px; border-radius: 8px; font-size: 13px; color: #2c3e33; cursor: pointer; text-decoration: none; }
+.acc-nav button.active { background: #e6efe5; color: #1e5a3c; font-weight: 600; }
+.acc-nav hr { border: 0; border-top: 1px solid #e3e8e2; margin: 12px 0; }
+.acc-points-label { font-size: 11px; color: #5d6f63; }
+.acc-points { font-size: 20px; font-weight: 700; color: #1e5a3c; margin-top: 4px; }
+.acc-card { background: #fff; border: 1px solid #e3e8e2; border-radius: 16px; padding: 26px 28px; }
+.acc-card h2 { font-size: 17px; font-weight: 600; margin: 0 0 4px; color: #1c2e24; }
+.acc-card h3 { font-size: 15px; font-weight: 600; margin: 26px 0 12px; color: #1c2e24; }
+.acc-desc { font-size: 12px; color: #5d6f63; margin: 0 0 18px; }
+.acc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.acc-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 14px; }
+.acc-card .field { margin-bottom: 14px; color: #1c2e24; font-size: 12px; font-weight: 600; }
+.acc-card .field small { font-weight: 400; }
+.acc-card input[disabled], .acc-card input[readonly] { background: #f1f3ef; color: #6d7b72; }
+.acc-avatar-row { display: flex; align-items: center; gap: 14px; margin: 14px 0 18px; }
+.acc-avatar { width: 56px; height: 56px; border-radius: 50%; background: #e6efe5; color: #1e5a3c; font-weight: 700;
+  font-size: 18px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.acc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.acc-footer { border-top: 1px solid #e3e8e2; margin-top: 18px; padding-top: 18px; display: flex; justify-content: flex-end; gap: 10px; }
+.acc-btn { border: 1px solid #d5ddd5; background: #fff; color: #1c2e24; border-radius: 8px; padding: 9px 16px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.acc-btn.primary { background: #255c3e; border-color: #255c3e; color: #fff; }
+.acc-btn.danger { color: #a33b2c; border-color: #efc3bb; }
+.acc-btn:disabled { opacity: .55; cursor: not-allowed; }
+.acc-err { color: #b3261e; font-size: 11px; font-weight: 400; }
+.acc-hint { font-size: 11px; color: #7a8a7f; font-weight: 400; }
+.acc-warn { background: #fdf5e3; border: 1px solid #f1dfb1; color: #7a5a13; border-radius: 10px; padding: 12px 14px; font-size: 12px; margin-bottom: 16px; }
+.acc-info { background: #edf3fa; border: 1px solid #cfdcec; color: #2c4a6b; border-radius: 10px; padding: 11px 14px; font-size: 12px; margin: 6px 0 4px; }
+.acc-empty { border: 1px dashed #c8d3c8; border-radius: 12px; padding: 34px 20px; text-align: center; }
+.acc-empty-icon { width: 44px; height: 44px; border-radius: 50%; background: #e6efe5; display: inline-flex; align-items: center; justify-content: center; font-size: 20px; }
+.acc-empty strong { display: block; margin: 12px 0 6px; font-size: 14px; }
+.acc-empty p { margin: 0 auto 16px; font-size: 12px; color: #5d6f63; max-width: 360px; }
+.bank-card { background: #e8f0e6; border-radius: 12px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; }
+.bank-icon { width: 44px; height: 44px; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.bank-name { font-weight: 700; font-size: 15px; }
+.bank-holder { font-size: 12px; color: #4d5e53; text-transform: uppercase; margin: 2px 0 6px; }
+.bank-badge { display: inline-block; background: #fff; border-radius: 999px; padding: 3px 10px; font-size: 11px; color: #1e5a3c; font-weight: 600; }
+.bank-badge.warn { color: #8a5a00; }
+.acc-note { font-size: 11px; color: #5d6f63; margin: 14px 0 0; line-height: 1.6; }
+.acc-input-row { display: flex; gap: 10px; }
+.acc-input-row input { flex: 1; }
+.acc-holder { display: flex; justify-content: space-between; align-items: center; background: #f1f3ef; border-radius: 8px; padding: 11px 14px; font-weight: 700; }
+.acc-holder span { font-size: 11px; font-weight: 600; color: #1e5a3c; background: #fff; border-radius: 999px; padding: 3px 10px; }
+.otp-boxes { display: flex; gap: 10px; justify-content: center; margin: 18px 0 10px; }
+.otp-boxes input { width: 44px; height: 46px; text-align: center; font-size: 18px; padding: 0; }
+.otp-meta { text-align: center; font-size: 11px; color: #7a8a7f; }
+.otp-meta button { border: 0; background: none; color: #255c3e; font-size: 11px; cursor: pointer; padding: 0; }
+.otp-meta button:disabled { color: #9aa79e; cursor: default; }
+@media (max-width: 860px) { .acc-layout { grid-template-columns: 1fr; } .acc-grid, .acc-grid3 { grid-template-columns: 1fr; } }
+.password-page { padding: 32px 20px; }
+.password-panel { max-width: 560px; margin: 0 auto; }
+.password-panel h1 { margin-top: 0; font-size: 26px; }
+.password-panel fieldset { border: 0; padding: 0; margin: 20px 0 0; min-width: 0; }
+.password-panel .field { display: block; margin: 16px 0 8px; font-weight: 600; }
+.password-panel input:not([type="checkbox"]) { width: 100%; }
+.password-error { color: #a0362c; font-size: 13px; margin: 4px 0; }
+.password-reveal { display: flex; align-items: center; gap: 8px; margin: 18px 0; }
+.password-reveal input { width: 16px; height: 16px; }
+.password-panel .muted { font-size: 13px; }
+.password-body .workspace > header { height: auto; min-height: 82px; flex-wrap: wrap; padding: 16px 24px; }
+.password-body .retail-brand-area { flex-wrap: wrap; min-width: 0; }
+.password-body .retail-nav-links { flex-wrap: wrap; }
+.password-body .workspace { min-width: 0; }
+.password-body .password-page { min-height: 0; }

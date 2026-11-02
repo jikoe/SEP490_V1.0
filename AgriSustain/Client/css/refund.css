@@ -1,0 +1,96 @@
+/* ==========================================================================
+   AgriSustain - UC-FIN-03 Process Refund
+   (Figma "AgriSustain Admin Screens" · UC-FIN-03, nodes 34:533–34:538)
+   ========================================================================== */
+
+.rf-page { max-width: 1136px; color: #173d2c; }
+.rf-crumbs { font-size: 12px; color: #667a70; margin: 0 0 22px; }
+.rf-page h1 { font-size: 30px; color: #134a32; margin: 0 0 10px; letter-spacing: -.3px; }
+.rf-sub { font-size: 14px; color: #5f7268; margin: 0 0 22px; }
+
+.rf-card { background: #fff; border: 1px solid #e3e9e5; border-radius: 12px; padding: 24px; margin-bottom: 22px; }
+.rf-card h2 { font-size: 18px; color: #173d2c; margin: 0 0 18px; }
+
+.rf-btn { height: 40px; padding: 0 12px; border-radius: 6px; font-size: 16px; cursor: pointer;
+  border: 1px solid #9a9a9a; background: #e4e4e4; color: #1f2b25; white-space: nowrap; }
+.rf-btn:disabled { opacity: .55; cursor: not-allowed; }
+.rf-btn.primary { background: #1fae5b; border-color: #157a3f; color: #fff; }
+.rf-btn.primary:hover:not(:disabled) { background: #1a9a50; }
+.rf-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
+
+/* (1)–(5) list */
+.rf-filters { display: grid; grid-template-columns: 1fr 260px 316px; gap: 16px; }
+.rf-filters label { display: flex; flex-direction: column; gap: 10px; font-size: 16px; color: #2a3a31; margin: 0; }
+.rf-filters input, .rf-filters select { height: 40px; border: 1px solid #d9e2dc; border-radius: 6px;
+  padding: 0 14px; font-size: 16px; color: #1f2b25; background: #fff; }
+.rf-dates { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; }
+.rf-dates input { min-width: 0; padding: 0 8px; font-size: 14px; }
+.rf-field-error { color: #b3261e; font-size: 13px; margin: 8px 0 0; }
+
+.rf-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 0; }
+.rf-table th { background: #f1f4f2; color: #445b4e; text-align: left; font-weight: 600; padding: 13px 0; border: 0; }
+.rf-table td { padding: 16px 0; border-bottom: 1px solid #e6ece8; color: #1f2b25; vertical-align: middle; }
+.rf-table td.code { font-weight: 700; color: #173d2c; }
+.rf-table .empty { text-align: center; color: #667a70; padding: 32px 0; }
+.rf-foot { display: flex; align-items: center; gap: 16px; padding-top: 16px; color: #667a70; font-size: 12px; flex-wrap: wrap; }
+.rf-pager { display: inline-flex; gap: 6px; margin-left: auto; }
+.rf-pager button { min-width: 30px; height: 30px; border: 1px solid #d9e2dc; background: #fff; border-radius: 6px; cursor: pointer; }
+.rf-pager button.current { background: #e3f5e9; border-color: #e3f5e9; color: #1f7a45; font-weight: 700; }
+
+.rf-pill { display: inline-block; padding: 5px 6px; border-radius: 4px; font-size: 12px; font-weight: 700;
+  background: #fff3d6; color: #a76a00; white-space: nowrap; }
+.rf-pill.Completed { background: #e3f5e9; color: #1f7a45; }
+.rf-pill.Failed { background: #fde8e6; color: #b3261e; }
+.rf-pill.Waiting { background: #eef1ef; color: #5f6d66; }
+
+/* (6)–(15) facts */
+.rf-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px 32px; }
+.rf-facts span { display: block; font-size: 12px; color: #667a70; margin-bottom: 6px; }
+.rf-facts strong { font-size: 14px; color: #173d2c; overflow-wrap: anywhere; }
+.rf-facts .status { align-self: start; }
+.rf-facts .rf-pill { display: inline-block; margin: 0; }
+.rf-source { font-size: 12px; color: #667a70; margin: 22px 0 0; }
+
+.rf-notice { border-radius: 6px; padding: 16px; margin: 22px 0 16px; }
+.rf-notice strong { display: block; font-size: 14px; margin-bottom: 6px; }
+.rf-notice p { margin: 0; font-size: 13px; color: #1f2b25; line-height: 1.5; }
+.rf-notice.ok { background: #e8fcef; }
+.rf-notice.ok strong { color: #1f7a45; }
+.rf-notice.warn { background: #fff4e0; }
+.rf-notice.warn strong { color: #a76a00; }
+.rf-notice.bad { background: #fde8e6; }
+.rf-notice.bad strong { color: #b3261e; }
+.rf-notice.idle { background: #f1f4f2; }
+.rf-notice.idle strong { color: #445b4e; }
+
+/* (17) history */
+.rf-history { list-style: none; margin: 0; padding: 0; }
+.rf-history li { font-size: 13px; color: #5f7268; padding: 8px 0; line-height: 1.45; }
+.rf-history li + li { border-top: 1px solid #f0f3f1; }
+
+/* (17)–(23) transfer */
+.rf-transfer h2 { font-size: 22px; }
+.rf-transfer > p { font-size: 14px; color: #1f2b25; margin: 0 0 16px; line-height: 1.45; }
+.rf-qr { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; }
+.rf-qr figure { margin: 0; width: 132px; min-height: 132px; border: 1px solid #d9e2dc; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center; background: #fff; }
+.rf-qr img { width: 124px; height: 124px; object-fit: contain; }
+.rf-qr figcaption { font-size: 11px; color: #667a70; padding: 8px; text-align: center; }
+.rf-qr dl { margin: 0; font-size: 14px; color: #1f2b25; display: grid; gap: 6px; }
+.rf-qr dd { margin: 0; }
+.rf-record { background: #e8fcef; border-radius: 6px; padding: 16px; margin-bottom: 16px; display: grid;
+  grid-template-columns: 1fr 1.4fr; gap: 16px; }
+.rf-record label { display: flex; flex-direction: column; gap: 8px; font-size: 14px; font-weight: 700; color: #1f7a45; }
+.rf-record input, .rf-record textarea { border: 1px solid #c9dccf; border-radius: 6px; padding: 8px 12px;
+  font-size: 14px; color: #1f2b25; background: #fff; font-family: inherit; font-weight: 400; }
+.rf-record textarea { min-height: 40px; resize: vertical; }
+.rf-record .rf-field-error { font-weight: 400; margin: 0; }
+
+dialog.rf-dialog { width: 460px; border-radius: 12px; border: 1px solid #e3e9e5; padding: 24px; }
+dialog.rf-dialog h2 { font-size: 20px; color: #134a32; margin: 0 0 12px; }
+dialog.rf-dialog p { font-size: 14px; margin: 0 0 20px; }
+
+@media (max-width: 900px) {
+  .rf-filters, .rf-facts, .rf-record { grid-template-columns: 1fr; }
+  .rf-table { display: block; overflow-x: auto; }
+}

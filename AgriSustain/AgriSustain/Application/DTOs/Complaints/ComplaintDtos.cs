@@ -7,6 +7,10 @@ public sealed record ComplaintQuery(
     int Page = 1,
     int PageSize = 10);
 
+/// <summary>
+/// EvidenceDueAt is the earliest deadline of an open evidence request; EvidenceComplete means
+/// every request was answered.
+/// </summary>
 public sealed record ComplaintListItemDto(
     long TicketId,
     string? SellerOrderCode,
@@ -15,7 +19,10 @@ public sealed record ComplaintListItemDto(
     string DisputeReason,
     string TicketStatus,
     DateTime CreatedAt,
-    decimal? RefundAmount);
+    decimal? RefundAmount,
+    bool HasOverdueEvidence,
+    DateTime? EvidenceDueAt = null,
+    bool EvidenceComplete = false);
 
 public sealed record ComplaintListDto(
     IReadOnlyList<ComplaintListItemDto> Items,
@@ -54,6 +61,15 @@ public sealed record ComplaintRefundDto(
     string RefundStatus,
     DateTime? ProcessedAt);
 
+/// <summary>A seller-order line; PaidValue is its subtotal less its share of the discount.</summary>
+public sealed record ComplaintOrderItemDto(
+    long OrderItemId,
+    string? ProductName,
+    decimal Quantity,
+    string Unit,
+    decimal UnitPrice,
+    decimal PaidValue);
+
 public sealed record ComplaintDetailDto(
     long TicketId,
     string DisputeReason,
@@ -78,16 +94,26 @@ public sealed record ComplaintDetailDto(
     DateTime? DeliveredAt,
     decimal PaidAmount,
     decimal ReservedRefundAmount,
+    decimal SellerOrderReservedRefundAmount,
     decimal MaxRefundAmount,
+    IReadOnlyList<ComplaintOrderItemDto> Items,
     IReadOnlyList<ComplaintEvidenceDto> Evidences,
     IReadOnlyList<ComplaintEvidenceRequestDto> EvidenceRequests,
     IReadOnlyList<ComplaintRefundDto> Refunds);
 
-/// <summary>Resolution: FullRefund, PartialRefund or RejectClaim.</summary>
+/// <summary>An affected line and quantity for a partial refund (BR-CS-03).</summary>
+public sealed record RefundItemRequest(
+    long OrderItemId,
+    decimal Quantity);
+
+/// <summary>
+/// Resolution: FullRefund, PartialRefund or RejectClaim. A partial refund lists the affected
+/// items; the system calculates the amount from them.
+/// </summary>
 public sealed record ResolveComplaintRequest(
     string Resolution,
     string FaultParty,
-    decimal? RefundAmount,
+    IReadOnlyList<RefundItemRequest>? Items,
     string Reason);
 
 /// <summary>Party: Buyer or Seller.</summary>

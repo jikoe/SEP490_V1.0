@@ -30,6 +30,24 @@ public sealed class FinanceRefundsController : ControllerBase
         CancellationToken cancellationToken) =>
         ApiResults.From(await _refundService.GetDetailAsync(refundId, cancellationToken), HttpContext);
 
+    [HttpPost("{refundId:long}/start-transfer")]
+    public async Task<IActionResult> StartTransfer(
+        long refundId,
+        [FromBody] RefundTransferRequest request,
+        CancellationToken cancellationToken) =>
+        ApiResults.From(
+            await _refundService.StartTransferAsync(refundId, request, cancellationToken),
+            HttpContext);
+
+    [HttpPost("{refundId:long}/cancel-transfer")]
+    public async Task<IActionResult> CancelTransfer(
+        long refundId,
+        [FromBody] RefundTransferRequest request,
+        CancellationToken cancellationToken) =>
+        ApiResults.From(
+            await _refundService.CancelTransferAsync(refundId, request, cancellationToken),
+            HttpContext);
+
     [HttpPost("{refundId:long}/complete")]
     public async Task<IActionResult> Complete(
         long refundId,
@@ -46,5 +64,14 @@ public sealed class FinanceRefundsController : ControllerBase
         CancellationToken cancellationToken) =>
         ApiResults.From(
             await _refundService.RecordTransferFailureAsync(refundId, request, cancellationToken),
+            HttpContext);
+
+    [HttpPost("{refundId:long}/needs-reconciliation")]
+    public async Task<IActionResult> NeedsReconciliation(
+        long refundId,
+        [FromBody] RefundReconciliationRequest request,
+        CancellationToken cancellationToken) =>
+        ApiResults.From(
+            await _refundService.MarkNeedsReconciliationAsync(refundId, request, cancellationToken),
             HttpContext);
 }

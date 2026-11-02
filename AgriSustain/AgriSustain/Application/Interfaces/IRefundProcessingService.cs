@@ -14,6 +14,17 @@ public interface IRefundProcessingService
         long refundId,
         CancellationToken cancellationToken);
 
+    /// <summary>Start Transfer from Pending, or Transfer Again from Failed.</summary>
+    Task<Result<RefundActionResponse>> StartTransferAsync(
+        long refundId,
+        RefundTransferRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<RefundActionResponse>> CancelTransferAsync(
+        long refundId,
+        RefundTransferRequest request,
+        CancellationToken cancellationToken);
+
     Task<Result<RefundActionResponse>> CompleteAsync(
         long refundId,
         CompleteRefundRequest request,
@@ -22,5 +33,10 @@ public interface IRefundProcessingService
     Task<Result<RefundActionResponse>> RecordTransferFailureAsync(
         long refundId,
         RefundTransferFailedRequest request,
+        CancellationToken cancellationToken);
+
+    Task<Result<RefundActionResponse>> MarkNeedsReconciliationAsync(
+        long refundId,
+        RefundReconciliationRequest request,
         CancellationToken cancellationToken);
 }

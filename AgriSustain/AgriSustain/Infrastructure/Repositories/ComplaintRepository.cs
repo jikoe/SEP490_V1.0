@@ -1,3 +1,4 @@
+using AgriSustain.Application.Services.Complaints;
 using AgriSustain.Application.DTOs.Complaints;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
@@ -10,7 +11,10 @@ public sealed class ComplaintRepository : IComplaintRepository
 {
     private static readonly string[] s_capturedStatuses = ["Success", "Succeeded", "Paid", "Completed"];
     private static readonly string[] s_reservingRefundStatuses =
-        [RefundTransaction.StatusPending, RefundTransaction.StatusCompleted, "Success", "Succeeded"];
+        [
+            RefundTransaction.StatusPending, RefundTransaction.StatusProcessing, RefundTransaction.StatusCompleted,
+            RefundTransaction.StatusFailed, RefundTransaction.StatusNeedsReconciliation, "Success", "Succeeded"
+        ];
 
     private readonly AgriSustainContext _context;
 
@@ -21,6 +25,7 @@ public sealed class ComplaintRepository : IComplaintRepository
 
     public async Task<(int Total, IReadOnlyList<ComplaintListItemDto> Items)> SearchAsync(
         ComplaintQuery query,
+        DateTime now,
         CancellationToken cancellationToken)
     {
         var tickets = _context.DisputeTickets.AsNoTracking();
@@ -45,6 +50,8 @@ public sealed class ComplaintRepository : IComplaintRepository
         }
 
         int total = await tickets.CountAsync(cancellationToken);
+        // Same overdue rule as the evidence-timeout job: DueAt, or RequestedAt + 48 hours.
+        DateTime requestedBefore = now.AddHours(-48);
         var items = await tickets
             .OrderBy(ticket => ticket.TicketStatus == DisputeTicket.StatusOpen
                 || ticket.TicketStatus == DisputeTicket.StatusUnderReview
@@ -61,7 +68,18 @@ public sealed class ComplaintRepository : IComplaintRepository
                 ticket.DisputeReason,
                 ticket.TicketStatus,
                 ticket.CreatedAt,
-                ticket.RefundAmount))
+                ticket.RefundAmount,
+                ticket.DisputeEvidenceRequests.Any(request =>
+                    request.RequestStatus == DisputeTicket.EvidenceRequestPending
+                    && request.RespondedAt == null
+                    && (request.DueAt != null ? request.DueAt < now : request.RequestedAt < requestedBefore)),
+                ticket.DisputeEvidenceRequests
+                    .Where(request => request.RequestStatus == DisputeTicket.EvidenceRequestPending
+                        && request.RespondedAt == null)
+                    .Min(request => (DateTime?)(request.DueAt ?? request.RequestedAt.AddHours(48))),
+                ticket.DisputeEvidenceRequests.Any()
+                    && ticket.DisputeEvidenceRequests.All(request =>
+                        request.RequestStatus != DisputeTicket.EvidenceRequestPending || request.RespondedAt != null)))
             .ToListAsync(cancellationToken);
         return (total, items);
     }
@@ -114,6 +132,25 @@ public sealed class ComplaintRepository : IComplaintRepository
                     .SelectMany(payment => payment.RefundTransactions)
                     .Where(refund => s_reservingRefundStatuses.Contains(refund.RefundStatus))
                     .Sum(refund => (decimal?)refund.Amount) ?? 0,
+                SellerOrderReservedRefundAmount = _context.RefundTransactions
+                    .Where(refund => refund.DisputeTicket != null
+                        && refund.DisputeTicket.SellerOrderId == ticket.SellerOrderId
+                        && s_reservingRefundStatuses.Contains(refund.RefundStatus))
+                    .Sum(refund => (decimal?)refund.Amount) ?? 0,
+                SellerOrderSubtotal = ticket.SellerOrder == null ? 0 : ticket.SellerOrder.Subtotal,
+                SellerOrderDiscountShare = ticket.SellerOrder == null ? 0 : ticket.SellerOrder.DiscountShare,
+                // A complaint without a seller order simply has no lines (LEFT JOIN).
+                Items = ticket.SellerOrder!.OrderItems
+                    .OrderBy(item => item.OrderItemId)
+                    .Select(item => new
+                    {
+                        item.OrderItemId,
+                        item.ProductNameSnapshot,
+                        item.Quantity,
+                        item.UnitSnapshot,
+                        item.UnitPriceSnapshot,
+                        item.SubTotal
+                    }).ToList(),
                 BuyerUserId = ticket.SellerOrder == null ? (long?)null : ticket.SellerOrder.Order.BuyerUserId,
                 Evidences = ticket.DisputeEvidences
                     .OrderBy(evidence => evidence.SubmittedAt)
@@ -151,6 +188,13 @@ public sealed class ComplaintRepository : IComplaintRepository
         }
 
         var ticket = detail.Ticket;
+        var responseAudits = await _context.AuditLogs.AsNoTracking()
+            .Where(x => x.EntityType == FarmerComplaintResponseText.Entity && x.EntityId == ticketId
+                && x.Action == FarmerComplaintResponseText.Action)
+            .OrderBy(x => x.AuditLogId).ToListAsync(cancellationToken);
+        var responseTextByFile = responseAudits.Select(FarmerComplaintResponseText.Read)
+            .Where(x => x != null).SelectMany(x => x!.EvidenceUrls.Select(url => (Url: url, x.Explanation)))
+            .GroupBy(x => x.Url).ToDictionary(x => x.Key, x => x.Last().Explanation);
         string PartyOf(long userId) => userId == detail.BuyerUserId
             ? ComplaintParties.Buyer : ComplaintParties.Seller;
         return new ComplaintDetailDto(
@@ -159,10 +203,15 @@ public sealed class ComplaintRepository : IComplaintRepository
             ticket.ResolvedAt, detail.AssignedStaffName, detail.Complainant, detail.Buyer, detail.Seller,
             ticket.SellerOrderId, detail.SellerOrderCode, detail.SellerOrderStatus, detail.OrderCode,
             detail.OrderStatus, detail.SellerOrderAmount, detail.OrderFinalAmount, detail.DeliveredAt, detail.PaidAmount,
-            detail.ReservedRefundAmount, 0,
+            detail.ReservedRefundAmount, detail.SellerOrderReservedRefundAmount, 0,
+            detail.Items.Select(item => new ComplaintOrderItemDto(
+                item.OrderItemId, item.ProductNameSnapshot, item.Quantity, item.UnitSnapshot,
+                item.UnitPriceSnapshot,
+                SellerOrder.PaidValue(item.SubTotal, detail.SellerOrderSubtotal,
+                    detail.SellerOrderDiscountShare))).ToList(),
             detail.Evidences.Select(evidence => new ComplaintEvidenceDto(
                 evidence.DisputeEvidenceId, evidence.FullName, PartyOf(evidence.SubmittedByUserId),
-                evidence.Description, evidence.SubmittedAt,
+                responseTextByFile.TryGetValue(evidence.FileUrl, out var fullExplanation) ? fullExplanation : evidence.Description, evidence.SubmittedAt,
                 evidence.FileUrl.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))).ToList(),
             detail.Requests.Select(request => new ComplaintEvidenceRequestDto(
                 request.EvidenceRequestId, PartyOf(request.RequestedPartyUserId), request.Instructions,
@@ -181,6 +230,13 @@ public sealed class ComplaintRepository : IComplaintRepository
             .Include(ticket => ticket.DisputeEvidenceRequests)
             .Include(ticket => ticket.SellerOrder!)
                 .ThenInclude(sellerOrder => sellerOrder.FarmerProfile)
+            .Include(ticket => ticket.SellerOrder!)
+                .ThenInclude(sellerOrder => sellerOrder.OrderItems)
+            .Include(ticket => ticket.SellerOrder!)
+                .ThenInclude(sellerOrder => sellerOrder.DisputeTickets)
+            .Include(ticket => ticket.SellerOrder!)
+                .ThenInclude(sellerOrder => sellerOrder.Order)
+                    .ThenInclude(order => order.SellerOrders)
             .Include(ticket => ticket.SellerOrder!)
                 .ThenInclude(sellerOrder => sellerOrder.Order)
                     .ThenInclude(order => order.PaymentTransactions)
@@ -237,6 +293,14 @@ public sealed class ComplaintRepository : IComplaintRepository
             .Where(user => user.Status == "Active" && roles.Contains(user.Role))
             .Select(user => user.UserId)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<UserBankAccount?> GetDefaultBankAccountAsync(
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        return _context.UserBankAccounts.AsNoTracking()
+            .FirstOrDefaultAsync(account => account.UserId == userId && account.IsDefault, cancellationToken);
     }
 
     public void AddRefund(RefundTransaction refund)

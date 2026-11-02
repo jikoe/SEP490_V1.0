@@ -1,3 +1,4 @@
+using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Profiles;
 using FluentValidation;
 
@@ -12,7 +13,7 @@ public sealed class UpdateConsumerProfileValidator : AbstractValidator<UpdateCon
         RuleFor(x => x.PhoneNumber).ValidPhone();
 
         RuleFor(x => x.Gender)
-            .Must(g => g is null or "" or "Male" or "Female" or "Other")
+            .Must(g => g is null or "" or "Male" or "Female" or "Other" or "Nam" or "Nữ" or "Khác")
             .WithMessage("Giới tính không hợp lệ.");
 
         RuleFor(x => x.BirthDate)
@@ -24,7 +25,7 @@ public sealed class UpdateConsumerProfileValidator : AbstractValidator<UpdateCon
 
         RuleFor(x => x.RecipientPhone)
             .Matches(@"^0\d{9}$").When(x => !string.IsNullOrWhiteSpace(x.RecipientPhone))
-            .WithMessage("Số điện thoại người nhận phải có 10 chữ số, bắt đầu bằng 0.");
+            .WithMessage(SystemMessages.Msg180InvalidPhone);
 
         When(x => !string.IsNullOrWhiteSpace(x.ProvinceCode) || !string.IsNullOrWhiteSpace(x.DistrictCode)
             || !string.IsNullOrWhiteSpace(x.WardCode) || !string.IsNullOrWhiteSpace(x.AddressDetail), () =>
@@ -68,6 +69,13 @@ public sealed class UpdateFarmerProfileValidator : AbstractValidator<UpdateFarme
         RuleFor(x => x.BusinessLicenseNumber)
             .MaximumLength(100).WithMessage("Số giấy phép không quá 100 ký tự.");
 
+        RuleFor(x => x.ProductionModel)
+            .Must(v => string.IsNullOrWhiteSpace(v) || v is "Individual" or "Cooperative")
+            .WithMessage("Loại hình phải là Cá nhân hoặc Hợp tác xã.");
+
+        RuleFor(x => x.ShortDescription)
+            .MaximumLength(300).WithMessage("Mô tả ngắn không quá 300 ký tự.");
+
         RuleFor(x => x.CultivatedArea)
             .GreaterThan(0).When(x => x.CultivatedArea.HasValue)
             .WithMessage("Diện tích canh tác phải là số dương (> 0).");
@@ -98,5 +106,5 @@ internal static class ProfileRules
     public static IRuleBuilderOptions<T, string> ValidPhone<T>(this IRuleBuilder<T, string> rule) =>
         rule.Must(v => !string.IsNullOrWhiteSpace(v)).WithMessage("Số điện thoại không được để trống.")
             .Must(v => v is null || System.Text.RegularExpressions.Regex.IsMatch(v.Trim(), @"^0\d{9}$"))
-            .WithMessage("Số điện thoại phải có 10 chữ số, bắt đầu bằng 0.");
+            .WithMessage(SystemMessages.Msg180InvalidPhone);
 }

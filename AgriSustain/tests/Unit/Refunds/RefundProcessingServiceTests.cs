@@ -93,10 +93,10 @@ public sealed class RefundProcessingServiceTests
         Assert.Equal("PartiallyRefunded", refund.DisputeTicket.SellerOrder.Order.OrderStatus);
     }
 
-    [Theory(DisplayName = "UTC-FIN03-03 Parent order stays RefundPending while another refund is pending")]
-    [InlineData("Delivered", "Refunded")]
-    [InlineData("Cancelled", "Refunded")]
-    [InlineData("RefundPending", "RefundPending")]
+    [Theory(DisplayName = "UTC-FIN03-03 Parent order status follows all of its seller orders")]
+    [InlineData("Delivered", "PartiallyRefunded")]   // the other farm's part was not refunded
+    [InlineData("Cancelled", "Refunded")]            // cancelled parts are ignored
+    [InlineData("RefundPending", "RefundPending")]   // another refund still awaits Finance
     public async Task Complete_MultiSellerOrder_ParentStatus(string otherSeller, string expected)
     {
         var refund = _store.Refund = Refund(otherSellerStatus: otherSeller);
@@ -104,6 +104,19 @@ public sealed class RefundProcessingServiceTests
         await Service().CompleteAsync(11, Transfer(), default);
 
         Assert.Equal(expected, refund.DisputeTicket!.SellerOrder!.Order.OrderStatus);
+    }
+
+    [Fact(DisplayName = "UTC-FIN03-03b A fully refunded seller order is Refunded even when the order has other farms")]
+    public async Task Complete_FullSellerOrderRefund_InMultiFarmOrder()
+    {
+        var refund = _store.Refund = Refund(paid: 300_000m, otherSellerStatus: "Delivered");
+        refund.DisputeTicket!.SellerOrder!.Order.FinalAmount = 300_000m;
+
+        await Service().CompleteAsync(11, Transfer(), default);
+
+        Assert.Equal("Refunded", refund.DisputeTicket.SellerOrder.Status);              // 200 000 of 200 000
+        Assert.Equal("PartiallyRefunded", refund.DisputeTicket.SellerOrder.Order.OrderStatus);
+        Assert.Equal("Success", refund.PaymentTransaction.PaymentStatus);             // 100 000 still paid
     }
 
     [Theory(DisplayName = "UTC-FIN03-04 Method and transfer reference are required")]

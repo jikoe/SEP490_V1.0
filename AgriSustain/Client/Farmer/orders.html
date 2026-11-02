@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xử lý đơn hàng - Nông trại AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="farmer-orders-app">
+          <!-- Head matching OrdersScreen.jsx -->
+          <div class="head">
+            <div>
+              <h1>Xử lý đơn hàng</h1>
+              <p>Quản lý hoạt động của nông trại</p>
+            </div>
+          </div>
+
+          <!-- Views Navigation: EXACTLY 3 VIEWS matching OrdersScreen.jsx -->
+          <nav class="views" aria-label="Các chế độ xem đơn hàng">
+            <button
+              type="button"
+              id="view-btn-list"
+              class="active"
+              onclick="switchView('list')"
+            >
+              Đơn hàng của nông trại
+            </button>
+            <button
+              type="button"
+              id="view-btn-detail"
+              onclick="switchView('detail')"
+            >
+              Xem và xử lý đơn
+            </button>
+            <button
+              type="button"
+              id="view-btn-reject"
+              onclick="switchView('reject')"
+            >
+              Từ chối đơn hàng
+            </button>
+          </nav>
+
+          <section aria-label="Thông báo" id="orders-feedback-section" style="display:none;margin-bottom:16px"><strong>Thông báo</strong><div id="orders-feedback" class="feedback" role="status"></div></section>
+
+          <!-- ================= VIEW 1: LIST ================= -->
+          <div id="view-list" class="view">
+            <div class="field">
+              <label>Tìm kiếm và bộ lọc</label>
+              <form class="filter-row order-filters" onsubmit="handleApplyFilters(event)">
+                <div class="filter-field filter-keyword">
+                  <label for="orderKeyword">Tìm kiếm</label>
+                  <input
+                    id="orderKeyword"
+                    placeholder="Mã đơn, khách hàng, mã lô..."
+                  />
+                </div>
+                <div class="filter-field">
+                  <label for="orderStatus">Trạng thái</label>
+                  <select id="orderStatus">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="Chờ xác nhận">Chờ xác nhận</option>
+                    <option value="Đang chuẩn bị">Đang chuẩn bị</option>
+                    <option value="Sẵn sàng giao">Sẵn sàng giao</option>
+                    <option value="Đang giao">Đang giao</option>
+                    <option value="Đã hủy">Đã hủy</option>
+                  </select>
+                </div>
+                <div class="filter-field">
+                  <label for="fromDate">Từ ngày</label>
+                  <input id="fromDate" type="date" />
+                </div>
+                <div class="filter-field">
+                  <label for="toDate">Đến ngày</label>
+                  <input id="toDate" type="date" />
+                </div>
+                <button type="submit" class="btn primary" id="btn-filter-apply">
+                  Áp dụng
+                </button>
+                <button type="button" class="btn" onclick="handleClearFilters()">
+                  Xóa bộ lọc
+                </button>
+              </form>
+            </div>
+
+            <div class="field">
+              <label>Danh sách đơn hàng</label>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Đơn của nông trại / Đơn tổng</th>
+                      <th>RetailCustomer / Ngày</th>
+                      <th>Hàng hóa / Thanh toán</th>
+                      <th>Trạng thái</th>
+                      <th>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="orders-tbody">
+                    <tr>
+                      <td colspan="5" style="text-align: center; padding: 24px; color: #62766a;">
+                        Đang tải dữ liệu đơn hàng…
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="pagination">
+              <span id="pagination-info">
+                Hiển thị 0 trong 0 bản ghi · 10 bản ghi/trang
+              </span>
+              <span id="pagination-controls">
+                <button type="button" disabled>‹</button>
+                <button type="button" class="active">1</button>
+                <button type="button" disabled>›</button>
+              </span>
+            </div>
+          </div>
+
+          <!-- ================= VIEW 2: DETAIL ================= -->
+          <div id="view-detail" class="view" style="display:none;">
+            <div class="topline">
+              <h2 id="detail-order-code">Chi tiết đơn ---</h2>
+              <span id="detail-order-pill" class="pill">Chờ xác nhận</span>
+            </div>
+
+            <section class="section">
+              <h2>Thông tin đơn hàng</h2>
+              <div class="inside">
+                <div class="grid two">
+                  <div class="field">
+                    <label>Người nhận và địa chỉ</label>
+                    <dl class="keyvalue">
+                      <dt>Họ tên</dt>
+                      <dd id="dt-recipient-name">---</dd>
+                      <dt>Điện thoại</dt>
+                      <dd id="dt-recipient-phone">---</dd>
+                      <dt>Địa chỉ</dt>
+                      <dd id="dt-shipping-address">---</dd>
+                      <dt>Ghi chú</dt>
+                      <dd id="dt-order-notes">Không có ghi chú</dd>
+                    </dl>
+                  </div>
+
+                  <div class="field">
+                    <label>Sản phẩm và điều kiện giao</label>
+                    <div class="readonly">
+                      <div id="dt-items-list" style="margin-bottom: 8px;"></div>
+                      <div style="border-top: 1px dashed #cfdcd3; padding-top: 6px; margin-top: 6px;">
+                        Phí giao hàng: <span id="dt-delivery-fee">0 ₫</span> · Giảm giá: <span id="dt-discount">0 ₫</span>
+                        <br />
+                        <strong>Tổng thanh toán: <span id="dt-final-amount">0 ₫</span></strong>
+                        <br />
+                        <span id="dt-payment-status" style="color: #176d40; font-weight: 600;">
+                          Đang kiểm tra thanh toán và phân bổ hàng
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Action buttons (Confirm, Ready, Ship) matching OrdersScreen.jsx -->
+            <div class="grid">
+              <div class="field">
+                <label>Xác nhận đơn</label>
+                <button
+                  type="button"
+                  id="btn-confirm-order"
+                  class="btn primary"
+                  onclick="confirmCurrentOrder()"
+                >
+                  Xác nhận đơn
+                </button>
+              </div>
+              <div class="field">
+                <label>Sẵn sàng giao</label>
+                <button
+                  type="button"
+                  id="btn-ready-order"
+                  class="btn"
+                  onclick="readyCurrentOrder()"
+                >
+                  Đánh dấu sẵn sàng giao
+                </button>
+              </div>
+              <div class="field">
+                <label>Giao mô phỏng</label>
+                <button
+                  type="button"
+                  id="btn-dispatch-order"
+                  class="btn primary"
+                  onclick="dispatchCurrentOrder()"
+                >
+                  Bắt đầu giao mô phỏng
+                </button>
+              </div>
+            </div>
+
+            <!-- Timeline History -->
+            <div class="field">
+              <label>Lịch sử xử lý</label>
+              <div class="timeline" id="dt-timeline"></div>
+            </div>
+
+            <!-- Bottom Actions: Print slip & Reject -->
+            <div class="grid two">
+              <div class="field">
+                <label>In phiếu</label>
+                <button type="button" class="btn" onclick="printOrderSlip()">
+                  In phiếu
+                </button>
+              </div>
+              <div class="field">
+                <label>Từ chối trước khi giao</label>
+                <button
+                  type="button"
+                  id="btn-goto-reject"
+                  class="btn danger"
+                  onclick="switchView('reject')"
+                >
+                  Từ chối đơn hàng
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ================= VIEW 3: REJECT ================= -->
+          <div id="view-reject" class="view" style="display:none;">
+            <div class="topline">
+              <h2 id="reject-order-code">Từ chối đơn ---</h2>
+              <span id="reject-order-pill" class="pill">Chờ xác nhận</span>
+            </div>
+
+            <form onsubmit="handleRejectSubmit(event)">
+              <div class="field">
+                <label for="rejectionReasonInput">
+                  Lý do từ chối *
+                </label>
+                <textarea
+                  id="rejectionReasonInput"
+                  required
+                  placeholder="Nhập lý do từ chối đơn hàng..."
+                ></textarea>
+                <p class="hint">Không được để trống hoặc chỉ nhập khoảng trắng.</p>
+              </div>
+
+              <div class="field">
+                <label>Thông tin hoàn tiền</label>
+                <div class="readonly">
+                  Người nhận hoàn tiền: <strong id="rf-account-name">Chưa có thông tin</strong>
+                  <br />
+                  Ngân hàng: <strong id="rf-bank-name">Chưa có thông tin</strong>
+                  <br />
+                  Tài khoản nhận tiền: <strong id="rf-account-num">Chưa có thông tin</strong> · <span id="rf-recipient-name">Khách hàng</span>
+                  <h3 id="rf-amount-heading" style="margin: 8px 0; color: #173b24;">Số tiền hoàn: 0 ₫</h3>
+                  <span id="rf-status-pill" class="pill">—</span>
+                  <p style="margin: 8px 0 0; font-size: 12px; color: #556c5e;">
+                    Số tiền được tự động hoàn vào tài khoản nhận tiền đã xác thực. Thông báo hệ thống và email được gửi sau khi hoàn tiền hoàn tất.
+                  </p>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Xác nhận từ chối</label>
+                <div class="actions">
+                  <button
+                    type="submit"
+                    id="btn-submit-reject"
+                    class="btn danger"
+                  >
+                    Xác nhận từ chối
+                  </button>
+                  <button
+                    type="button"
+                    class="btn"
+                    onclick="switchView('detail')"
+                  >
+                    Quay lại đơn hàng
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Footer -->
+          <footer class="foot">
+            AgriSustain · Không gian quản lý đơn hàng của nông trại · Dữ liệu bảo mật theo tiêu chuẩn nông nghiệp bền vững
+          </footer>
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Farmer
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/order.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let currentView = 'list';
+    let ordersList = [];
+    let selectedOrder = null;
+    let totalRecords = 0;
+    let currentPage = 1;
+    let actionBusy = false;
+
+    const statusMap = {
+      Pending: 'Chờ xác nhận',
+      Confirmed: 'Đang chuẩn bị',
+      Preparing: 'Đang chuẩn bị',
+      ReadyToShip: 'Sẵn sàng giao',
+      Ready: 'Sẵn sàng giao',
+      Shipping: 'Đang giao',
+      InTransit: 'Đang giao',
+      Cancelled: 'Đã hủy',
+      Rejected: 'Đã hủy',
+      Delivered: 'Đã giao',
+      Completed: 'Hoàn tất'
+    };
+
+    function displayStatus(s) {
+      return statusMap[s] || s || 'Chờ xác nhận';
+    }
+
+    function isBeforeShipping(status) {
+      return ['Pending', 'Confirmed', 'Preparing', 'ReadyToShip', 'Ready', 'Chờ xác nhận', 'Đang chuẩn bị', 'Sẵn sàng giao'].includes(status);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadOrders();
+    });
+
+    function setFeedback(msg, bad = false) {
+      const fb = document.getElementById('orders-feedback');
+      if (msg) {
+        fb.textContent = msg;
+        fb.className = `feedback ${bad ? 'bad' : ''}`;
+        fb.style.display = 'block';
+        document.getElementById('orders-feedback-section').style.display = 'block';
+
+        Utils.showToast(msg, bad ? 'error' : 'success');
+      } else {
+        fb.style.display = 'none';
+        document.getElementById('orders-feedback-section').style.display = 'none';
+      }
+    }
+
+    function switchView(viewName) {
+      currentView = viewName;
+      ['list', 'detail', 'reject'].forEach(v => {
+        document.getElementById(`view-${v}`).style.display = (v === viewName) ? 'block' : 'none';
+        const btn = document.getElementById(`view-btn-${v}`);
+        if (btn) btn.className = (v === viewName) ? 'active' : '';
+      });
+
+      if ((viewName === 'detail' || viewName === 'reject') && selectedOrder) {
+        populateDetailView(selectedOrder);
+      }
+    }
+
+    async function loadOrders(page = 1) {
+      currentPage = page;
+      const keyword = document.getElementById('orderKeyword').value.trim();
+      const statusFilter = document.getElementById('orderStatus').value;
+      const fromDate = document.getElementById('fromDate').value;
+      const toDate = document.getElementById('toDate').value;
+
+      let apiStatus = statusFilter;
+      if (statusFilter === 'Chờ xác nhận') apiStatus = 'Pending';
+      else if (statusFilter === 'Đang chuẩn bị') apiStatus = 'Confirmed';
+      else if (statusFilter === 'Sẵn sàng giao') apiStatus = 'ReadyToShip';
+      else if (statusFilter === 'Đang giao') apiStatus = 'Shipping';
+      else if (statusFilter === 'Đã hủy') apiStatus = 'Cancelled';
+
+      const tbody = document.getElementById('orders-tbody');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 24px; color: #62766a;">Đang tải dữ liệu đơn hàng…</td></tr>';
+
+      if (fromDate && toDate && fromDate > toDate) {
+        setFeedback("Ngày bắt đầu không được sau ngày kết thúc.", true);
+        return;
+      }
+      const params = { page: currentPage, pageSize: 10 };
+      if (keyword) params.keyword = keyword;
+      if (apiStatus) params.status = apiStatus;
+      if (fromDate) params.from = fromDate;
+      if (toDate) params.to = toDate;
+
+      try {
+        const res = await API.getFarmerOrders(params);
+
+        if (res.success && res.data) {
+          const payload = res.data.data || res.data;
+          const items = payload.items || (Array.isArray(payload) ? payload : []);
+          ordersList = items;
+          totalRecords = payload.total || items.length;
+          renderOrdersTable(items);
+          if (items.length > 0) {
+            if (!selectedOrder || !items.some(o => (o.sellerOrderId || o.id) === (selectedOrder.sellerOrderId || selectedOrder.id))) {
+              selectedOrder = items[0];
+            } else {
+              const fresh = items.find(o => (o.sellerOrderId || o.id) === (selectedOrder.sellerOrderId || selectedOrder.id));
+              if (fresh) selectedOrder = fresh;
+            }
+          } else {
+            selectedOrder = null;
+          }
+        } else {
+          ordersList = [];
+          totalRecords = 0;
+          selectedOrder = null;
+          renderOrdersTable([]);
+          setFeedback(res.error || 'Không thể tải dữ liệu. Vui lòng thử lại.', true);
+        }
+      } catch (err) {
+        ordersList = [];
+        totalRecords = 0;
+        selectedOrder = null;
+        renderOrdersTable([]);
+        setFeedback('Không thể kết nối đến máy chủ backend để tải đơn hàng.', true);
+      }
+    }
+
+    function renderOrdersTable(items) {
+      const tbody = document.getElementById('orders-tbody');
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 24px; color: #718276;">Không có đơn hàng phù hợp với điều kiện đã chọn.</td></tr>';
+        renderOrderPager();
+        return;
+      }
+
+      tbody.innerHTML = items.map(ord => {
+        const st = displayStatus(ord.status);
+        const isCancelled = ['Cancelled', 'Rejected', 'Đã hủy'].includes(ord.status);
+        const itemsDesc = (ord.items || [])
+          .map(it => `${it.productName} · ${it.quantity} ${it.unit}`)
+          .join(', ');
+
+        return `
+          <tr>
+            <td>
+              <strong>${Utils.escapeHtml(ord.sellerOrderCode)}</strong>
+              <br />
+              <span style="color: #718276;">${Utils.escapeHtml(ord.orderCode)}</span>
+            </td>
+            <td>
+              <strong>${Utils.escapeHtml(ord.recipientName)}</strong>
+              <br />
+              <small style="color: #718276;">${Utils.formatDateTime(ord.orderDate)}</small>
+            </td>
+            <td>
+              ${Utils.escapeHtml(itemsDesc || 'Hàng nông sản')}
+              <br />
+              <span style="color: #1a7545; font-weight: 600;">
+                ${ord.paymentStatus === 'Paid' ? 'Đã xác minh thanh toán' : 'Chưa có thanh toán'}
+              </span>
+              <br />
+              <strong>${Utils.formatVND(ord.finalAmount)}</strong>
+            </td>
+            <td>
+              <span class="pill ${isCancelled ? 'red' : ''}">${st}</span>
+              ${ord.isRefunded ? '<br><span class="pill" style="margin-top: 4px;">Đã hoàn tiền</span>' : ''}
+            </td>
+            <td>
+              <button
+                type="button"
+                class="btn"
+                onclick="openOrder(${ord.sellerOrderId || ord.id}, 'detail')"
+              >
+                Xem và xử lý
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      renderOrderPager();
+    }
+
+    function renderOrderPager() {
+      const pages = Math.max(1, Math.ceil(totalRecords / 10));
+      const first = totalRecords ? (currentPage - 1) * 10 + 1 : 0;
+      document.getElementById('pagination-info').textContent = `Hiển thị ${first}–${Math.min(currentPage * 10, totalRecords)} trong ${totalRecords} bản ghi · 10 bản ghi/trang`;
+      document.getElementById('pagination-controls').innerHTML = `
+        <button type="button" ${currentPage <= 1 ? 'disabled' : ''} onclick="loadOrders(${currentPage - 1})">‹</button>
+        <button type="button" class="active">${currentPage} / ${pages}</button>
+        <button type="button" ${currentPage >= pages ? 'disabled' : ''} onclick="loadOrders(${currentPage + 1})">›</button>`;
+    }
+
+    async function openOrder(orderId, targetView = 'detail') {
+      const res = await API.getFarmerOrderDetail(orderId);
+      if (!res.success || !res.data) {
+        setFeedback(res.error || 'Không thể tải dữ liệu. Vui lòng thử lại.', true);
+        return;
+      }
+      selectedOrder = res.data;
+      switchView(targetView);
+    }
+
+    function populateDetailView(o) {
+      if (!o) return;
+      const st = displayStatus(o.status);
+      const isCancelled = ['Cancelled', 'Rejected', 'Đã hủy'].includes(o.status);
+
+      // Detail headers
+      document.getElementById('detail-order-code').textContent = `Chi tiết đơn ${o.sellerOrderCode}`;
+      const detailPill = document.getElementById('detail-order-pill');
+      detailPill.textContent = st;
+      detailPill.className = `pill ${isCancelled ? 'red' : ''}`;
+
+      // Reject headers
+      document.getElementById('reject-order-code').textContent = `Từ chối đơn ${o.sellerOrderCode}`;
+      const rejectPill = document.getElementById('reject-order-pill');
+      rejectPill.textContent = st;
+      rejectPill.className = `pill ${isCancelled ? 'red' : ''}`;
+
+      // dl keyvalue
+      document.getElementById('dt-recipient-name').textContent = o.recipientName || '---';
+      document.getElementById('dt-recipient-phone').textContent = o.recipientPhone ? '•••• ' + o.recipientPhone.slice(-4) : '—';
+      document.getElementById('dt-shipping-address').textContent = o.shippingAddress || '---';
+      document.getElementById('dt-order-notes').textContent = o.notes || 'Không có ghi chú';
+
+      // Items
+      const itemsContainer = document.getElementById('dt-items-list');
+      itemsContainer.innerHTML = (o.items || []).map(it => `
+        <div style="margin-bottom: 8px;">
+          <strong>${Utils.escapeHtml(it.productName)}</strong> · ${it.quantity} ${it.unit}
+          <br />
+          Đơn giá: ${Utils.formatVND(it.unitPrice)}/${it.unit} · Tiền hàng: ${Utils.formatVND(it.lineAmount ?? it.subtotal ?? it.quantity * it.unitPrice)}
+          <br />
+          ${(it.allocations || []).map(a => `Lô: ${Utils.escapeHtml(a.batchCode || '—')} · Hạn sử dụng: ${Utils.escapeHtml(a.expirationDate || '—')}`).join('<br>') || 'Chưa có lô hàng được phân bổ'}
+        </div>
+      `).join('');
+
+      document.getElementById('dt-delivery-fee').textContent = Utils.formatVND(o.deliveryFee || 0);
+      document.getElementById('dt-discount').textContent = Utils.formatVND(o.discountShare || 0);
+      document.getElementById('dt-final-amount').textContent = Utils.formatVND(o.finalAmount || 0);
+
+      const statusDesc = ['Cancelled', 'Rejected'].includes(o.status)
+        ? 'Đã giải phóng hàng giữ chỗ'
+        : ['Shipping', 'InTransit'].includes(o.status)
+          ? 'Đã xuất giao hàng'
+          : o.canConfirm || o.canMarkReady || o.canDispatch ? 'Đã có phân bổ hàng hợp lệ' : 'Cần kiểm tra thanh toán và phân bổ hàng';
+      document.getElementById('dt-payment-status').textContent = `${o.paymentStatus === 'Paid' ? 'Đã xác minh thanh toán' : 'Chưa có thanh toán'} · ${statusDesc}`;
+
+      // Buttons active/disabled states
+      document.getElementById('btn-confirm-order').disabled = (actionBusy || !o.canConfirm);
+      document.getElementById('btn-ready-order').disabled = actionBusy || !o.canMarkReady;
+      document.getElementById('btn-dispatch-order').disabled = actionBusy || !o.canDispatch;
+      document.getElementById('btn-goto-reject').disabled = actionBusy || !o.canReject;
+
+      // Timeline
+      const timelineContainer = document.getElementById('dt-timeline');
+      if (o.timeline && o.timeline.length > 0) {
+        timelineContainer.innerHTML = o.timeline.map(e => `
+          <div class="event">
+            <strong>${displayStatus(e.newStatus)}</strong>
+            <p>${Utils.formatDateTime(e.occurredAt)} · ${Utils.escapeHtml(e.reason || 'Cập nhật trạng thái đơn hàng.')}</p>
+          </div>
+        `).join('');
+      } else {
+        timelineContainer.innerHTML = `
+          <div class="event">
+            <strong>${displayStatus(o.status)}</strong>
+            <p>${Utils.formatDateTime(o.orderDate)} · Đơn hàng đã được tạo.</p>
+          </div>
+        `;
+      }
+
+      // Populate Reject view data
+      document.getElementById('rf-account-name').textContent = o.bankAccountName || 'Chưa có thông tin';
+      document.getElementById('rf-bank-name').textContent = o.bankName || 'Chưa có thông tin';
+      document.getElementById('rf-account-num').textContent = o.bankAccount || 'Chưa có thông tin';
+      document.getElementById('rf-recipient-name').textContent = o.bankAccountName || o.recipientName || 'Khách hàng';
+      document.getElementById('rf-amount-heading').textContent = `Số tiền hoàn: ${Utils.formatVND(o.isRefunded ? o.refundedAmount : o.refundableAmount)}`;
+      document.getElementById('rf-status-pill').textContent = o.isRefunded ? 'Đã hoàn tiền' : (o.refundableAmount > 0 ? 'Tài khoản đã xác thực' : 'Không có khoản cần hoàn');
+      document.getElementById('btn-submit-reject').disabled = actionBusy || !o.canReject;
+    }
+
+    function showActionFeedback(message, order) {
+      renderOrdersTable(ordersList);
+      setFeedback(message + (order.notificationPending
+        ? ' Thông báo hệ thống hoặc email đang chờ gửi; hệ thống sẽ tiếp tục xử lý, không cần thực hiện lại thao tác.' : ''));
+    }
+
+    async function confirmCurrentOrder() {
+      if (!selectedOrder || actionBusy) return;
+      if (!confirm(Messages.order.confirmPacking)) return;
+      actionBusy = true;
+      populateDetailView(selectedOrder);
+      try {
+        const res = await API.confirmFarmerOrder(selectedOrder.sellerOrderId || selectedOrder.id, selectedOrder.version || '1');
+        if (res.success && res.data) {
+          selectedOrder = res.data;
+          ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
+          populateDetailView(selectedOrder);
+          showActionFeedback('Đã xác nhận đơn hàng.', selectedOrder);
+        } else {
+          setFeedback(res.error || 'Xác nhận đơn hàng thất bại.', true);
+        }
+      } catch (err) {
+        setFeedback(err.message || 'Lỗi khi gọi API xác nhận đơn hàng.', true);
+      } finally {
+        actionBusy = false;
+        populateDetailView(selectedOrder);
+      }
+    }
+
+    async function readyCurrentOrder() {
+      if (!selectedOrder || actionBusy) return;
+      if (!confirm(Messages.order.readyToShip)) return;
+      actionBusy = true;
+      populateDetailView(selectedOrder);
+      try {
+        const res = await API.readyFarmerOrder(selectedOrder.sellerOrderId || selectedOrder.id, selectedOrder.version || '1');
+        if (res.success && res.data) {
+          selectedOrder = res.data;
+          ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
+          populateDetailView(selectedOrder);
+          showActionFeedback('Đơn hàng sẵn sàng giao.', selectedOrder);
+        } else {
+          setFeedback(res.error || 'Thao tác không thành công.', true);
+        }
+      } catch (err) {
+        setFeedback(err.message || 'Lỗi khi đánh dấu sẵn sàng giao.', true);
+      } finally {
+        actionBusy = false;
+        populateDetailView(selectedOrder);
+      }
+    }
+
+    async function dispatchCurrentOrder() {
+      if (!selectedOrder || actionBusy) return;
+      if (!confirm(Messages.order.startShipping)) return;
+      actionBusy = true;
+      populateDetailView(selectedOrder);
+      try {
+        const res = await API.dispatchFarmerOrder(selectedOrder.sellerOrderId || selectedOrder.id, selectedOrder.version || '1');
+        if (res.success && res.data) {
+          selectedOrder = res.data;
+          ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
+          populateDetailView(selectedOrder);
+          showActionFeedback('Đã bắt đầu giao hàng mô phỏng.', selectedOrder);
+        } else {
+          setFeedback(res.error || 'Bắt đầu giao hàng thất bại.', true);
+        }
+      } catch (err) {
+        setFeedback(err.message || 'Lỗi khi gọi API giao hàng mô phỏng.', true);
+      } finally {
+        actionBusy = false;
+        populateDetailView(selectedOrder);
+      }
+    }
+
+    async function handleRejectSubmit(e) {
+      e.preventDefault();
+      if (!selectedOrder || actionBusy) return;
+      const reason = document.getElementById('rejectionReasonInput').value.trim();
+      if (!reason) {
+        setFeedback('Vui lòng nhập lý do từ chối. Không được để trống hoặc chỉ nhập khoảng trắng.', true);
+        return;
+      }
+
+      if (!confirm(Messages.order.rejectConfirm(selectedOrder.sellerOrderCode))) return;
+
+      const btn = document.getElementById('btn-submit-reject');
+      btn.disabled = true;
+      btn.textContent = 'Đang xử lý…';
+      actionBusy = true;
+      populateDetailView(selectedOrder);
+
+      try {
+        const res = await API.rejectFarmerOrder(selectedOrder.sellerOrderId || selectedOrder.id, reason, selectedOrder.version || '1');
+        if (res.success && res.data) {
+          selectedOrder = res.data;
+          ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
+          showActionFeedback(selectedOrder.isRefunded
+            ? `Đã từ chối đơn hàng và hoàn ${Utils.formatVND(selectedOrder.refundedAmount)} vào tài khoản nhận tiền của RetailCustomer.`
+            : 'Đã từ chối đơn hàng. Không có khoản tiền cần hoàn.', selectedOrder);
+          switchView('detail');
+        } else {
+          setFeedback(res.error || 'Từ chối đơn hàng thất bại.', true);
+        }
+      } catch (err) {
+        setFeedback(err.message || 'Lỗi khi từ chối đơn hàng.', true);
+      } finally {
+        actionBusy = false;
+        populateDetailView(selectedOrder);
+        btn.textContent = 'Xác nhận từ chối';
+      }
+    }
+
+    async function printOrderSlip() {
+      if (!selectedOrder) return;
+      const popup = window.open('', '_blank', 'width=1000,height=760');
+      if (!popup) {
+        alert(Messages.order.popupBlockedNotice);
+        return;
+      }
+
+      const res = await API.getPackingSlip(selectedOrder.sellerOrderId);
+      if (!res.success || !res.data) {
+        popup.close();
+        setFeedback(res.error || 'Không thể tải phiếu in. Vui lòng thử lại.', true);
+        return;
+      }
+      const o = res.data;
+      const itemRows = (o.items || []).map(it => `
+        <tr>
+          <td>${Utils.escapeHtml(it.productName)}</td>
+          <td>${Utils.escapeHtml(it.unit)}</td>
+          <td>${it.quantity}</td>
+          <td>${Utils.formatVND(it.unitPrice)}</td>
+          <td>${Utils.formatVND(it.lineAmount ?? it.subtotal ?? it.quantity * it.unitPrice)}</td>
+          <td>${Utils.escapeHtml(it.batchCode || '—')}</td>
+          <td>${Utils.escapeHtml(it.expirationDate || '—')}</td>
+        </tr>
+      `).join('');
+
+      const html = `<!doctype html>
+      <html lang="vi">
+      <head>
+        <meta charset="utf-8">
+        <title>Phiếu đóng gói ${Utils.escapeHtml(o.sellerOrderCode)}</title>
+        <style>
+          body { font: 14px 'Segoe UI', Arial, sans-serif; padding: 30px; color: #183b2a; }
+          h1 { margin-top: 0; color: #0b573b; font-size: 22px; }
+          h2 { font-size: 18px; color: #284735; }
+          table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+          td, th { padding: 9px 12px; border: 1px solid #cfdcd3; text-align: left; }
+          th { background: #f4f7f4; font-weight: 650; }
+          .right { text-align: right; margin-top: 15px; }
+          .sign { margin-top: 40px; display: flex; justify-content: space-between; }
+          @media print { button { display: none; } }
+        </style>
+      </head>
+      <body>
+        <h1>AgriSustain · Phiếu đóng gói / Giao nhận hàng</h1>
+        <h2>${Utils.escapeHtml(o.sellerOrderCode)}</h2>
+        <p><strong>Đơn tổng:</strong> ${Utils.escapeHtml(o.masterOrderCode)} · <strong>Ngày đặt:</strong> ${Utils.formatDateTime(o.orderDate)}</p>
+        <p><strong>Người nhận:</strong> ${Utils.escapeHtml(o.recipientName)} · <strong>Điện thoại:</strong> ${Utils.escapeHtml(o.recipientPhone)}</p>
+        <p><strong>Địa chỉ giao:</strong> ${Utils.escapeHtml(o.shippingAddress)}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Sản phẩm</th><th>Đơn vị</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th>Mã lô</th><th>Hạn sử dụng</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemRows || '<tr><td colspan="7">Không có dữ liệu hàng hóa</td></tr>'}
+          </tbody>
+        </table>
+        <div class="right">
+          <p>Tiền hàng: ${Utils.formatVND(o.subtotal || 0)}</p>
+          <p>Phí giao hàng: ${Utils.formatVND(o.deliveryFee || 0)}</p>
+          <p>Mã giảm giá: ${Utils.escapeHtml(o.voucherCode || 'Không áp dụng')}</p>
+          <p>Giảm giá phân bổ: −${Utils.formatVND(o.discountShare || 0)}</p>
+          <h3>Tổng thanh toán: ${Utils.formatVND(o.finalAmount || 0)}</h3>
+        </div>
+        <p><strong>Ghi chú:</strong> ${Utils.escapeHtml(o.notes || 'Không có ghi chú')}</p>
+        <div class="sign">
+          <div>Người đóng gói<br><br><br>____________________</div>
+          <div>Người giao hàng<br><br><br>____________________</div>
+          <div>Người nhận hàng<br><br><br>____________________</div>
+        </div>
+        <br><br>
+        <button onclick="window.print()" style="padding: 8px 16px; background: #15814f; color: white; border: none; border-radius: 4px; cursor: pointer;">In phiếu ngay</button>
+      </body>
+      </html>`;
+
+      popup.document.write(html);
+      popup.document.close();
+      popup.focus();
+      popup.print();
+      setFeedback("Phiếu đóng gói đã sẵn sàng in.");
+    }
+
+    function handleApplyFilters(e) {
+      e.preventDefault();
+      loadOrders();
+    }
+
+    function handleClearFilters() {
+      document.getElementById('orderKeyword').value = '';
+      document.getElementById('orderStatus').value = '';
+      document.getElementById('fromDate').value = '';
+      document.getElementById('toDate').value = '';
+      loadOrders();
+    }
+  </script>
+</body>
+</html>

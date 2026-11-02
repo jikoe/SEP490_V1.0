@@ -17,6 +17,9 @@ public interface IProfileService
     Task<Result<UserProfileResponse>> UpdateFarmerProfileAsync(
         UpdateFarmerProfileRequest request, CancellationToken cancellationToken);
 
+    Task<Result<UserProfileResponse>> UpdateAvatarAsync(
+        string avatarUrl, CancellationToken cancellationToken);
+
     Task<Result<UserProfileResponse>> SubmitFarmerKycAsync(
         SubmitKycRequest request, CancellationToken cancellationToken);
 }

@@ -41,7 +41,9 @@ public sealed record FarmerProfileDto(
     string VerificationStatus,
     decimal ReputationScore,
     DateTimeOffset? ApprovedAt,
-    string? RejectReason);
+    string? RejectReason,
+    string? ProductionModel = null,
+    string? ShortDescription = null);
 
 public sealed record UpdateConsumerProfileRequest(
     string FullName,
@@ -70,7 +72,9 @@ public sealed record UpdateFarmerProfileRequest(
     string? ProductionScale,
     decimal? CultivatedArea,
     string? GPSCoordinates,
-    string? BusinessLicenseNumber);
+    string? BusinessLicenseNumber,
+    string? ProductionModel = null,
+    string? ShortDescription = null);
 
 public sealed record SubmitKycRequest(
     string? Notes);

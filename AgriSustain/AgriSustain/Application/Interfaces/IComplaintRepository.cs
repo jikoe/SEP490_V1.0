@@ -5,8 +5,10 @@ namespace AgriSustain.Application.Interfaces;
 
 public interface IComplaintRepository
 {
+    /// <summary>HasOverdueEvidence is evaluated at <paramref name="now"/> with the 48-hour window.</summary>
     Task<(int Total, IReadOnlyList<ComplaintListItemDto> Items)> SearchAsync(
         ComplaintQuery query,
+        DateTime now,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<string>> GetReasonsAsync(CancellationToken cancellationToken);
@@ -42,6 +44,11 @@ public interface IComplaintRepository
 
     Task<IReadOnlyList<long>> GetActiveUserIdsByRolesAsync(
         IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken);
+
+    /// <summary>The buyer's saved default account (UC-AUTH-03), snapshotted onto a new refund.</summary>
+    Task<UserBankAccount?> GetDefaultBankAccountAsync(
+        long userId,
         CancellationToken cancellationToken);
 
     void AddRefund(RefundTransaction refund);

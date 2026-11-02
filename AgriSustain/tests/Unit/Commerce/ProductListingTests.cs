@@ -11,7 +11,7 @@ public sealed class ProductListingTests
     public async Task Submit_ValidOwnedImages_CreatesPendingUnpublishedListing()
     {
         var f = new CommerceFixture();
-        var result = await f.ProductService.SaveAsync(101, null, f.Request, default);
+        var result = await f.FarmerProductService.SaveProductAsync(101, null, f.Request, default);
         Assert.True(result.IsSuccess, result.Error?.Message);
         Assert.Equal("Pending", result.Value!.ApprovalStatus); Assert.False(result.Value.IsPublished);
         Assert.Equal(1, f.Products.Adds); Assert.Equal(1, f.Products.Audits); Assert.Equal(1, f.Work.Commits);
@@ -23,7 +23,7 @@ public sealed class ProductListingTests
     public async Task Submit_EqualWholesalePriceAndMinimumTwo_IsAccepted()
     {
         var f = new CommerceFixture();
-        var result = await f.ProductService.SaveAsync(101, null, f.Request with { WholesaleMinQuantity = 2, WholesalePrice = 30000 }, default);
+        var result = await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { WholesaleMinQuantity = 2, WholesalePrice = 30000 }, default);
         Assert.True(result.IsSuccess); Assert.Equal(30000, result.Value!.WholesalePrice); Assert.Equal(2, result.Value.WholesaleMinQuantity);
     }
 
@@ -33,7 +33,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Farmer.VerificationStatus = "Pending";
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request, default), f, "FORBIDDEN");
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request, default), f, "FORBIDDEN");
         Assert.Equal(0, f.Products.Adds); Assert.Equal(0, f.Files.ImageSaves);
     }
 
@@ -42,7 +42,7 @@ public sealed class ProductListingTests
     public async Task Submit_MissingProductName_PreservesState()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { ProductName = "" }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { ProductName = "" }, default), f);
         Assert.Equal(0, f.Products.Adds);
     }
 
@@ -51,7 +51,7 @@ public sealed class ProductListingTests
     public async Task Submit_MissingCategory_PreservesState()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { CategoryId = 0 }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { CategoryId = 0 }, default), f);
         Assert.Equal(0, f.Products.Adds);
     }
 
@@ -60,7 +60,7 @@ public sealed class ProductListingTests
     public async Task Submit_MissingUnit_PreservesState()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { Unit = "" }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { Unit = "" }, default), f);
         Assert.Equal(0, f.Products.Adds);
     }
 
@@ -69,7 +69,7 @@ public sealed class ProductListingTests
     public async Task Submit_MissingDescription_PreservesState()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { Description = "" }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { Description = "" }, default), f);
         Assert.Equal(0, f.Products.Adds);
     }
 
@@ -79,7 +79,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         Assert.Null(typeof(ProductRequest).GetProperty("Origin")); Assert.Null(typeof(ProductRequest).GetProperty("OriginProvince"));
-        Assert.True((await f.ProductService.SaveAsync(101, null, f.Request, default)).IsSuccess);
+        Assert.True((await f.FarmerProductService.SaveProductAsync(101, null, f.Request, default)).IsSuccess);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class ProductListingTests
     public async Task Submit_ZeroRetail_IsRejected()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { BaseRetailPrice = 0 }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { BaseRetailPrice = 0 }, default), f);
         Assert.Equal(30000, f.Product.BaseRetailPrice); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -96,7 +96,7 @@ public sealed class ProductListingTests
     public async Task Submit_NegativeRetail_IsRejected()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { BaseRetailPrice = -1 }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { BaseRetailPrice = -1 }, default), f);
         Assert.Equal(30000, f.Product.BaseRetailPrice); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -105,7 +105,7 @@ public sealed class ProductListingTests
     public async Task Submit_WholesaleMinimumOne_IsRejected()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { WholesaleMinQuantity = 1 }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { WholesaleMinQuantity = 1 }, default), f);
         Assert.Equal(30000, f.Product.BaseRetailPrice); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -114,7 +114,7 @@ public sealed class ProductListingTests
     public async Task Submit_ZeroWholesale_IsRejected()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { WholesalePrice = 0 }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { WholesalePrice = 0 }, default), f);
         Assert.Equal(30000, f.Product.BaseRetailPrice); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -123,7 +123,7 @@ public sealed class ProductListingTests
     public async Task Submit_WholesaleExceedsRetail_IsRejected()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { WholesalePrice = 30001 }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { WholesalePrice = 30001 }, default), f);
         Assert.Equal(30000, f.Product.BaseRetailPrice); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -132,7 +132,7 @@ public sealed class ProductListingTests
     public async Task Submit_HalfWholesalePair_IsRejected()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { WholesalePrice = null }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { WholesalePrice = null }, default), f);
         Assert.Equal(30000, f.Product.BaseRetailPrice); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -141,7 +141,7 @@ public sealed class ProductListingTests
     public async Task Submit_MissingPrimaryImage_IsRejected()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { Images = [new ProductImageInput(CommerceFixture.ImageUrl, false, null)] }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { Images = [new ProductImageInput(CommerceFixture.ImageUrl, false, null)] }, default), f);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Files.AllowImages = false;
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request, default), f);
         Assert.Equal(0, f.Files.ImageSaves);
     }
 
@@ -159,7 +159,7 @@ public sealed class ProductListingTests
     public async Task Submit_OwnedPngReference_DoesNotReuploadBytes()
     {
         var f = new CommerceFixture();
-        var result = await f.ProductService.SaveAsync(101, null, f.Request with { Images = [new ProductImageInput("/media/101/photo.png", true, null)] }, default);
+        var result = await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { Images = [new ProductImageInput("/media/101/photo.png", true, null)] }, default);
         Assert.True(result.IsSuccess); Assert.Equal(0, f.Files.ImageSaves); Assert.Equal(1, f.Work.Commits);
     }
 
@@ -168,7 +168,7 @@ public sealed class ProductListingTests
     public async Task Submit_PathTraversalReference_IsRejected()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, null, f.Request with { Images = [new ProductImageInput("/media/101/../photo.jpg", true, null)] }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, null, f.Request with { Images = [new ProductImageInput("/media/101/../photo.jpg", true, null)] }, default), f);
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Product.ApprovalStatus = "Rejected"; f.Product.RejectionReason = "Old moderation reason";
-        var result = await f.ProductService.SaveAsync(101, 301, f.Request, default);
+        var result = await f.FarmerProductService.SaveProductAsync(101, 301, f.Request, default);
         Assert.True(result.IsSuccess); Assert.Equal(301, result.Value!.ProductId);
         Assert.Equal("Pending", result.Value.ApprovalStatus); Assert.False(result.Value.IsPublished);
         Assert.Equal("Old moderation reason", f.Product.RejectionReason); Assert.Equal(0, f.Products.Adds);
@@ -189,7 +189,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Work.FailCommit = true;
-        await Assert.ThrowsAsync<IOException>(() => f.ProductService.SaveAsync(101, null, f.Request, default));
+        await Assert.ThrowsAsync<IOException>(() => f.FarmerProductService.SaveProductAsync(101, null, f.Request, default));
         Assert.Equal(0, f.Work.Commits); Assert.Equal(1, f.Work.Attempts);
     }
 
@@ -199,7 +199,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Work.FailCommit = true;
-        await Assert.ThrowsAsync<IOException>(() => f.ProductService.SaveAsync(101, 301, f.Request with { ProductName = "Edited tomato" }, default));
+        await Assert.ThrowsAsync<IOException>(() => f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { ProductName = "Edited tomato" }, default));
         Assert.Equal(0, f.Work.Commits); Assert.Equal(1, f.Work.Attempts);
     }
 
@@ -208,7 +208,7 @@ public sealed class ProductListingTests
     public async Task Update_ContentChange_RequiresModeration()
     {
         var f = new CommerceFixture();
-        var result = await f.ProductService.SaveAsync(101, 301, f.Request with { ProductName = "Edited tomato" }, default);
+        var result = await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { ProductName = "Edited tomato" }, default);
         Assert.True(result.IsSuccess); Assert.Equal("Pending", result.Value!.ApprovalStatus); Assert.False(result.Value.IsPublished); Assert.Equal(1, f.Products.Audits);
     }
 
@@ -218,7 +218,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         var old = f.Line.UnitPriceSnapshot;
-        var result = await f.ProductService.SaveAsync(101, 301, f.Request with { BaseRetailPrice = 32000 }, default);
+        var result = await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { BaseRetailPrice = 32000 }, default);
         Assert.True(result.IsSuccess); Assert.Equal("Approved", result.Value!.ApprovalStatus); Assert.True(result.Value.IsPublished);
         Assert.Equal(old, f.Line.UnitPriceSnapshot); Assert.Equal(0, f.Products.RemovedImages);
     }
@@ -229,7 +229,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Products.UnitLocked = true;
-        Rejected(await f.ProductService.SaveAsync(101, 301, f.Request with { Unit = "bag" }, default), f, "CONFLICT");
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { Unit = "túi" }, default), f, "CONFLICT");
         Assert.Equal("kg", f.Product.Unit);
     }
 
@@ -238,8 +238,8 @@ public sealed class ProductListingTests
     public async Task Update_UnreferencedUnit_CanChange()
     {
         var f = new CommerceFixture();
-        var result = await f.ProductService.SaveAsync(101, 301, f.Request with { Unit = "bag" }, default);
-        Assert.True(result.IsSuccess); Assert.Equal("bag", result.Value!.Unit); Assert.Equal("Pending", result.Value.ApprovalStatus);
+        var result = await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { Unit = "túi" }, default);
+        Assert.True(result.IsSuccess); Assert.Equal("túi", result.Value!.Unit); Assert.Equal("Pending", result.Value.ApprovalStatus);
     }
 
     [Fact]
@@ -247,7 +247,7 @@ public sealed class ProductListingTests
     public async Task Update_ForeignId_IsDenied()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, 999, f.Request, default), f, "NOT_FOUND");
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, 999, f.Request, default), f, "NOT_FOUND");
         Assert.Equal("Tomato", f.Product.ProductName);
     }
 
@@ -256,7 +256,7 @@ public sealed class ProductListingTests
     public async Task Update_NonOwnedListing_IsDenied()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, 999, f.Request, default), f, "NOT_FOUND");
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, 999, f.Request, default), f, "NOT_FOUND");
         Assert.Equal("Tomato", f.Product.ProductName);
     }
 
@@ -265,7 +265,7 @@ public sealed class ProductListingTests
     public async Task Update_InvalidPricePair_PreservesApprovedValues()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SaveAsync(101, 301, f.Request with { WholesalePrice = 30001 }, default), f);
+        Rejected(await f.FarmerProductService.SaveProductAsync(101, 301, f.Request with { WholesalePrice = 30001 }, default), f);
         Assert.True(f.Product.IsPublished); Assert.Equal("Approved", f.Product.ApprovalStatus); Assert.Equal(25000, f.Product.WholesalePrice);
     }
 
@@ -274,7 +274,7 @@ public sealed class ProductListingTests
     public async Task Hide_PreservesApprovalAndHistoricalReferences()
     {
         var f = new CommerceFixture();
-        var result = await f.ProductService.SetVisibilityAsync(101, 301, false, ProductDouble.Version, default);
+        var result = await f.FarmerProductService.SetVisibilityAsync(101, 301, false, ProductDouble.Version, default);
         Assert.True(result.IsSuccess); Assert.False(result.Value!.IsPublished); Assert.Equal("Approved", result.Value.ApprovalStatus);
         Assert.Equal(301, f.Line.ProductId); Assert.Equal(401, f.Allocation.HarvestBatchId);
     }
@@ -285,7 +285,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Product.IsPublished = false;
-        Assert.True((await f.ProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default)).IsSuccess);
+        Assert.True((await f.FarmerProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default)).IsSuccess);
         Assert.True(f.Product.IsPublished); Assert.Equal(1, f.Work.Commits);
     }
 
@@ -295,7 +295,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Product.IsPublished = false; f.Product.ApprovalStatus = "Pending";
-        Rejected(await f.ProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f, "CONFLICT");
+        Rejected(await f.FarmerProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f, "CONFLICT");
         Assert.False(f.Product.IsPublished);
     }
 
@@ -305,7 +305,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Product.IsPublished = false; f.Product.ApprovalStatus = "Rejected";
-        Rejected(await f.ProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f, "CONFLICT");
+        Rejected(await f.FarmerProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f, "CONFLICT");
         Assert.False(f.Product.IsPublished);
     }
 
@@ -315,7 +315,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Product.IsPublished = false; f.Farmer.VerificationStatus = "Rejected";
-        Rejected(await f.ProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f, "FORBIDDEN");
+        Rejected(await f.FarmerProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f, "FORBIDDEN");
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Product.IsPublished = false; f.Products.CategoryActive = false;
-        Rejected(await f.ProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f);
+        Rejected(await f.FarmerProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f);
         Assert.False(f.Product.IsPublished); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -334,7 +334,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Product.IsPublished = false; f.Product.BaseRetailPrice = 0;
-        Rejected(await f.ProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f);
+        Rejected(await f.FarmerProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f);
         Assert.False(f.Product.IsPublished); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -344,7 +344,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Product.IsPublished = false; f.Product.ProductImages.Clear();
-        Rejected(await f.ProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f);
+        Rejected(await f.FarmerProductService.SetVisibilityAsync(101, 301, true, ProductDouble.Version, default), f);
         Assert.False(f.Product.IsPublished); Assert.Equal(0, f.Products.Audits);
     }
 
@@ -353,7 +353,7 @@ public sealed class ProductListingTests
     public async Task Visibility_ForeignId_IsDenied()
     {
         var f = new CommerceFixture();
-        Rejected(await f.ProductService.SetVisibilityAsync(101, 999, false, ProductDouble.Version, default), f, "NOT_FOUND");
+        Rejected(await f.FarmerProductService.SetVisibilityAsync(101, 999, false, ProductDouble.Version, default), f, "NOT_FOUND");
     }
 
     [Fact]
@@ -362,7 +362,7 @@ public sealed class ProductListingTests
     {
         var f = new CommerceFixture();
         f.Work.FailCommit = true;
-        await Assert.ThrowsAsync<IOException>(() => f.ProductService.SetVisibilityAsync(101, 301, false, ProductDouble.Version, default));
+        await Assert.ThrowsAsync<IOException>(() => f.FarmerProductService.SetVisibilityAsync(101, 301, false, ProductDouble.Version, default));
         Assert.Equal(0, f.Work.Commits);
     }
 

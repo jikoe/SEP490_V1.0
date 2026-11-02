@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tra cứu nguồn gốc - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/account.css">
+  <style>.err { color: #b3261e; font-size: 12px; }</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display:none;"></aside>
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+      <main>
+        <div class="acc-page" style="padding-top:8px;">
+          <div class="acc-crumb">Trang chủ / Truy xuất nguồn gốc</div>
+          <p style="color:#1e6546; font-size:11px; font-weight:700; margin:4px 0;">⌗ MINH BẠCH NGUỒN GỐC · AN TÂM LỰA CHỌN</p>
+          <h1 class="acc-title" style="font-size:36px;">Tra cứu nguồn gốc sản phẩm</h1>
+          <p class="acc-sub">Nhập mã lô hoặc dán đường dẫn từ mã QR trên bao bì sản phẩm</p>
+          <form id="trace-form" style="margin-bottom:24px;">
+            <label class="field" style="color:#1c2e24; font-weight:600; margin:0;"><span>Mã lô sản phẩm</span>
+              <div style="display:flex; gap:10px;">
+                <div style="flex:1; position:relative;">
+                  <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#6d7b72;">🔍</span>
+                  <input id="trace-code" maxlength="300" placeholder="VD: BATCH-DL-001" style="padding:13px 40px; border-radius:10px;">
+                  <button type="button" id="trace-clear" style="position:absolute; right:8px; top:50%; transform:translateY(-50%); border:0; background:none; font-size:18px; color:#6d7b72; display:none;">×</button>
+                </div>
+                <button type="submit" class="acc-btn primary" id="trace-btn" style="padding:0 22px; border-radius:10px;">🔍 Tra cứu</button>
+              </div></label>
+          </form>
+          <div id="trace-result"></div>
+        </div>
+
+        <dialog id="cert-modal" style="width:620px; padding:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:22px 26px; border-bottom:1px solid #e3e8e2;">
+            <h2 style="margin:0; font-size:18px; font-weight:500;">Chi tiết chứng chỉ</h2>
+            <button type="button" class="acc-btn" onclick="document.getElementById('cert-modal').close()">×</button>
+          </div>
+          <div id="cert-body" style="padding:22px 26px;"></div>
+          <div style="display:flex; justify-content:flex-end; padding:16px 26px; border-top:1px solid #e3e8e2;">
+            <button type="button" class="acc-btn" onclick="document.getElementById('cert-modal').close()">Đóng</button>
+          </div>
+        </dialog>
+      </main>
+    </div>
+  </div>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+    /* UC-TRC-01 View Product Traceability – public, read-only, layout of Figma SCR-TRC-01. ?code=... looks up directly. */
+    const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
+    const day = (v) => v ? new Date(`${String(v).slice(0, 10)}T00:00:00`).toLocaleDateString('vi-VN') : '—';
+    const ICON = (t) => /gieo|trồng|sow/i.test(t) ? '🌱' : /tưới|chăm|bón|phun|care/i.test(t) ? '💧' : /kiểm|inspect/i.test(t) ? '📋' : /thu hoạch|đóng gói|harvest/i.test(t) ? '📦' : '🌿';
+    let certs = [];
+
+    function headerCard(r, revoked) {
+      return `<div class="acc-card" style="padding:0; display:grid; grid-template-columns:${r.productImageUrl ? '290px 1fr' : '1fr'}; overflow:hidden;">
+        ${r.productImageUrl ? `<img src="${esc(r.productImageUrl)}" alt="${esc(r.productName)}" style="width:100%; height:100%; min-height:240px; object-fit:cover;">` : ''}
+        <div style="padding:26px 28px;">
+          ${revoked ? '<span style="background:#fde8e6; color:#a33b2c; border-radius:999px; padding:4px 10px; font-size:11px; font-weight:600;">⛨ Lô đã thu hồi</span>'
+            : (r.certificates || []).length ? `<span class="bank-badge" style="background:#e6efe5;">✓ ${esc(r.certificates[0].certificateType)}</span>` : ''}
+          <h2 style="font-size:26px; font-weight:400; margin:12px 0 18px;">${esc(r.productName)}</h2>
+          <div class="acc-grid" style="gap:14px 24px; font-size:13px;">
+            <div><div class="acc-hint">Mã lô</div><strong>${esc(r.batchCode)}</strong></div>
+            <div><div class="acc-hint">${r.harvestDateIsEstimated ? 'Ngày thu hoạch dự kiến' : 'Ngày thu hoạch'}</div><strong>${day(r.harvestDate)}</strong></div>
+            <div><div class="acc-hint">Nông trại / HTX</div><strong>${esc(r.farmName)}</strong></div>
+            <div><div class="acc-hint">Vùng sản xuất</div><strong>${esc(r.cultivationZone || r.originProvince || '—')}</strong></div>
+          </div>
+          ${revoked ? '' : '<p style="font-size:12px; color:#1e5a3c; margin:16px 0 0;">✓ Hồ sơ truy xuất đã được xác minh</p>'}
+        </div></div>`;
+    }
+
+    function renderError(message) {
+      document.getElementById('trace-code').style.borderColor = '#d0574a';
+      document.getElementById('trace-result').innerHTML = `
+        <div style="background:#fdeeec; border:1px solid #f3c9c2; border-radius:12px; padding:16px 18px; color:#a33b2c; margin-bottom:20px;">
+          <strong>ⓘ ${esc(message)}</strong><div style="font-size:12px; margin-top:4px;">Kiểm tra lại mã lô hoặc đường dẫn QR, đảm bảo nhập đủ ký tự.</div></div>
+        <div class="acc-card"><h2 style="font-weight:500;">Bạn có thể thử lại bằng cách</h2>
+          <div class="acc-grid" style="margin-top:14px; font-size:13px;">
+            <div><strong>⌨ Đối chiếu mã trên bao bì</strong><div class="acc-hint">Nhập đủ ký tự, gồm cả dấu gạch ngang. Ví dụ: BATCH-DL-001.</div></div>
+            <div><strong>⌗ Dùng đường dẫn từ mã QR</strong><div class="acc-hint">Quét mã QR bằng điện thoại rồi dán đường dẫn vào ô tra cứu.</div></div>
+          </div></div>`;
+    }
+
+    function renderRevoked(r) {
+      document.getElementById('trace-result').innerHTML = `
+        <div style="background:#fdeeec; border:1px solid #f3c9c2; border-radius:14px; padding:24px 28px; color:#a33b2c; margin-bottom:20px;">
+          <div style="font-size:11px; font-weight:700;">⛨ THÔNG BÁO AN TOÀN SẢN PHẨM</div>
+          <h2 style="font-size:28px; font-weight:400; margin:12px 0;">Lô sản phẩm này đã được thu hồi</h2>
+          <strong>Vui lòng không sử dụng hoặc mua bán sản phẩm thuộc lô ${esc(r.batchCode)}.</strong>
+          <p style="font-size:13px; margin:12px 0 0;">${esc(r.recallMessage || '')}</p>
+        </div>
+        ${headerCard(r, true)}
+        <div class="acc-card" style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+          <div><h2 style="font-weight:500;">Bạn đang giữ sản phẩm của lô này?</h2>
+            <p class="acc-desc" style="margin:6px 0 0;">Giữ lại bao bì và mã lô. Liên hệ nông trại hoặc nơi bán để được hướng dẫn đổi trả và xử lý sản phẩm an toàn.</p>
+            <div class="acc-hint">${esc(r.farmName)}${r.farmAddress ? ` · ${esc(r.farmAddress)}` : ''}</div></div>
+        </div>`;
+    }
+
+    function render(r) {
+      certs = r.certificates || [];
+      const logs = r.cultivationLogs || [];
+      document.getElementById('trace-result').innerHTML = `
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:12px;">
+          <strong style="color:#1e5a3c;">✓ Đã tìm thấy thông tin nguồn gốc</strong>
+          <span class="acc-hint">Lượt tra cứu: ${esc(r.scanCount)}</span></div>
+        ${headerCard(r, false)}
+        <div style="display:grid; grid-template-columns:1.75fr 1fr; gap:22px; margin-top:24px; align-items:start;">
+          <div class="acc-card">
+            <h2 style="font-size:20px; font-weight:400;">Nhật ký canh tác</h2>
+            <p class="acc-desc">Một hành trình được ghi lại, từ hạt giống đến thu hoạch.</p>
+            ${logs.length === 0 ? '<p class="muted">Chưa có nhật ký canh tác.</p>' : logs.map((l) => `
+              <div style="display:flex; gap:14px; padding:10px 0;">
+                <span class="acc-empty-icon" style="flex:none; width:36px; height:36px; font-size:16px;">${ICON(l.actionType)}</span>
+                <div style="flex:1;">
+                  <div style="display:flex; justify-content:space-between;"><strong>${esc(l.actionType)}</strong><span class="acc-hint">${day(l.actionDate)}</span></div>
+                  <div style="font-size:13px; color:#4d5e53; margin-top:4px;">${esc(l.detailDescription || '')}
+                    ${l.inputMaterial || l.dosage ? ` Vật tư: ${esc(l.inputMaterial || '—')}${l.dosage ? ` · Liều lượng: ${esc(l.dosage)}` : ''}.` : ''}</div>
+                  ${l.imageUrl ? `<img src="${esc(l.imageUrl)}" alt="${esc(l.actionType)}" style="width:62px; height:46px; object-fit:cover; border-radius:6px; margin-top:8px;">` : ''}
+                </div></div>`).join('')}
+            <p class="acc-note" style="border-top:1px solid #e3e8e2; padding-top:12px;">✎ Nhật ký được cung cấp bởi ${esc(r.farmName)}.</p>
+          </div>
+          <div>
+            <h2 style="font-size:20px; font-weight:400; margin:0 0 12px;">Chứng chỉ chất lượng</h2>
+            ${certs.length === 0 ? '<p class="muted">Nông trại chưa có chứng nhận còn hiệu lực.</p>' : certs.map((c, i) => `
+              <div class="acc-card" style="padding:16px 18px; margin-bottom:12px;">
+                <div style="display:flex; gap:12px; align-items:center;"><span class="acc-empty-icon" style="border-radius:8px; width:34px; height:34px; font-size:15px;">🏅</span>
+                  <div><strong>${esc(c.certificateType)}</strong><div class="acc-hint">${esc(c.certificateNumber)}</div></div></div>
+                <div class="acc-grid" style="margin-top:12px; font-size:13px;">
+                  <div><div class="acc-hint">Ngày cấp</div><strong>${day(c.issueDate)}</strong></div>
+                  <div><div class="acc-hint">Hạn</div><strong>${day(c.expiryDate)}</strong></div></div>
+                <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:11px;">
+                  <span style="color:#1e5a3c;">● Còn hiệu lực</span>
+                  <button type="button" class="text-button" style="font-size:11px;" onclick="openCert(${i})">Xem chi tiết ↗</button></div>
+              </div>`).join('')}
+            <div class="acc-card" style="background:#e8f0e6; border:0; margin-top:8px;">
+              <div style="font-size:10px; font-weight:700; color:#1e5a3c;">GẶP NGƯỜI TRỒNG</div>
+              <h3 style="margin:8px 0;">${esc(r.farmName)}</h3>
+              <p style="font-size:12px; color:#4d5e53; margin:0 0 8px;">Mùa vụ ${esc(r.seasonName)} · Giống ${esc(r.cropVariety)}, gieo trồng ${day(r.plantingDate)}.</p>
+              <div style="font-size:12px; color:#1e5a3c;">📍 ${esc(r.farmAddress || r.cultivationZone || '')}</div>
+            </div>
+          </div>
+        </div>
+        <div style="background:#ecefe8; border-radius:14px; padding:22px 26px; margin-top:24px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div><strong style="font-size:15px;">Từ nguồn gốc rõ ràng đến bữa ăn an tâm</strong><div class="acc-hint">Sản phẩm đang được bán trên AgriSustain.</div></div>
+          <a href="../RetailCustomer/product-detail.html?id=${Number(r.productId)}" style="color:#1e5a3c; font-weight:700; text-decoration:none;">Xem sản phẩm trên sàn →</a>
+        </div>`;
+    }
+
+    // AF4 – read-only certificate details.
+    function openCert(i) {
+      const c = certs[i];
+      document.getElementById('cert-body').innerHTML = `
+        <div style="display:flex; gap:14px; align-items:center; margin-bottom:18px;">
+          <span class="acc-empty-icon" style="border-radius:12px; width:54px; height:54px;">🏅</span>
+          <div><div style="font-size:22px;">${esc(c.certificateType)}</div><div style="font-size:12px; color:#1e5a3c;">● Chứng chỉ còn hiệu lực</div></div></div>
+        <div style="display:grid; gap:14px; font-size:13px;">
+          <div><div class="acc-hint">Đơn vị cấp</div><strong>${esc(c.issuedBy)}</strong></div>
+          <div><div class="acc-hint">Số CC</div><strong>${esc(c.certificateNumber)}</strong></div>
+          <div class="acc-grid"><div><div class="acc-hint">Ngày cấp</div><strong>${day(c.issueDate)}</strong></div>
+            <div><div class="acc-hint">Hạn</div><strong>${day(c.expiryDate)}</strong></div></div>
+          ${c.reviewedAt ? `<div class="acc-hint">Đã được Nhân viên thẩm định xác minh ngày ${day(c.reviewedAt)}.</div>` : ''}
+        </div>`;
+      document.getElementById('cert-modal').showModal();
+    }
+
+    async function lookup(code) {
+      const input = document.getElementById('trace-code');
+      input.style.borderColor = '';
+      if (!code.trim()) { renderError('Vui lòng nhập mã lô hoặc mã QR.'); return; }
+      const btn = document.getElementById('trace-btn');
+      btn.disabled = true;
+      const res = await API.request(`/traceability?code=${encodeURIComponent(code.trim())}`, { suppressErrorToast: true });
+      btn.disabled = false;
+      if (!res.success) { renderError(res.error); return; }
+      history.replaceState(null, '', `?code=${encodeURIComponent(code.trim())}`);
+      if (res.data.isRevoked) renderRevoked(res.data); else render(res.data);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('trace-code');
+      const clear = document.getElementById('trace-clear');
+      input.oninput = () => { clear.style.display = input.value ? 'block' : 'none'; };
+      clear.onclick = () => { input.value = ''; clear.style.display = 'none'; input.focus(); };
+      document.getElementById('trace-form').onsubmit = (e) => { e.preventDefault(); lookup(input.value); };
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (code) { input.value = code; clear.style.display = 'block'; lookup(code); }
+    });
+  </script>
+</body>
+</html>

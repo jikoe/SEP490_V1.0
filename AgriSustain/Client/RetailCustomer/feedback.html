@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đánh giá sản phẩm - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/order-feedback.css">
+</head>
+<body class="feedback-page">
+  <main class="order-feedback">
+    <nav class="feedback-breadcrumb" aria-label="Đường dẫn">
+      <a href="profile.html">Tài khoản</a><span>›</span><a href="orders.html">Đơn hàng của tôi</a><span>›</span><span id="feedback-breadcrumb-title">Đánh giá sản phẩm</span>
+    </nav>
+    <header class="feedback-heading">
+      <a class="feedback-back" href="orders.html">← Quay lại</a>
+      <h1 id="feedback-title" tabindex="-1">Đánh giá sản phẩm</h1>
+      <p id="feedback-subtitle">Chia sẻ trải nghiệm của bạn để giúp người mua khác lựa chọn tốt hơn.</p>
+    </header>
+    <div id="feedback-notice" class="notice error" role="alert" hidden></div>
+    <div id="feedback-content" aria-live="polite"><section class="feedback-panel feedback-loading" role="status">Đang tải thông tin đơn hàng…</section></div>
+  </main>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script type="module" src="../js/order-feedback.js"></script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriSustain - Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="marketplace">
+    <!-- Marketplace Header matching Marketplace.jsx 1:1 -->
+    <header class="mkt-header">
+      <a class="mkt-brand" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" />
+        </svg>
+        <span>Nông Sản Việt</span>
+      </a>
+      <p class="mkt-slogan">Nền tảng nông sản Việt – Kết nối nông dân, bền vững tương lai</p>
+
+      <form class="mkt-search" role="search" onsubmit="handleSearch(event)">
+        <button aria-label="Tìm kiếm" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0" />
+          </svg>
+        </button>
+        <input id="mkt-search-input" aria-label="Tìm kiếm sản phẩm" type="search" maxlength="150" placeholder="Tìm kiếm sản phẩm, danh mục…" autocomplete="off" spellcheck="false"><button class="mkt-search-clear" id="mkt-search-clear" aria-label="Xóa từ khóa" type="button" hidden>×</button>
+      </form>
+
+      <!-- Cart Button matching Frontend -->
+      <a id="mkt-cart-btn" class="mkt-cart-button" href="cart.html" title="Giỏ hàng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h3l3 12h11l3-9H6M9 21h.01M19 21h.01" />
+        </svg>
+        <span id="mkt-cart-badge" class="mkt-cart-count" style="display:none;">0</span>
+      </a>
+
+      <!-- Account / Login Area matching Frontend -->
+      <div id="mkt-account-container">
+        <a class="mkt-login" href="../Guest/login.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21a8 8 0 0 0-16 0M17 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0" />
+          </svg>
+          Đăng nhập
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Layout matching Marketplace.jsx 1:1 -->
+    <main class="mkt-layout">
+      <!-- Left Filter Sidebar -->
+      <aside class="mkt-sidebar" aria-label="Bộ lọc sản phẩm">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3h6v6H3ZM15 3h6v6h-6ZM3 15h6v6H3ZM15 15h6v6h-6Z" />
+          </svg>
+          Danh mục sản phẩm
+        </h2>
+        <div id="mkt-categories-list">
+          <button class="mkt-category active" type="button" onclick="filterByCategory(null)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+            Tất cả sản phẩm <span id="mkt-all-count">152</span>
+          </button>
+        </div>
+
+        <div class="mkt-filter-heading">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M3 4h18M6 10h12M9 16h6M11 21h2" />
+            </svg>
+            Bộ lọc
+          </h2>
+          <button type="button" onclick="clearFilters()">Xóa bộ lọc</button>
+        </div>
+
+        <fieldset>
+          <legend>Khoảng giá</legend>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="priceRange" value="under50" onchange="loadCatalogue()"> Dưới 50.000đ
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="priceRange" value="50to100" onchange="loadCatalogue()"> 50.000đ – 100.000đ
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="priceRange" value="100to200" onchange="loadCatalogue()"> 100.000đ – 200.000đ
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="priceRange" value="over200" onchange="loadCatalogue()"> Trên 200.000đ
+          </label>
+        </fieldset>
+
+        <label class="mkt-field">
+          Địa phương
+          <select id="filter-region" onchange="loadCatalogue()">
+            <option value="">Tất cả tỉnh/thành</option>
+          </select>
+        </label>
+
+        <fieldset id="mkt-certifications">
+          <legend>Chứng nhận</legend>
+        </fieldset>
+
+        <label class="mkt-field">
+          Đánh giá tối thiểu
+          <select id="filter-rating" onchange="loadCatalogue()">
+            <option value="">Tất cả đánh giá</option>
+            <option value="4">4 sao trở lên</option>
+            <option value="3">3 sao trở lên</option>
+            <option value="2">2 sao trở lên</option>
+            <option value="1">1 sao trở lên</option>
+          </select>
+        </label>
+      </aside>
+
+      <!-- Main Catalogue -->
+      <div class="mkt-catalogue">
+        <section class="mkt-hero">
+          <div>
+            <h1>Nông sản Việt<br>Tươi ngon từ nông trại đến bàn ăn</h1>
+            <p>Sản phẩm chất lượng – Người nông dân được hỗ trợ –<br>Cộng đồng phát triển bền vững</p>
+            <a class="mkt-primary" href="#mkt-products">Khám phá ngay →</a>
+          </div>
+          <div class="mkt-hero-art" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.7"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.7"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.7"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+          </div>
+        </section>
+
+        <div id="mkt-active-filters" class="mkt-active-filters"></div><section id="mkt-products">
+          <div class="mkt-results-heading">
+            <h2>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:24px;height:24px;">
+                <path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" />
+              </svg>
+              Sản phẩm nổi bật
+            </h2>
+            <label>
+              Sắp xếp
+              <select id="mkt-sort-select" onchange="loadCatalogue()">
+                <option value="newest">Mới nhất</option>
+                <option value="price-asc">Giá tăng dần</option>
+                <option value="price-desc">Giá giảm dần</option>
+                <option value="rating">Đánh giá cao nhất</option>
+              </select>
+            </label>
+          </div>
+
+          <p id="mkt-result-count" class="mkt-result-count" role="status">Đang tải sản phẩm…</p>
+
+          <!-- Product Grid -->
+          <div id="mkt-product-grid" class="mkt-product-grid">
+            <div class="mkt-state" role="status">Đang tải sản phẩm…</div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="mkt-pagination">
+            <nav aria-label="Phân trang" id="mkt-pagination-nav">
+              <button aria-label="Trang trước" disabled>‹</button>
+              <button aria-label="Trang 1" aria-current="page" class="active">1</button>
+              <button aria-label="Trang sau" disabled>›</button>
+            </nav>
+            <label>
+              Hiển thị
+              <select id="mkt-page-size" onchange="loadCatalogue()">
+                <option value="12">12 sản phẩm</option>
+                <option value="24">24 sản phẩm</option>
+                <option value="48">48 sản phẩm</option>
+              </select>
+            </label>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/cart.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script type="module" src="../js/marketplace.js"></script>
+</body>
+</html>
