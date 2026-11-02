@@ -10,6 +10,7 @@
 const BankAccountPanel = (() => {
   const LOOKUP_DELAY_MS = 600;
   const RESEND_SECONDS = 60;
+  const OTP_TTL_SECONDS = 300; // OTP valid 5 minutes (EmailOtpVerifier)
   // MSG-BA-04
   const NOT_FOUND = 'Không tìm thấy tài khoản này tại ngân hàng đã chọn. Vui lòng kiểm tra lại ngân hàng và số tài khoản.';
 
@@ -320,15 +321,19 @@ const BankAccountPanel = (() => {
   }
 
   function startResendCountdown() {
-    resendIn = RESEND_SECONDS;
+    const sentAt = Date.now();
     clearInterval(resendTimer);
     const tick = () => {
       const btn = root.querySelector('#ba-resend');
       if (!btn) { clearInterval(resendTimer); return; }
+      const elapsed = Math.floor((Date.now() - sentAt) / 1000);
+      resendIn = Math.max(0, RESEND_SECONDS - elapsed);
+      const left = Math.max(0, OTP_TTL_SECONDS - elapsed);
+      const mmss = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+      const expiry = left > 0 ? `Mã hết hạn sau ${mmss}` : 'Mã đã hết hạn';
       btn.disabled = resendIn > 0;
-      btn.textContent = resendIn > 0 ? `Mã hết hạn sau 5 phút · Gửi lại mã sau ${resendIn} giây` : 'Gửi lại mã';
-      if (resendIn <= 0) clearInterval(resendTimer);
-      resendIn -= 1;
+      btn.textContent = resendIn > 0 ? `${expiry} · Gửi lại mã sau ${resendIn} giây` : `${expiry} · Gửi lại mã`;
+      if (left <= 0) clearInterval(resendTimer);
     };
     tick();
     resendTimer = setInterval(tick, 1000);

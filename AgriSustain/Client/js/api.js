@@ -69,7 +69,9 @@ const API = {
         }
       }
 
-      if (response.status === 401) {
+      // 401 means "session expired" only when a token was sent. A failed login (wrong
+      // password) also returns 401 and must show the server message instead.
+      if (response.status === 401 && token) {
         Auth.clearAuth();
         if (!options.suppressErrorToast) {
           const msg = (typeof window !== 'undefined' && window.Messages?.common?.sessionExpired)
@@ -84,7 +86,7 @@ const API = {
 
       const contentType = response.headers.get('content-type') || '';
       let data = null;
-      if (contentType.includes('application/json')) {
+      if (/[/+]json/i.test(contentType)) {
         data = await response.json();
       } else {
         data = await response.text();
