@@ -168,6 +168,28 @@ builder.Services.AddScoped<AgriSustain.Application.Interfaces.Repositories.IBank
 builder.Services.AddScoped<IBankAccountLookup, AgriSustain.Infrastructure.Banking.FakeBankAccountLookup>();
 builder.Services.AddSingleton<IBankAccountEmailSender, AgriSustain.Infrastructure.Email.BankAccountEmailSender>();
 builder.Services.AddScoped<IBankAccountService, BankAccountService>();
+// DuND ITE2: UC-AUTH-02, UC-FAR-07, UC-CM-02, UC-TRC-01, UC-FIN-08
+builder.Services.AddSingleton<AgriSustain.Infrastructure.FileStorage.DossierStorage>();
+builder.Services.AddSingleton<IDossierStorage>(services =>
+    services.GetRequiredService<AgriSustain.Infrastructure.FileStorage.DossierStorage>());
+builder.Services.AddScoped<AgriSustain.Application.Services.BusinessProfiles.IBusinessProfileRepository, AgriSustain.Infrastructure.Repositories.BusinessProfileRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.BusinessProfiles.IBusinessProfileService, AgriSustain.Application.Services.BusinessProfiles.BusinessProfileService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Certificates.IFarmCertificateRepository,
+    AgriSustain.Infrastructure.Repositories.FarmCertificateRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Certificates.IFarmCertificateService,
+    AgriSustain.Application.Services.Certificates.FarmCertificateService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Moderation.IReviewModerationRepository,
+    AgriSustain.Infrastructure.Repositories.ReviewModerationRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Moderation.IReviewModerationService,
+    AgriSustain.Application.Services.Moderation.ReviewModerationService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Traceability.ITraceabilityRepository,
+    AgriSustain.Infrastructure.Repositories.TraceabilityRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Traceability.ITraceabilityService,
+    AgriSustain.Application.Services.Traceability.TraceabilityService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.IRefundAccountRepository,
+    AgriSustain.Infrastructure.Repositories.RefundAccountRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.IRefundAccountService,
+    AgriSustain.Application.Services.Refunds.RefundAccountService>();
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 
 // DuND Validators

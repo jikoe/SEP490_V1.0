@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiểm duyệt đánh giá - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>.err { color: #b3261e; font-size: 12px; } .tab-btn.active { background: #1e6546; color: #fff; }</style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+    <div class="workspace">
+      <header id="app-header"></header>
+      <main>
+        <div style="padding:24px 32px; max-width:1200px; margin:0 auto;">
+          <div class="section-heading" style="margin-bottom:20px;">
+            <p class="eyebrow" style="color:#2e7d32; font-size:11px; font-weight:700;">KIỂM DUYỆT · UC-CM-02</p>
+            <h1 style="color:#103e2d; margin:4px 0;">Kiểm duyệt đánh giá sản phẩm</h1>
+            <p class="muted">Đánh giá mới luôn hiển thị và vào hàng chờ; đánh giá có dấu hiệu vi phạm được gắn cờ tự động.</p>
+          </div>
+          <div id="tabs" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;"></div>
+          <form id="search-form" class="panel" style="display:flex; gap:12px; padding:14px 20px; margin-bottom:16px;">
+            <input type="search" id="search" maxlength="100" placeholder="Tìm theo tên sản phẩm hoặc nội dung đánh giá" style="flex:1;">
+            <button type="submit" class="primary">Tìm kiếm</button>
+          </form>
+          <div class="panel" id="list"></div>
+          <div id="pager" style="display:flex; justify-content:flex-end; gap:8px; align-items:center; margin-top:12px; font-size:13px;"></div>
+
+          <dialog id="detail-dialog">
+            <div class="modal-heading"><h2>Chi tiết đánh giá</h2><button type="button" onclick="closeDetail()">&times;</button></div>
+            <div id="detail" style="margin-top:16px;"></div>
+          </dialog>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+    /* UC-CM-02 Moderate Product Review. */
+    const TABS = [['Unreviewed', 'Chưa xem'], ['Flagged', 'Bị gắn cờ'], ['Visible', 'Đang hiển thị'], ['Hidden', 'Đã ẩn']];
+    const COUNT_KEY = { Unreviewed: 'unreviewed', Flagged: 'flagged', Visible: 'visible', Hidden: 'hidden' };
+    const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
+    const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+    const state = { tab: 'Unreviewed', search: '', page: 1, pageSize: 10 };
+    let current = null;
+
+    async function load() {
+      const q = API.toQueryString({ tab: state.tab, search: state.search.trim(), page: state.page, pageSize: state.pageSize });
+      const res = await API.request(`/moderation/reviews?${q}`, { suppressErrorToast: true });
+      const box = document.getElementById('list');
+      if (!res.success) { box.innerHTML = `<div class="notice error" style="margin:16px;">${esc(res.error)}</div>`; return; }
+      const d = res.data;
+      document.getElementById('tabs').innerHTML = TABS.map(([k, label]) =>
+        `<button type="button" class="tab-btn ${k === state.tab ? 'active' : ''}" onclick="setTab('${k}')">${label} (${d.counts?.[COUNT_KEY[k]] ?? 0})</button>`).join('');
+      if (!d.items.length) { box.innerHTML = '<p class="empty">Không có đánh giá cần kiểm duyệt.</p>'; document.getElementById('pager').innerHTML = ''; return; }
+      box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Sản phẩm</th><th>Người đánh giá</th><th>Số sao</th><th>Nội dung</th><th>Ngày</th><th>Cờ</th><th></th></tr></thead><tbody>
+        ${d.items.map((r) => `<tr>
+          <td><strong>${esc(r.productName)}</strong></td><td>${esc(r.reviewerName)}</td>
+          <td style="color:#d4a017;">${stars(r.ratingStars)}</td>
+          <td style="max-width:280px;">${esc((r.comment || '').slice(0, 90))}${(r.comment || '').length > 90 ? '…' : ''}</td>
+          <td>${esc(Utils.formatDateTime(r.reviewDate))}</td>
+          <td>${(r.flagReasons || []).map((f) => `<span class="badge Rejected" style="margin:2px;">${esc(f)}</span>`).join('') || '—'}</td>
+          <td><button type="button" onclick="openDetail(${Number(r.productReviewId)})">Xem</button></td></tr>`).join('')}
+        </tbody></table></div>`;
+      const pages = Math.max(1, Math.ceil(d.total / state.pageSize));
+      document.getElementById('pager').innerHTML = `
+        <button type="button" ${state.page <= 1 ? 'disabled' : ''} onclick="goPage(${state.page - 1})">‹</button>
+        <span>Trang ${state.page} / ${pages}</span>
+        <button type="button" ${state.page >= pages ? 'disabled' : ''} onclick="goPage(${state.page + 1})">›</button>`;
+    }
+
+    function setTab(tab) { state.tab = tab; state.page = 1; load(); }
+    function goPage(p) { state.page = p; load(); }
+
+    async function openDetail(id) {
+      const res = await API.request(`/moderation/reviews/${id}`, { suppressErrorToast: true });
+      if (!res.success) { Utils.showToast(res.error, 'error'); return; }
+      current = res.data;
+      const r = current;
+      const hidden = r.moderationStatus === 'Hidden';
+      document.getElementById('detail').innerHTML = `
+        <div style="display:grid; grid-template-columns:150px 1fr; gap:8px; font-size:13px;">
+          <span class="muted">Người đánh giá</span><strong>${esc(r.reviewerName)}</strong>
+          <span class="muted">Sản phẩm</span><span>${esc(r.productName)}</span>
+          <span class="muted">Đơn hàng</span><span>#${esc(r.orderCode)}</span>
+          <span class="muted">Số sao</span><span style="color:#d4a017;">${stars(r.ratingStars)}</span>
+          <span class="muted">Ngày</span><span>${esc(Utils.formatDateTime(r.reviewDate))}</span>
+          <span class="muted">Trạng thái</span><span>${hidden ? '<span class="badge Rejected">Đã ẩn</span>' : '<span class="badge Active">Đang hiển thị</span>'}</span>
+          ${r.moderationReason ? `<span class="muted">Lý do ẩn</span><span>${esc(r.moderationReason)}</span>` : ''}
+          ${(r.flagReasons || []).length ? `<span class="muted">Gắn cờ</span><span>${r.flagReasons.map(esc).join('; ')}</span>` : ''}
+        </div>
+        <div style="margin:14px 0; padding:12px; background:#f7faf8; border-radius:8px; white-space:pre-wrap;">${esc(r.comment || '(Không có bình luận)')}</div>
+        ${hidden ? '' : `<label class="field"><span>Lý do ẩn (bắt buộc khi ẩn, tối đa 500 ký tự)</span>
+          <textarea id="reason" maxlength="500"></textarea><small class="err" id="reason-error" style="color:#b3261e;"></small></label>`}
+        <div class="modal-actions">
+          ${hidden ? '<button type="button" class="primary" onclick="decide(\'Restore\')">Khôi phục</button>'
+            : `${r.isReviewed ? '' : '<button type="button" onclick="decide(\'KeepVisible\')">Giữ hiển thị</button>'}
+               <button type="button" class="primary" style="background:#b3261e;" onclick="decide('Hide')">Ẩn đánh giá</button>`}
+        </div>`;
+      document.getElementById('detail-dialog').showModal();
+    }
+
+    function closeDetail() { document.getElementById('detail-dialog').close(); }
+
+    async function decide(decision) {
+      const reasonEl = document.getElementById('reason');
+      const reason = reasonEl ? reasonEl.value.trim() : null;
+      if (decision === 'Hide' && !reason) {
+        document.getElementById('reason-error').textContent = 'Please provide a valid moderation reason.';
+        return;
+      }
+      const res = await API.request(`/moderation/reviews/${current.productReviewId}/decision`, {
+        method: 'POST', body: { decision, reason }, suppressErrorToast: true
+      });
+      if (!res.success) {
+        const msg = res.data?.errors?.reason?.[0] || res.error;
+        if (reasonEl) document.getElementById('reason-error').textContent = msg; else Utils.showToast(msg, 'error');
+        return;
+      }
+      closeDetail();
+      Utils.showToast('Đã cập nhật trạng thái đánh giá.', 'success');
+      load();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!Auth.requireAuth('Moderator')) return;
+      document.getElementById('search-form').onsubmit = (e) => { e.preventDefault(); state.search = document.getElementById('search').value; state.page = 1; load(); };
+      load();
+    });
+  </script>
+</body>
+</html>

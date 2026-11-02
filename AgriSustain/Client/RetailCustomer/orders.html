@@ -15,47 +15,52 @@
       <header id="app-header"></header>
 
       <main style="max-width:1150px; margin:32px auto; padding:0 24px;">
-    <div class="section-heading" style="margin-bottom:24px;">
+    <!-- SCR-12 Order History (Figma UC-RC-04): (1) tabs, (2) search, (3)-(6) order cards, (7) paging -->
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
       <div>
-        <p class="eyebrow" style="color:#2e7d32; font-size:11px; text-transform:uppercase; font-weight:700;">ĐƠN HÀNG CỦA TÔI · UC-RC-04</p>
-        <h1 style="color:#103e2d; margin:4px 0;">Lịch sử &amp; Theo dõi đơn hàng</h1>
-        <p class="muted">Tra cứu hành trình vận chuyển, tình trạng giao nhận nông sản tươi từ nhà vườn.</p>
+        <span style="font-size:11px; font-weight:700; letter-spacing:1.2px; color:#1e6546;">THEO DÕI ĐƠN HÀNG</span>
+        <h1 style="font-size:26px; margin:4px 0 6px; color:#1b4332; font-weight:800;">Lịch sử mua hàng</h1>
+        <p class="muted" style="margin:0; font-size:13px;">Theo dõi trạng thái giao hàng và tra cứu mã lô truy xuất nguồn gốc.</p>
       </div>
+      <form id="track-search-form" style="display:flex; gap:8px; width:420px; max-width:100%;">
+        <input type="search" id="track-search" maxlength="100" placeholder="Mã đơn (#ORD-...) hoặc tên sản phẩm"
+          style="flex:1; border-radius:20px; padding:9px 16px; border:1px solid #cce0d2;">
+        <button class="primary" type="submit" style="border-radius:20px;">Tìm kiếm</button>
+      </form>
     </div>
 
-    <!-- Status Tabs matching OrderTrackingScreen.jsx -->
-    <div class="commerce-tabs" id="track-tabs" style="display:flex; gap:8px; margin-bottom:20px;">
-      <button type="button" class="tab-btn active" onclick="switchTrackTab('All')">Tất cả đơn hàng</button>
-      <button type="button" class="tab-btn" onclick="switchTrackTab('Completed')">Hoàn thành</button>
-      <button type="button" class="tab-btn" onclick="switchTrackTab('Cancelled')">Đã hủy</button>
+    <div id="orders-notice" class="notice" style="display:none;"></div>
+
+    <!-- Status tabs (SRS III.6.3.1 (1)) -->
+    <div id="track-tabs" role="tablist" style="display:flex; gap:10px; border-bottom:2px solid #e2eae4; margin-bottom:24px;">
+      <button type="button" class="tab-btn active" data-tab="All">Tất cả</button>
+      <button type="button" class="tab-btn" data-tab="Completed">Hoàn thành</button>
+      <button type="button" class="tab-btn" data-tab="Cancelled">Đã hủy</button>
     </div>
 
-    <!-- Search input -->
-    <div class="panel" style="padding:14px 20px; margin-bottom:20px;">
-      <div style="display:flex; gap:12px;">
-        <input type="text" id="track-search" placeholder="Tìm theo mã đơn hàng hoặc tên nông sản..." style="flex:1;" onkeyup="if(event.key==='Enter') filterOrders()">
-        <button class="primary" type="button" onclick="filterOrders()">Tìm kiếm</button>
-      </div>
-    </div>
+    <div id="orders-list-container" style="display:flex; flex-direction:column; gap:16px;"></div>
 
-    <!-- Orders Cards Container -->
-    <div id="orders-list-container" style="display:flex; flex-direction:column; gap:16px;">
-      <div class="panel padded" style="text-align:center; padding:40px;">
-        <div class="spinner"></div>
-        <p class="muted">Đang tải lịch sử đơn hàng…</p>
-      </div>
-    </div>
+    <div id="orders-pager" style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; flex-wrap:wrap; gap:12px;"></div>
   </main>
   </div>
   </div>
 
-  <!-- Order Detail Dialog -->
-  <dialog id="order-detail-modal">
+  <!-- SCR-16 Order Detail -->
+  <dialog id="order-detail-modal" style="width:820px;">
     <div class="modal-heading">
-      <h2>Chi tiết đơn hàng</h2>
-      <button type="button" onclick="closeDetailModal()">&times;</button>
+      <h2 id="order-detail-title">Chi tiết đơn hàng</h2>
+      <button type="button" onclick="closeDetail()">&times;</button>
     </div>
     <div id="order-detail-content" style="margin-top:16px;"></div>
+  </dialog>
+
+  <!-- Batch traceability -->
+  <dialog id="batch-modal">
+    <div class="modal-heading">
+      <h2 id="batch-title">Truy xuất lô</h2>
+      <button type="button" onclick="document.getElementById('batch-modal').close()">&times;</button>
+    </div>
+    <div id="batch-content" style="margin-top:16px;"></div>
   </dialog>
 
   <script src="../js/config.js"></script>
@@ -63,164 +68,296 @@
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
-
   <script>
-    let activeTab = 'All';
-    let allOrders = [];
+    /*
+     * UC-RC-04 Track Retail Order (SCR-12 Order History, SCR-16 Order Detail).
+     * GET /api/orders (server-side status filter, keyword search, paging) and GET /api/orders/{id}.
+     */
+    const STATUS = {
+      PendingPayment: { label: 'Chờ thanh toán', color: '#b7791f', bg: '#fdf6e3' },
+      Paid: { label: 'Đã thanh toán', color: '#1976d2', bg: '#e6f3fa' },
+      Processing: { label: 'Đang xử lý', color: '#1976d2', bg: '#e6f3fa' },
+      Confirmed: { label: 'Đã xác nhận', color: '#1976d2', bg: '#e6f3fa' },
+      Preparing: { label: 'Đang chuẩn bị', color: '#1976d2', bg: '#e6f3fa' },
+      ReadyToShip: { label: 'Chờ giao', color: '#1976d2', bg: '#e6f3fa' },
+      Shipping: { label: 'Đang vận chuyển', color: '#1976d2', bg: '#e6f3fa' },
+      Delivered: { label: 'Đã giao', color: '#1e6546', bg: '#eaf4e9' },
+      Completed: { label: 'Hoàn thành', color: '#1e6546', bg: '#eaf4e9' },
+      Cancelled: { label: 'Đã hủy', color: '#c2533c', bg: '#fbeee9' },
+      DeliveryFailed: { label: 'Giao thất bại', color: '#c2533c', bg: '#fbeee9' },
+      RefundPending: { label: 'Chờ hoàn tiền', color: '#8d7c53', bg: '#f1f0e8' },
+      PartiallyRefunded: { label: 'Đã hoàn một phần', color: '#8d7c53', bg: '#f1f0e8' },
+      Refunded: { label: 'Đã hoàn tiền', color: '#c2533c', bg: '#fbeee9' }
+    };
+    const esc = (v) => Utils.escapeHtml(v == null ? '' : String(v));
+    const state = { tab: 'All', keyword: '', page: 1, pageSize: 10 };
+    let batches = {};
 
-    document.addEventListener('DOMContentLoaded', () => {
-      Components.init();
-      loadOrders();
-    });
-
-    function switchTrackTab(tab) {
-      activeTab = tab;
-      const btns = document.querySelectorAll('#track-tabs .tab-btn');
-      btns.forEach(b => b.classList.toggle('active', b.textContent.includes(tab) || (tab === 'All' && b.textContent.includes('Tất cả'))));
-      filterOrders();
+    function badge(value) {
+      const s = STATUS[value] || { label: value, color: '#4d695a', bg: '#eef3ef' };
+      return `<span style="background:${s.bg}; color:${s.color}; font-weight:700; font-size:12px; padding:4px 12px; border-radius:12px; white-space:nowrap;">${esc(s.label)}</span>`;
     }
 
+    function itemSummary(order) {
+      const items = (order.sellerOrders || []).flatMap((so) => so.items || []);
+      if (!items.length) return '';
+      const first = `${items[0].productName} × ${items[0].quantity} ${items[0].unit}`;
+      return items.length > 1 ? `${first} và ${items.length - 1} sản phẩm khác` : first;
+    }
+
+    function notice(message, isError) {
+      const el = document.getElementById('orders-notice');
+      el.style.display = message ? 'block' : 'none';
+      el.className = `notice ${isError ? 'error' : ''}`;
+      el.textContent = message || '';
+    }
+
+    function feedbackUrl(orderId, mode) {
+      return `feedback.html?orderId=${encodeURIComponent(orderId)}&mode=${mode}`;
+    }
+
+    // Every filter change is a new server query (UC-RC-04 AF Step 3).
     async function loadOrders() {
-      try {
-        const res = await API.getRetailOrders({ suppressErrorToast: true });
-        if (res.success && res.data) {
-          allOrders = res.data.items || res.data.value || (Array.isArray(res.data) ? res.data : []);
-          filterOrders();
-        } else {
-          allOrders = [];
-          filterOrders();
-        }
-      } catch (e) {
-        allOrders = [];
-        filterOrders();
-      }
-    }
-
-    function filterOrders() {
-      const keyword = document.getElementById('track-search').value.trim().toLowerCase();
-      let filtered = allOrders;
-
-      if (activeTab === 'Completed') {
-        filtered = filtered.filter(x => x.status === 'Delivered' || x.status === 'Completed');
-      } else if (activeTab === 'Cancelled') {
-        filtered = filtered.filter(x => x.status === 'Cancelled');
-      }
-
-      if (keyword) {
-        filtered = filtered.filter(x =>
-          (x.orderCode || '').toLowerCase().includes(keyword) ||
-          (x.items || []).some(i => (i.productName || '').toLowerCase().includes(keyword))
-        );
-      }
-
-      renderOrdersList(filtered);
-    }
-
-    function renderOrdersList(items) {
       const container = document.getElementById('orders-list-container');
-      if (!items || items.length === 0) {
-        container.innerHTML = `
-          <div class="panel padded" style="text-align:center; padding:50px 20px;">
-            <p style="font-size:36px; margin:0 0 10px;">📦</p>
-            <h3>Không có đơn hàng nào</h3>
-            <p class="muted">Không tìm thấy đơn hàng phù hợp với trạng thái hoặc từ khóa tìm kiếm.</p>
-          </div>
-        `;
+      container.innerHTML = '<div class="panel padded" style="text-align:center; padding:40px;">Đang tải đơn hàng...</div>';
+      document.getElementById('orders-pager').innerHTML = '';
+      const res = await API.getRetailOrders({
+        status: state.tab === 'All' ? '' : state.tab,
+        keyword: state.keyword.trim(),
+        page: state.page,
+        pageSize: state.pageSize,
+        suppressErrorToast: true
+      });
+      if (!res.success) {
+        container.innerHTML = '';
+        notice(res.error || 'Không tải được danh sách đơn hàng.', true);
         return;
       }
+      notice('');
+      const items = res.data.items || [];
+      const total = res.data.total ?? res.data.totalCount ?? items.length;
+      renderList(items);
+      renderPager(total);
+    }
 
-      container.innerHTML = items.map(o => {
-        const itemsSummary = (o.items || []).map(i => `${i.productName} × ${i.quantity} ${i.unit || 'kg'}`).join(', ');
-
+    function renderList(items) {
+      const container = document.getElementById('orders-list-container');
+      const hasFilter = state.tab !== 'All' || state.keyword.trim() !== '';
+      if (!items.length) {
+        container.innerHTML = hasFilter ? `
+          <div class="panel padded" style="text-align:center; padding:60px 20px;">
+            <span style="font-size:52px; display:block; margin-bottom:14px;">📦</span>
+            <strong style="font-size:16px; color:#2d4d3c;">Không tìm thấy đơn hàng phù hợp</strong>
+            <p class="muted" style="margin-top:6px;">Thử từ khóa khác hoặc chọn tab trạng thái khác.</p>
+          </div>` : `
+          <div class="panel padded" style="text-align:center; padding:60px 20px;">
+            <span style="font-size:52px; display:block; margin-bottom:14px;">📦</span>
+            <strong style="font-size:18px; color:#1e6546; display:block; margin-bottom:12px;">Bạn chưa có đơn hàng nào.</strong>
+            <button type="button" class="primary" onclick="window.location.href='index.html'">Khám phá nông sản</button>
+          </div>`;
+        return;
+      }
+      container.innerHTML = items.map((o) => {
+        const canReview = o.orderStatus === 'Completed'
+          && (o.sellerOrders || []).some((so) => (so.items || []).some((i) => !i.isReviewed));
         return `
-          <div class="panel padded" style="margin:0;">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #edf2ee; padding-bottom:12px; margin-bottom:14px;">
-              <div>
-                <span style="font-size:12px; color:#687b70;">Mã đơn:</span>
-                <strong style="font-size:15px; color:#103e2d; margin-left:4px;">#${Utils.escapeHtml(o.orderCode || o.id)}</strong>
-                <span class="muted" style="margin-left:12px; font-size:12px;">Ngày đặt: ${Utils.formatDateTime(o.createdDate)}</span>
+          <div class="panel" style="margin:0; border-radius:14px; border:1px solid #dce8e0; overflow:hidden;">
+            <div style="padding:14px 24px; background:#f9fbf9; border-bottom:1px solid #eef3ef; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                <strong style="color:#1b4332; font-size:15px;">#${esc(o.orderCode)}</strong>
+                <span style="font-size:12px; color:#6a8274;">Ngày đặt: ${esc(Utils.formatDateTime(o.orderDate))}</span>
               </div>
-              <span style="background:${o.statusBg || '#eaf4e9'}; color:${o.statusColor || '#1e6546'}; font-weight:700; font-size:12px; padding:4px 12px; border-radius:12px;">
-                ${Utils.escapeHtml(o.statusLabel || o.status)}
-              </span>
+              ${badge(o.orderStatus)}
             </div>
-
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-              <div style="flex:1; min-width:280px;">
-                <p style="margin:0 0 6px; font-weight:600; color:#1f3328;">${Utils.escapeHtml(itemsSummary)}</p>
-                <small class="muted">Giao đến: ${Utils.escapeHtml(o.shippingAddress || 'Địa chỉ người nhận')}</small>
+            <div style="padding:14px 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div style="font-size:13px; color:#2d4d3c;">
+                <div>${esc(itemSummary(o))}</div>
+                <div class="muted" style="font-size:12px; margin-top:4px;">${esc((o.sellerOrders || []).map((so) => so.farmName).join(', '))}</div>
               </div>
-
-              <div style="text-align:right;">
-                <span style="display:block; font-size:12px; color:#687b70;">Tổng thanh toán</span>
-                <strong style="color:#094d34; font-size:18px;">${Utils.formatVND(o.totalAmount)}</strong>
-              </div>
-
-              <div style="display:flex; gap:8px;">
-                <button type="button" class="primary" style="padding:8px 14px; font-size:12px;" onclick="viewDetail(${o.id})">
-                  Chi tiết hành trình
-                </button>
-                ${o.status === 'Delivered' || o.status === 'Completed' ? `<button type="button" style="padding:8px 14px; font-size:12px;" onclick="window.location.href='feedback.html?orderId=${o.id}'">Đánh giá</button>` : ''}
+              <div style="display:flex; align-items:center; gap:16px;">
+                <div style="text-align:right;">
+                  <span style="font-size:12px; color:#6f8578; margin-right:6px;">Tổng tiền:</span>
+                  <strong style="font-size:17px; color:#1e6546;">${Utils.formatVND(o.finalAmount)}</strong>
+                </div>
+                <button type="button" onclick="openDetail(${Number(o.orderId)})">Xem chi tiết</button>
+                ${canReview ? `<button type="button" class="primary" onclick="window.location.href='${feedbackUrl(o.orderId, 'review')}'">⭐ Đánh giá</button>` : ''}
               </div>
             </div>
-          </div>
-        `;
+          </div>`;
       }).join('');
     }
 
-    function viewDetail(id) {
-      const o = allOrders.find(x => x.id === id);
-      if (!o) return;
-
-      const content = document.getElementById('order-detail-content');
-      const itemsHtml = (o.items || []).map(i => `
-        <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f4f1;">
-          <span>${Utils.escapeHtml(i.productName)} × ${i.quantity} ${i.unit || 'kg'}</span>
-          <strong>${Utils.formatVND(i.price * i.quantity)}</strong>
-        </div>
-      `).join('');
-
-      content.innerHTML = `
-        <div>
-          <div style="background:#f4f9f6; padding:12px 16px; border-radius:8px; margin-bottom:16px;">
-            <p style="margin:0 0 4px;">Mã đơn: <strong>#${Utils.escapeHtml(o.orderCode || o.id)}</strong></p>
-            <p style="margin:0 0 4px;">Trạng thái: <strong>${Utils.escapeHtml(o.statusLabel || o.status)}</strong></p>
-            <p style="margin:0;">Địa chỉ giao: ${Utils.escapeHtml(o.shippingAddress)}</p>
-          </div>
-
-          <h4>Sản phẩm trong đơn:</h4>
-          ${itemsHtml}
-
-          <div style="display:flex; justify-content:space-between; margin-top:16px; font-size:16px; font-weight:700;">
-            <span>Tổng cộng:</span>
-            <span style="color:#094d34;">${Utils.formatVND(o.totalAmount)}</span>
-          </div>
-
-          <!-- Tracking Timeline -->
-          <h4 style="margin:20px 0 10px;">Hành trình nông sản:</h4>
-          <div style="border-left:2px solid #2e7d32; padding-left:14px; margin-left:8px; font-size:13px; display:flex; flex-direction:column; gap:12px;">
-            <div>
-              <strong style="color:#2e7d32;">● Đã tiếp nhận đơn hàng</strong>
-              <div class="muted">Nhà vườn đã xác nhận và chuẩn bị nông sản tươi.</div>
-            </div>
-            <div>
-              <strong style="color:#2e7d32;">● Đóng gói chuẩn bảo quản nông sản</strong>
-              <div class="muted">Kiểm tra tem mã QR truy xuất nguồn gốc.</div>
-            </div>
-            <div>
-              <strong style="color:${o.status === 'Shipping' || o.status === 'Delivered' ? '#2e7d32' : '#888'};">● Bàn giao đơn vị vận chuyển</strong>
-              <div class="muted">Đang trên xe lạnh giao hàng liên tỉnh.</div>
-            </div>
-          </div>
-        </div>
-      `;
-
-      Utils.showModal('order-detail-modal');
+    function renderPager(total) {
+      const pages = Math.max(1, Math.ceil(total / state.pageSize));
+      if (state.page > pages) state.page = pages;
+      document.getElementById('orders-pager').innerHTML = `
+        <label style="font-size:13px;">Hiển thị
+          <select id="page-size" style="width:auto;">
+            ${[10, 20, 50].map((n) => `<option value="${n}" ${n === state.pageSize ? 'selected' : ''}>${n} / trang</option>`).join('')}
+          </select>
+        </label>
+        <div style="display:flex; align-items:center; gap:6px; font-size:13px;">
+          <button type="button" style="width:32px; padding:6px 0;" ${state.page <= 1 ? 'disabled' : ''} onclick="goPage(${state.page - 1})">‹</button>
+          ${Array.from({ length: pages }, (_, i) => i + 1).filter((n) => pages <= 7 || Math.abs(n - state.page) <= 2 || n === 1 || n === pages)
+            .map((n) => `<button type="button" style="width:32px; padding:6px 0; ${n === state.page ? 'background:#1e6546; color:#fff; border-color:#1e6546;' : ''}" onclick="goPage(${n})">${n}</button>`).join('')}
+          <button type="button" style="width:32px; padding:6px 0;" ${state.page >= pages ? 'disabled' : ''} onclick="goPage(${state.page + 1})">›</button>
+        </div>`;
+      document.getElementById('page-size').onchange = (e) => {
+        state.pageSize = Number(e.target.value);
+        state.page = 1;
+        loadOrders();
+      };
     }
 
-    function closeDetailModal() {
-      Utils.hideModal('order-detail-modal');
+    function goPage(page) {
+      state.page = page;
+      loadOrders();
     }
+
+    async function openDetail(orderId) {
+      const res = await API.getOrderDetail(orderId);
+      if (!res.success) {
+        notice(res.error || 'Không tải được chi tiết đơn hàng.', true);
+        return;
+      }
+      renderDetail(res.data);
+      document.getElementById('order-detail-modal').showModal();
+    }
+
+    function closeDetail() {
+      document.getElementById('order-detail-modal').close();
+    }
+
+    function renderDetail(d) {
+      const actions = d.allowedActions || [];
+      batches = {};
+      document.getElementById('order-detail-title').textContent = `Chi tiết đơn hàng #${d.orderCode}`;
+      const sellers = (d.sellerOrders || []).map((so) => `
+        <div style="margin-bottom:10px;">
+          <div style="font-size:13px; margin-bottom:6px;">🏡 <strong>${esc(so.farmName)}</strong> ${badge(so.status)}</div>
+          <div class="table-wrap" style="min-height:0;">
+            <table style="min-width:0; font-size:13px;">
+              <thead><tr><th>Sản phẩm</th><th>Mã lô</th><th style="text-align:right;">SL</th><th style="text-align:right;">Đơn giá</th><th style="text-align:right;">Thành tiền</th></tr></thead>
+              <tbody>${(so.items || []).map((item) => `
+                <tr>
+                  <td>${esc(item.productName)}${item.isReviewed ? '<div style="color:#1e6546; font-size:12px; margin-top:4px;">✓ Đã đánh giá</div>' : ''}</td>
+                  <td>${(item.batches || []).length === 0 ? '—' : item.batches.map((b) => {
+                    const key = `${item.orderItemId}-${b.batchCode}`;
+                    batches[key] = { ...b, productName: item.productName, farmName: so.farmName };
+                    return `<button type="button" class="text-button" onclick="openBatch('${esc(key)}')">${esc(b.batchCode)}</button>`;
+                  }).join('<br>')}</td>
+                  <td style="text-align:right;">${esc(item.quantity)} ${esc(item.unit)}</td>
+                  <td style="text-align:right;">${Utils.formatVND(item.unitPrice)}</td>
+                  <td style="text-align:right;">${Utils.formatVND(item.subTotal)}</td>
+                </tr>`).join('')}</tbody>
+            </table>
+          </div>
+        </div>`).join('');
+
+      const timeline = (d.timeline || []).length ? `
+        <section style="margin-bottom:16px;">
+          <h4 style="margin:0 0 8px; font-size:13px; color:#2d4d3c;">HÀNH TRÌNH ĐƠN HÀNG</h4>
+          <ol style="margin:0; padding-left:18px; font-size:13px;">
+            ${d.timeline.map((t) => `<li>${esc(Utils.formatDateTime(t.timestamp))} — ${esc(t.description)}</li>`).join('')}
+          </ol>
+        </section>` : '';
+
+      const reviewLabel = actions.includes('EditReview')
+        ? (actions.includes('Review') ? 'Đánh giá / Sửa đánh giá' : 'Sửa đánh giá') : 'Đánh giá';
+
+      document.getElementById('order-detail-content').innerHTML = `
+        <section style="margin-bottom:16px;">
+          <h4 style="margin:0 0 8px; font-size:13px; color:#2d4d3c;">THÔNG TIN ĐƠN HÀNG</h4>
+          <div style="display:grid; grid-template-columns:160px 1fr; gap:6px; font-size:13px;">
+            <span class="muted">Mã đơn hàng</span><strong>#${esc(d.orderCode)}</strong>
+            <span class="muted">Ngày đặt</span><span>${esc(Utils.formatDateTime(d.orderDate))}</span>
+            <span class="muted">Trạng thái</span><span>${badge(d.orderStatus)}</span>
+            <span class="muted">Thanh toán</span><span>${esc(d.paymentMethod || '—')} · ${d.paymentStatus === 'Paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}</span>
+            <span class="muted">Mã vận đơn</span><span>${esc(d.trackingNumber || '—')}</span>
+            ${d.expectedDeliveryDate ? `<span class="muted">Dự kiến giao</span><span>${esc(Utils.formatDateTime(d.expectedDeliveryDate))}</span>` : ''}
+          </div>
+        </section>
+        <section style="margin-bottom:16px;">
+          <h4 style="margin:0 0 8px; font-size:13px; color:#2d4d3c;">THÔNG TIN GIAO HÀNG</h4>
+          <div style="border:1px solid #e0eae2; border-radius:8px; padding:12px; font-size:13px;">
+            <strong>${esc(d.recipientName)}</strong> · ${esc(d.recipientPhone)}
+            <div class="muted" style="margin-top:4px;">${esc(d.shippingAddress)}</div>
+          </div>
+        </section>
+        <section style="margin-bottom:16px;">
+          <h4 style="margin:0 0 8px; font-size:13px; color:#2d4d3c;">SẢN PHẨM</h4>
+          ${sellers}
+        </section>
+        <section style="margin-bottom:16px;">
+          <h4 style="margin:0 0 8px; font-size:13px; color:#2d4d3c;">TỔNG QUAN THANH TOÁN</h4>
+          <div style="display:grid; grid-template-columns:1fr auto; gap:4px; font-size:13px;">
+            <span class="muted">Tạm tính</span><span>${Utils.formatVND(d.totalAmount)}</span>
+            <span class="muted">Phí giao hàng</span><span>${Utils.formatVND(d.deliveryFee)}</span>
+            <span class="muted">Giảm giá</span><span>-${Utils.formatVND(d.discountAmount)}</span>
+            <strong>Tổng thanh toán</strong><strong style="color:#1e6546;">${Utils.formatVND(d.finalAmount)}</strong>
+          </div>
+        </section>
+        ${timeline}
+        ${actions.includes('SubmitComplaint') ? '' : `<p class="muted" role="note" style="font-size:12px; margin:0 0 12px;">
+          ℹ️ Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao, trong vòng 48 giờ kể từ khi giao.</p>`}
+        <div class="modal-actions" style="justify-content:space-between; flex-wrap:wrap;">
+          <div style="display:flex; gap:8px;">
+            ${actions.includes('PayNow') ? `<button type="button" class="primary" onclick="notice('Thanh toán cho đơn hàng này chưa được tích hợp.'); closeDetail();">Thanh toán ngay</button>` : ''}
+            ${actions.includes('Review') || actions.includes('EditReview')
+              ? `<button type="button" onclick="window.location.href='${feedbackUrl(d.orderId, 'review')}'">⭐ ${reviewLabel}</button>` : ''}
+            ${actions.includes('SubmitComplaint')
+              ? `<button type="button" style="color:#b23b3b;" onclick="window.location.href='${feedbackUrl(d.orderId, 'complaint')}'">Gửi khiếu nại</button>` : ''}
+          </div>
+          <button type="button" class="primary" onclick="closeDetail()">← Quay lại danh sách</button>
+        </div>`;
+    }
+
+    function openBatch(key) {
+      const b = batches[key];
+      if (!b) return;
+      document.getElementById('batch-title').textContent = `Truy xuất lô ${b.batchCode}`;
+      document.getElementById('batch-content').innerHTML = `
+        <div style="display:grid; grid-template-columns:140px 1fr; gap:8px; font-size:13px;">
+          <strong>Sản phẩm</strong><span>${esc(b.productName)}</span>
+          <strong>Nông trại</strong><span>${esc(b.farmName)}</span>
+          <strong>Mùa vụ</strong><span>${esc(b.seasonName || '—')}</span>
+          <strong>Ngày thu hoạch</strong><span>${esc(b.harvestDate || '—')}</span>
+          <strong>Số lượng phân bổ</strong><span>${esc(b.quantity)}</span>
+        </div>
+        <div class="modal-actions">
+          ${b.traceabilityUrl ? `<a href="${esc(b.traceabilityUrl)}" target="_blank" rel="noopener noreferrer">Mở trang truy xuất</a>` : ''}
+          <button type="button" onclick="document.getElementById('batch-modal').close()">Đóng</button>
+        </div>`;
+      document.getElementById('batch-modal').showModal();
+    }
+
+    function paintTabs() {
+      document.querySelectorAll('#track-tabs .tab-btn').forEach((x) => {
+        const on = x.dataset.tab === state.tab;
+        x.style.cssText = `border:none; padding:9px 18px; border-radius:8px 8px 0 0; cursor:pointer; background:${on ? '#1e6546' : 'transparent'}; color:${on ? '#fff' : '#4d695a'}; font-weight:${on ? 700 : 500};`;
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      Components.init();
+      paintTabs();
+      if (!Auth.requireAuth('RetailCustomer')) return;
+      document.querySelectorAll('#track-tabs .tab-btn').forEach((b) => {
+        b.onclick = () => {
+          state.tab = b.dataset.tab;
+          state.page = 1;
+          paintTabs();
+          loadOrders();
+        };
+      });
+      document.getElementById('track-search-form').onsubmit = (e) => {
+        e.preventDefault();
+        state.keyword = document.getElementById('track-search').value;
+        state.page = 1;
+        loadOrders();
+      };
+      loadOrders();
+    });
   </script>
 </body>
 </html>

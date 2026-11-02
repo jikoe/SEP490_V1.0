@@ -31,8 +31,8 @@ public sealed partial class RegisterRequestValidator : AbstractValidator<Registe
             .Equal(x => x.Password).WithMessage("Mật khẩu xác nhận không khớp.");
 
         RuleFor(x => x.Role)
-            .Must(r => r is "RetailCustomer" or "Farmer")
-            .WithMessage("Vai trò phải là 'RetailCustomer' hoặc 'Farmer'.");
+            .Must(r => r is "RetailCustomer" or "Farmer" or "WholesaleBuyer")
+            .WithMessage("Vai trò phải là 'RetailCustomer', 'Farmer' hoặc 'WholesaleBuyer'.");
 
         RuleFor(x => x.AgreeTerms)
             .Equal(true).WithMessage("Bạn cần đồng ý với điều khoản sử dụng.");
