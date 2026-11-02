@@ -50,6 +50,7 @@ const API = {
     const fetchConfig = {
       method: options.method || 'GET',
       headers,
+      signal: options.signal,
       body: (options.body && !(options.body instanceof FormData))
         ? JSON.stringify(options.body)
         : options.body
@@ -60,6 +61,7 @@ const API = {
       try {
         response = await fetch(url, fetchConfig);
       } catch (networkError) {
+        if (networkError.name === 'AbortError') throw networkError;
         // Fallback to secondary base URL if primary localhost port fails
         if (CONFIG.API_BASE_URL_FALLBACK && url.includes(CONFIG.API_BASE_URL)) {
           url = url.replace(CONFIG.API_BASE_URL, CONFIG.API_BASE_URL_FALLBACK);
@@ -80,12 +82,12 @@ const API = {
         setTimeout(() => {
           window.location.href = `${Utils.getRootPath()}Guest/login.html`;
         }, 1200);
-        return { success: false, status: 401, error: 'Unauthorized' };
+        return { success: false, status: 401, error: 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.' };
       }
 
       const contentType = response.headers.get('content-type') || '';
       let data = null;
-      if (contentType.includes('application/json')) {
+      if (contentType.includes('json')) {
         data = await response.json();
       } else {
         data = await response.text();
@@ -117,6 +119,7 @@ const API = {
 
       return { success: true, status: response.status, data: payload, raw: data };
     } catch (err) {
+      if (err.name === 'AbortError') throw err;
       console.error('API Client Network Error:', err);
       if (!options.suppressErrorToast) {
         const msg = (typeof window !== 'undefined' && window.Messages?.common?.networkError)
@@ -621,11 +624,7 @@ const API = {
   },
 
   async changePassword(data) {
-    const res = await this.request('/auth/change-password', { method: 'POST', body: data, suppressErrorToast: true });
-    if (!res.success) {
-      return this.request('/account/password', { method: 'POST', body: data });
-    }
-    return res;
+    return this.request('/auth/change-password', { method: 'POST', body: data, suppressErrorToast: true });
   },
 
   /* ---------------- PROFILE MODULE ---------------- */
