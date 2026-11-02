@@ -1,0 +1,101 @@
+/* ==========================================================================
+   AgriSustain - UC-CS-01 Resolve Complaint
+   (Figma "AgriSustain Admin Screens" · UC-CS-01, node 73:317)
+   ========================================================================== */
+
+.cs-page { max-width: 1136px; color: #173d2c; }
+.cs-crumbs { font-size: 12px; color: #667a70; margin: 0 0 12px; }
+.cs-page h1 { font-size: 30px; color: #134a32; margin: 0 0 10px; letter-spacing: -.3px; }
+.cs-sub { font-size: 14px; color: #5f7268; margin: 0 0 22px; }
+
+.cs-card { background: #fff; border: 1px solid #e3e9e5; border-radius: 12px; padding: 16px 12px; }
+.cs-card h2 { font-size: 17px; color: #173d2c; margin: 4px 0 14px; }
+.cs-label { display: block; font-size: 10px; font-weight: 700; color: #1f2b25; margin: 0 0 6px; }
+
+.cs-filters { display: grid; grid-template-columns: 1fr 190px 190px auto; gap: 10px; align-items: end;
+  margin-bottom: 12px; }
+.cs-filters input, .cs-filters select { width: 100%; height: 26px; border: 1px solid #d9e2dc; border-radius: 4px;
+  padding: 0 10px; font-size: 11px; color: #1f2b25; background: #fff; }
+.cs-btn { height: 34px; padding: 0 16px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;
+  border: 1px solid #d9e2dc; background: #fff; color: #1f6a43; white-space: nowrap; }
+.cs-btn:disabled { opacity: .5; cursor: not-allowed; }
+.cs-btn.primary { background: #1c6a44; border-color: #1c6a44; color: #fff; }
+.cs-btn.primary:hover:not(:disabled) { background: #175a39; }
+.cs-filters .cs-btn { height: 36px; min-width: 104px; align-self: center; }
+
+.cs-columns { display: grid; grid-template-columns: 348px minmax(0, 1fr) 304px; gap: 12px; align-items: start; }
+.cs-columns > .cs-card { min-height: 720px; }
+
+/* (5)–(9) list */
+.cs-table { width: 100%; border-collapse: collapse; font-size: 10px; min-width: 0; }
+.cs-table thead th { background: #f1f4f2; color: #445b4e; font-size: 8px; font-weight: 700; text-transform: uppercase;
+  text-align: left; padding: 8px; border: 0; }
+.cs-table thead th:first-child { border-radius: 6px 0 0 6px; }
+.cs-table thead th:last-child { border-radius: 0 6px 6px 0; }
+.cs-table tbody td { padding: 14px 8px; border-bottom: 1px solid #e6ece8; color: #4c5d54; vertical-align: middle; }
+.cs-table tbody tr { cursor: pointer; }
+.cs-table tbody td:first-child { white-space: nowrap; }
+.cs-table tbody tr:hover td { background: #f7faf8; }
+.cs-table tbody tr.selected td { background: #eef7f1; }
+.cs-table tbody tr.overdue td { background: #fdecea; }
+.cs-table tbody tr.overdue td.due { color: #b3261e; font-weight: 700; }
+.cs-table .empty { text-align: center; color: #667a70; padding: 28px 0; cursor: default; }
+.cs-list-foot { font-size: 10px; color: #667a70; margin-top: 12px; line-height: 1.4; }
+.cs-pager { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
+.cs-pager button { min-width: 26px; height: 26px; border: 1px solid #d9e2dc; background: #fff; border-radius: 4px;
+  font-size: 10px; cursor: pointer; }
+.cs-pager button.current { background: #e3f5e9; border-color: #e3f5e9; color: #1f7a45; font-weight: 700; }
+
+.cs-pill { display: inline-block; padding: 6px 8px; border-radius: 12px; font-size: 10px; font-weight: 700;
+  background: #eef1ef; color: #4c5d54; white-space: nowrap; }
+.cs-pill.UnderReview, .cs-pill.RefundPending { background: #e3f5e9; color: #1f7a45; }
+.cs-pill.WaitingCustomerInfo { background: #fff3d6; color: #a76a00; }
+
+/* (10)–(14) detail */
+.cs-detail .cs-head { font-size: 10px; font-weight: 700; color: #1f2b25; margin: 12px 0 6px; }
+.cs-detail p, .cs-detail li { font-size: 12px; color: #5f7268; margin: 0 0 6px; line-height: 1.45; }
+.cs-detail ul { list-style: none; padding: 0; margin: 0; }
+.cs-detail li.overdue { color: #b3261e; }
+.cs-link { border: 0; background: transparent; padding: 0; color: #1c6a44; font-size: 12px; font-weight: 700;
+  cursor: pointer; text-decoration: underline; }
+.cs-placeholder { color: #667a70; font-size: 13px; padding: 40px 8px; text-align: center; }
+.cs-items { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 4px; min-width: 0; }
+.cs-items th { background: #f1f4f2; color: #445b4e; font-size: 8px; font-weight: 700; text-transform: uppercase;
+  text-align: left; padding: 8px; border: 0; }
+.cs-items td { padding: 8px; border-bottom: 1px solid #e6ece8; color: #4c5d54; }
+.cs-items input[type=number] { width: 64px; height: 24px; border: 1px solid #d9e2dc; border-radius: 4px;
+  padding: 0 6px; font-size: 10px; }
+.cs-items input:disabled { background: #f3f5f4; }
+.cs-amount { font-size: 13px; color: #5f7268; }
+
+/* (15)–(21) decision */
+.cs-decision label.cs-field { display: block; margin-bottom: 12px; }
+.cs-decision select, .cs-decision textarea { width: 100%; border: 1px solid #d9e2dc; border-radius: 6px;
+  font-size: 11px; color: #1f2b25; background: #fff; }
+.cs-decision select { height: 32px; padding: 0 10px; }
+.cs-decision textarea { min-height: 54px; padding: 8px 10px; resize: vertical; font-family: inherit; }
+.cs-decision select:disabled, .cs-decision textarea:disabled { background: #f3f5f4; color: #6b7a72; }
+.cs-decision .cs-btn { display: block; width: 100%; margin-top: 10px; }
+.cs-decision .cs-amount { margin: 0 0 6px; }
+.cs-note { font-size: 10px; color: #667a70; margin: 14px 0 0; line-height: 1.4; }
+.cs-error { color: #b3261e; font-size: 11px; margin: 6px 0 0; }
+.cs-final { background: #f1f8f3; border-radius: 6px; padding: 10px; font-size: 11px; color: #1f2b25;
+  line-height: 1.5; margin-bottom: 10px; }
+.cs-info { border-top: 1px solid #e6ece8; margin-top: 14px; padding-top: 12px; }
+
+dialog.cs-dialog { width: 440px; border-radius: 12px; border: 1px solid #e3e9e5; padding: 22px; }
+dialog.cs-dialog h2 { font-size: 18px; color: #134a32; margin: 0 0 12px; }
+dialog.cs-dialog dl { display: grid; grid-template-columns: 120px 1fr; gap: 6px 10px; font-size: 13px; margin: 0 0 18px; }
+dialog.cs-dialog dt { color: #667a70; }
+dialog.cs-dialog dd { margin: 0; color: #1f2b25; }
+dialog.cs-dialog .actions { display: flex; gap: 10px; justify-content: flex-end; }
+dialog.cs-dialog .actions .cs-btn { width: auto; }
+
+@media (max-width: 1200px) {
+  .cs-columns { grid-template-columns: 1fr; }
+  .cs-columns > .cs-card { min-height: 0; }
+}
+@media (max-width: 700px) {
+  .cs-filters { grid-template-columns: 1fr; }
+  .cs-items { display: block; overflow-x: auto; }
+}

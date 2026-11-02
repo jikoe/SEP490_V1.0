@@ -10,7 +10,10 @@ public sealed class ComplaintRepository : IComplaintRepository
 {
     private static readonly string[] s_capturedStatuses = ["Success", "Succeeded", "Paid", "Completed"];
     private static readonly string[] s_reservingRefundStatuses =
-        [RefundTransaction.StatusPending, RefundTransaction.StatusCompleted, "Success", "Succeeded"];
+        [
+            RefundTransaction.StatusPending, RefundTransaction.StatusProcessing, RefundTransaction.StatusCompleted,
+            RefundTransaction.StatusFailed, RefundTransaction.StatusNeedsReconciliation, "Success", "Succeeded"
+        ];
 
     private readonly AgriSustainContext _context;
 
@@ -68,7 +71,14 @@ public sealed class ComplaintRepository : IComplaintRepository
                 ticket.DisputeEvidenceRequests.Any(request =>
                     request.RequestStatus == DisputeTicket.EvidenceRequestPending
                     && request.RespondedAt == null
-                    && (request.DueAt != null ? request.DueAt < now : request.RequestedAt < requestedBefore))))
+                    && (request.DueAt != null ? request.DueAt < now : request.RequestedAt < requestedBefore)),
+                ticket.DisputeEvidenceRequests
+                    .Where(request => request.RequestStatus == DisputeTicket.EvidenceRequestPending
+                        && request.RespondedAt == null)
+                    .Min(request => (DateTime?)(request.DueAt ?? request.RequestedAt.AddHours(48))),
+                ticket.DisputeEvidenceRequests.Any()
+                    && ticket.DisputeEvidenceRequests.All(request =>
+                        request.RequestStatus != DisputeTicket.EvidenceRequestPending || request.RespondedAt != null)))
             .ToListAsync(cancellationToken);
         return (total, items);
     }
@@ -275,6 +285,14 @@ public sealed class ComplaintRepository : IComplaintRepository
             .Where(user => user.Status == "Active" && roles.Contains(user.Role))
             .Select(user => user.UserId)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<UserBankAccount?> GetDefaultBankAccountAsync(
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        return _context.UserBankAccounts.AsNoTracking()
+            .FirstOrDefaultAsync(account => account.UserId == userId && account.IsDefault, cancellationToken);
     }
 
     public void AddRefund(RefundTransaction refund)

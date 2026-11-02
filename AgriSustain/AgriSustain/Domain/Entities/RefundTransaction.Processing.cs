@@ -1,29 +1,86 @@
 namespace AgriSustain.Domain.Entities;
 
 /// <summary>
-/// Refund request created by UC-CS-01 and settled by Finance in UC-FIN-03.
-/// Pending → Completed; a failed transfer leaves the request Pending (SRS UC-ADM-06 postcondition).
+/// Refund request created by UC-CS-01 and settled by Finance in UC-FIN-03 (BR-RF-03):
+/// Pending → Processing → Completed (shown as Succeeded) / Failed / NeedsReconciliation.
+/// Processing returns to Pending on Cancel Transfer; Failed returns to Processing on Transfer Again;
+/// NeedsReconciliation ends as Completed or Failed. "Completed" stays the stored success value because
+/// payments, payouts and the finance dashboard already read it.
 /// </summary>
 public partial class RefundTransaction
 {
     public const string StatusPending = "Pending";
+    public const string StatusProcessing = "Processing";
     public const string StatusCompleted = "Completed";
+    public const string StatusFailed = "Failed";
+    public const string StatusNeedsReconciliation = "NeedsReconciliation";
 
-    /// <summary>How Finance paid the refund (database/20261027_refund_method.sql); null while Pending.</summary>
+    /// <summary>How Finance paid the refund (database/20261027_refund_method.sql); null until it succeeds.</summary>
     public string? RefundMethod { get; set; }
 
-    /// <summary>Refund states that already consume part of a payment.</summary>
-    public bool ReservesPayment => RefundStatus is StatusPending or StatusCompleted
-        or "Success" or "Succeeded";
+    /// <summary>Refund states that already consume part of a payment (BR-CS-04: completed and in progress).</summary>
+    public bool ReservesPayment => RefundStatus is StatusPending or StatusProcessing or StatusCompleted
+        or StatusFailed or StatusNeedsReconciliation or "Success" or "Succeeded";
 
     public bool IsPending => RefundStatus == StatusPending;
+
+    /// <summary>The customer-confirmed receiving account snapshot (BR-RF-05).</summary>
+    public bool HasReceivingAccount =>
+        !string.IsNullOrWhiteSpace(ReceiverBankCode) && !string.IsNullOrWhiteSpace(ReceiverAccountNumber);
+
+    /// <summary>Start Transfer from Pending, or Transfer Again from Failed, once an account is known.</summary>
+    public bool CanStartTransfer => (RefundStatus is StatusPending or StatusFailed) && HasReceivingAccount;
+
+    /// <summary>A transfer was started and its bank result is not recorded yet.</summary>
+    public bool AwaitsTransferResult => RefundStatus is StatusProcessing or StatusNeedsReconciliation;
+
+    public void StartTransfer()
+    {
+        if (!CanStartTransfer)
+        {
+            throw new InvalidOperationException($"Refund {RefundCode} cannot start a transfer.");
+        }
+
+        RefundStatus = StatusProcessing;
+    }
+
+    /// <summary>Only before any money was sent: the request goes back to Pending.</summary>
+    public void CancelTransfer()
+    {
+        if (RefundStatus != StatusProcessing)
+        {
+            throw new InvalidOperationException($"Refund {RefundCode} is not being transferred.");
+        }
+
+        RefundStatus = StatusPending;
+    }
+
+    public void MarkNeedsReconciliation()
+    {
+        if (RefundStatus != StatusProcessing)
+        {
+            throw new InvalidOperationException($"Refund {RefundCode} is not being transferred.");
+        }
+
+        RefundStatus = StatusNeedsReconciliation;
+    }
+
+    public void Fail()
+    {
+        if (!AwaitsTransferResult)
+        {
+            throw new InvalidOperationException($"Refund {RefundCode} has no transfer to fail.");
+        }
+
+        RefundStatus = StatusFailed;
+    }
 
     /// <summary>Records the confirmed transfer; the payment becomes Refunded once fully covered.</summary>
     public void Complete(long financeUserId, string refundMethod, string transferReference, DateTime now)
     {
-        if (!IsPending)
+        if (!AwaitsTransferResult)
         {
-            throw new InvalidOperationException($"Refund {RefundCode} is not pending.");
+            throw new InvalidOperationException($"Refund {RefundCode} has no transfer to complete.");
         }
 
         RefundStatus = StatusCompleted;
@@ -33,4 +90,9 @@ public partial class RefundTransaction
         ProcessedAt = now;
         PaymentTransaction.MarkRefundedWhenSettled();
     }
+
+    /// <summary>Account number with only the last four digits visible (BR-RF-07).</summary>
+    public static string? Mask(string? accountNumber) =>
+        string.IsNullOrEmpty(accountNumber) ? null
+            : accountNumber.Length <= 4 ? accountNumber : $"****{accountNumber[^4..]}";
 }

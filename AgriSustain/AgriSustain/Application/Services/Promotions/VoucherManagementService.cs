@@ -2,16 +2,17 @@ using System.Text.Json;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Promotions;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Validators.Promotions;
 using AgriSustain.Domain.Entities;
 using FluentValidation;
 
 namespace AgriSustain.Application.Services.Promotions;
 
 /// <summary>
-/// UC-PS-01 Manage Promotions and Vouchers (SRS UC-ADM-07, GBR-17). Codes are stored upper-case and
-/// are unique system-wide. Once a voucher has been reserved or used, its code and discount rule are
-/// frozen so customers keep the terms they received; dates and the usage limit stay editable. A used
-/// voucher is archived (deactivated) instead of deleted.
+/// UC-PS-01 Manage Promotions and Vouchers (BR-PV-01..12). Codes are stored upper-case and unique
+/// system-wide. A new voucher is saved as Scheduled or Active by its start time. Once a voucher is used,
+/// reserved or has started, only its name, description, a later end and a higher total limit can change.
+/// A voucher that was used or is Active cannot be deleted; it can only be deactivated.
 /// </summary>
 public sealed class VoucherManagementService(
     IVoucherRepository repository,
@@ -21,8 +22,26 @@ public sealed class VoucherManagementService(
 {
     private const int MaximumPageSize = 100;
 
+    // A start time picked in the current minute is not "in the past" (BR-PV-04).
+    private static readonly TimeSpan StartTolerance = TimeSpan.FromMinutes(1);
+
+    private static readonly Dictionary<string, string> s_statusLabels = new()
+    {
+        [Voucher.StatusScheduled] = "Chờ bắt đầu",
+        [Voucher.StatusActive] = "Đang áp dụng",
+        [Voucher.StatusExpired] = "Hết hạn",
+        [Voucher.StatusExhausted] = "Hết lượt",
+        [Voucher.StatusDeactivated] = "Ngừng áp dụng"
+    };
+
     private static readonly Error s_notFound = new(
         "VOUCHER_NOT_FOUND", "Không tìm thấy voucher.", "NotFound");
+
+    // MSG-PV-15
+    private static readonly Error s_changed = new(
+        "VOUCHER_CHANGED",
+        "Voucher đã được người khác cập nhật. Dữ liệu đã được tải lại, vui lòng kiểm tra và thử lại.",
+        "Conflict");
 
     public async Task<Result<VoucherListDto>> SearchAsync(
         VoucherQuery query,
@@ -62,10 +81,11 @@ public sealed class VoucherManagementService(
         }
 
         var now = Now();
-        if (request.EndDate.UtcDateTime <= now)
+        // BR-PV-04: a new voucher cannot start in the past.
+        if (request.StartDate.UtcDateTime < now - StartTolerance)
         {
             return Result<VoucherActionResponse>.FailureResult(FieldError(
-                "INVALID_PERIOD", "endDate", "Ngày kết thúc phải ở tương lai."));
+                "INVALID_PERIOD", "startDate", SaveVoucherRequestValidator.PeriodMessage));
         }
 
         string code = NormalizeCode(request.VoucherCode);
@@ -74,16 +94,14 @@ public sealed class VoucherManagementService(
             return Result<VoucherActionResponse>.FailureResult(DuplicateCode());
         }
 
-        var voucher = new Voucher { UsedCount = 0 };
+        // BR-PV-06: saved as Scheduled or Active according to its start time.
+        var voucher = new Voucher { UsedCount = 0, IsActive = true };
         Apply(voucher, request, code);
         repository.Add(voucher);
         await repository.SaveChangesAsync(cancellationToken);
         AddAudit(voucher, "CreateVoucher", null, now);
         await repository.SaveChangesAsync(cancellationToken);
-
-        return Result<VoucherActionResponse>.SuccessResult(new VoucherActionResponse(
-            voucher.VoucherId, $"Đã tạo voucher {voucher.VoucherCode}.",
-            await ToDtoAsync(voucher, cancellationToken)));
+        return await SavedAsync(voucher, cancellationToken);
     }
 
     public async Task<Result<VoucherActionResponse>> UpdateAsync(
@@ -103,24 +121,38 @@ public sealed class VoucherManagementService(
             return Result<VoucherActionResponse>.FailureResult(s_notFound);
         }
 
-        string code = NormalizeCode(request.VoucherCode);
-        int redemptions = await repository.CountRedemptionsAsync(voucherId, cancellationToken);
-        bool termsLocked = voucher.UsedCount > 0 || redemptions > 0;
-        if (termsLocked && !voucher.HasSameTerms(code, request.DiscountType, request.DiscountValue,
-            request.MaxDiscountAmount, request.MinOrderAmount))
+        if (request.Version is not null && request.Version != voucher.Version())
         {
-            return Result<VoucherActionResponse>.FailureResult(new Error("VOUCHER_TERMS_LOCKED",
-                "Voucher đã được sử dụng nên không thể thay đổi mã, kiểu giảm, giá trị giảm, mức giảm "
-                    + "tối đa hoặc giá trị đơn tối thiểu. Bạn vẫn có thể đổi thời hạn và giới hạn lượt dùng.",
-                "Conflict"));
+            return Result<VoucherActionResponse>.FailureResult(s_changed);
+        }
+
+        var now = Now();
+        string code = NormalizeCode(request.VoucherCode);
+        var start = request.StartDate.UtcDateTime;
+        var end = request.EndDate.UtcDateTime;
+        int redemptions = await repository.CountRedemptionsAsync(voucherId, cancellationToken);
+        if (voucher.TermsLocked(now, redemptions))
+        {
+            // BR-PV-07: only the name, description, a later end and a higher total limit may change.
+            bool sameTerms = voucher.HasSameTerms(code, request.DiscountType, request.DiscountValue,
+                request.MaxDiscountAmount, request.MinOrderAmount, request.PerCustomerLimit, start);
+            if (!sameTerms || end < voucher.EndDate || request.UsageLimit < (voucher.UsageLimit ?? 0))
+            {
+                return Result<VoucherActionResponse>.FailureResult(TermsLocked());
+            }
+        }
+        else if (start != voucher.StartDate && start < now - StartTolerance)
+        {
+            return Result<VoucherActionResponse>.FailureResult(FieldError(
+                "INVALID_PERIOD", "startDate", SaveVoucherRequestValidator.PeriodMessage));
         }
 
         int reserved = await repository.CountReservedAsync(voucherId, cancellationToken);
-        if (request.UsageLimit.HasValue && request.UsageLimit < voucher.UsedCount + reserved)
+        if (request.UsageLimit < voucher.UsedCount + reserved)
         {
             return Result<VoucherActionResponse>.FailureResult(FieldError("USAGE_LIMIT_TOO_LOW",
                 "usageLimit",
-                $"Giới hạn lượt dùng không được nhỏ hơn số lượt đã dùng/giữ chỗ ({voucher.UsedCount + reserved})."));
+                $"Tổng lượt sử dụng không được nhỏ hơn số lượt đã dùng hoặc đang giữ ({voucher.UsedCount + reserved})."));
         }
 
         if (code != voucher.VoucherCode
@@ -131,17 +163,15 @@ public sealed class VoucherManagementService(
 
         var before = Snapshot(voucher);
         Apply(voucher, request, code);
-        AddAudit(voucher, "UpdateVoucher", before, Now());
+        AddAudit(voucher, "UpdateVoucher", before, now);
         await repository.SaveChangesAsync(cancellationToken);
-
-        return Result<VoucherActionResponse>.SuccessResult(new VoucherActionResponse(
-            voucher.VoucherId, $"Đã cập nhật voucher {voucher.VoucherCode}.",
-            await ToDtoAsync(voucher, cancellationToken)));
+        return await SavedAsync(voucher, cancellationToken);
     }
 
     public async Task<Result<VoucherActionResponse>> SetActiveAsync(
         long voucherId,
         bool isActive,
+        string? version,
         CancellationToken cancellationToken)
     {
         var voucher = await repository.GetPlatformVoucherAsync(voucherId, cancellationToken);
@@ -150,30 +180,38 @@ public sealed class VoucherManagementService(
             return Result<VoucherActionResponse>.FailureResult(s_notFound);
         }
 
-        var now = Now();
-        if (isActive && voucher.EndDate <= now)
+        if (version is not null && version != voucher.Version())
         {
-            return Result<VoucherActionResponse>.FailureResult(new Error("VOUCHER_EXPIRED",
-                "Voucher đã hết hạn. Vui lòng gia hạn ngày kết thúc trước khi kích hoạt.", "Conflict"));
+            return Result<VoucherActionResponse>.FailureResult(s_changed);
+        }
+
+        var now = Now();
+        if (isActive && !voucher.IsActive && !voucher.CanReactivate(now))
+        {
+            // MSG-PV-10
+            return Result<VoucherActionResponse>.FailureResult(new Error("VOUCHER_CANNOT_REACTIVATE",
+                $"Không thể kích hoạt lại voucher {voucher.VoucherCode} vì đã hết hạn hoặc hết lượt dùng.",
+                "Conflict"));
         }
 
         if (voucher.IsActive != isActive)
         {
             var before = Snapshot(voucher);
             voucher.IsActive = isActive;
-            AddAudit(voucher, isActive ? "ActivateVoucher" : "DeactivateVoucher", before, now);
+            AddAudit(voucher, isActive ? "ReactivateVoucher" : "DeactivateVoucher", before, now);
             await repository.SaveChangesAsync(cancellationToken);
         }
 
+        // MSG-PV-09
         return Result<VoucherActionResponse>.SuccessResult(new VoucherActionResponse(
             voucher.VoucherId,
-            isActive ? $"Đã kích hoạt voucher {voucher.VoucherCode}."
-                : $"Đã ngừng hoạt động voucher {voucher.VoucherCode}.",
+            $"Đã {(isActive ? "kích hoạt lại" : "ngừng áp dụng")} voucher {voucher.VoucherCode}.",
             await ToDtoAsync(voucher, cancellationToken)));
     }
 
     public async Task<Result<VoucherActionResponse>> DeleteAsync(
         long voucherId,
+        string? version,
         CancellationToken cancellationToken)
     {
         var voucher = await repository.GetPlatformVoucherAsync(voucherId, cancellationToken);
@@ -182,39 +220,54 @@ public sealed class VoucherManagementService(
             return Result<VoucherActionResponse>.FailureResult(s_notFound);
         }
 
-        var now = Now();
-        var before = Snapshot(voucher);
-        int redemptions = await repository.CountRedemptionsAsync(voucherId, cancellationToken);
-        if (voucher.UsedCount > 0 || redemptions > 0)
+        if (version is not null && version != voucher.Version())
         {
-            // Orders keep referring to a used voucher, so it is archived rather than removed.
-            voucher.IsActive = false;
-            AddAudit(voucher, "ArchiveVoucher", before, now);
-            await repository.SaveChangesAsync(cancellationToken);
-            return Result<VoucherActionResponse>.SuccessResult(new VoucherActionResponse(
-                voucher.VoucherId,
-                $"Voucher {voucher.VoucherCode} đã được sử dụng nên được lưu trữ (ngừng hoạt động) thay vì xóa.",
-                await ToDtoAsync(voucher, cancellationToken)));
+            return Result<VoucherActionResponse>.FailureResult(s_changed);
         }
 
-        AddAudit(voucher, "DeleteVoucher", before, now);
+        var now = Now();
+        int redemptions = await repository.CountRedemptionsAsync(voucherId, cancellationToken);
+        // BR-PV-09: never redeemed or reserved and not Active; otherwise deactivate instead.
+        if (voucher.UsedCount > 0 || redemptions > 0 || voucher.LifecycleStatus(now) == Voucher.StatusActive)
+        {
+            // MSG-PV-11
+            return Result<VoucherActionResponse>.FailureResult(new Error("VOUCHER_CANNOT_DELETE",
+                $"Voucher {voucher.VoucherCode} đã được sử dụng hoặc đang áp dụng nên không thể xoá. "
+                    + "Hãy ngừng áp dụng thay vì xoá.",
+                "Conflict"));
+        }
+
+        AddAudit(voucher, "DeleteVoucher", Snapshot(voucher), now);
         repository.Remove(voucher);
         await repository.SaveChangesAsync(cancellationToken);
         return Result<VoucherActionResponse>.SuccessResult(new VoucherActionResponse(
-            voucherId, $"Đã xóa voucher {voucher.VoucherCode}.", null));
+            voucherId, $"Đã xoá voucher {voucher.VoucherCode}.", null));
     }
 
     private static void Apply(Voucher voucher, SaveVoucherRequest request, string code)
     {
+        voucher.VoucherName = request.VoucherName.Trim();
+        voucher.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         voucher.VoucherCode = code;
         voucher.DiscountType = request.DiscountType;
         voucher.DiscountValue = request.DiscountValue;
         voucher.MaxDiscountAmount = request.MaxDiscountAmount;
         voucher.MinOrderAmount = request.MinOrderAmount;
         voucher.UsageLimit = request.UsageLimit;
+        voucher.PerCustomerLimit = request.PerCustomerLimit;
         voucher.StartDate = request.StartDate.UtcDateTime;
         voucher.EndDate = request.EndDate.UtcDateTime;
-        voucher.IsActive = request.IsActive;
+    }
+
+    private async Task<Result<VoucherActionResponse>> SavedAsync(Voucher voucher,
+        CancellationToken cancellationToken)
+    {
+        var dto = await ToDtoAsync(voucher, cancellationToken);
+        // MSG-PV-08
+        return Result<VoucherActionResponse>.SuccessResult(new VoucherActionResponse(
+            voucher.VoucherId,
+            $"Đã lưu voucher {voucher.VoucherCode}. Trạng thái: {s_statusLabels.GetValueOrDefault(dto.Status, dto.Status)}.",
+            dto));
     }
 
     private async Task<VoucherDto> ToDtoAsync(Voucher voucher, CancellationToken cancellationToken)
@@ -223,12 +276,10 @@ public sealed class VoucherManagementService(
             ? 0 : await repository.CountReservedAsync(voucher.VoucherId, cancellationToken);
         int redemptions = voucher.VoucherId == 0
             ? 0 : await repository.CountRedemptionsAsync(voucher.VoucherId, cancellationToken);
-        return new VoucherDto(voucher.VoucherId, voucher.VoucherCode, voucher.DiscountType,
-            voucher.DiscountValue, voucher.MaxDiscountAmount, voucher.MinOrderAmount, voucher.UsageLimit,
-            voucher.UsedCount, reserved, voucher.StartDate, voucher.EndDate, voucher.IsActive,
-            voucher.LifecycleStatus(Now()), voucher.UsedCount > 0 || redemptions > 0);
+        return VoucherDto.From(voucher, reserved, redemptions, Now());
     }
 
+    // BR-PV-12: staff, time, action and the changed values (old → new).
     private void AddAudit(Voucher voucher, string action, string? oldValue, DateTime now)
     {
         repository.AddAudit(new AuditLog
@@ -246,19 +297,25 @@ public sealed class VoucherManagementService(
 
     private static string Snapshot(Voucher voucher) => JsonSerializer.Serialize(new
     {
-        voucher.VoucherCode, voucher.DiscountType, voucher.DiscountValue, voucher.MaxDiscountAmount,
-        voucher.MinOrderAmount, voucher.UsageLimit, voucher.UsedCount, voucher.StartDate,
-        voucher.EndDate, voucher.IsActive
+        voucher.VoucherCode, voucher.VoucherName, voucher.Description, voucher.DiscountType,
+        voucher.DiscountValue, voucher.MaxDiscountAmount, voucher.MinOrderAmount, voucher.UsageLimit,
+        voucher.PerCustomerLimit, voucher.UsedCount, voucher.StartDate, voucher.EndDate, voucher.IsActive
     });
 
     private static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
 
     private static Error DuplicateCode()
     {
-        const string message = "Mã voucher đã tồn tại. Vui lòng chọn mã khác.";
+        const string message = "Mã voucher đã tồn tại.";
         return new Error("VOUCHER_CODE_EXISTS", message, "Conflict",
             new Dictionary<string, string[]> { ["voucherCode"] = [message] });
     }
+
+    // MSG-PV-07
+    private static Error TermsLocked() => new("VOUCHER_TERMS_LOCKED",
+        "Voucher đã được sử dụng hoặc đã bắt đầu áp dụng. Chỉ được sửa tên, mô tả, gia hạn thời gian kết thúc "
+            + "hoặc tăng tổng lượt dùng.",
+        "Conflict");
 
     private static Error FieldError(string code, string field, string message) =>
         new(code, message, Fields: new Dictionary<string, string[]> { [field] = [message] });

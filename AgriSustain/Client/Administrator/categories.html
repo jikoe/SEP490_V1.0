@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Danh mục sản phẩm - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <section>
+          <div class="section-heading">
+            <div>
+              <h1>Danh mục sản phẩm</h1>
+              <p class="muted">Quản lý phân loại và trạng thái hiển thị trên Marketplace.</p>
+            </div>
+            <button class="primary" type="button" onclick="openCategoryModal()">+ Thêm danh mục</button>
+          </div>
+
+          <div id="alert-notice" class="notice" style="display:none; margin-bottom:16px;"></div>
+
+          <!-- Search panel matching CategoriesScreen.jsx -->
+          <form class="panel search-panel" onsubmit="handleSearch(event)">
+            <label class="field">
+              <span>Từ khóa tìm kiếm</span>
+              <input type="text" id="search-keyword" maxlength="100" placeholder="Nhập tên danh mục">
+            </label>
+
+            <label class="field">
+              <span>Trạng thái</span>
+              <select id="filter-active">
+                <option value="">Tất cả trạng thái</option>
+                <option value="true">Hoạt động</option>
+                <option value="false">Ẩn / khóa</option>
+              </select>
+            </label>
+
+            <button class="primary" type="submit">Tìm kiếm</button>
+          </form>
+
+          <!-- Record panel matching CategoriesScreen.jsx -->
+          <div class="panel record-panel">
+            <div class="record-heading">
+              <h2>Danh sách danh mục</h2>
+              <span id="category-count" class="count">0 danh mục</span>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã danh mục</th>
+                    <th>Tên danh mục</th>
+                    <th>Trạng thái</th>
+                    <th>Sản phẩm</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="categories-table-body">
+                  <tr>
+                    <td colspan="5" class="empty">Đang tải danh mục…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pager -->
+            <div id="categories-pager" class="pager" style="display:flex; justify-content:center; align-items:center; gap:8px; padding:16px 0;"></div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Administrator
+      </footer>
+    </div>
+  </div>
+
+  <!-- Add / Edit Category Dialog matching CategoriesScreen.jsx -->
+  <dialog id="category-modal">
+    <div class="modal-heading">
+      <h2 id="modal-category-title">Thêm danh mục sản phẩm</h2>
+      <button type="button" onclick="closeCategoryModal()">&times;</button>
+    </div>
+    <form onsubmit="handleCategorySave(event)" style="margin-top:16px;">
+      <input type="hidden" id="cat-id">
+
+      <label class="field">
+        <span>Tên danh mục *</span>
+        <input type="text" id="cat-name" required maxlength="100" placeholder="Nhập tên danh mục sản phẩm">
+      </label>
+
+      <label class="field">
+        <span>Mô tả</span>
+        <textarea id="cat-description" maxlength="500" placeholder="Nhập mô tả danh mục (không bắt buộc)" oninput="updateCharCount(this)"></textarea>
+      </label>
+      <small id="cat-char-count" class="character-count" style="display:block; text-align:right; color:#687b70; margin-bottom:12px;">0/500</small>
+
+      <label class="field">
+        <span>Trạng thái *</span>
+        <select id="cat-isactive" required>
+          <option value="true">Hoạt động</option>
+          <option value="false">Ẩn / khóa</option>
+        </select>
+      </label>
+
+      <div id="category-form-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
+
+      <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" onclick="closeCategoryModal()">Hủy</button>
+        <button type="submit" id="cat-save-btn" class="primary">Lưu danh mục</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Confirm Action Dialog -->
+  <dialog id="confirm-modal">
+    <div class="modal-heading">
+      <h2>Xác nhận thay đổi danh mục</h2>
+      <button type="button" onclick="closeConfirmModal()">&times;</button>
+    </div>
+    <div style="margin-top:16px;">
+      <p id="confirm-msg"></p>
+      <p><strong id="confirm-cat-name"></strong></p>
+      <div id="confirm-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
+      <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" onclick="closeConfirmModal()">Hủy</button>
+        <button type="button" id="confirm-btn" class="primary" onclick="executeConfirmAction()">Xác nhận</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Scripts -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let currentPage = 1;
+    const pageSize = 10;
+    let categoriesCache = [];
+    let pendingConfirm = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCategories(1);
+    });
+
+    async function loadCategories(page = 1) {
+      currentPage = page;
+      const keyword = document.getElementById('search-keyword').value.trim();
+      const isActive = document.getElementById('filter-active').value;
+
+      const tbody = document.getElementById('categories-table-body');
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Đang tải danh mục…</td></tr>';
+
+      try {
+        const res = await API.getCategories({
+          page,
+          pageSize,
+          keyword,
+          isActive: isActive !== '' ? isActive : undefined
+        });
+
+        if (res.success && res.data) {
+          const items = res.data.items || res.data.value || (Array.isArray(res.data) ? res.data : []);
+          const total = res.data.totalCount || res.data.total || items.length;
+          categoriesCache = items;
+
+          document.getElementById('category-count').textContent = `${total} danh mục`;
+          renderCategoriesTable(items);
+          renderPager(total, page, pageSize);
+        } else {
+          categoriesCache = [];
+          document.getElementById('category-count').textContent = `0 danh mục`;
+          renderCategoriesTable([]);
+          renderPager(0, 1, 10);
+          if (res.error) showAlert(res.error, 'error');
+        }
+      } catch (err) {
+        categoriesCache = [];
+        document.getElementById('category-count').textContent = `0 danh mục`;
+        renderCategoriesTable([]);
+        renderPager(0, 1, 10);
+        showAlert('Không thể kết nối đến máy chủ backend để tải danh mục.', 'error');
+      }
+    }
+
+    function renderCategoriesTable(items) {
+      const tbody = document.getElementById('categories-table-body');
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Không tìm thấy danh mục phù hợp.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = items.map(item => {
+        const statusBadge = item.isActive
+          ? '<span class="badge Active">Hoạt động</span>'
+          : '<span class="badge Suspended">Ẩn / khóa</span>';
+
+        return `
+          <tr>
+            <td>#${item.id}</td>
+            <td>
+              <button class="text-button name-link" type="button" onclick="editCategory(${item.id})">
+                ${Utils.escapeHtml(item.name)}
+              </button>
+            </td>
+            <td>${statusBadge}</td>
+            <td>${item.productCount || 0}</td>
+            <td>
+              <div class="actions">
+                <button type="button" onclick="editCategory(${item.id})">Chi tiết / Sửa</button>
+                <button type="button" onclick="prepareConfirm(${item.id}, '${item.isActive ? 'deactivate' : 'activate'}')">
+                  ${item.isActive ? 'Ẩn / khóa' : 'Kích hoạt'}
+                </button>
+                <button type="button" class="danger-link" onclick="prepareConfirm(${item.id}, 'delete')">Xóa</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderPager(total, page, size) {
+      const pagerEl = document.getElementById('categories-pager');
+      const totalPages = Math.ceil(total / size) || 1;
+      if (totalPages <= 1) {
+        pagerEl.innerHTML = '';
+        return;
+      }
+
+      let html = `<button type="button" ${page <= 1 ? 'disabled' : ''} onclick="loadCategories(${page - 1})">‹ Trang trước</button>`;
+      for (let i = 1; i <= totalPages; i++) {
+        html += `<button type="button" class="${i === page ? 'primary' : ''}" onclick="loadCategories(${i})">${i}</button>`;
+      }
+      html += `<button type="button" ${page >= totalPages ? 'disabled' : ''} onclick="loadCategories(${page + 1})">Trang sau ›</button>`;
+      pagerEl.innerHTML = html;
+    }
+
+    function handleSearch(e) {
+      e.preventDefault();
+      loadCategories(1);
+    }
+
+    function openCategoryModal(cat = null) {
+      document.getElementById('cat-id').value = cat ? cat.id : '';
+      document.getElementById('cat-name').value = cat ? cat.name : '';
+      document.getElementById('cat-description').value = cat ? (cat.description || '') : '';
+      document.getElementById('cat-isactive').value = cat ? String(cat.isActive) : 'true';
+      document.getElementById('modal-category-title').textContent = cat ? 'Chi tiết danh mục' : 'Thêm danh mục sản phẩm';
+      updateCharCount(document.getElementById('cat-description'));
+      setBoxError('category-form-error', '');
+      document.getElementById('category-modal').showModal();
+    }
+
+    function closeCategoryModal() {
+      document.getElementById('category-modal').close();
+    }
+
+    function editCategory(id) {
+      const cat = categoriesCache.find(x => x.id === id);
+      if (cat) openCategoryModal(cat);
+    }
+
+    function updateCharCount(el) {
+      document.getElementById('cat-char-count').textContent = `${el.value.length}/500`;
+    }
+
+    async function handleCategorySave(e) {
+      e.preventDefault();
+      const id = document.getElementById('cat-id').value;
+      const name = document.getElementById('cat-name').value.trim();
+      const description = document.getElementById('cat-description').value.trim();
+      const isActive = document.getElementById('cat-isactive').value === 'true';
+
+      // Changing the status while editing needs the same MSG-CAT-03 confirmation as the row action.
+      const original = id ? categoriesCache.find(x => String(x.id) === id) : null;
+      const statusChanged = !!original && original.isActive !== isActive;
+      if (statusChanged && !window.confirm(statusConfirmText(original, isActive ? 'activate' : 'deactivate'))) {
+        return;
+      }
+
+      const payload = { name, description, isActive, confirmed: statusChanged };
+      const btn = document.getElementById('cat-save-btn');
+      btn.disabled = true;
+      setBoxError('category-form-error', '');
+      try {
+        const res = id ? await API.updateCategory(id, payload) : await API.createCategory(payload);
+        if (!res.success) {
+          setBoxError('category-form-error', errorText(res, 'Không thể lưu danh mục.'));
+          return;
+        }
+        closeCategoryModal();
+        showAlert(`Danh mục ${name} đã được lưu.`, 'success');
+        await loadCategories(currentPage);
+      } catch (err) {
+        setBoxError('category-form-error', err.message || 'Không thể lưu danh mục.');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // MSG-CAT-03 with the product impact (BR-CAT-03).
+    function statusConfirmText(cat, action) {
+      const verb = action === 'activate' ? 'Kích hoạt' : 'Ẩn / khóa';
+      const impact = action === 'deactivate' && cat.productCount > 0
+        ? ` Danh mục đang có ${cat.productCount} sản phẩm; các sản phẩm hiện có vẫn hiển thị nhưng không thể tạo hoặc sửa sản phẩm mới vào danh mục này.`
+        : '';
+      return `${verb} danh mục ${cat.name}?${impact}`;
+    }
+
+    function prepareConfirm(catId, action) {
+      const cat = categoriesCache.find(x => x.id === catId);
+      if (!cat) return;
+
+      pendingConfirm = { cat, action };
+      // MSG-CAT-04 for delete; BR-CAT-04 decides delete vs archive on the server.
+      document.getElementById('confirm-msg').textContent = action === 'delete'
+        ? `Xóa danh mục ${cat.name}? Nếu danh mục đã từng được sử dụng, hệ thống sẽ lưu trữ thay vì xóa và danh mục không thể thay đổi nữa.`
+        : statusConfirmText(cat, action);
+      document.getElementById('confirm-cat-name').textContent = cat.name;
+      setBoxError('confirm-error', '');
+
+      const btn = document.getElementById('confirm-btn');
+      btn.className = action === 'delete' ? 'danger' : 'primary';
+
+      document.getElementById('confirm-modal').showModal();
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirm-modal').close();
+      pendingConfirm = null;
+    }
+
+    async function executeConfirmAction() {
+      if (!pendingConfirm) return;
+      const { cat, action } = pendingConfirm;
+      const btn = document.getElementById('confirm-btn');
+      btn.disabled = true;
+      setBoxError('confirm-error', '');
+
+      try {
+        const res = await API.changeCategoryStatus(cat.id, action, true);
+        if (!res.success) {
+          setBoxError('confirm-error', errorText(res, 'Thao tác không thành công.'));
+          return;
+        }
+        closeConfirmModal();
+        if (action === 'delete') {
+          // The server archives instead of deleting when the category has been used.
+          const check = await API.request(`/categories/${cat.id}`, { suppressErrorToast: true });
+          showAlert(check.status === 404
+            ? `Đã xóa danh mục ${cat.name}.`
+            : `Danh mục ${cat.name} đã được sử dụng nên đã được lưu trữ thay vì xóa.`, 'success');
+        } else {
+          showAlert(`Đã ${action === 'activate' ? 'kích hoạt' : 'ẩn / khóa'} danh mục ${cat.name}.`, 'success');
+        }
+        await loadCategories(currentPage);
+      } catch (err) {
+        setBoxError('confirm-error', err.message || 'Thao tác không thành công.');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function errorText(res, fallback) {
+      const fields = res.data && res.data.errors;
+      if (fields && typeof fields === 'object') {
+        const first = Object.values(fields).flat()[0];
+        if (first) return first;
+      }
+      return res.error || fallback;
+    }
+
+    function setBoxError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
+    }
+
+    function showAlert(msg, type = 'success') {
+      const el = document.getElementById('alert-notice');
+      if (el) {
+        el.className = `notice ${type === 'error' ? 'error' : ''}`;
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 4000);
+      }
+      Utils.showToast(msg, type);
+    }
+  </script>
+</body>
+</html>

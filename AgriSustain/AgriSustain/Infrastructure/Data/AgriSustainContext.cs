@@ -1788,6 +1788,8 @@ public partial class AgriSustainContext : DbContext
             entity.Property(e => e.VoucherCode)
                 .HasMaxLength(100)
                 .IsUnicode(false);
+            entity.Property(e => e.VoucherName).HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
 
             entity.HasOne(d => d.FarmerProfile).WithMany(p => p.Vouchers)
                 .HasForeignKey(d => d.FarmerProfileId)

@@ -1,0 +1,85 @@
+/* ==========================================================================
+   AgriSustain - UC-PS-01 Manage Promotions and Vouchers
+   (Figma "AgriSustain Admin Screens" · UC-PS-01 / 01–06)
+   ========================================================================== */
+
+.pv-page { max-width: 1136px; color: #173d2c; }
+.pv-crumbs { font-size: 12px; color: #667a70; margin: 0 0 22px; }
+.pv-page h1 { font-size: 30px; color: #134a32; margin: 0 0 10px; letter-spacing: -.3px; }
+.pv-sub { font-size: 14px; color: #5f7268; margin: 0 0 22px; }
+
+.pv-btn { height: 40px; padding: 0 12px; border-radius: 6px; font-size: 16px; cursor: pointer;
+  border: 1px solid #9a9a9a; background: #e4e4e4; color: #1f2b25; white-space: nowrap; }
+.pv-btn:disabled { opacity: .55; cursor: not-allowed; }
+.pv-btn.primary { background: #1fae5b; border-color: #157a3f; color: #fff; }
+.pv-btn.primary:hover:not(:disabled) { background: #1a9a50; }
+.pv-btn.danger { background: #fdecea; border-color: #e7a19c; color: #b3261e; }
+.pv-actions-top { margin-bottom: 22px; }
+
+.pv-card { background: #fff; border: 1px solid #e3e9e5; border-radius: 12px; padding: 24px; margin-bottom: 22px; }
+.pv-filters { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+.pv-filters label { display: flex; flex-direction: column; gap: 10px; font-size: 16px; color: #2a3a31; margin: 0; }
+.pv-filters select, .pv-filters input { height: 40px; border: 1px solid #d9e2dc; border-radius: 6px;
+  padding: 0 14px; font-size: 16px; }
+
+.pv-list-head { font-size: 16px; font-weight: 700; color: #173d2c; margin: 8px 0 18px; }
+.pv-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 0; }
+.pv-table th { background: #f1f4f2; color: #445b4e; text-align: left; font-weight: 600; padding: 13px 0; border: 0; }
+.pv-table th:first-child { padding-left: 0; }
+.pv-table td { padding: 18px 0; border-bottom: 1px solid #e6ece8; color: #1f2b25; vertical-align: middle; }
+.pv-table td.name { font-weight: 700; color: #173d2c; }
+.pv-table .empty { text-align: center; color: #667a70; padding: 32px 0; }
+.pv-row-actions { display: inline-flex; border: 1px solid #9a9a9a; background: #e4e4e4; border-radius: 6px; overflow: hidden; }
+.pv-row-actions button { border: 0; background: transparent; padding: 8px 12px; font-size: 16px; color: #1f2b25; cursor: pointer; }
+.pv-row-actions .sep { align-self: center; color: #1f2b25; font-size: 16px; }
+.pv-link { border: 0; background: transparent; padding: 0; font-size: 12px; color: #1f2b25; cursor: pointer; }
+
+.pv-pill { display: inline-block; padding: 5px 7px; border-radius: 4px; font-size: 12px; font-weight: 700; }
+.pv-pill.Active, .pv-pill.Exhausted { background: #e3f5e9; color: #1f7a45; }
+.pv-pill.Scheduled { background: #fff3d6; color: #a76a00; }
+.pv-pill.Expired, .pv-pill.Deactivated { background: #eef1ef; color: #5f6d66; }
+
+.pv-foot { display: flex; align-items: center; gap: 16px; padding-top: 16px; color: #667a70; font-size: 12px; flex-wrap: wrap; }
+.pv-pager { display: inline-flex; gap: 6px; margin-left: auto; }
+.pv-pager button { min-width: 30px; height: 30px; border: 1px solid #d9e2dc; background: #fff; border-radius: 6px; cursor: pointer; }
+.pv-pager button.current { background: #e3f5e9; border-color: #e3f5e9; color: #1f7a45; font-weight: 700; }
+
+/* Form (UC-PS-01 / 02, 03) */
+.pv-alert { background: #fde8e6; border-radius: 6px; padding: 16px; margin-bottom: 18px; }
+.pv-alert strong { display: block; color: #b3261e; font-size: 14px; margin-bottom: 6px; }
+.pv-alert p { margin: 0; font-size: 12px; color: #3a2a28; }
+.pv-notice { background: #fff4d6; border-radius: 6px; padding: 14px 16px; margin-bottom: 18px; font-size: 13px; color: #3b3220; }
+.pv-grid { display: grid; gap: 16px; }
+.pv-grid.two { grid-template-columns: 1fr 1fr; }
+.pv-grid.three { grid-template-columns: 1fr 0.95fr 0.66fr; }
+.pv-grid + .pv-grid { margin-top: 18px; }
+.pv-field { display: flex; flex-direction: column; gap: 10px; font-size: 16px; color: #2a3a31; margin: 0; }
+.pv-field input, .pv-field select { height: 40px; border: 1px solid #d9e2dc; border-radius: 6px; padding: 0 15px;
+  font-size: 16px; color: #1f2b25; background: #fff; }
+.pv-field input:disabled, .pv-field select:disabled { background: #f3f5f4; color: #6b7a72; }
+.pv-field.invalid input, .pv-field.invalid select { border-color: #b3261e; }
+.pv-error { color: #b3261e; font-size: 16px; margin-top: -2px; }
+.pv-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 26px; }
+.pv-meta span { display: block; font-size: 12px; color: #667a70; margin-bottom: 6px; }
+.pv-meta strong { font-size: 14px; color: #173d2c; }
+.pv-rule { font-size: 12px; color: #667a70; margin: 18px 0; line-height: 1.5; }
+.pv-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
+
+/* Deactivate confirmation (UC-PS-01 / 04) */
+.pv-confirm h2 { font-size: 24px; color: #134a32; margin: 0 0 18px; }
+.pv-confirm p { font-size: 14px; color: #1f2b25; margin: 0 0 18px; }
+.pv-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 18px; }
+.pv-facts span { display: block; font-size: 12px; color: #667a70; margin-bottom: 6px; }
+.pv-facts strong { font-size: 14px; color: #173d2c; }
+.pv-keep { background: #fff4e0; border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+.pv-keep strong { display: block; color: #a76a00; font-size: 14px; margin-bottom: 6px; }
+.pv-keep p { margin: 0; font-size: 13px; color: #3b3220; }
+
+dialog.pv-dialog { width: 480px; border-radius: 12px; border: 1px solid #e3e9e5; padding: 24px; }
+dialog.pv-dialog h2 { font-size: 20px; color: #134a32; margin: 0 0 12px; }
+dialog.pv-dialog p { font-size: 14px; margin: 0 0 20px; }
+
+@media (max-width: 900px) {
+  .pv-filters, .pv-grid.two, .pv-grid.three, .pv-meta, .pv-facts { grid-template-columns: 1fr; }
+  .pv-table { display: block; overflow-x: auto; }
+}
