@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tổng quan hệ thống - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="admin-dashboard">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">QUẢN TRỊ TỔNG QUAN</p>
+              <h1>Bảng Điều Khiển Hệ Thống</h1>
+              <p class="muted">Theo dõi toàn diện tài khoản người dùng, danh mục nông sản và trạng thái vận hành sàn.</p>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="metric-card">
+              <div class="metric-icon green">👥</div>
+              <div class="metric-info">
+                <p class="metric-label">Tổng người dùng</p>
+                <h3 class="metric-value" id="stat-users">--</h3>
+                <p class="metric-sub" id="stat-users-sub">Đang đồng bộ API...</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon blue">▦</div>
+              <div class="metric-info">
+                <p class="metric-label">Danh mục sản phẩm</p>
+                <h3 class="metric-value" id="stat-categories">--</h3>
+                <p class="metric-sub">Phân loại nông sản chuẩn</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon gold">🌱</div>
+              <div class="metric-info">
+                <p class="metric-label">Sản phẩm niêm yết</p>
+                <h3 class="metric-value" id="stat-products">--</h3>
+                <p class="metric-sub">Sản phẩm trên sàn</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon purple">⚡</div>
+              <div class="metric-info">
+                <p class="metric-label">Hệ thống &amp; CSDL</p>
+                <h3 class="metric-value" style="font-size:18px; color:#2e7d32;" id="stat-status">Sẵn sàng</h3>
+                <p class="metric-sub">SQL Server · EF Core</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-sections">
+            <div class="panel padded">
+              <div class="record-heading" style="padding: 0 0 16px;">
+                <h2>Người dùng hệ thống gần đây</h2>
+                <a class="text-button" href="users.html" style="text-decoration:none; color:#2e7d32; font-weight:600;">Xem tất cả →</a>
+              </div>
+              <div class="table-wrap">
+                <table class="user-table">
+                  <thead>
+                    <tr>
+                      <th>Họ và tên</th>
+                      <th>Tài khoản</th>
+                      <th>Vai trò</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recent-users-tbody">
+                    <tr><td colspan="4" style="text-align:center; padding:20px; color:#687b70;">Đang tải người dùng...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="panel padded">
+              <h2>Tác vụ quản trị nhanh</h2>
+              <p class="muted" style="margin-bottom: 16px;">Truy cập nhanh các khu vực nghiệp vụ quản trị:</p>
+
+              <button class="quick-action-btn" type="button" onclick="window.location.href='users.html'">
+                <span>♙</span>
+                <div>
+                  <strong>Quản lý người dùng</strong>
+                  <small style="display: block; color: #687b70;">Phân quyền, kích hoạt và khóa tài khoản</small>
+                </div>
+              </button>
+
+              <button class="quick-action-btn" type="button" onclick="window.location.href='categories.html'">
+                <span>▦</span>
+                <div>
+                  <strong>Danh mục nông sản</strong>
+                  <small style="display: block; color: #687b70;">Quản lý cây trồng, vật nuôi, mức hoa hồng</small>
+                </div>
+              </button>
+
+              <button class="quick-action-btn" type="button" onclick="window.location.href='../ContentModerator/moderation.html'">
+                <span>✓</span>
+                <div>
+                  <strong>Sản phẩm chờ kiểm duyệt</strong>
+                  <small style="display: block; color: #687b70;">Xem xét quy cách, nguồn gốc và xuất xứ</small>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Administrator
+      </footer>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadDashboardData();
+    });
+
+    async function loadDashboardData() {
+      // 1. Fetch Users
+      try {
+        const userRes = await API.getUsers({ page: 1, pageSize: 5 }, { suppressErrorToast: true });
+        if (userRes.success && userRes.data) {
+          const total = userRes.data.totalCount || userRes.data.total || 0;
+          document.getElementById('stat-users').textContent = total;
+          document.getElementById('stat-users-sub').textContent = 'Vai trò hệ thống đang hoạt động';
+
+          const items = userRes.data.items || userRes.data.value || [];
+          renderRecentUsers(items);
+        } else {
+          document.getElementById('stat-users').textContent = '0';
+          renderRecentUsers([]);
+        }
+      } catch (e) {
+        document.getElementById('stat-users').textContent = '0';
+        renderRecentUsers([]);
+      }
+
+      // 2. Fetch Categories
+      try {
+        const catRes = await API.getCategories({ page: 1, pageSize: 1 }, { suppressErrorToast: true });
+        if (catRes.success && catRes.data) {
+          const total = catRes.data.totalCount || catRes.data.total || (Array.isArray(catRes.data) ? catRes.data.length : 0);
+          document.getElementById('stat-categories').textContent = total;
+        } else {
+          document.getElementById('stat-categories').textContent = '0';
+        }
+      } catch (e) {
+        document.getElementById('stat-categories').textContent = '0';
+      }
+
+      // 3. Fetch Products count
+      try {
+        const prodRes = await API.getMarketplaceProducts({ page: 1, pageSize: 1 }, { suppressErrorToast: true });
+        if (prodRes.success && prodRes.data) {
+          const total = prodRes.data.total || prodRes.data.totalCount || 0;
+          document.getElementById('stat-products').textContent = total;
+        } else {
+          document.getElementById('stat-products').textContent = '0';
+        }
+      } catch (e) {
+        document.getElementById('stat-products').textContent = '0';
+      }
+    }
+
+    function renderRecentUsers(items) {
+      const tbody = document.getElementById('recent-users-tbody');
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:16px; color:#888;">Chưa có tài khoản nào được tạo.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.slice(0, 5).map(u => `
+        <tr>
+          <td><strong>${Utils.escapeHtml(u.name || u.organizationName || u.fullName || 'Người dùng')}</strong></td>
+          <td>${Utils.escapeHtml(u.username || u.email || 'user')}</td>
+          <td><span class="badge role-badge">${Utils.escapeHtml(u.role || 'User')}</span></td>
+          <td><span class="badge ${u.status || 'Active'}">${u.status === 'Active' ? 'Hoạt động' : (u.status === 'Locked' ? 'Khóa tạm' : 'Đình chỉ')}</span></td>
+        </tr>
+      `).join('');
+    }
+  </script>
+</body>
+</html>

@@ -176,6 +176,18 @@ public sealed class OrderTrackingServiceTests
         Assert.Empty(OrderTrackingService.ResolveActions(order, Now));
     }
 
+    [Theory(DisplayName = "UTC-RC04-B8 Non-completed orders never offer a complaint (MSG181)")]
+    [InlineData("Shipping")]
+    [InlineData("PendingPayment")]
+    [InlineData("Processing")]
+    public void UTC_B8_NotCompleted_NoComplaint(string status)
+    {
+        // Even with a recent delivery timestamp, only Delivered/Completed orders are eligible.
+        var order = Detail(1, status, deliveredAt: Now.AddHours(-1), reservationExpiresAt: Now.AddMinutes(10));
+
+        Assert.DoesNotContain(OrderActions.SubmitComplaint, OrderTrackingService.ResolveActions(order, Now));
+    }
+
     [Fact(DisplayName = "UTC-RC04-B7 Cancelled order has no actions")]
     public void UTC_B7_Cancelled_NoActions()
     {

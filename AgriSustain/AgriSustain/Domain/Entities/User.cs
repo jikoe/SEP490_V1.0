@@ -31,6 +31,10 @@ public partial class User
 
     public DateTime? LockedUntil { get; set; }
 
+    public string? Gender { get; set; }
+
+    public DateOnly? DateOfBirth { get; set; }
+
     public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 
     public virtual Cart? Cart { get; set; }
@@ -76,6 +80,8 @@ public partial class User
     public virtual ICollection<RetailCheckoutQuote> RetailCheckoutQuotes { get; set; } = new List<RetailCheckoutQuote>();
 
     public virtual ICollection<RewardPointEntry> RewardPointEntries { get; set; } = new List<RewardPointEntry>();
+
+    public virtual UserBankAccount? UserBankAccount { get; set; }
 
     public virtual WholesaleBuyerProfile? WholesaleBuyerProfile { get; set; }
 }

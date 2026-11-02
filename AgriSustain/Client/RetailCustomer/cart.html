@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Giỏ hàng - Sàn Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display: none;"></aside>
+
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+
+      <main style="padding: 24px 20px; min-height: 80vh;">
+        <!-- Commerce Container matching CartScreen.jsx 1:1 -->
+        <div class="commerce">
+          <div class="commerce-top">
+            <div>
+              <p class="commerce-subtitle">Mua sắm · UC-RC-01</p>
+              <h1 style="margin: 4px 0 6px; font-size: 26px; color: #103e2d;">Giỏ hàng của bạn</h1>
+              <p class="muted" style="margin: 0;">Chọn sản phẩm muốn mua và kiểm tra thông tin trước khi thanh toán.</p>
+            </div>
+            <button type="button" class="btn-back" onclick="window.location.href='index.html'" style="padding: 9px 16px; border: 1px solid #c7d8cc; border-radius: 8px; background: #fff; color: #1a5639; font-weight: 600; cursor: pointer;">
+              ← Tiếp tục mua sắm
+            </button>
+          </div>
+
+      <!-- Errors and Notices -->
+      <div id="cart-errors" class="notice error" style="display: none;" role="alert"></div>
+      <div id="cart-notice" class="notice" style="display: none;" role="status"></div>
+      <div id="cart-reload-wrap" style="display: none; margin-bottom: 16px;">
+        <button type="button" onclick="loadCart()" style="padding: 8px 16px; border: 1px solid #c7d8cc; border-radius: 6px; background: #fff; cursor: pointer;">Tải lại giỏ hàng</button>
+      </div>
+
+      <!-- Loading State -->
+      <div id="cart-loading" style="text-align: center; padding: 60px 0;">
+        <div class="spinner"></div>
+        <p class="muted" style="margin-top: 12px;">Đang tải giỏ hàng…</p>
+      </div>
+
+      <!-- Empty State matching CartScreen.jsx -->
+      <div id="cart-empty" style="display: none;">
+        <section class="commerce-section" style="text-align: center; padding: 50px 20px;">
+          <div class="commerce-empty">
+            <span style="font-size: 55px; color: #88ae92;" aria-hidden="true">🛒</span>
+            <h2 style="margin: 14px 0 6px; color: #103e2d;">Giỏ hàng của bạn đang trống. Tiếp tục mua sắm để thêm sản phẩm.</h2>
+            <p class="muted" style="margin-bottom: 20px;">Khám phá các sản phẩm tươi sạch trực tiếp từ nông dân uy tín trên toàn quốc.</p>
+            <button type="button" class="primary" style="padding: 11px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;" onclick="window.location.href='index.html'">
+              Khám phá nông sản
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- Cart Grid matching CartScreen.jsx 1:1 -->
+      <div id="cart-content" class="commerce-grid" style="display: none;">
+        <!-- Left: Cart Selection & Items by Farm -->
+        <div>
+          <!-- Global Actions: Select All & Remove Selected -->
+          <div class="commerce-section commerce-actions" style="margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; padding: 16px 20px;">
+            <label class="commerce-check" style="font-weight: 500; color: #23372d;">
+              <input type="checkbox" id="check-all-available" onchange="handleToggleSelectAll(this.checked)">
+              <span>Chọn tất cả sản phẩm có thể mua</span>
+            </label>
+            <button type="button" id="btn-remove-selected" style="padding: 7px 15px; border: 1px solid #dce5dd; border-radius: 6px; background: #fff; color: #a0362c; font-size: 13px; font-weight: 600; cursor: pointer;" onclick="promptRemoveSelected()" disabled>
+              Xóa đã chọn
+            </button>
+          </div>
+
+          <!-- Grouped Farm Sections -->
+          <div id="cart-groups-container"></div>
+        </div>
+
+        <!-- Right: Summary Sidebar matching CartScreen.jsx 1:1 -->
+        <aside class="commerce-section commerce-summary">
+          <h2 style="margin-top: 0; font-size: 19px; color: #103e2d; border-bottom: 1px solid #edf1ed; padding-bottom: 12px;">Tóm tắt giỏ hàng</h2>
+          <dl>
+            <div>
+              <dt>Sản phẩm đã chọn</dt>
+              <dd id="summary-selected-count" style="font-weight: 700; color: #23372d;">0</dd>
+            </div>
+            <div>
+              <dt>Tạm tính</dt>
+              <dd class="commerce-subtotal" id="summary-subtotal">0 ₫</dd>
+            </div>
+          </dl>
+          <p class="muted" style="font-size: 12px; margin: 0 0 14px;">Chỉ tính các sản phẩm được chọn.</p>
+          <hr style="border: 0; border-top: 1px solid #edf1ed; margin: 12px 0;" />
+          <p style="font-size: 12px; color: #5a6e62; line-height: 1.5; margin-bottom: 18px;">
+            Phí giao hàng, voucher và điểm thưởng được xác định tại trang checkout.
+          </p>
+          <button type="button" id="btn-proceed" class="primary" style="width: 100%; padding: 13px; border-radius: 8px; font-size: 15px; font-weight: 700;" onclick="handleProceedCheckout()">
+            Tiến hành thanh toán →
+          </button>
+          <small style="display: block; text-align: center; color: #88998f; font-size: 11px; margin-top: 10px;">
+            Bạn sẽ kiểm tra địa chỉ và xác nhận đặt hàng ở bước tiếp theo.
+          </small>
+        </aside>
+      </div>
+    </div>
+  </main>
+  </div>
+  </div>
+
+  <!-- Confirm Removal Modal matching Frontend Confirm Component -->
+  <dialog id="modal-confirm-remove" style="border: 1px solid #dce5da; border-radius: 12px; padding: 24px; width: 440px; max-width: calc(100vw - 32px); box-shadow: 0 20px 60px rgba(0,0,0,0.18);">
+    <div class="modal-heading" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #edf1ed; padding-bottom: 12px;">
+      <h3 style="margin: 0; color: #103e2d; font-size: 18px;">Xóa sản phẩm?</h3>
+      <button type="button" onclick="closeConfirmModal()" style="border: 0; background: transparent; font-size: 22px; cursor: pointer; color: #6b7c72;">&times;</button>
+    </div>
+    <p id="remove-confirm-text" style="margin: 18px 0 24px; font-size: 14px; color: #3f5846; line-height: 1.5;"></p>
+    <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px;">
+      <button type="button" onclick="closeConfirmModal()" style="padding: 9px 18px; border: 1px solid #cddbd5; border-radius: 7px; background: #fff; cursor: pointer; font-weight: 500;">Hủy</button>
+      <button type="button" id="btn-confirm-delete" class="primary" style="background: #a0362c; border-color: #a0362c; color: white; padding: 9px 20px; border-radius: 7px; font-weight: 600; cursor: pointer;" onclick="executeRemoval()">Xác nhận xóa</button>
+    </div>
+  </dialog>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/cart.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let cart = null;
+    let busy = false;
+    let pendingRemoveIds = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      Components.init();
+      if (!Auth.isAuthenticated()) {
+        Utils.showToast(Messages.common.loginRequiredCart, 'warning');
+        setTimeout(() => { window.location.href = '../Guest/login.html'; }, 800);
+        return;
+      }
+      const role = Auth.getUserRole();
+      if (role && role !== 'RetailCustomer') {
+        Utils.showToast(Messages.common.retailOnlyCart, 'warning');
+        setTimeout(() => { window.location.href = Auth.getLandingPageForRole(role); }, 1000);
+        return;
+      }
+      await loadCart();
+    });
+
+    async function loadCart() {
+      setBusy(true);
+      clearNotices();
+      document.getElementById('cart-loading').style.display = 'block';
+      document.getElementById('cart-empty').style.display = 'none';
+      document.getElementById('cart-content').style.display = 'none';
+      document.getElementById('cart-reload-wrap').style.display = 'none';
+
+      try {
+        const res = await API.getCart({ suppressErrorToast: true });
+        if (res.success && res.data) {
+          cart = res.data;
+          handlePricePolicyCheck(cart);
+          renderCart();
+        } else {
+          showError(res.error || 'Không thể tải giỏ hàng từ máy chủ.');
+          document.getElementById('cart-reload-wrap').style.display = 'block';
+        }
+      } catch (err) {
+        showError(err.message || 'Lỗi kết nối khi tải giỏ hàng.');
+        document.getElementById('cart-reload-wrap').style.display = 'block';
+      } finally {
+        setBusy(false);
+        document.getElementById('cart-loading').style.display = 'none';
+      }
+    }
+
+    /**
+     * Check if item price or pricing policy changed since previous visit matching CartScreen.jsx
+     */
+    function handlePricePolicyCheck(cartData) {
+      if (!cartData || !cartData.items) return;
+      if (cartData.messages && cartData.messages.length > 0) {
+        showNotice(cartData.messages.join(' '));
+      }
+      try {
+        const userId = Auth.getUserInfo()?.id || 'guest';
+        const key = 'agrisustain:cart-prices:' + userId;
+        const previous = JSON.parse(sessionStorage.getItem(key) || '{}');
+        const current = Object.fromEntries(cartData.items.map(item => [item.cartItemId, {
+          quantity: item.quantity,
+          policy: [item.retailPrice, item.unitPrice, item.wholesalePrice, item.wholesaleMinQuantity]
+        }]));
+        const changed = cartData.items.some(item => previous[item.cartItemId]
+          && previous[item.cartItemId].quantity === item.quantity
+          && JSON.stringify(previous[item.cartItemId].policy) !== JSON.stringify(current[item.cartItemId].policy));
+        if (changed && (!cartData.messages || !cartData.messages.length)) {
+          showNotice('Giá bán hoặc chính sách giá của một hoặc nhiều sản phẩm đã thay đổi. Vui lòng kiểm tra giá và tổng tiền đã cập nhật rồi tiếp tục.');
+        }
+        sessionStorage.setItem(key, JSON.stringify(current));
+      } catch (e) {}
+    }
+
+    function setBusy(val) {
+      busy = val;
+      const btnProceed = document.getElementById('btn-proceed');
+      if (btnProceed) {
+        btnProceed.disabled = busy || !cart?.items?.length;
+        btnProceed.textContent = busy ? 'Đang kiểm tra…' : 'Tiến hành thanh toán →';
+      }
+      const btnRemoveSel = document.getElementById('btn-remove-selected');
+      if (btnRemoveSel) {
+        btnRemoveSel.disabled = busy || !(cart?.items || []).some(x => x.isSelected);
+      }
+    }
+
+    function showNotice(msg) {
+      const el = document.getElementById('cart-notice');
+      if (el) {
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+    }
+
+    function showError(err) {
+      const el = document.getElementById('cart-errors');
+      if (el) {
+        el.textContent = err;
+        el.style.display = 'block';
+      }
+      Utils.showToast(err, 'error');
+    }
+
+    function clearNotices() {
+      const n = document.getElementById('cart-notice');
+      if (n) { n.textContent = ''; n.style.display = 'none'; }
+      const e = document.getElementById('cart-errors');
+      if (e) { e.textContent = ''; e.style.display = 'none'; }
+    }
+
+    function renderCart() {
+      if (!cart || !cart.items || cart.items.length === 0) {
+        document.getElementById('cart-empty').style.display = 'block';
+        document.getElementById('cart-content').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('cart-empty').style.display = 'none';
+      document.getElementById('cart-content').style.display = 'grid';
+
+      const items = cart.items;
+      const available = items.filter(x => x.isAvailable);
+      const selected = items.filter(x => x.isSelected);
+
+      // Check all available checkbox
+      const checkAll = document.getElementById('check-all-available');
+      if (checkAll) {
+        checkAll.disabled = busy || available.length === 0;
+        checkAll.checked = available.length > 0 && available.every(x => x.isSelected);
+      }
+
+      // Remove selected button
+      const btnRemoveSel = document.getElementById('btn-remove-selected');
+      if (btnRemoveSel) {
+        btnRemoveSel.disabled = busy || selected.length === 0;
+      }
+
+      // Summary
+      const countEl = document.getElementById('summary-selected-count');
+      const subtotalEl = document.getElementById('summary-subtotal');
+      if (countEl) countEl.textContent = cart.selectedCount || 0;
+      if (subtotalEl) subtotalEl.textContent = Utils.formatVND(cart.selectedSubtotal || 0);
+
+      // Group items by farm matching CartScreen.jsx
+      const groups = Object.values(items.reduce((result, item) => {
+        const key = item.farmerProfileId || item.farmName || 'default';
+        result[key] = result[key] || { farmName: item.farmName || 'Nông trại liên kết', farmerProfileId: item.farmerProfileId, items: [] };
+        result[key].items.push(item);
+        return result;
+      }, {}));
+
+      const groupsContainer = document.getElementById('cart-groups-container');
+      groupsContainer.innerHTML = groups.map(group => {
+        const eligible = group.items.filter(x => x.isAvailable);
+        const allFarmSelected = eligible.length > 0 && eligible.every(x => x.isSelected);
+        const farmEligibleIds = eligible.map(x => x.cartItemId).join(',');
+
+        const linesHtml = group.items.map(item => `
+          <div class="commerce-cart-line ${item.isAvailable ? '' : 'unavailable'}" id="line-${item.cartItemId}">
+            <input type="checkbox"
+              aria-label="Chọn ${Utils.escapeHtml(item.productName)} lô ${Utils.escapeHtml(item.batchCode || '')}"
+              ${item.isSelected ? 'checked' : ''}
+              ${busy || !item.isAvailable ? 'disabled' : ''}
+              onchange="handleToggleItem(${item.cartItemId}, this.checked)">
+
+            <div class="product-thumbnail">
+              ${item.imageUrl
+                ? `<img src="${item.imageUrl}" alt="${Utils.escapeHtml(item.productName)}" onerror="this.parentElement.innerHTML='<span>Chưa có<br>ảnh</span>'">`
+                : `<span>Chưa có<br>ảnh</span>`}
+            </div>
+
+            <div>
+              <strong>${Utils.escapeHtml(item.productName)}</strong>
+              <small>Đơn vị: ${Utils.escapeHtml(item.unit || 'kg')} · Lô: ${Utils.escapeHtml(item.batchCode || 'N/A')}</small>
+              <div style="font-weight: 600; color: #19603f; margin: 3px 0;">
+                ${Utils.formatVND(item.unitPrice)}/${item.unit || 'kg'}
+              </div>
+              ${item.wholesalePrice != null ? `<small style="display:block;color:#7a6523;">Giá sỉ ${Utils.formatVND(item.wholesalePrice)} từ ${item.wholesaleMinQuantity} ${item.unit || 'kg'}</small>` : ''}
+              ${item.unitPrice < item.retailPrice ? `<small style="display:block;color:#1e6546;">Giá lẻ: <del style="color:#88998f;">${Utils.formatVND(item.retailPrice)}</del> · Đang áp dụng giá sỉ</small>` : ''}
+              <small style="display:block;color:#607368;">Còn ${item.availableQuantity} ${item.unit || 'kg'}</small>
+              ${!item.isAvailable ? `<div class="notice error" style="margin-top:6px;padding:6px 10px;font-size:12px;">${Utils.escapeHtml(item.unavailableReason || 'Sản phẩm tạm thời không khả dụng')}</div>` : ''}
+              <div id="line-error-${item.cartItemId}" style="display:none;color:#a0362c;font-size:12px;margin-top:4px;"></div>
+            </div>
+
+            <div class="commerce-quantity">
+              <button type="button" aria-label="Giảm ${Utils.escapeHtml(item.productName)}"
+                ${busy || !item.isAvailable || item.quantity <= (item.quantityStep || 1) ? 'disabled' : ''}
+                onclick="handleAcceptQuantity(${item.cartItemId}, ${item.quantity - (item.quantityStep || 1)}, '${item.unit || 'kg'}', ${item.quantityStep || 1})">−</button>
+              <input type="number"
+                aria-label="Số lượng ${Utils.escapeHtml(item.productName)}"
+                min="${item.quantityStep || 1}"
+                step="${item.quantityStep || 1}"
+                value="${item.quantity}"
+                ${busy || !item.isAvailable ? 'disabled' : ''}
+                onchange="handleAcceptQuantity(${item.cartItemId}, this.value, '${item.unit || 'kg'}', ${item.quantityStep || 1})"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();handleAcceptQuantity(${item.cartItemId}, this.value, '${item.unit || 'kg'}', ${item.quantityStep || 1});}">
+              <button type="button" aria-label="Tăng ${Utils.escapeHtml(item.productName)}"
+                ${busy || !item.isAvailable ? 'disabled' : ''}
+                onclick="handleAcceptQuantity(${item.cartItemId}, ${item.quantity + (item.quantityStep || 1)}, '${item.unit || 'kg'}', ${item.quantityStep || 1})">+</button>
+            </div>
+
+            <div class="commerce-line-price">
+              <strong>${Utils.formatVND(item.subtotal)}</strong><br />
+              <button type="button" ${busy ? 'disabled' : ''} onclick="promptRemoveSingle(${item.cartItemId})" style="margin-top: 7px; padding: 4px 10px; border: 1px solid #dce5dd; border-radius: 5px; background: #fff; color: #a0362c; cursor: pointer; font-size: 12px;">Xóa</button>
+            </div>
+          </div>
+        `).join('');
+
+        return `
+          <section class="commerce-cart-group">
+            <div class="commerce-cart-farm">
+              <label class="commerce-check" style="font-weight: 600; color: #103e2d;">
+                <input type="checkbox"
+                  ${allFarmSelected ? 'checked' : ''}
+                  ${busy || eligible.length === 0 ? 'disabled' : ''}
+                  onchange="handleToggleFarmGroup([${farmEligibleIds}], this.checked)">
+                <span>${Utils.escapeHtml(group.farmName)}</span>
+              </label>
+              <small style="color: #687e71;">Thêm vào giỏ chưa giữ hàng</small>
+            </div>
+            ${linesHtml}
+          </section>
+        `;
+      }).join('');
+    }
+
+    /* ---------------- MUTATIONS MATCHING CartScreen.jsx ---------------- */
+
+    async function handleToggleSelectAll(checked) {
+      if (!cart || busy) return;
+      const available = (cart.items || []).filter(x => x.isAvailable);
+      const itemIds = available.map(x => x.cartItemId);
+      if (!itemIds.length) return;
+      await mutateSelection(itemIds, checked);
+    }
+
+    async function handleToggleFarmGroup(itemIds, checked) {
+      if (busy || !itemIds || !itemIds.length) return;
+      await mutateSelection(itemIds, checked);
+    }
+
+    async function handleToggleItem(cartItemId, checked) {
+      if (busy) return;
+      await mutateSelection([cartItemId], checked);
+    }
+
+    async function mutateSelection(itemIds, isSelected) {
+      setBusy(true);
+      clearNotices();
+      try {
+        const res = await API.selectCartItems(itemIds, isSelected, { suppressErrorToast: true });
+        if (res.success && res.data) {
+          cart = res.data;
+          if (res.data.messages && res.data.messages.length > 0) {
+            showNotice(res.data.messages.join(' '));
+          }
+          renderCart();
+        } else {
+          showError(res.error || 'Không thể cập nhật lựa chọn sản phẩm.');
+        }
+      } catch (err) {
+        showError(err.message || 'Lỗi khi cập nhật lựa chọn.');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function handleAcceptQuantity(cartItemId, val, unit, step) {
+      const number = Number(val);
+      const ratio = number / step;
+      const errBox = document.getElementById(`line-error-${cartItemId}`);
+
+      if (!String(val).trim() || !Number.isFinite(number) || number <= 0 || number > 999999999 || Math.abs(ratio - Math.round(ratio)) > 1e-7) {
+        if (errBox) {
+          errBox.textContent = CART_MESSAGES.invalidQuantity(unit);
+          errBox.style.display = 'block';
+        }
+        renderCart(); // Reset input value to previous quantity
+        return;
+      }
+
+      if (errBox) errBox.style.display = 'none';
+
+      const currentItem = (cart?.items || []).find(x => x.cartItemId === cartItemId);
+      if (currentItem && currentItem.quantity === number) return;
+
+      setBusy(true);
+      clearNotices();
+
+      try {
+        const res = await API.updateCartItemQuantity(cartItemId, number, { suppressErrorToast: true });
+        if (res.success && res.data) {
+          cart = res.data;
+          if (res.data.messages && res.data.messages.length > 0) {
+            showNotice(res.data.messages.join(' '));
+          }
+          renderCart();
+          Utils.showToast('Đã cập nhật số lượng.', 'success');
+        } else {
+          showError(res.error || 'Không thể lưu số lượng. Vui lòng tải lại giỏ hàng.');
+          renderCart();
+        }
+      } catch (err) {
+        showError(err.message || 'Lỗi khi lưu số lượng.');
+        renderCart();
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    /* ---------------- REMOVE ITEMS MODAL MATCHING Confirm Component ---------------- */
+
+    function promptRemoveSingle(cartItemId) {
+      pendingRemoveIds = [cartItemId];
+      document.getElementById('remove-confirm-text').textContent = 'Xóa 1 sản phẩm này khỏi giỏ hàng của bạn?';
+      document.getElementById('modal-confirm-remove').showModal();
+    }
+
+    function promptRemoveSelected() {
+      const selected = (cart?.items || []).filter(x => x.isSelected);
+      if (!selected.length) return;
+      pendingRemoveIds = selected.map(x => x.cartItemId);
+      document.getElementById('remove-confirm-text').textContent = CART_MESSAGES.confirmRemoval(pendingRemoveIds.length);
+      document.getElementById('modal-confirm-remove').showModal();
+    }
+
+    function closeConfirmModal() {
+      pendingRemoveIds = null;
+      document.getElementById('modal-confirm-remove').close();
+    }
+
+    async function executeRemoval() {
+      if (!pendingRemoveIds || !pendingRemoveIds.length) return;
+      const ids = [...pendingRemoveIds];
+      closeConfirmModal();
+
+      setBusy(true);
+      clearNotices();
+
+      try {
+        const res = await API.removeCartItems(ids, { suppressErrorToast: true });
+        if (res.success && res.data) {
+          cart = res.data;
+          if (res.data.messages && res.data.messages.length > 0) {
+            showNotice(res.data.messages.join(' '));
+          }
+          renderCart();
+          Utils.showToast(`Đã xóa ${ids.length} sản phẩm khỏi giỏ hàng.`, 'success');
+        } else {
+          showError(res.error || 'Không thể xóa sản phẩm khỏi giỏ hàng.');
+        }
+      } catch (err) {
+        showError(err.message || 'Lỗi kết nối khi xóa sản phẩm.');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    /* ---------------- PROCEED TO CHECKOUT MATCHING CartScreen.jsx ---------------- */
+
+    async function handleProceedCheckout() {
+      if (!cart || !cart.selectedCount) {
+        showNotice(CART_MESSAGES.noSelection);
+        Utils.showToast(CART_MESSAGES.noSelection, 'warning');
+        return;
+      }
+
+      setBusy(true);
+      clearNotices();
+
+      try {
+        const res = await API.prepareCheckout(cart.reviewToken, { suppressErrorToast: true });
+        if (res.success && res.data) {
+          if (res.data.canProceedToCheckout) {
+            window.location.href = 'checkout.html';
+          } else {
+            // Cart state refreshed or policy changed
+            cart = res.data;
+            if (res.data.messages && res.data.messages.length > 0) {
+              showNotice(res.data.messages.join(' '));
+            } else {
+              showError('Chưa thể tiến hành thanh toán. Vui lòng kiểm tra lại giỏ hàng.');
+            }
+            renderCart();
+          }
+        } else {
+          showError(res.error || 'Không thể chuẩn bị thanh toán.');
+        }
+      } catch (err) {
+        showError(err.message || 'Lỗi khi chuẩn bị thanh toán.');
+      } finally {
+        setBusy(false);
+      }
+    }
+  </script>
+</body>
+</html>

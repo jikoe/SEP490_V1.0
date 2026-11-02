@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duyệt tin đăng sản phẩm - Kiểm duyệt nội dung AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <section class="moderation-screen">
+          <!-- Heading matching ProductListingModerationScreen.jsx -->
+          <div class="moderation-heading">
+            <div>
+              <p class="eyebrow">QUẢN TRỊ NỘI DUNG</p>
+              <h1>Duyệt tin đăng sản phẩm</h1>
+              <p class="muted">Xem thông tin sản phẩm, nguồn gốc và chứng nhận trước khi đưa tin đăng lên sàn.</p>
+            </div>
+            <div class="moderation-pending-count">
+              <span>Đang chờ duyệt</span>
+              <strong id="pending-count-display">0</strong>
+            </div>
+          </div>
+
+          <div id="mod-notification" class="moderation-notification" style="display:none;" role="status">
+            <span id="mod-notification-text"></span>
+            <button type="button" aria-label="Đóng thông báo" onclick="this.parentElement.style.display='none'">×</button>
+          </div>
+
+          <div id="mod-error-notice" class="notice error" style="display:none;" role="alert"></div>
+
+          <!-- Tabs: Pending & Reviewed -->
+          <div class="moderation-tabs" role="tablist" aria-label="Trạng thái hồ sơ">
+            <button
+              type="button"
+              role="tab"
+              id="tab-btn-pending"
+              class="active"
+              onclick="switchTab('Pending')"
+            >
+              Chờ duyệt <span id="badge-pending-count">0</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-btn-reviewed"
+              onclick="switchTab('Reviewed')"
+            >
+              Đã xử lý <span id="badge-reviewed-count">0</span>
+            </button>
+          </div>
+
+          <!-- Filter Form -->
+          <form class="moderation-filter" onsubmit="handleSearch(event)">
+            <input
+              id="mod-search-input"
+              aria-label="Tìm tin đăng"
+              maxlength="100"
+              placeholder="Tìm tên sản phẩm, farmer hoặc nông trại"
+            />
+            <button type="submit">Tìm kiếm</button>
+          </form>
+
+          <!-- Split Workspace Layout matching Frontend 1:1 -->
+          <div class="moderation-workspace">
+            <!-- Left Column: Queue -->
+            <aside class="moderation-queue" aria-label="Danh sách tin đăng">
+              <div id="queue-cards-container" style="display:contents;">
+                <p class="empty" role="status">Đang tải danh sách hồ sơ…</p>
+              </div>
+
+              <div class="moderation-queue-footer">
+                <span id="queue-footer-total">0 hồ sơ</span>
+                <div>
+                  <button type="button" id="btn-queue-prev" aria-label="Trang trước" disabled onclick="changePage(-1)">‹</button>
+                  <span id="queue-page-num">1</span>
+                  <button type="button" id="btn-queue-next" aria-label="Trang sau" disabled onclick="changePage(1)">›</button>
+                </div>
+              </div>
+            </aside>
+
+            <!-- Right Column: Detail -->
+            <div class="moderation-detail-column" id="moderation-detail-container">
+              <p class="empty" role="status">Chọn một hồ sơ từ hàng đợi bên trái để xem chi tiết.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Content Moderator
+      </footer>
+    </div>
+  </div>
+
+  <!-- Confirmation Dialog for Reject -->
+  <dialog id="mod-confirm-reject-dialog" style="border:none; border-radius:12px; padding:24px; max-width:480px; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
+    <h3 style="margin-top:0; color:#183b28;">Xác nhận từ chối sản phẩm</h3>
+    <p>Bạn có chắc chắn muốn từ chối <strong id="dlg-product-name">sản phẩm này</strong> không?</p>
+    <p style="background:#fef2f2; border-left:4px solid #ef4444; padding:10px 14px; border-radius:4px; font-size:13px; color:#991b1b;">
+      <strong>Lý do từ chối:</strong> <span id="dlg-reject-reason"></span>
+    </p>
+    <p style="font-size:12px; color:#687b70;">Hệ thống sẽ lưu lý do và gửi thông báo cho Farmer sau khi xác nhận.</p>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+      <button type="button" onclick="document.getElementById('mod-confirm-reject-dialog').close()">Hủy</button>
+      <button type="button" class="reject" style="background:#a44136; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;" onclick="executeReject()">Xác nhận từ chối</button>
+    </div>
+  </dialog>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/order.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let activeTab = 'Pending';
+    let currentPage = 1;
+    const pageSize = 10;
+    let keyword = '';
+    let lists = {
+      Pending: { items: [], total: 0 },
+      Reviewed: { items: [], total: 0 }
+    };
+    let selectedProductId = null;
+    let selectedDetail = null;
+    let activeImageIndex = 0;
+    let isRejecting = false;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadModerationLists();
+    });
+
+    function setNotification(msg) {
+      const box = document.getElementById('mod-notification');
+      const text = document.getElementById('mod-notification-text');
+      if (msg) {
+        text.textContent = msg;
+        box.style.display = 'flex';
+      } else {
+        box.style.display = 'none';
+      }
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      document.getElementById('tab-btn-pending').className = tab === 'Pending' ? 'active' : '';
+      document.getElementById('tab-btn-reviewed').className = tab === 'Reviewed' ? 'active' : '';
+      selectedProductId = null;
+      selectedDetail = null;
+      currentPage = 1;
+      isRejecting = false;
+      renderQueue();
+    }
+
+    function handleSearch(e) {
+      e.preventDefault();
+      keyword = document.getElementById('mod-search-input').value.trim();
+      currentPage = 1;
+      loadModerationLists();
+    }
+
+    async function loadModerationLists() {
+      try {
+        const [pendingRes, reviewedRes] = await Promise.all([
+          API.getModerationProducts({ status: 'Pending', keyword, page: currentPage, pageSize }),
+          API.getModerationProducts({ status: 'Reviewed', keyword, page: currentPage, pageSize })
+        ]);
+
+        if (pendingRes.success && pendingRes.data) {
+          const items = pendingRes.data.items || (Array.isArray(pendingRes.data) ? pendingRes.data : []);
+          lists.Pending = { items, total: pendingRes.data.total ?? items.length };
+        } else {
+          lists.Pending = { items: [], total: 0 };
+        }
+
+        if (reviewedRes.success && reviewedRes.data) {
+          const items = reviewedRes.data.items || (Array.isArray(reviewedRes.data) ? reviewedRes.data : []);
+          lists.Reviewed = { items, total: reviewedRes.data.total ?? items.length };
+        } else {
+          lists.Reviewed = { items: [], total: 0 };
+        }
+      } catch (err) {
+        lists.Pending = { items: [], total: 0 };
+        lists.Reviewed = { items: [], total: 0 };
+        showNotice('Không thể kết nối đến máy chủ để tải danh sách kiểm duyệt.', true);
+      }
+
+      document.getElementById('pending-count-display').textContent = lists.Pending.total;
+      document.getElementById('badge-pending-count').textContent = lists.Pending.total;
+      document.getElementById('badge-reviewed-count').textContent = lists.Reviewed.total;
+
+      renderQueue();
+    }
+
+    function renderQueue() {
+      const container = document.getElementById('queue-cards-container');
+      const curList = lists[activeTab] || { items: [], total: 0 };
+      const items = curList.items;
+
+      document.getElementById('queue-footer-total').textContent = `${curList.total} hồ sơ`;
+      document.getElementById('queue-page-num').textContent = currentPage;
+
+      if (!items || items.length === 0) {
+        container.innerHTML = `
+          <div class="moderation-empty" style="grid-column: 1 / -1; padding: 40px 16px; text-align: center;">
+            <span style="font-size: 32px;">✓</span>
+            <h2 style="font-size: 16px; margin: 8px 0;">${activeTab === 'Pending' ? 'Không có tin đăng cần kiểm duyệt.' : 'Chưa có tin đăng đã xử lý'}</h2>
+            <p class="muted">${activeTab === 'Pending' ? 'Các hồ sơ chờ duyệt sẽ xuất hiện tại đây.' : 'Các hồ sơ đã duyệt hoặc từ chối sẽ xuất hiện tại đây.'}</p>
+          </div>
+        `;
+        document.getElementById('moderation-detail-container').innerHTML = '<p class="empty">Không có hồ sơ nào được chọn.</p>';
+        return;
+      }
+
+      if (!selectedProductId && items.length > 0) {
+        selectedProductId = items[0].id;
+      }
+
+      container.innerHTML = items.map(p => {
+        const isSelected = p.id === selectedProductId;
+        const statusMap = { Approved: 'Đã duyệt', Rejected: 'Đã từ chối', Pending: 'Chờ duyệt' };
+
+        return `
+          <button
+            type="button"
+            class="moderation-queue-card ${isSelected ? 'selected' : ''}"
+            onclick="selectProduct(${p.id})"
+          >
+            <div class="moderation-queue-image">
+              <div style="width:72px; height:72px; background:#e8f5ed; display:grid; place-items:center; font-size:24px;">🌿</div>
+            </div>
+            <div class="moderation-queue-copy">
+              <span class="moderation-status ${p.status}">
+                ${statusMap[p.status] || p.status}
+              </span>
+              <strong>${Utils.escapeHtml(p.name)}</strong>
+              <span>${Utils.escapeHtml(p.farmerName || 'Nông hộ')}</span>
+              <small>
+                ${activeTab === 'Reviewed' && p.reviewedAt
+                  ? `Xử lý ${Utils.formatDateTime(p.reviewedAt)}`
+                  : `Gửi duyệt ${Utils.formatDate(p.submittedAt)}`}
+              </small>
+              ${activeTab === 'Reviewed' && p.reviewedBy ? `<small>Người xử lý: ${Utils.escapeHtml(p.reviewedBy)}</small>` : ''}
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      if (selectedProductId) {
+        loadProductDetail(selectedProductId);
+      }
+    }
+
+    function selectProduct(id) {
+      selectedProductId = id;
+      activeImageIndex = 0;
+      isRejecting = false;
+      renderQueue();
+    }
+
+    async function loadProductDetail(id) {
+      const container = document.getElementById('moderation-detail-container');
+      container.innerHTML = '<p class="empty" role="status">Đang tải chi tiết hồ sơ…</p>';
+
+      try {
+        const res = await API.getModerationDetail(id);
+        if (res.success && res.data) {
+          selectedDetail = res.data;
+          renderDetail(res.data);
+        } else {
+          selectedDetail = null;
+          container.innerHTML = `<p class="empty" role="status">${res.error || 'Không tìm thấy chi tiết sản phẩm.'}</p>`;
+        }
+      } catch (err) {
+        selectedDetail = null;
+        container.innerHTML = '<p class="empty" role="status">Lỗi kết nối khi tải chi tiết sản phẩm từ máy chủ.</p>';
+      }
+    }
+
+    function renderDetail(d) {
+      const container = document.getElementById('moderation-detail-container');
+      const activeStatus = d.moderationStatus || d.status || 'Pending';
+      const statusMap = { Approved: 'Đã duyệt', Rejected: 'Đã từ chối', Pending: 'Chờ duyệt' };
+      const farmVerified = d.farm?.verificationStatus === 'Approved';
+      const images = d.images || [];
+
+      let reviewMeta = '';
+      if (activeStatus === 'Approved' || activeStatus === 'Rejected') {
+        reviewMeta = `
+          <p class="moderation-review-meta">
+            ${activeStatus === 'Rejected' ? 'Từ chối' : 'Duyệt'} bởi ${Utils.escapeHtml(d.reviewedBy || 'quản trị viên')} · ${Utils.formatDateTime(d.reviewedAt)}
+          </p>
+        `;
+      }
+
+      container.innerHTML = `
+        <article class="moderation-detail">
+          <div class="moderation-detail-heading">
+            <div>
+              <p>MÃ SẢN PHẨM #${d.id}</p>
+              <h2>${Utils.escapeHtml(d.name)}</h2>
+              <span>Gửi duyệt ${Utils.formatDate(d.submittedAt)} · ${Utils.escapeHtml(d.category || 'Nông sản')}</span>
+            </div>
+            <span class="moderation-status ${activeStatus}">
+              ${statusMap[activeStatus] || activeStatus}
+            </span>
+          </div>
+
+          ${reviewMeta}
+
+          <div class="moderation-detail-body">
+            <!-- 1. Hình ảnh sản phẩm -->
+            <section>
+              <h3 class="moderation-section-title">Hình ảnh sản phẩm</h3>
+              <div class="moderation-gallery">
+                <div class="moderation-gallery-main">
+                  ${images.length && images[activeImageIndex]?.imageUrl ? `
+                    <img src="${images[activeImageIndex].imageUrl}" alt="${Utils.escapeHtml(d.name)}" onerror="this.src='';">
+                  ` : `
+                    <div class="moderation-gallery-emoji">🌿</div>
+                  `}
+                </div>
+                ${images.length > 1 ? `
+                  <div class="moderation-gallery-thumbs">
+                    ${images.map((img, idx) => `
+                      <button type="button" class="${activeImageIndex === idx ? 'selected' : ''}" onclick="selectImage(${idx})">
+                        <div style="width:100%;height:100%;display:grid;place-items:center;">🌿</div>
+                      </button>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            </section>
+
+            <!-- 2. Thông tin sản phẩm -->
+            <section>
+              <h3 class="moderation-section-title">Thông tin sản phẩm</h3>
+              <div class="moderation-facts">
+                <div><span>Danh mục</span><strong>${Utils.escapeHtml(d.category || 'Nông sản')}</strong></div>
+                <div><span>Giá bán</span><strong class="price">${Utils.formatVND(d.retailPrice)} / ${Utils.escapeHtml(d.unit || 'kg')}</strong></div>
+                ${d.wholesalePrice != null ? `
+                  <div>
+                    <span>Giá bán sỉ</span>
+                    <strong class="price">
+                      ${Utils.formatVND(d.wholesalePrice)} / ${Utils.escapeHtml(d.unit || 'kg')}
+                      ${d.wholesaleMinQuantity ? ` · Tối thiểu ${d.wholesaleMinQuantity} ${Utils.escapeHtml(d.unit || 'kg')}` : ''}
+                    </strong>
+                  </div>
+                ` : ''}
+                <div><span>Sản lượng</span><strong>${d.quantity || 0} ${Utils.escapeHtml(d.unit || 'kg')}</strong></div>
+              </div>
+              ${d.description ? `<p class="moderation-description">${Utils.escapeHtml(d.description)}</p>` : ''}
+            </section>
+
+            <!-- 3. Thông tin farmer và nông trại -->
+            <section>
+              <h3 class="moderation-section-title">Thông tin farmer và nông trại</h3>
+              <div class="moderation-person-grid">
+                <div>
+                  <span>FARMER</span>
+                  <strong>${Utils.escapeHtml(d.farmer?.fullName || 'Nông dân')}</strong>
+                  <p>${Utils.escapeHtml(d.farmer?.email || 'Chưa có email')}</p>
+                  <p>${Utils.escapeHtml(d.farmer?.phoneNumber || 'Chưa có SĐT')}</p>
+                </div>
+                <div>
+                  <span>NÔNG TRẠI</span>
+                  <strong>${Utils.escapeHtml(d.farm?.farmName || 'Trang trại liên kết')}</strong>
+                  <p>${Utils.escapeHtml(d.farm?.address || 'Đang cập nhật địa chỉ')}</p>
+                  <p>Diện tích: ${Utils.escapeHtml(d.farm?.productionScale || '—')}</p>
+                  <p>Trạng thái xác minh: <strong>${farmVerified ? 'Đã xác minh' : 'Chưa xác minh'}</strong></p>
+                </div>
+              </div>
+            </section>
+
+            <!-- 4. Thông tin thu hoạch -->
+            <section>
+              <h3 class="moderation-section-title">Thông tin thu hoạch</h3>
+              ${d.harvest && d.harvest.length ? d.harvest.map(b => `
+                <div class="moderation-facts" style="margin-bottom:12px;">
+                  <div><span>Mã lô</span><strong>${Utils.escapeHtml(b.batchCode)}</strong></div>
+                  <div><span>Ngày gieo trồng</span><strong>${Utils.formatDate(b.plantingDate)}</strong></div>
+                  <div><span>Ngày thu hoạch</span><strong>${Utils.formatDate(b.actualHarvestDate || b.estimatedHarvestDate)}</strong></div>
+                  <div><span>Phương thức / mùa vụ</span><strong>${Utils.escapeHtml(b.season || b.cropVariety || '—')}</strong></div>
+                  <div><span>Trạng thái lô</span><strong>${Utils.escapeHtml(b.status || '—')}</strong></div>
+                  <div><span>Ghi chú</span><strong>${Utils.escapeHtml(b.qualityNotes || '—')}</strong></div>
+                  ${b.growingPractices ? `<div style="grid-column: 1 / -1;"><span>Quy trình canh tác</span><strong>${Utils.escapeHtml(b.growingPractices)}</strong></div>` : ''}
+                </div>
+              `).join('') : '<p class="moderation-muted">Chưa cung cấp thông tin thu hoạch.</p>'}
+            </section>
+
+            <!-- 5. Truy xuất nguồn gốc & chứng nhận -->
+            <section>
+              <h3 class="moderation-section-title">Truy xuất nguồn gốc & chứng nhận</h3>
+              <div class="moderation-traceability">
+                ${d.traceability && d.traceability.length ? d.traceability.map(t => `
+                  <div class="moderation-trace-item">
+                    <span>Mã lô: <strong>${Utils.escapeHtml(t.batchCode)}</strong></span>
+                    <span>Trạng thái mã truy xuất: <strong>${t.isRevoked ? 'Đã thu hồi' : 'Còn hiệu lực'}</strong></span>
+                    ${t.targetUrl ? `<a href="${t.targetUrl}" target="_blank" rel="noreferrer">Xem thông tin truy xuất</a>` : ''}
+                  </div>
+                `).join('') : ''}
+                <div>
+                  <span style="font-size:11px; color:#687b70; margin-bottom:8px; display:block;">Chứng nhận chất lượng:</span>
+                  ${d.certificates && d.certificates.length ? `
+                    <div class="moderation-certificates" style="display:flex; flex-wrap:wrap; gap:8px;">
+                      ${d.certificates.map(c => `
+                        <span class="${c.verificationStatus === 'Approved' ? 'verified' : 'unverified'}">
+                          <span aria-hidden="true">${c.verificationStatus === 'Approved' ? '✓' : '!'}</span>
+                          ${Utils.escapeHtml(c.certificateType || c)} · ${c.verificationStatus === 'Approved' ? 'Đã xác minh' : 'Chưa xác minh'}
+                        </span>
+                      `).join('')}
+                    </div>
+                  ` : '<p class="moderation-muted">Chưa cung cấp chứng nhận.</p>'}
+                </div>
+              </div>
+            </section>
+
+            <!-- Rejection Reason if Rejected -->
+            ${activeStatus === 'Rejected' && d.rejectionReason ? `
+              <div class="moderation-rejection">
+                <strong>Lý do từ chối</strong>
+                <p>${Utils.escapeHtml(d.rejectionReason)}</p>
+              </div>
+            ` : ''}
+
+            <!-- 6. Quyết định kiểm duyệt (If Pending) -->
+            ${activeStatus === 'Pending' ? `
+              <section class="moderation-decision">
+                <h3 class="moderation-section-title">Quyết định kiểm duyệt</h3>
+                ${!farmVerified ? `
+                  <div class="notice error" style="margin-bottom:12px;">
+                    Chưa thể duyệt sản phẩm vì nông trại chưa được xác minh.
+                  </div>
+                ` : ''}
+
+                <div id="decision-actions-panel">
+                  ${!isRejecting ? `
+                    <div class="moderation-decision-actions">
+                      <button type="button" class="reject" onclick="startRejecting()">Từ chối sản phẩm</button>
+                      <button type="button" class="approve" ${!farmVerified ? 'disabled' : ''} onclick="executeApprove()">Duyệt sản phẩm</button>
+                    </div>
+                  ` : `
+                    <label for="moderation-reason">Lý do từ chối <span>(bắt buộc)</span></label>
+                    <textarea
+                      id="moderation-reason"
+                      rows="3"
+                      maxlength="500"
+                      placeholder="Nêu rõ thông tin cần farmer bổ sung hoặc chỉnh sửa..."
+                      oninput="updateReasonCounter(this.value)"
+                    ></textarea>
+                    <div class="moderation-decision-actions">
+                      <button type="button" onclick="cancelRejecting()">Hủy</button>
+                      <button type="button" class="reject" onclick="confirmRejectPrompt()">Xem lại và xác nhận</button>
+                    </div>
+                    <p class="moderation-character-count" id="mod-char-count">0/500 ký tự · Farmer sẽ được thông báo sau khi có quyết định.</p>
+                  `}
+                </div>
+              </section>
+            ` : ''}
+          </div>
+        </article>
+      `;
+    }
+
+    function selectImage(idx) {
+      activeImageIndex = idx;
+      if (selectedDetail) renderDetail(selectedDetail);
+    }
+
+    function startRejecting() {
+      isRejecting = true;
+      if (selectedDetail) renderDetail(selectedDetail);
+    }
+
+    function cancelRejecting() {
+      isRejecting = false;
+      if (selectedDetail) renderDetail(selectedDetail);
+    }
+
+    function updateReasonCounter(val) {
+      const el = document.getElementById('mod-char-count');
+      if (el) el.textContent = `${val.length}/500 ký tự · Farmer sẽ được thông báo sau khi có quyết định.`;
+    }
+
+    function confirmRejectPrompt() {
+      const reason = document.getElementById('moderation-reason').value.trim();
+      if (!reason) {
+        alert(Messages.order.moderationRejectReasonRequired);
+        return;
+      }
+      document.getElementById('dlg-product-name').textContent = selectedDetail?.name || 'Sản phẩm này';
+      document.getElementById('dlg-reject-reason').textContent = reason;
+      document.getElementById('mod-confirm-reject-dialog').showModal();
+    }
+
+    async function executeApprove() {
+      if (!selectedDetail) return;
+      if (!confirm(Messages.order.moderationApproveConfirm(selectedDetail.name))) return;
+
+      try {
+        const res = await API.approveProductListing(selectedDetail.id);
+        if (res.success) {
+          const msg = `Đã duyệt "${selectedDetail.name}" và gửi thông báo cho nông dân.`;
+          setNotification(msg);
+          Utils.showToast(msg, 'success');
+          await loadModerationLists();
+        } else {
+          const err = res.error || 'Duyệt sản phẩm thất bại.';
+          showNotice(err, true);
+          Utils.showToast(err, 'error');
+        }
+      } catch (err) {
+        const msg = err.message || 'Lỗi khi duyệt sản phẩm.';
+        showNotice(msg, true);
+        Utils.showToast(msg, 'error');
+      }
+    }
+
+    async function executeReject() {
+      if (!selectedDetail) return;
+      const reason = document.getElementById('moderation-reason').value.trim();
+      document.getElementById('mod-confirm-reject-dialog').close();
+
+      try {
+        const res = await API.rejectProductListing(selectedDetail.id, reason);
+        if (res.success) {
+          const msg = `Đã từ chối "${selectedDetail.name}" và gửi thông báo cho nông dân.`;
+          setNotification(msg);
+          Utils.showToast(msg, 'success');
+          isRejecting = false;
+          await loadModerationLists();
+        } else {
+          const err = res.error || 'Từ chối sản phẩm thất bại.';
+          showNotice(err, true);
+          Utils.showToast(err, 'error');
+        }
+      } catch (err) {
+        const msg = err.message || 'Lỗi khi từ chối sản phẩm.';
+        showNotice(msg, true);
+        Utils.showToast(msg, 'error');
+      }
+    }
+
+    function changePage(delta) {
+      currentPage = Math.max(1, currentPage + delta);
+      loadModerationLists();
+    }
+  </script>
+</body>
+</html>

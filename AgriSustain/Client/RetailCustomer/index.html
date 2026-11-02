@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriSustain - Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="marketplace">
+    <!-- Marketplace Header matching Marketplace.jsx 1:1 -->
+    <header class="mkt-header">
+      <a class="mkt-brand" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" />
+        </svg>
+        <span>Nông Sản Việt</span>
+      </a>
+      <p class="mkt-slogan">Nền tảng nông sản Việt – Kết nối nông dân, bền vững tương lai</p>
+
+      <form class="mkt-search" role="search" onsubmit="handleSearch(event)">
+        <button aria-label="Tìm kiếm" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0" />
+          </svg>
+        </button>
+        <input id="mkt-search-input" aria-label="Tìm kiếm sản phẩm" type="search" maxlength="150" placeholder="Tìm kiếm sản phẩm, danh mục…" autocomplete="off" spellcheck="false">
+      </form>
+
+      <!-- Cart Button matching Frontend -->
+      <a id="mkt-cart-btn" class="mkt-cart-button" href="cart.html" title="Giỏ hàng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h3l3 12h11l3-9H6M9 21h.01M19 21h.01" />
+        </svg>
+        <span id="mkt-cart-badge" class="mkt-cart-count" style="display:none;">0</span>
+      </a>
+
+      <!-- Account / Login Area matching Frontend -->
+      <div id="mkt-account-container">
+        <a class="mkt-login" href="../Guest/login.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21a8 8 0 0 0-16 0M17 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0" />
+          </svg>
+          Đăng nhập
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Layout matching Marketplace.jsx 1:1 -->
+    <main class="mkt-layout">
+      <!-- Left Filter Sidebar -->
+      <aside class="mkt-sidebar" aria-label="Bộ lọc sản phẩm">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3h6v6H3ZM15 3h6v6h-6ZM3 15h6v6H3ZM15 15h6v6h-6Z" />
+          </svg>
+          Danh mục sản phẩm
+        </h2>
+        <div id="mkt-categories-list">
+          <button class="mkt-category active" type="button" onclick="filterByCategory(null)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+            Tất cả sản phẩm <span id="mkt-all-count">152</span>
+          </button>
+        </div>
+
+        <div class="mkt-filter-heading">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M3 4h18M6 10h12M9 16h6M11 21h2" />
+            </svg>
+            Bộ lọc
+          </h2>
+          <button type="button" onclick="clearFilters()">Xóa bộ lọc</button>
+        </div>
+
+        <fieldset>
+          <legend>Khoảng giá</legend>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="priceRange" value="under50" onchange="loadCatalogue()"> Dưới 50.000đ
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="priceRange" value="50to100" onchange="loadCatalogue()"> 50.000đ – 100.000đ
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="priceRange" value="100to200" onchange="loadCatalogue()"> 100.000đ – 200.000đ
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="priceRange" value="over200" onchange="loadCatalogue()"> Trên 200.000đ
+          </label>
+        </fieldset>
+
+        <label class="mkt-field">
+          Địa phương
+          <select id="filter-region" onchange="loadCatalogue()">
+            <option value="">Tất cả tỉnh/thành</option>
+            <option value="Lâm Đồng">Lâm Đồng</option>
+            <option value="Vĩnh Long">Vĩnh Long</option>
+            <option value="Sóc Trăng">Sóc Trăng</option>
+            <option value="Sơn La">Sơn La</option>
+            <option value="Bến Tre">Bến Tre</option>
+            <option value="Đồng Tháp">Đồng Tháp</option>
+          </select>
+        </label>
+
+        <fieldset>
+          <legend>Chứng nhận</legend>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="cert" value="VietGAP" onchange="loadCatalogue()"> VietGAP
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="cert" value="Organic" onchange="loadCatalogue()"> Organic (Hữu cơ)
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="cert" value="GlobalGAP" onchange="loadCatalogue()"> GlobalGAP
+          </label>
+          <label class="mkt-checkbox">
+            <input type="checkbox" name="cert" value="ISO 22000" onchange="loadCatalogue()"> ISO 22000
+          </label>
+        </fieldset>
+
+        <label class="mkt-field">
+          Đánh giá tối thiểu
+          <select id="filter-rating" onchange="loadCatalogue()">
+            <option value="">Tất cả đánh giá</option>
+            <option value="4">4 sao trở lên</option>
+            <option value="3">3 sao trở lên</option>
+            <option value="2">2 sao trở lên</option>
+            <option value="1">1 sao trở lên</option>
+          </select>
+        </label>
+      </aside>
+
+      <!-- Main Catalogue -->
+      <div class="mkt-catalogue">
+        <section class="mkt-hero">
+          <div>
+            <h1>Nông sản Việt<br>Tươi ngon từ nông trại đến bàn ăn</h1>
+            <p>Sản phẩm chất lượng – Người nông dân được hỗ trợ –<br>Cộng đồng phát triển bền vững</p>
+          </div>
+          <div class="mkt-hero-art" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.7"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.7"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.7"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+          </div>
+        </section>
+
+        <section id="mkt-products">
+          <div class="mkt-results-heading">
+            <h2>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:24px;height:24px;">
+                <path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" />
+              </svg>
+              Sản phẩm nổi bật
+            </h2>
+            <label>
+              Sắp xếp
+              <select id="mkt-sort-select" onchange="loadCatalogue()">
+                <option value="newest">Mới nhất</option>
+                <option value="price-asc">Giá tăng dần</option>
+                <option value="price-desc">Giá giảm dần</option>
+                <option value="rating">Đánh giá cao nhất</option>
+              </select>
+            </label>
+          </div>
+
+          <p id="mkt-result-count" class="mkt-result-count">152 sản phẩm</p>
+
+          <!-- Product Grid -->
+          <div id="mkt-product-grid" class="mkt-product-grid">
+            <div class="mkt-state" role="status">Đang tải sản phẩm…</div>
+          </div>
+
+          <!-- Pagination -->
+          <div class="mkt-pagination">
+            <nav aria-label="Phân trang" id="mkt-pagination-nav">
+              <button aria-label="Trang trước" disabled>‹</button>
+              <button aria-label="Trang 1" aria-current="page" class="active">1</button>
+              <button aria-label="Trang sau" disabled>›</button>
+            </nav>
+            <label>
+              Hiển thị
+              <select id="mkt-page-size" onchange="loadCatalogue()">
+                <option value="12">12 sản phẩm</option>
+                <option value="24">24 sản phẩm</option>
+                <option value="48">48 sản phẩm</option>
+              </select>
+            </label>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/cart.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+
+  <script>
+    let activeCategoryId = null;
+    let productsCache = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      renderAccountSection();
+      await loadFilters();
+      await loadCatalogue();
+      updateCartBadge();
+    });
+
+    function renderAccountSection() {
+      const container = document.getElementById('mkt-account-container');
+      const isAuth = Auth.isAuthenticated();
+      const user = Auth.getUserInfo();
+
+      if (isAuth && user) {
+        const landing = Auth.getLandingPageForRole(user.role);
+        const name = Utils.escapeHtml(user.fullName || user.username || 'Khách');
+
+        container.innerHTML = `
+          <details class="mkt-account">
+            <summary>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0M17 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0" /></svg>
+              <span>${name}</span>
+              <span>⌄</span>
+            </summary>
+            <div>
+              <a href="${landing}">Khu vực làm việc</a>
+              <a href="orders.html">Đơn hàng của tôi</a>
+              <a href="profile.html">Hồ sơ cá nhân</a>
+              <button type="button" onclick="API.logout()">Đăng xuất</button>
+            </div>
+          </details>
+        `;
+      } else {
+        container.innerHTML = `
+          <a class="mkt-login" href="../Guest/login.html">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21a8 8 0 0 0-16 0M17 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0" /></svg>
+            Đăng nhập
+          </a>
+        `;
+      }
+    }
+
+    async function loadFilters() {
+      try {
+        const res = await API.getMarketplaceFilters();
+        if (res.success && res.data) {
+          renderCategories(res.data.categories || []);
+        } else {
+          renderCategories([]);
+        }
+      } catch (err) {
+        renderCategories([]);
+      }
+    }
+
+    function renderCategories(cats) {
+      const container = document.getElementById('mkt-categories-list');
+      const total = cats.reduce((sum, c) => sum + (c.count || 0), 0);
+      document.getElementById('mkt-all-count').textContent = total;
+
+      let html = `
+        <button class="mkt-category ${activeCategoryId === null ? 'active' : ''}" type="button" onclick="filterByCategory(null)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+          Tất cả sản phẩm <span>${total}</span>
+        </button>
+      `;
+
+      cats.forEach(c => {
+        html += `
+          <button class="mkt-category ${activeCategoryId === c.id ? 'active' : ''}" type="button" onclick="filterByCategory(${c.id})">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+            ${Utils.escapeHtml(c.name)} <span>${c.count || ''}</span>
+          </button>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    function filterByCategory(id) {
+      activeCategoryId = id;
+      loadFilters();
+      loadCatalogue();
+    }
+
+    function clearFilters() {
+      activeCategoryId = null;
+      document.getElementById('mkt-search-input').value = '';
+      document.querySelectorAll('input[name="priceRange"]').forEach(el => el.checked = false);
+      document.querySelectorAll('input[name="cert"]').forEach(el => el.checked = false);
+      document.getElementById('filter-region').value = '';
+      document.getElementById('filter-rating').value = '';
+      loadFilters();
+      loadCatalogue();
+    }
+
+    function handleSearch(e) {
+      e.preventDefault();
+      loadCatalogue();
+    }
+
+    async function loadCatalogue() {
+      const container = document.getElementById('mkt-product-grid');
+      container.innerHTML = '<div class="mkt-state" role="status">Đang tải sản phẩm…</div>';
+
+      const keyword = document.getElementById('mkt-search-input').value.trim();
+      const region = document.getElementById('filter-region').value;
+      const sort = document.getElementById('mkt-sort-select').value;
+      const pageSize = parseInt(document.getElementById('mkt-page-size').value) || 12;
+
+      try {
+        const res = await API.getMarketplaceProducts({
+          keyword,
+          categoryId: activeCategoryId || undefined,
+          region: region || undefined,
+          sort,
+          pageSize
+        });
+
+        if (res.success && res.data) {
+          const items = res.data.items || res.data.value || (Array.isArray(res.data) ? res.data : []);
+          const total = res.data.total || res.data.totalCount || items.length;
+          document.getElementById('mkt-result-count').textContent = `${total} sản phẩm`;
+          productsCache = items;
+          renderProductCards(items);
+        } else {
+          document.getElementById('mkt-result-count').textContent = `0 sản phẩm`;
+          productsCache = [];
+          renderProductCards([]);
+        }
+      } catch (err) {
+        document.getElementById('mkt-result-count').textContent = `0 sản phẩm`;
+        productsCache = [];
+        renderProductCards([]);
+      }
+    }
+
+    function renderProductCards(items) {
+      const container = document.getElementById('mkt-product-grid');
+      if (!items || items.length === 0) {
+        container.innerHTML = `
+          <div class="mkt-state" role="status">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:40px;height:40px;margin-bottom:8px;"><path d="m21 21-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0" /></svg>
+            <h3>Không tìm thấy sản phẩm phù hợp</h3>
+            <p>Thử thay đổi từ khóa hoặc xóa bộ lọc để xem thêm sản phẩm.</p>
+            <button type="button" onclick="clearFilters()">Xóa bộ lọc</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = items.map(p => {
+        const cert = (p.certifications && p.certifications[0]) || p.cert || '';
+        const rating = p.rating ? Number(p.rating).toFixed(1) : '5.0';
+        const reviews = p.reviewCount || 10;
+        const certBadge = cert ? `
+          <span class="mkt-cert-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 2 9 4v6c0 6-9 10-9 10S3 18 3 12V6Zm-5 9 4 4 6-7"/></svg>
+            ${Utils.escapeHtml(cert)}
+          </span>
+        ` : '';
+
+        return `
+          <article class="mkt-product-card">
+            <a class="mkt-card-photo" href="product-detail.html?id=${p.id}">
+              <div class="mkt-image-fallback" role="img" aria-label="${Utils.escapeHtml(p.name)}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 3C9 2 3 7 5 15c7 3 14-2 15-12ZM3 21 16 8M9 15l-1-5m1 5 5 1" /></svg>
+                <span>Chưa có ảnh sản phẩm</span>
+              </div>
+              ${certBadge}
+            </a>
+            <div class="mkt-card-content">
+              <h3><a href="product-detail.html?id=${p.id}">${Utils.escapeHtml(p.name)}</a></h3>
+              <p class="mkt-supplier">${Utils.escapeHtml(p.supplier || p.farmerName || 'Nông hộ liên kết')}</p>
+              <span class="mkt-rating">
+                <span aria-hidden="true">★</span> <strong>${rating}</strong> <small>(${reviews} đánh giá)</small>
+              </span>
+              ${p.region ? `<p class="mkt-region"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0ZM12 7v5"/></svg>${Utils.escapeHtml(p.region)}</p>` : ''}
+              <span class="mkt-price">${Utils.formatVND(p.price)} <small>/ ${Utils.escapeHtml(p.unit || 'kg')}</small></span>
+              <form class="mkt-quick-buy" onsubmit="handleQuickBuy(event, ${p.id})">
+                <button type="submit" class="mkt-primary">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 3h3l3 12h11l3-9H6M9 21h.01M19 21h.01"/></svg>
+                  Thêm vào giỏ hàng
+                </button>
+              </form>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function handleQuickBuy(e, productId) {
+      e.preventDefault();
+      if (!Auth.isAuthenticated()) {
+        Utils.showToast(Messages.common.loginRequiredAddToCart, 'warning');
+        setTimeout(() => { window.location.href = '../Guest/login.html'; }, 1000);
+        return;
+      }
+      const role = Auth.getUserRole();
+      if (role && role !== 'RetailCustomer') {
+        Utils.showToast(Messages.common.retailOnlyAddToCart, 'warning');
+        return;
+      }
+      try {
+        const res = await API.addToCart(productId, 1, { suppressErrorToast: true });
+        if (res.success) {
+          const msg = (res.data?.messages && res.data.messages.length > 0)
+            ? res.data.messages.join(' ')
+            : Messages.cart.addSuccess;
+          Utils.showToast(msg, 'success');
+          updateCartBadge();
+        } else {
+          Utils.showToast(res.error || Messages.cart.addFailed, 'error');
+        }
+      } catch (err) {
+        Utils.showToast(err.message || Messages.common.networkError, 'error');
+      }
+    }
+
+    async function updateCartBadge() {
+      // The cart belongs to RetailCustomer only; other roles (e.g. WholesaleBuyer browsing) get 403.
+      if (!Auth.isAuthenticated() || !/retail/i.test(Auth.getUserRole() || '')) return;
+      try {
+        const res = await API.getCart({ suppressErrorToast: true });
+        if (res.success && res.data) {
+          const items = res.data.items || [];
+          const totalQty = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
+          const badge = document.getElementById('mkt-cart-badge');
+          if (badge) {
+            badge.textContent = totalQty;
+            badge.style.display = totalQty > 0 ? 'inline-block' : 'none';
+          }
+        }
+      } catch (e) {}
+    }
+  </script>
+</body>
+</html>

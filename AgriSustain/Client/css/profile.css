@@ -1,0 +1,371 @@
+/* ==========================================================================
+   AgriSustain - Profile & KYC Stylesheet (css/profile.css)
+   Shared styles for Farmer & RetailCustomer profile management (UC-AUTH-03)
+   ========================================================================== */
+
+/* Container */
+.farmer-profile-container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Hero Banner */
+.farmer-hero-card {
+  background: linear-gradient(135deg, #1e6546 0%, #28744f 100%);
+  border-radius: 16px;
+  padding: 28px 36px;
+  color: #ffffff;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(30, 101, 70, 0.12);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.farmer-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.farmer-hero-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1e6546;
+  font-size: 26px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 3px solid #b7e4c7;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.farmer-hero-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.farmer-hero-upload-label {
+  font-size: 12px;
+  color: #ffffff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.farmer-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.farmer-hero-title {
+  color: #ffffff;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.farmer-role-pill {
+  background: #d8f3dc;
+  color: #1b4332;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.farmer-hero-subtext {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #d8f3dc;
+}
+
+.farmer-hero-stats {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.farmer-stat-card {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 10px 16px;
+  border-radius: 12px;
+  text-align: center;
+  min-width: 130px;
+}
+
+.farmer-stat-label {
+  font-size: 11px;
+  color: #b7e4c7;
+  letter-spacing: 0.5px;
+}
+
+.farmer-stat-value {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+/* Notice & Reject Banner */
+.farmer-kyc-reject-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  color: #991b1b;
+}
+
+.farmer-kyc-reject-banner strong {
+  color: #7f1d1d;
+}
+
+/* Layout */
+.farmer-profile-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .farmer-profile-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Sidebar */
+.farmer-profile-sidebar {
+  height: fit-content;
+}
+
+.farmer-sidebar-title {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #1e4834;
+  font-weight: 700;
+}
+
+.farmer-nav-menu {
+  display: grid;
+  gap: 8px;
+}
+
+.farmer-nav-btn {
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: #52695c;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13.5px;
+  transition: all 0.2s ease;
+}
+
+.farmer-nav-btn.active {
+  background: #edf6f0;
+  color: #1e6546;
+  font-weight: 700;
+}
+
+.farmer-nav-btn:hover:not(.active) {
+  background: #f4f7f5;
+  color: #1e4834;
+}
+
+.farmer-sidebar-footer {
+  border-top: 1px solid #e0e7df;
+  margin-top: 24px;
+  padding-top: 16px;
+}
+
+.farmer-sidebar-info-row {
+  font-size: 12px;
+  color: #668071;
+  margin-bottom: 8px;
+}
+
+.farmer-btn-kyc-submit {
+  width: 100%;
+  margin-top: 8px;
+  background: #1e6546;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+
+/* Right Content Panel */
+.farmer-profile-content {
+  min-height: auto;
+  padding: 32px;
+}
+
+.farmer-section-header {
+  margin-bottom: 20px;
+}
+
+.farmer-section-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #1b4332;
+}
+
+.farmer-section-header p {
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.farmer-form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 650px) {
+  .farmer-form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.farmer-form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .farmer-form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.farmer-section-divider {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #e2eae4;
+}
+
+.farmer-field-readonly {
+  background: #f5f7f5 !important;
+  color: #6b7d72 !important;
+  cursor: not-allowed !important;
+}
+
+.farmer-phone-notice {
+  color: #1e6546;
+  margin-top: 4px;
+}
+
+.farmer-form-actions {
+  margin-top: 28px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.farmer-btn-cancel {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.farmer-btn-save {
+  background: #1e6546;
+  color: #ffffff;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(30, 101, 70, 0.2);
+}
+
+.farmer-btn-save:hover {
+  background: #165338;
+}
+
+/* Password Modal */
+.farmer-modal-dialog {
+  max-width: 480px;
+}
+
+.farmer-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.farmer-modal-form {
+  padding: 20px;
+}
+
+.farmer-modal-field {
+  margin-bottom: 14px;
+}
+
+.farmer-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* Status badges & helper classes */
+.kyc-badge-not-submitted { background: #f1f5f9; color: #475569; }
+.kyc-badge-pending { background: #fef3c7; color: #92400e; }
+.kyc-badge-approved { background: #dcfce7; color: #166534; }
+.kyc-badge-rejected { background: #fee2e2; color: #991b1b; }
+
+.farmer-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.farmer-section-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #1b4332;
+}
+
+.farmer-section-desc {
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+
+.farmer-field-mb-16 {
+  margin-bottom: 16px;
+}
+
+.farmer-field-mb-12 {
+  margin-bottom: 12px;
+}
+
+.farmer-field-mb-20 {
+  margin-bottom: 20px;
+}
+
+.farmer-field-mb-24 {
+  margin-bottom: 24px;
+}
+
+.farmer-hero-kyc-wrap {
+  margin-top: 2px;
+}
+
+.farmer-reject-subtext {
+  font-size: 13px;
+  margin-top: 4px;
+}

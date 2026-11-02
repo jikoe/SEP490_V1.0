@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Authentication;
 using FluentValidation;
 
@@ -16,7 +17,7 @@ public sealed partial class RegisterRequestValidator : AbstractValidator<Registe
         RuleFor(x => x.PhoneNumber)
             .NotEmpty().WithMessage("Số điện thoại không được để trống.")
             .Must(phone => phone is not null && Regex.IsMatch(phone.Trim(), @"^0\d{9}$"))
-            .WithMessage("Số điện thoại không hợp lệ (cần đúng 10 chữ số, bắt đầu bằng số 0).");
+            .WithMessage(SystemMessages.Msg180InvalidPhone);
 
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email không được để trống.")
@@ -30,8 +31,8 @@ public sealed partial class RegisterRequestValidator : AbstractValidator<Registe
             .Equal(x => x.Password).WithMessage("Mật khẩu xác nhận không khớp.");
 
         RuleFor(x => x.Role)
-            .Must(r => r is "RetailCustomer" or "Farmer")
-            .WithMessage("Vai trò phải là 'RetailCustomer' hoặc 'Farmer'.");
+            .Must(r => r is "RetailCustomer" or "Farmer" or "WholesaleBuyer")
+            .WithMessage("Vai trò phải là 'RetailCustomer', 'Farmer' hoặc 'WholesaleBuyer'.");
 
         RuleFor(x => x.AgreeTerms)
             .Equal(true).WithMessage("Bạn cần đồng ý với điều khoản sử dụng.");

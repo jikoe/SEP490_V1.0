@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cổng thanh toán - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="gateway-dashboard" style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">HẠ TẦNG KẾT NỐI THANH TOÁN</p>
+              <h1>Bảng Giám Sát Cổng Thanh Toán</h1>
+              <p class="muted">Theo dõi thời gian thực các luồng giao dịch điện tử, sự kiện Webhook IPN từ PayOS / VNPay và trạng thái khớp lệnh đơn hàng.</p>
+            </div>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="metric-card">
+              <div class="metric-icon green">⚡</div>
+              <div class="metric-info">
+                <p class="metric-label">Tỷ lệ thành công</p>
+                <h3 class="metric-value">99,85%</h3>
+                <p class="metric-sub">Không có giao dịch treo &gt; 5p</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon blue">💳</div>
+              <div class="metric-info">
+                <p class="metric-label">Giao dịch hôm nay</p>
+                <h3 class="metric-value">186 lượt</h3>
+                <p class="metric-sub">Tổng 45.200.000 ₫</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon gold">📡</div>
+              <div class="metric-info">
+                <p class="metric-label">Webhook PayOS/VNPay</p>
+                <h3 class="metric-value">542 events</h3>
+                <p class="metric-sub">Khớp lệnh 100%</p>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon purple">⏱️</div>
+              <div class="metric-info">
+                <p class="metric-label">Thời gian phản hồi API</p>
+                <h3 class="metric-value">142 ms</h3>
+                <p class="metric-sub">Kết nối ổn định</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="dashboard-sections">
+            <div class="panel padded">
+              <div class="record-heading" style="padding: 0 0 16px;">
+                <h2>Giao dịch cổng thanh toán thời gian thực</h2>
+                <span class="badge Active">Webhook IPN: Online</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã giao dịch</th>
+                      <th>Mã đơn hàng</th>
+                      <th>Phương thức</th>
+                      <th>Số tiền</th>
+                      <th>Thời gian</th>
+                      <th>Trạng thái Webhook</th>
+                      <th>Kết quả</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>TXN-98231-POS</strong></td>
+                      <td>#ORD-98231</td>
+                      <td>PayOS QR</td>
+                      <td>214.500 ₫</td>
+                      <td>10:42:15</td>
+                      <td><span class="badge Active">Đã xác nhận</span></td>
+                      <td><span class="badge Active">Thành công</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>TXN-98190-VNP</strong></td>
+                      <td>#ORD-98190</td>
+                      <td>VNPay QR</td>
+                      <td>185.000 ₫</td>
+                      <td>10:35:02</td>
+                      <td><span class="badge Active">Đã xác nhận</span></td>
+                      <td><span class="badge Active">Thành công</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>TXN-98144-POS</strong></td>
+                      <td>#ORD-98144</td>
+                      <td>PayOS QR</td>
+                      <td>320.000 ₫</td>
+                      <td>10:18:49</td>
+                      <td><span class="badge Active">Đã xác nhận</span></td>
+                      <td><span class="badge Active">Thành công</span></td>
+                    </tr>
+                    <tr>
+                      <td><strong>TXN-98102-COD</strong></td>
+                      <td>#ORD-98102</td>
+                      <td>COD (Tiền mặt khi nhận)</td>
+                      <td>145.000 ₫</td>
+                      <td>09:55:20</td>
+                      <td><span class="badge">Không áp dụng</span></td>
+                      <td><span class="badge Pending">Chờ giao</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Payment Gateway
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+</body>
+</html>
