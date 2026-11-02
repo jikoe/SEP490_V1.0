@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+	  <Folder Include="Messages\" />
 	  <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
 	  <PackageReference Include="AutoMapper" Version="16.1.1" />
 	  <PackageReference Include="FluentValidation" Version="11.11.0" />
@@ -29,6 +30,7 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	  </PackageReference>
 	  <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.23" />
+	  <PackageReference Include="QRCoder" Version="1.8.1" />
 	  <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.2.3" />
 	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.2.3" />
 	  <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.3" />

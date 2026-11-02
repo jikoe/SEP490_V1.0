@@ -1,7 +1,20 @@
+import { cpSync, existsSync } from 'node:fs';
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 
+let clientOutput;
 export default defineConfig({
+  plugins: [{
+    name: 'copy-classic-client-scripts',
+    apply: 'build',
+    configResolved(config) { clientOutput = resolve(config.root, config.build.outDir); },
+    closeBundle() {
+      for (const directory of ['js', 'messages', 'css']) {
+        const source = resolve(__dirname, directory);
+        if (existsSync(source)) cpSync(source, resolve(clientOutput, directory), { recursive: true });
+      }
+    },
+  }],
   server: {
     host: '127.0.0.1',
     port: 5173,
@@ -38,6 +51,10 @@ export default defineConfig({
         adminDashboard: resolve(__dirname, 'Administrator/dashboard.html'),
         adminUsers: resolve(__dirname, 'Administrator/users.html'),
         adminCategories: resolve(__dirname, 'Administrator/categories.html'),
+        farmerComplaints: resolve(__dirname, 'Farmer/complaints.html'),
+        farmerCropSeasons: resolve(__dirname, 'Farmer/crop-seasons.html'),
+        farmerFarmingLogs: resolve(__dirname, 'Farmer/farming-logs.html'),
+        farmerHarvestBatches: resolve(__dirname, 'Farmer/harvest-batches.html'),
         farmerProducts: resolve(__dirname, 'Farmer/products.html'),
         farmerOrders: resolve(__dirname, 'Farmer/orders.html'),
         farmerProfile: resolve(__dirname, 'Farmer/profile.html'),

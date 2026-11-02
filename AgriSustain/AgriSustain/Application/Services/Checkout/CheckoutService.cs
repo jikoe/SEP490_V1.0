@@ -30,7 +30,7 @@ public sealed class CheckoutService(
         var addresses = await repository.AddressesAsync(actor.UserId, cancellationToken);
         var vouchers = await repository.VouchersAsync(clock.GetUtcNow(), cancellationToken);
         var lines = items.Select(item => Line(item, [], RetailPricing.UnitPrice(item.Product,
-            items.Where(x => x.ProductId == item.ProductId).Sum(x => x.Quantity)))).ToList();
+            item.Quantity))).ToList();
         return UseCaseResult<CheckoutContextDto>.Success(new CheckoutContextDto(lines,
             addresses.Select(x => new CheckoutAddress(x.RecipientName, x.RecipientPhone,
                 x.ProvinceCode ?? "", x.ProvinceCity, x.DistrictCode ?? "", x.District ?? "",
@@ -259,7 +259,7 @@ public sealed class CheckoutService(
                 return StockFailure(product.ProductName);
             }
             var price = RetailPricing.UnitPrice(product,
-                items.Where(x => x.ProductId == item.ProductId).Sum(x => x.Quantity));
+                item.Quantity);
             if (price <= 0 || price > product.BaseRetailPrice)
             {
                 return StockFailure(product.ProductName);

@@ -26,10 +26,14 @@ public sealed class FarmerOrderService(
         long actorId, long id, string action, OrderActionRequest request, CancellationToken cancellationToken) =>
         fulfillmentService.ActAsync(actorId, id, action, request, cancellationToken);
 
+    public Task<FeatureResult<SellerOrderResponse>> RejectOrderAsync(long actorId, long id,
+        OrderActionRequest request, CancellationToken ct) =>
+        fulfillmentService.ActAsync(actorId, id, "reject", request, ct);
+
     public async Task<FeatureResult<SellerOrderResponse>> RejectOrderAsync(
         long actorId, long id, string reason, string requestKey, CancellationToken cancellationToken)
     {
-        var existingOrder = await repository.GetOwnedAsync(actorId, id, cancellationToken);
+        var existingOrder = await repository.LoadOwnedContextAsync(actorId, id, cancellationToken);
         if (existingOrder is null)
         {
             return FeatureResult<SellerOrderResponse>.Fail("NOT_FOUND",
@@ -47,7 +51,7 @@ public sealed class FarmerOrderService(
     public async Task<FeatureResult<PackingSlipResponse>> GetPackingSlipAsync(
         long actorId, long id, CancellationToken cancellationToken)
     {
-        var order = await repository.GetOwnedAsync(actorId, id, cancellationToken);
+        var order = await repository.LoadOwnedContextAsync(actorId, id, cancellationToken);
         if (order is null)
         {
             return FeatureResult<PackingSlipResponse>.Fail("NOT_FOUND",

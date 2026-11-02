@@ -93,3 +93,5 @@ desktop.ini
 # ==============================================================================
 **/wwwroot/media/
 **/private-files/
+
+**/private-farm-evidence/

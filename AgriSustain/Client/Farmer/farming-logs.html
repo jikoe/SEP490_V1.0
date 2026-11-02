@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Nhật ký canh tác - AgriSustain</title>
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/farm-management-shell.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside id="app-sidebar" class="sidebar"></aside>
+      <div class="workspace">
+        <header id="app-header"></header>
+        <main><div id="farm-root" data-feature="farming-logs"></div></main>
+      </div>
+    </div>
+    <template id="farm-template">
+      <link rel="stylesheet" href="../css/farmer-farming-logs.css" />
+      <div class="app">
+        <div class="head">
+          <div>
+            <h1>Nhật ký canh tác</h1>
+            <p>Quản lý hoạt động của nông trại</p>
+          </div>
+          <div class="actions create-actions">
+            <button class="btn primary" type="button" id="newLog">+ Ghi nhật ký</button>
+            <button class="btn" type="button" id="newCorrection">Thêm bản đính chính</button>
+          </div>
+        </div>
+        <nav class="views">
+          <button class="btn" type="button" data-go="list">Lịch sử canh tác</button>
+          <button class="btn" type="button" data-go="form">Ghi hoạt động</button>
+          <button class="btn" type="button" data-go="correction">Bản đính chính</button>
+        </nav>
+        <div id="feedback" class="notice" role="alert" aria-live="polite" hidden></div>
+        <div class="view" data-view="list">
+          <form id="filters" class="toolbar">
+            <div class="field">
+              <label for="keyword">Tìm kiếm</label>
+              <input
+                id="keyword"
+                name="keyword"
+                type="search"
+                placeholder="Hoạt động, vật tư, người thực hiện..."
+              />
+            </div>
+            <div class="field">
+              <label for="filterStatus">Trạng thái / hoạt động</label>
+              <select id="filterStatus" name="filterStatus">
+                <option value="">Tất cả hoạt động</option>
+                <option value="Tưới nước">Tưới nước</option>
+                <option value="Bón phân">Bón phân</option>
+                <option value="Phòng trừ sâu bệnh">Phòng trừ sâu bệnh</option>
+                <option value="Gieo trồng">Gieo trồng</option>
+                <option value="Thu hoạch">Thu hoạch</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="filterSeason">Mùa vụ</label>
+              <select id="filterSeason" name="filterSeason">
+                <option value="">Tất cả mùa vụ</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="from">Từ ngày</label>
+              <input id="from" name="from" type="date" />
+            </div>
+            <div class="field">
+              <label for="to">Đến ngày</label>
+              <input id="to" name="to" type="date" />
+            </div>
+            <button class="btn primary">Áp dụng</button>
+            <button class="btn" type="button" id="clearFilters">Xóa bộ lọc</button>
+          </form>
+          <div class="notice"><span id="seasonContext"></span></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ngày / hoạt động</th>
+                  <th>Mô tả / vật tư</th>
+                  <th>Người thực hiện / người ghi</th>
+                  <th>Bằng chứng / đính chính</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span>
+              <span id="pageSummary"></span>
+              · 10 bản ghi/trang
+            </span>
+            <span>
+              <button class="btn" type="button" id="previousPage">‹</button>
+              <button class="btn" type="button" id="pageNumber">1</button>
+              <button class="btn" type="button" id="nextPage">›</button>
+            </span>
+          </div>
+        </div>
+        <div class="view" data-view="form">
+          <div class="notice">
+            Chỉ thêm hoạt động thường lệ cho mùa vụ đang trồng, sinh trưởng hoặc thu hoạch. Nhật ký đã lưu
+            không có thao tác sửa/xóa.
+          </div>
+          <form id="logForm" novalidate>
+            <section class="section">
+              <h2>Ghi hoạt động canh tác</h2>
+              <div class="inside">
+                <div class="grid">
+                  <div class="field">
+                    <label for="logseason">Mùa vụ *</label>
+                    <select id="logseason" name="logseason" required>
+                      <option value="">Chọn mùa vụ</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="logexecution">Ngày thực hiện *</label>
+                    <input id="logexecution" name="logexecution" type="date" required />
+                  </div>
+                  <div class="field">
+                    <label for="logactivity">Loại hoạt động *</label>
+                    <select id="logactivity" name="logactivity" required>
+                      <option value="">Chọn hoạt động</option>
+                      <option value="Tưới nước">Tưới nước</option>
+                      <option value="Bón phân">Bón phân</option>
+                      <option value="Phòng trừ sâu bệnh">Phòng trừ sâu bệnh</option>
+                      <option value="Gieo trồng">Gieo trồng</option>
+                      <option value="Thu hoạch">Thu hoạch</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="logmaterial">Vật tư</label>
+                    <input
+                      id="logmaterial"
+                      name="logmaterial"
+                      type="text"
+                      placeholder="Ví dụ: Phân hữu cơ hoặc tên chế phẩm"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="logdosage">Liều lượng / cách dùng</label>
+                    <input
+                      id="logdosage"
+                      name="logdosage"
+                      type="text"
+                      placeholder="Ví dụ: 20 kg/ha hoặc cách sử dụng"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="logperformer">Người thực hiện *</label>
+                    <input
+                      id="logperformer"
+                      name="logperformer"
+                      type="text"
+                      required
+                      placeholder="Ví dụ: Nguyễn Văn An"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="logdescription">Mô tả công việc / thông tin chính xác *</label>
+                    <textarea
+                      id="logdescription"
+                      name="logdescription"
+                      required
+                      placeholder="Mô tả công việc đã thực hiện"
+                    ></textarea>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="logimages">Ảnh bằng chứng</label>
+                  <div class="upload">
+                    <input
+                      id="logimages"
+                      name="logimages"
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      multiple
+                    />
+                    <p class="hint">JPG, JPEG, PNG · tối đa 5 MB mỗi ảnh</p>
+                    <div class="gallery" data-preview="logimages"></div>
+                  </div>
+                </div>
+                <p class="hint">
+                  Có thể bỏ ảnh đã chọn trước khi lưu. Bón phân và phòng trừ sâu bệnh yêu cầu vật tư, liều
+                  lượng; hoạt động phòng trừ sâu bệnh yêu cầu ảnh.
+                </p>
+              </div>
+            </section>
+            <div class="actions end">
+              <button class="btn" type="button" data-go="list">Hủy</button>
+              <button class="btn primary" type="submit">Lưu nhật ký</button>
+            </div>
+          </form>
+        </div>
+        <div class="view" data-view="correction">
+          <div class="notice">
+            <strong>Nhật ký gốc</strong>
+            <div id="originalLog"></div>
+          </div>
+          <form id="correctionForm" novalidate>
+            <section class="section">
+              <h2>Bổ sung bản đính chính</h2>
+              <div class="inside">
+                <div class="field">
+                  <label for="original">Nhật ký gốc *</label>
+                  <select id="original" name="original" required>
+                    <option value="">Chọn bản gốc</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="correctionReason">Lý do đính chính *</label>
+                  <textarea
+                    id="correctionReason"
+                    name="correctionReason"
+                    required
+                    placeholder="Nhập lý do cần đính chính nhật ký gốc"
+                  ></textarea>
+                </div>
+                <div class="grid">
+                  <div class="field">
+                    <label for="correctseason">Mùa vụ *</label>
+                    <select id="correctseason" name="correctseason" required>
+                      <option value="">Chọn mùa vụ</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="correctexecution">Ngày thực hiện *</label>
+                    <input id="correctexecution" name="correctexecution" type="date" required />
+                  </div>
+                  <div class="field">
+                    <label for="correctactivity">Loại hoạt động *</label>
+                    <select id="correctactivity" name="correctactivity" required>
+                      <option value="">Chọn hoạt động</option>
+                      <option value="Tưới nước">Tưới nước</option>
+                      <option value="Bón phân">Bón phân</option>
+                      <option value="Phòng trừ sâu bệnh">Phòng trừ sâu bệnh</option>
+                      <option value="Gieo trồng">Gieo trồng</option>
+                      <option value="Thu hoạch">Thu hoạch</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="correctmaterial">Vật tư</label>
+                    <input
+                      id="correctmaterial"
+                      name="correctmaterial"
+                      type="text"
+                      placeholder="Ví dụ: Phân hữu cơ hoặc tên chế phẩm"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="correctdosage">Liều lượng / cách dùng</label>
+                    <input
+                      id="correctdosage"
+                      name="correctdosage"
+                      type="text"
+                      placeholder="Ví dụ: 20 kg/ha hoặc cách sử dụng"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="correctperformer">Người thực hiện *</label>
+                    <input
+                      id="correctperformer"
+                      name="correctperformer"
+                      type="text"
+                      required
+                      placeholder="Ví dụ: Nguyễn Văn An"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="correctdescription">Mô tả công việc / thông tin chính xác *</label>
+                    <textarea
+                      id="correctdescription"
+                      name="correctdescription"
+                      required
+                      placeholder="Mô tả công việc đã thực hiện"
+                    ></textarea>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="correctimages">Ảnh bằng chứng</label>
+                  <div class="upload">
+                    <input
+                      id="correctimages"
+                      name="correctimages"
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      multiple
+                    />
+                    <p class="hint">JPG, JPEG, PNG · tối đa 5 MB mỗi ảnh</p>
+                    <div class="gallery" data-preview="correctimages"></div>
+                  </div>
+                </div>
+                <p class="hint">
+                  Có thể bỏ ảnh đã chọn trước khi lưu. Bón phân và phòng trừ sâu bệnh yêu cầu vật tư, liều
+                  lượng; hoạt động phòng trừ sâu bệnh yêu cầu ảnh.
+                </p>
+              </div>
+            </section>
+            <div class="notice">
+              Bản gốc luôn được giữ nguyên. Có thể đính chính nhật ký đã có sau khi mùa vụ đóng; không thêm
+              hoạt động mới cho mùa vụ đã đóng.
+            </div>
+            <div class="actions end">
+              <button class="btn" type="button" data-go="list">Hủy</button>
+              <button class="btn primary" type="submit">Lưu bản đính chính</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <dialog id="confirm">
+        <h2>Xác nhận thao tác</h2>
+        <p id="confirmText"></p>
+        <div class="actions end">
+          <button class="btn" type="button" onclick="this.closest('dialog').close()">Quay lại</button>
+          <button class="btn primary" id="confirmOk">Xác nhận</button>
+        </div>
+      </dialog>
+      <dialog id="proofViewer">
+        <h2>Ảnh bằng chứng</h2>
+        <div id="proofContent"></div>
+        <div class="actions end"><button class="btn" type="button" data-close-dialog>Đóng</button></div>
+      </dialog>
+    </template>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/farm-management.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/farm-management.js"></script>
+    <script src="../js/farmer-farming-logs.js"></script>
+  </body>
+</html>

@@ -50,6 +50,15 @@ builder.Services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
 builder.Services.AddScoped<IProductModerationRepository, ProductModerationRepository>();
 builder.Services.AddScoped<IProductModerationService, ProductModerationService>();
 builder.Services.AddScoped<IComplaintRepository, ComplaintRepository>();
+// UC-FAR-10: controller -> application service -> owned complaint repository.
+builder.Services.AddScoped<IFarmerComplaintRepository, FarmerComplaintRepository>();
+builder.Services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Complaints.FarmerComplaintService>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmerComplaintInputFilter>();
+if (builder.Configuration.GetValue("FarmerComplaints:EnableNotificationWorker", true))
+{
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.FarmerComplaintNotificationWorker>();
+}
 builder.Services.AddScoped<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>();
 builder.Services.AddScoped<IComplaintResolutionService>(services => services
     .GetRequiredService<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>());
@@ -115,6 +124,18 @@ builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IFarmerOrderRepository>(services => services.GetRequiredService<IOrderRepository>());
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<IFarmerCropSeasonRepository, FarmerCropSeasonRepository>();
+builder.Services.AddScoped<IFarmerFarmingLogRepository, FarmerFarmingLogRepository>();
+builder.Services.AddScoped<IFarmerHarvestBatchRepository, FarmerHarvestBatchRepository>();
+builder.Services.AddScoped<IFarmerEvidenceStorage, FarmerEvidenceStorage>();
+builder.Services.AddScoped<FarmerCropSeasonService>();
+builder.Services.AddScoped<FarmerFarmingLogService>();
+builder.Services.AddScoped<FarmerHarvestBatchService>();
+builder.Services.AddScoped<FarmerCropSeasonRules>();
+builder.Services.AddScoped<FarmerFarmingLogRules>();
+builder.Services.AddScoped<FarmerHarvestBatchRules>();
+builder.Services.AddScoped<FarmerTraceabilityLabelService>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmInputFilter>();
 builder.Services.AddScoped<FarmerProductService>();
 builder.Services.AddScoped<ProductListingRules>();
 builder.Services.AddScoped<ProductNotificationService>();

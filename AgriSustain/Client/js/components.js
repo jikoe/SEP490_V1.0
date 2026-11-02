@@ -39,8 +39,12 @@ const ROLE_CONFIGS = {
     hasSidebar: true,
     landingRoute: 'Farmer/products.html',
     navItems: [
+      { key: 'farmer-seasons', label: 'Quản lý mùa vụ', icon: '🌱', path: 'Farmer/crop-seasons.html' },
+      { key: 'farmer-logs', label: 'Nhật ký canh tác', icon: '📖', path: 'Farmer/farming-logs.html' },
+      { key: 'farmer-batches', label: 'Quản lý lô thu hoạch', icon: '▦', path: 'Farmer/harvest-batches.html' },
       { key: 'farmer-products', label: 'Quản lý sản phẩm', icon: '🌾', path: 'Farmer/products.html' },
       { key: 'farmer-orders', label: 'Xử lý đơn hàng', icon: '📦', path: 'Farmer/orders.html' },
+      { key: 'farmer-complaints', label: 'Phản hồi khiếu nại', icon: '⚖️', path: 'Farmer/complaints.html' },
       { key: 'farmer-profile', label: 'Hồ sơ nông hộ & KYC', icon: '🌾', path: 'Farmer/profile.html' },
     ],
   },

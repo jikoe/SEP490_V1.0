@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Quản lý lô thu hoạch - AgriSustain</title>
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/farm-management-shell.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside id="app-sidebar" class="sidebar"></aside>
+      <div class="workspace">
+        <header id="app-header"></header>
+        <main><div id="farm-root" data-feature="harvest-batches"></div></main>
+      </div>
+    </div>
+    <template id="farm-template">
+      <link rel="stylesheet" href="../css/farmer-harvest-batches.css" />
+      <div class="app">
+        <div class="head">
+          <div>
+            <h1>Lô thu hoạch và truy xuất</h1>
+            <p>Quản lý hoạt động của nông trại</p>
+          </div>
+          <div class="actions create-actions">
+            <button class="btn" type="button" id="newPlan">+ Lô kế hoạch</button>
+            <button class="btn primary" type="button" id="newActual">+ Ghi thu hoạch thực tế</button>
+          </div>
+        </div>
+        <nav class="views">
+          <button class="btn" type="button" data-go="list">Danh sách lô</button>
+          <button class="btn" type="button" data-go="form">Kế hoạch / thu hoạch</button>
+          <button class="btn" type="button" data-go="label">Nhãn QR</button>
+          <button class="btn" type="button" data-go="issue">Chất lượng / điều chỉnh</button>
+        </nav>
+        <div id="feedback" class="notice" role="alert" aria-live="polite" hidden></div>
+        <div class="view" data-view="list">
+          <form id="filters" class="toolbar">
+            <div class="field">
+              <label for="keyword">Tìm kiếm</label>
+              <input id="keyword" name="keyword" type="search" placeholder="Mã lô, sản phẩm, mùa vụ..." />
+            </div>
+            <div class="field">
+              <label for="filterStatus">Trạng thái / hoạt động</label>
+              <select id="filterStatus" name="filterStatus">
+                <option value="">Tất cả trạng thái</option>
+                <option value="Planned">Kế hoạch</option>
+                <option value="Actual">Thực tế / còn hàng</option>
+                <option value="Allocated">Đã phân bổ hết</option>
+                <option value="Expired">Hết hạn</option>
+                <option value="Blocked">Bị chặn / nghi vấn</option>
+                <option value="Recalled">Thu hồi</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="filterProduct">Sản phẩm</label>
+              <select id="filterProduct" name="filterProduct">
+                <option value="">Tất cả sản phẩm</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="filterSeason">Mùa vụ</label>
+              <select id="filterSeason" name="filterSeason">
+                <option value="">Tất cả mùa vụ</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="from">Từ ngày</label>
+              <input id="from" name="from" type="date" />
+            </div>
+            <div class="field">
+              <label for="to">Đến ngày</label>
+              <input id="to" name="to" type="date" />
+            </div>
+            <button class="btn primary">Áp dụng</button>
+            <button class="btn" type="button" id="clearFilters">Xóa bộ lọc</button>
+          </form>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lô / sản phẩm</th>
+                  <th>Mùa vụ / lịch thu hoạch</th>
+                  <th>Số lượng / đơn vị</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span>
+              <span id="pageSummary"></span>
+              · 10 bản ghi/trang
+            </span>
+            <span>
+              <button class="btn" type="button" id="previousPage">‹</button>
+              <button class="btn" type="button" id="pageNumber">1</button>
+              <button class="btn" type="button" id="nextPage">›</button>
+            </span>
+          </div>
+        </div>
+        <div class="view" data-view="form">
+          <form id="batchForm" novalidate>
+            <section class="section">
+              <h2>Kế hoạch / ghi nhận thu hoạch</h2>
+              <div class="inside">
+                <div class="grid">
+                  <div class="field">
+                    <label for="code">Mã lô *</label>
+                    <input id="code" name="code" type="text" required placeholder="Ví dụ: HB-XOAI-2026-001" />
+                  </div>
+                  <div class="field">
+                    <label for="product">Sản phẩm *</label>
+                    <select id="product" name="product" required>
+                      <option value="">Chọn sản phẩm / cây trồng</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="season">Mùa vụ *</label>
+                    <select id="season" name="season" required>
+                      <option value="">Chọn mùa vụ</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="mode">Chế độ ghi nhận *</label>
+                    <select id="mode" name="mode" required>
+                      <option value="Planned">Lô kế hoạch</option>
+                      <option value="Actual">Thu hoạch thực tế</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="estimated">Ngày thu hoạch dự kiến *</label>
+                    <input id="estimated" name="estimated" type="date" />
+                  </div>
+                  <div class="field">
+                    <label for="estimatedYield">Sản lượng dự kiến *</label>
+                    <input
+                      id="estimatedYield"
+                      name="estimatedYield"
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      placeholder="Ví dụ: 1200"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="harvest">Ngày thu hoạch thực tế *</label>
+                    <input id="harvest" name="harvest" type="date" />
+                  </div>
+                  <div class="field">
+                    <label for="expiry">Hạn sử dụng *</label>
+                    <input id="expiry" name="expiry" type="date" />
+                  </div>
+                  <div class="field">
+                    <label for="yield">Sản lượng thực tế *</label>
+                    <input
+                      id="yield"
+                      name="yield"
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      placeholder="Ví dụ: 500"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="unit">Đơn vị sản phẩm</label>
+                    <input id="unit" name="unit" type="text" readonly />
+                  </div>
+                  <div class="field">
+                    <label for="available">Tồn khả dụng · hệ thống tính</label>
+                    <input id="available" name="available" type="text" readonly />
+                  </div>
+                  <div class="field">
+                    <label for="notes">Ghi chú chất lượng</label>
+                    <textarea
+                      id="notes"
+                      name="notes"
+                      placeholder="Ví dụ: Thu hoạch loại A, bảo quản nơi thoáng mát"
+                    ></textarea>
+                  </div>
+                  <div class="field">
+                    <label for="changeReason">Lý do thay đổi</label>
+                    <textarea
+                      id="changeReason"
+                      name="changeReason"
+                      placeholder="Nhập lý do chỉnh sửa thông tin lô"
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <div class="notice"><span id="qrConditions"></span></div>
+            <div class="actions space">
+              <button class="btn" type="button" id="generateQr">Cấp / xem QR của lô đã lưu</button>
+            </div>
+            <div class="notice">
+              Lô kế hoạch chưa có hàng thực tế. Ghi thu hoạch một lần; không nhập trực tiếp số lượng khả dụng.
+              Thay đổi thông tin đã có phải kèm lý do.
+            </div>
+            <div class="actions end">
+              <button class="btn" type="button" data-go="list">Hủy</button>
+              <button class="btn primary" type="submit">Lưu lô kế hoạch / thu hoạch</button>
+            </div>
+          </form>
+        </div>
+        <div class="view" data-view="label">
+          <label class="block-label">Nhãn QR hiện có</label>
+          <div class="label-preview">
+            <div class="qr"><img id="qrImage" alt="Mã QR truy xuất lô thu hoạch" /></div>
+            <div>
+              <h2 id="qrProduct"></h2>
+              <strong id="qrBatch"></strong>
+              <p id="qrInfo"></p>
+              <span id="qrStatus" class="pill"></span>
+            </div>
+          </div>
+          <div id="traceInfo" class="notice space"></div>
+          <div class="actions space">
+            <button class="btn" type="button" id="downloadQr">Tải nhãn PNG</button>
+            <button class="btn primary" type="button" id="printQr">In nhãn / Lưu PDF</button>
+            <button class="btn" type="button" data-go="form">Quay lại lô</button>
+          </div>
+        </div>
+        <div class="view" data-view="issue">
+          <form id="issueForm" novalidate>
+            <section class="section">
+              <h2>Ghi nhận vấn đề / điều chỉnh có lý do</h2>
+              <div class="inside">
+                <div class="grid">
+                  <div class="field">
+                    <label for="issueBatch">Lô bị ảnh hưởng</label>
+                    <input id="issueBatch" name="issueBatch" type="text" readonly />
+                  </div>
+                  <div class="field">
+                    <label for="issueType">Loại ghi nhận *</label>
+                    <select id="issueType" name="issueType" required>
+                      <option value="">Chọn loại vấn đề</option>
+                      <option value="quality">Vấn đề chất lượng / hàng nghi vấn</option>
+                      <option value="adjustment">Điều chỉnh chênh lệch số lượng</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="affected">Số lượng hàng nghi vấn</label>
+                    <input
+                      id="affected"
+                      name="affected"
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      placeholder="Ví dụ: 20"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="adjustment">Mức điều chỉnh (+ tăng / − giảm)</label>
+                    <input
+                      id="adjustment"
+                      name="adjustment"
+                      type="number"
+                      step="any"
+                      placeholder="Ví dụ: -5 hoặc 10"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="issueReason">Lý do *</label>
+                    <textarea
+                      id="issueReason"
+                      name="issueReason"
+                      required
+                      placeholder="Nhập vấn đề, nguyên nhân và cách xử lý"
+                    ></textarea>
+                  </div>
+                  <div class="field">
+                    <label for="issueEvidence">Ảnh bằng chứng *</label>
+                    <div class="upload">
+                      <input
+                        id="issueEvidence"
+                        name="issueEvidence"
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        multiple
+                        required
+                      />
+                      <p class="hint">JPG, JPEG, PNG · tối đa 5 MB mỗi ảnh</p>
+                      <div class="gallery" data-preview="issueEvidence"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <div class="notice">
+              Số dư được tính lại từ thu hoạch, điều chỉnh, lượng giữ chỗ và lượng đã xuất. Báo cáo chất lượng
+              không tự phê duyệt thu hồi; hàng nghi vấn không được phân bổ mới.
+            </div>
+            <div id="issueHistory" class="notice"></div>
+            <div class="actions end">
+              <button class="btn" type="button" data-go="list">Hủy</button>
+              <button class="btn primary" type="submit">Xác nhận ghi nhận vấn đề</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <dialog id="confirm">
+        <h2>Xác nhận thao tác</h2>
+        <p id="confirmText"></p>
+        <div class="actions end">
+          <button class="btn" type="button" onclick="this.closest('dialog').close()">Quay lại</button>
+          <button class="btn primary" id="confirmOk">Xác nhận</button>
+        </div>
+      </dialog>
+      <dialog id="proofViewer">
+        <h2>Ảnh bằng chứng</h2>
+        <div id="proofContent"></div>
+        <div class="actions end"><button class="btn" type="button" data-close-dialog>Đóng</button></div>
+      </dialog>
+    </template>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/farm-management.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/farm-management.js"></script>
+    <script src="../js/farmer-harvest-batches.js"></script>
+  </body>
+</html>

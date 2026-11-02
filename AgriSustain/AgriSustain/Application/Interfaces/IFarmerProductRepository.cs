@@ -17,6 +17,7 @@ public interface IFarmerProductRepository
     void RemoveImages(Product product);
     void Audit(long userId, string action, long? id, string? before, string after);
     ProductResponse Map(Product product);
+    Task SaveListingAsync(Product product, IUnitOfWork unitOfWork, CancellationToken ct) => unitOfWork.CommitAsync(ct);
     Task<PageResult<ProductResponse>> SearchOwnedAsync(long actorId, ProductQuery query, CancellationToken ct) => SearchAsync(actorId,query,ct);
     Task<Product?> LoadOwnedContextAsync(long actorId,long id,CancellationToken ct) => GetOwnedAsync(actorId,id,ct);
 }

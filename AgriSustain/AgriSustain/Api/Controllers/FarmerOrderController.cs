@@ -51,7 +51,7 @@ public sealed class FarmerOrderController(
     [HttpPost("{id:long}/reject")]
     public async Task<IActionResult> Reject(long id, [FromBody] OrderActionRequest request,
         CancellationToken cancellationToken) =>
-        Respond(await service.ProcessActionAsync(actor.UserId, id, "reject", request, cancellationToken));
+        Respond(await service.RejectOrderAsync(actor.UserId, id, request, cancellationToken));
 
     [HttpGet("{id:long}/packing-slip")]
     public async Task<IActionResult> PackingSlip(long id, CancellationToken cancellationToken) =>
