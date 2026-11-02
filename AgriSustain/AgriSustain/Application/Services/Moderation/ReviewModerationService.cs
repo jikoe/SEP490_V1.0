@@ -95,53 +95,49 @@ public interface IReviewModerationRepository
         long moderatorUserId, DateTime now, CancellationToken cancellationToken);
 }
 
-/// <summary>Automatic flag rules applied when a review is listed (UC-CM-02 Step 2).</summary>
-public static partial class ReviewFlagRules
+/// <summary>
+/// Automatic flag rules (UC-CM-02 Step 2). Only offensive content is flagged: vulgar or obscene language,
+/// regional discrimination, and reactionary / anti-state content. Low ratings, links or phone numbers are
+/// not violations by themselves.
+/// </summary>
+public static class ReviewFlagRules
 {
-    public const int SpamReviewLimit = 5;
-    public static readonly TimeSpan SpamWindow = TimeSpan.FromHours(24);
+    public const string Vulgar = "Ngôn từ thô tục";
+    public const string RegionalDiscrimination = "Phân biệt vùng miền";
+    public const string Reactionary = "Dấu hiệu phản động";
 
-    private static readonly string[] s_bannedWords =
+    private static readonly string[] s_vulgar =
     [
-        "đm", "dm", "vcl", "vkl", "vl", "cc", "clm", "đéo", "địt", "lồn", "cặc", "ngu như",
-        "fuck", "shit", "scam"
+        "đm", "dm", "đmm", "vcl", "vkl", "vl", "cc", "clm", "cl", "đéo", "địt", "lồn", "cặc", "buồi", "đĩ",
+        "óc chó", "ngu như chó", "mẹ mày", "con mẹ", "fuck", "shit", "bitch"
     ];
 
-    public static IReadOnlyList<string> Evaluate(
-        byte ratingStars, string? comment, int authorReviewsInWindow)
+    private static readonly string[] s_regional =
+    [
+        "bắc kỳ", "bắc kì", "nam kỳ", "nam kì", "trung kỳ", "trung kì", "parky", "nam cầy", "mọi rợ",
+        "dân thanh hóa", "thanh hoá ăn trộm", "dân nghệ", "rau muống", "bò đỏ", "dân rau muống"
+    ];
+
+    private static readonly string[] s_reactionary =
+    [
+        "lật đổ", "phản động", "đả đảo", "chế độ thối nát", "cộng phỉ", "ba que", "3 que", "việt tân",
+        "đảng cướp", "bọn cộng sản"
+    ];
+
+    public static IReadOnlyList<string> Evaluate(string? comment)
     {
         var reasons = new List<string>();
-        string text = comment?.Trim() ?? string.Empty;
-        if (text.Length > 0)
-        {
-            string lower = text.ToLowerInvariant();
-            if (s_bannedWords.Any(word => WordPattern(word).IsMatch(lower)))
-                reasons.Add("Chứa từ ngữ cấm");
-            if (PhonePattern().IsMatch(text))
-                reasons.Add("Chứa số điện thoại");
-            if (LinkPattern().IsMatch(lower))
-                reasons.Add("Chứa đường link");
-            if (ratingStars == 1)
-                reasons.Add("1 sao kèm bình luận");
-        }
-
-        if (authorReviewsInWindow > SpamReviewLimit)
-            reasons.Add($"Người viết đăng hơn {SpamReviewLimit} đánh giá trong 24 giờ");
+        string text = (comment ?? string.Empty).Trim().ToLowerInvariant();
+        if (text.Length == 0) return reasons;
+        if (ContainsAny(text, s_vulgar)) reasons.Add(Vulgar);
+        if (ContainsAny(text, s_regional)) reasons.Add(RegionalDiscrimination);
+        if (ContainsAny(text, s_reactionary)) reasons.Add(Reactionary);
         return reasons;
     }
 
-    /// <summary>Number of reviews the author posted in the 24 hours up to <paramref name="reviewDate"/>.</summary>
-    public static int CountInWindow(IEnumerable<DateTime> authorDates, DateTime reviewDate) =>
-        authorDates.Count(d => d <= reviewDate && reviewDate - d < SpamWindow);
-
-    private static Regex WordPattern(string word) =>
-        new($@"(^|[^\p{{L}}\p{{N}}]){Regex.Escape(word)}($|[^\p{{L}}\p{{N}}])", RegexOptions.CultureInvariant);
-
-    [GeneratedRegex(@"(\+84|0)[\s.\-]?\d{2,3}[\s.\-]?\d{3}[\s.\-]?\d{3,4}")]
-    private static partial Regex PhonePattern();
-
-    [GeneratedRegex(@"https?://|www\.|\b[a-z0-9-]+\.(com|vn|net|org|xyz|info|me|io)\b")]
-    private static partial Regex LinkPattern();
+    private static bool ContainsAny(string text, string[] words) =>
+        words.Any(word => Regex.IsMatch(text,
+            $@"(^|[^\p{{L}}\p{{N}}]){Regex.Escape(word)}($|[^\p{{L}}\p{{N}}])", RegexOptions.CultureInvariant));
 }
 
 public interface IReviewModerationService
@@ -260,17 +256,11 @@ public sealed class ReviewModerationService(
         return Result<ReviewDetailDto>.SuccessResult(await DetailAsync(updated!, cancellationToken));
     }
 
-    private async Task<List<ReviewListItemDto>> EvaluateAsync(
-        IReadOnlyList<ReviewRecord> rows, CancellationToken cancellationToken)
-    {
-        var dates = await repository.ReviewDatesAsync(rows.Select(r => r.UserId).Distinct().ToList(), cancellationToken);
-        var byUser = dates.GroupBy(d => d.UserId).ToDictionary(g => g.Key, g => g.Select(d => d.ReviewDate).ToList());
-        return rows.Select(r => new ReviewListItemDto(r.ProductReviewId, r.ProductName, r.ReviewerName,
+    private static Task<List<ReviewListItemDto>> EvaluateAsync(
+        IReadOnlyList<ReviewRecord> rows, CancellationToken cancellationToken) =>
+        Task.FromResult(rows.Select(r => new ReviewListItemDto(r.ProductReviewId, r.ProductName, r.ReviewerName,
             r.RatingStars, r.Comment, r.ReviewDate, r.ModerationStatus, r.IsReviewed,
-            ReviewFlagRules.Evaluate(r.RatingStars, r.Comment,
-                ReviewFlagRules.CountInWindow(byUser.GetValueOrDefault(r.UserId) ?? [], r.ReviewDate))))
-            .ToList();
-    }
+            ReviewFlagRules.Evaluate(r.Comment))).ToList());
 
     private async Task<ReviewDetailDto> DetailAsync(ReviewRecord row, CancellationToken cancellationToken)
     {

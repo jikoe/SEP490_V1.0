@@ -194,26 +194,26 @@ public sealed class ReviewModerationTests
     private ReviewModerationService Service() =>
         new(_repo, new FakeCurrentUser(9, "ContentModerator"), new FakeClock(new DateTimeOffset(Now)));
 
-    [Theory(DisplayName = "UTC-REV01 Flag rules: banned word, phone, link, 1 star with comment")]
-    [InlineData(5, "Hàng tốt, gọi 0912 345 678 nhé", "Chứa số điện thoại")]
-    [InlineData(5, "Mua rẻ hơn tại www.reshop.vn", "Chứa đường link")]
-    [InlineData(4, "shop vcl", "Chứa từ ngữ cấm")]
-    [InlineData(1, "Rau héo", "1 sao kèm bình luận")]
-    public void Flags(int stars, string comment, string expected) =>
-        Assert.Contains(expected, ReviewFlagRules.Evaluate((byte)stars, comment, 1));
+    [Theory(DisplayName = "UTC-REV01 Flag rules: vulgar language, regional discrimination, reactionary content")]
+    [InlineData("Shop vcl, giao hàng như hạch", ReviewFlagRules.Vulgar)]
+    [InlineData("Đúng là bọn bắc kỳ bán hàng", ReviewFlagRules.RegionalDiscrimination)]
+    [InlineData("Phải lật đổ cái chế độ này", ReviewFlagRules.Reactionary)]
+    public void Flags(string comment, string expected) =>
+        Assert.Contains(expected, ReviewFlagRules.Evaluate(comment));
 
-    [Fact(DisplayName = "UTC-REV02 Clean review has no flag; more than 5 reviews in 24h is flagged")]
-    public void SpamRule()
-    {
-        Assert.Empty(ReviewFlagRules.Evaluate(5, "Rau tươi, giao nhanh", 1));
-        Assert.Contains(ReviewFlagRules.Evaluate(5, "ok", 6), r => r.Contains("24 giờ"));
-    }
+    [Theory(DisplayName = "UTC-REV02 Negative but polite reviews, phone numbers and links are not flagged")]
+    [InlineData("Rau tươi, giao nhanh")]
+    [InlineData("Rau héo, giao trễ, rất thất vọng")]
+    [InlineData("Liên hệ 0912 345 678 để mua thêm")]
+    [InlineData("Xem thêm tại www.reshop.vn")]
+    [InlineData("")]
+    public void NotFlagged(string comment) => Assert.Empty(ReviewFlagRules.Evaluate(comment));
 
     [Fact(DisplayName = "UTC-REV03 Queue lists only flagged reviews not yet handled; clean reviews never enter it")]
     public async Task Tabs()
     {
         _repo.Add(1, 5, "Rau tươi", reviewed: false);
-        _repo.Add(2, 1, "Rau héo", reviewed: false);
+        _repo.Add(2, 1, "Rau héo, shop vcl", reviewed: false);
         _repo.Add(3, 5, "Ngon", reviewed: true);
 
         var result = await Service().ListAsync(new ReviewQuery(ReviewTabs.Flagged), default);
