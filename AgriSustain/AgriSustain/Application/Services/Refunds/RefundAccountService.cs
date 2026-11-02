@@ -14,6 +14,7 @@ public static class RefundAccountStates
     public const string AwaitingAccount = "AwaitingAccount";
     public const string ReadyForTransfer = "ReadyForTransfer";
     public const string TransferFailed = "TransferFailed";
+    public const string Transferring = "Transferring";
     public const string Completed = "Completed";
 }
 
@@ -164,7 +165,7 @@ public sealed class RefundAccountService(
         if (refund is null) return Result<MyRefundDetailDto>.FailureResult(NotFound());
 
         // Step 6 / MSG-RF-10: only a request that is still waiting for transfer can change account.
-        if (refund.RefundStatus != "Pending")
+        if (!IsEditable(refund.RefundStatus))
         {
             return Result<MyRefundDetailDto>.FailureResult(new Error("REFUND_LOCKED",
                 $"Yêu cầu hoàn tiền đang ở trạng thái {refund.RefundStatus}. Không thể thay đổi tài khoản nhận nữa.",
@@ -291,7 +292,7 @@ public sealed class RefundAccountService(
         string state = State(r);
         return new MyRefundDetailDto(
             r.RefundId, r.RefundCode, r.OrderCode, r.FarmName, r.Amount, r.Reason, r.RefundStatus, state,
-            CanEdit: r.RefundStatus == "Pending",
+            CanEdit: IsEditable(r.RefundStatus),
             LastFailureReason: state == RefundAccountStates.TransferFailed ? r.LastFailureReason : null,
             r.ApprovedAt,
             r.ReceiverAccountNumber is null ? null : new RefundReceiverDto(
@@ -303,13 +304,23 @@ public sealed class RefundAccountService(
             history);
     }
 
-    /// <summary>A failure recorded after the account was provided means the user must correct it.</summary>
-    public static string State(RefundRequestRecord r) =>
-        r.RefundStatus != "Pending" ? RefundAccountStates.Completed
-        : r.ReceiverAccountNumber is null ? RefundAccountStates.AwaitingAccount
-        : r.LastFailureAt is { } failed && (r.ReceiverAccountProvidedAt is null || failed > r.ReceiverAccountProvidedAt)
-            ? RefundAccountStates.TransferFailed
-            : RefundAccountStates.ReadyForTransfer;
+    /// <summary>
+    /// Maps the UC-FIN-03 refund status to what the customer sees. Pending and Failed can still take an
+    /// account; a failure recorded after the account was provided means the user must correct it.
+    /// Processing / NeedsReconciliation are locked while Finance waits for the bank.
+    /// </summary>
+    public static string State(RefundRequestRecord r) => r.RefundStatus switch
+    {
+        "Completed" or "Succeeded" or "Success" => RefundAccountStates.Completed,
+        "Processing" or "NeedsReconciliation" => RefundAccountStates.Transferring,
+        _ when r.ReceiverAccountNumber is null => RefundAccountStates.AwaitingAccount,
+        _ when r.LastFailureAt is { } failed && (r.ReceiverAccountProvidedAt is null || failed > r.ReceiverAccountProvidedAt)
+            => RefundAccountStates.TransferFailed,
+        _ => RefundAccountStates.ReadyForTransfer
+    };
+
+    /// <summary>Step 6: the account can change only before a transfer starts or after it failed.</summary>
+    public static bool IsEditable(string refundStatus) => refundStatus is "Pending" or "Failed";
 
     private Error? Caller() =>
         currentActor.UserId <= 0

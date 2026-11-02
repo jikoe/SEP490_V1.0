@@ -334,6 +334,17 @@ public sealed class RefundAccountStateTests
     public void Corrected() => Assert.Equal(RefundAccountStates.ReadyForTransfer, RefundAccountService.State(
         Record(number: "1023456789", provided: new DateTime(2026, 10, 30), failed: new DateTime(2026, 10, 29))));
 
+    [Theory(DisplayName = "UTC-RFA15 Transfer in progress is locked; a Failed transfer can be corrected")]
+    [InlineData("Processing", "Transferring", false)]
+    [InlineData("NeedsReconciliation", "Transferring", false)]
+    [InlineData("Failed", "TransferFailed", true)]
+    public void FinanceStatuses(string status, string state, bool editable)
+    {
+        var record = Record(status, "1023456789", provided: new DateTime(2026, 10, 28), failed: new DateTime(2026, 10, 29));
+        Assert.Equal(state, RefundAccountService.State(record));
+        Assert.Equal(editable, RefundAccountService.IsEditable(status));
+    }
+
     [Fact(DisplayName = "UTC-RFA04 Completed refund is read-only")]
     public void Completed() => Assert.Equal(RefundAccountStates.Completed, RefundAccountService.State(Record("Completed", "1023456789")));
 }
