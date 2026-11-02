@@ -6,13 +6,15 @@ namespace AgriSustain.Application.Services.Moderation;
 
 // UC-CM-02 Moderate Product Review.
 
+/// <summary>
+/// Post-moderation: a clean review is published at once and never enters the queue. The moderator only
+/// works on reviews the automatic rules flagged (Flagged = "Cần xử lý") and can restore hidden ones.
+/// </summary>
 public static class ReviewTabs
 {
-    public const string Unreviewed = "Unreviewed";
     public const string Flagged = "Flagged";
-    public const string Visible = "Visible";
     public const string Hidden = "Hidden";
-    public static readonly string[] All = [Unreviewed, Flagged, Visible, Hidden];
+    public static readonly string[] All = [Flagged, Hidden];
 }
 
 public static class ReviewStatuses
@@ -69,9 +71,9 @@ public sealed record ReviewDetailDto(
     bool IsReviewed,
     IReadOnlyList<string> FlagReasons);
 
-public sealed record ReviewQuery(string? Tab, string? Search, int Page = 1, int PageSize = 10);
+public sealed record ReviewQuery(string? Tab, int Page = 1, int PageSize = 10);
 
-public sealed record ReviewTabCounts(int Unreviewed, int Flagged, int Visible, int Hidden);
+public sealed record ReviewTabCounts(int Flagged, int Hidden);
 
 public sealed record ReviewListDto(
     IReadOnlyList<ReviewListItemDto> Items, int Total, int Page, int PageSize, ReviewTabCounts Counts);
@@ -164,37 +166,27 @@ public sealed class ReviewModerationService(
 
     public async Task<Result<ReviewListDto>> ListAsync(ReviewQuery query, CancellationToken cancellationToken)
     {
-        string tab = ReviewTabs.All.Contains(query.Tab) ? query.Tab! : ReviewTabs.Unreviewed;
+        string tab = ReviewTabs.All.Contains(query.Tab) ? query.Tab! : ReviewTabs.Flagged;
         int page = Math.Max(1, query.Page);
         int pageSize = Math.Clamp(query.PageSize, 1, 50);
 
         var rows = await repository.ListAsync(cancellationToken);
         var evaluated = await EvaluateAsync(rows, cancellationToken);
 
-        bool InTab(ReviewListItemDto r, string t) => t switch
-        {
-            ReviewTabs.Unreviewed => !r.IsReviewed && r.ModerationStatus != ReviewStatuses.Hidden,
-            ReviewTabs.Flagged => !r.IsReviewed && r.ModerationStatus != ReviewStatuses.Hidden && r.FlagReasons.Count > 0,
-            ReviewTabs.Hidden => r.ModerationStatus == ReviewStatuses.Hidden,
-            _ => r.ModerationStatus == ReviewStatuses.Visible
-        };
+        // Queue: flagged, still visible and not handled yet. Kept-visible reviews leave the queue.
+        bool InTab(ReviewListItemDto r, string t) => t == ReviewTabs.Hidden
+            ? r.ModerationStatus == ReviewStatuses.Hidden
+            : !r.IsReviewed && r.ModerationStatus != ReviewStatuses.Hidden && r.FlagReasons.Count > 0;
 
         var counts = new ReviewTabCounts(
-            evaluated.Count(r => InTab(r, ReviewTabs.Unreviewed)),
             evaluated.Count(r => InTab(r, ReviewTabs.Flagged)),
-            evaluated.Count(r => InTab(r, ReviewTabs.Visible)),
             evaluated.Count(r => InTab(r, ReviewTabs.Hidden)));
 
-        // AF1: search by product name or comment text.
-        string? search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
-        var filtered = evaluated.Where(r => InTab(r, tab))
-            .Where(r => search is null
-                || r.ProductName.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || (r.Comment?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false))
-            // Flagged reviews first, then the newest.
-            .OrderByDescending(r => r.FlagReasons.Count > 0)
-            .ThenByDescending(r => r.ReviewDate)
-            .ToList();
+        // Oldest first in the queue so nothing waits forever; newest first among hidden ones.
+        var inTab = evaluated.Where(r => InTab(r, tab));
+        var filtered = (tab == ReviewTabs.Flagged
+            ? inTab.OrderBy(r => r.ReviewDate)
+            : inTab.OrderByDescending(r => r.ReviewDate)).ToList();
 
         return Result<ReviewListDto>.SuccessResult(new ReviewListDto(
             filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList(),

@@ -209,17 +209,20 @@ public sealed class ReviewModerationTests
         Assert.Contains(ReviewFlagRules.Evaluate(5, "ok", 6), r => r.Contains("24 giờ"));
     }
 
-    [Fact(DisplayName = "UTC-REV03 Unreviewed and Flagged tabs list only reviews not yet moderated")]
+    [Fact(DisplayName = "UTC-REV03 Queue lists only flagged reviews not yet handled; clean reviews never enter it")]
     public async Task Tabs()
     {
         _repo.Add(1, 5, "Rau tươi", reviewed: false);
         _repo.Add(2, 1, "Rau héo", reviewed: false);
         _repo.Add(3, 5, "Ngon", reviewed: true);
 
-        var result = await Service().ListAsync(new ReviewQuery(ReviewTabs.Flagged, null), default);
+        var result = await Service().ListAsync(new ReviewQuery(ReviewTabs.Flagged), default);
 
-        Assert.Equal(new ReviewTabCounts(2, 1, 3, 0), result.Value!.Counts);
+        Assert.Equal(new ReviewTabCounts(1, 0), result.Value!.Counts);
         Assert.Equal(2, Assert.Single(result.Value.Items).ProductReviewId);
+
+        var byDefault = await Service().ListAsync(new ReviewQuery(null), default);
+        Assert.Equal(2, Assert.Single(byDefault.Value!.Items).ProductReviewId);
     }
 
     [Fact(DisplayName = "UTC-REV04 Hiding without a reason is blocked (AF3)")]
