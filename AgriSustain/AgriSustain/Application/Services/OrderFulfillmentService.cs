@@ -42,7 +42,7 @@ public sealed class OrderFulfillmentService(
     public async Task<FeatureResult<SellerOrderResponse>> GetAsync(long userId, long id,
         CancellationToken cancellationToken)
     {
-        var order = await repository.GetOwnedAsync(userId, id, cancellationToken);
+        var order = await repository.LoadOwnedContextAsync(userId, id, cancellationToken);
         return order is null ? Fail("NOT_FOUND", "Bạn không có quyền truy cập đơn hàng này hoặc thực hiện thao tác.")
             : FeatureResult<SellerOrderResponse>.Ok(repository.Map(order));
     }
@@ -92,7 +92,7 @@ public sealed class OrderFulfillmentService(
             return Fail("FORBIDDEN", "Bạn chưa có quyền xử lý đơn hàng. Hồ sơ nông trại phải được duyệt trước khi thực hiện thao tác.");
         }
 
-        var order = await repository.GetOwnedAsync(userId, id, cancellationToken);
+        var order = await repository.LoadOwnedContextAsync(userId, id, cancellationToken);
         if (order is null)
         {
             return Fail("NOT_FOUND", "Bạn không có quyền truy cập đơn hàng này hoặc thực hiện thao tác.");
@@ -151,16 +151,19 @@ public sealed class OrderFulfillmentService(
         switch (action)
         {
             case "confirm":
-                order.Status = "Confirmed";
+                ApplyAction(order, action, request.RequestKey);
                 break;
             case "ready":
-                order.Status = "ReadyToShip";
+                ApplyAction(order, action, request.RequestKey);
                 break;
             case "dispatch" or "start-shipping":
                 Dispatch(order, userId, request.RequestKey, now);
+                ApplyAction(order, action, request.RequestKey);
                 break;
             case "reject":
                 var trimmedReason = (request.Explanation ?? request.Reason)?.Trim() ?? "Farmer rejected order before dispatch";
+                ReleaseUndispatchedGoods(order, now);
+                order.Cancel(trimmedReason);
                 if (refundService is not null)
                 {
                     await refundService.RefundSellerShareOnceAsync(order, userId, trimmedReason,
@@ -169,8 +172,6 @@ public sealed class OrderFulfillmentService(
                 }
                 else if (rules.VerifiedPayment(order) > 0)
                     return Fail("UNAVAILABLE", "Dịch vụ hoàn tiền chưa sẵn sàng. Vui lòng thử lại.");
-                ReleaseUndispatchedGoods(order, now);
-                order.Status = "Cancelled";
                 await repository.ReleasePurchaseHoldsAsync(order, cancellationToken);
                 break;
             case "delivery-report":
@@ -253,7 +254,7 @@ public sealed class OrderFulfillmentService(
 
         }
 
-        await unitOfWork.CommitAsync(cancellationToken);
+        await repository.SaveFulfillmentAsync(order, unitOfWork, cancellationToken);
         return FeatureResult<SellerOrderResponse>.Ok(repository.Map(order));
     }
 
@@ -280,18 +281,16 @@ public sealed class OrderFulfillmentService(
         switch (action)
         {
             case "confirm":
-                order.Status = "Confirmed";
+                order.Confirm();
                 break;
             case "ready":
-                order.Status = "ReadyToShip";
+                order.MarkReadyToShip();
                 break;
             case "dispatch" or "start-shipping":
-                order.Status = "Shipping";
+                order.MarkShipping();
                 break;
             case "reject":
-                ReleaseUndispatchedGoods(order, now);
-                order.Status = "Cancelled";
-                break;
+                throw new InvalidOperationException("Use the validated rejection flow with a reason.");
         }
     }
 
@@ -363,7 +362,6 @@ public sealed class OrderFulfillmentService(
         }
 
         order.Shipments.Add(shipment);
-        order.Status = "Shipping";
     }
 
     private void ReportDelivery(SellerOrder order, long userId,

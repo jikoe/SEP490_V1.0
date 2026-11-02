@@ -19,13 +19,11 @@
         <div class="commerce">
           <div class="commerce-top">
             <div>
-              <p class="commerce-subtitle">Mua sắm · UC-RC-01</p>
+              <nav aria-label="Đường dẫn" class="commerce-subtitle"><a href="index.html">Trang chủ</a> / Giỏ hàng</nav>
               <h1 style="margin: 4px 0 6px; font-size: 26px; color: #103e2d;">Giỏ hàng của bạn</h1>
               <p class="muted" style="margin: 0;">Chọn sản phẩm muốn mua và kiểm tra thông tin trước khi thanh toán.</p>
             </div>
-            <button type="button" class="btn-back" onclick="window.location.href='index.html'" style="padding: 9px 16px; border: 1px solid #c7d8cc; border-radius: 8px; background: #fff; color: #1a5639; font-weight: 600; cursor: pointer;">
-              ← Tiếp tục mua sắm
-            </button>
+
           </div>
 
       <!-- Errors and Notices -->
@@ -59,8 +57,11 @@
       <div id="cart-content" class="commerce-grid" style="display: none;">
         <!-- Left: Cart Selection & Items by Farm -->
         <div>
+          <div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button type="button" class="btn-back" onclick="window.location.href='index.html'" style="padding: 9px 16px; border: 1px solid #c7d8cc; border-radius: 8px; background: #fff; color: #1a5639; font-weight: 600; cursor: pointer;">
+              ← Tiếp tục mua sắm
+            </button></div>
           <!-- Global Actions: Select All & Remove Selected -->
-          <div class="commerce-section commerce-actions" style="margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; padding: 16px 20px;">
+          <div class="commerce-section commerce-actions" style="margin-bottom: 18px; display: flex; flex-wrap:wrap; gap:12px; justify-content: space-between; align-items: center; padding: 16px 20px;">
             <label class="commerce-check" style="font-weight: 500; color: #23372d;">
               <input type="checkbox" id="check-all-available" onchange="handleToggleSelectAll(this.checked)">
               <span>Chọn tất cả sản phẩm có thể mua</span>
@@ -203,6 +204,7 @@
 
     function setBusy(val) {
       busy = val;
+      if (cart) renderCart();
       const btnProceed = document.getElementById('btn-proceed');
       if (btnProceed) {
         btnProceed.disabled = busy || !cart?.items?.length;
@@ -401,11 +403,12 @@
       const errBox = document.getElementById(`line-error-${cartItemId}`);
 
       if (!String(val).trim() || !Number.isFinite(number) || number <= 0 || number > 999999999 || Math.abs(ratio - Math.round(ratio)) > 1e-7) {
-        if (errBox) {
-          errBox.textContent = CART_MESSAGES.invalidQuantity(unit);
-          errBox.style.display = 'block';
+        renderCart(); // Restore the saved quantity before displaying the field error.
+        const refreshedError = document.getElementById(`line-error-${cartItemId}`);
+        if (refreshedError) {
+          refreshedError.textContent = CART_MESSAGES.invalidQuantity(unit);
+          refreshedError.style.display = 'block';
         }
-        renderCart(); // Reset input value to previous quantity
         return;
       }
 

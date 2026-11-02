@@ -30,7 +30,7 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
     public async Task<FeatureResult<ProductResponse>> SaveProductAsync(long userId, long? id,
         ProductRequest request, CancellationToken ct)
     {
-        var validation = await validator.ValidateAsync(request, ct);
+        var validation = await rules.ValidateSubmission(request, validator, ct);
         if (!validation.IsValid) return Invalid<ProductResponse>(validation);
         await unitOfWork.BeginAsync(ct);
         var farmer = await repository.GetFarmerAsync(userId, ct);
@@ -42,8 +42,8 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
             return await Abort("CONFLICT", ProductListingMessages.MSG122, ct);
         if (!await repository.IsCategoryActiveAsync(request.CategoryId, ct))
             return await Abort("VALIDATION", ProductListingMessages.Field("danh mục", "danh mục không hoạt động"), ct);
-        if (product is not null && product.Unit != request.Unit.Trim()
-            && await repository.IsUnitLockedAsync(product.ProductId, ct))
+        if (product is not null && !rules.EnsureUnitUnchanged(product, request,
+            await repository.IsUnitLockedAsync(product.ProductId, ct)))
             return await Abort("CONFLICT", ProductListingMessages.MSG79, ct);
         if (request.PriceOnly && (product is null || !rules.ValidatePriceChange(product, request)))
             return await Abort("VALIDATION", "Nội dung sản phẩm đã thay đổi. Vui lòng chọn Gửi duyệt để kiểm duyệt lại.", ct);
@@ -61,8 +61,7 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
             FarmerProfile = farmer, CreatedAt = clock.GetUtcNow().UtcDateTime };
         product.ProductName = request.ProductName.Trim(); product.CategoryId = request.CategoryId;
         product.Unit = request.Unit.Trim(); product.Description = request.Description.Trim();
-        product.BaseRetailPrice = request.BaseRetailPrice;
-        product.WholesaleMinQuantity = request.WholesaleMinQuantity; product.WholesalePrice = request.WholesalePrice;
+        product.UpdatePrices(request.BaseRetailPrice, request.WholesaleMinQuantity, request.WholesalePrice);
         if (contentChanged)
         {
             repository.RemoveImages(product);
@@ -81,13 +80,14 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
         }
         repository.Audit(userId, newProduct ? "SubmitListing" : resubmission ? "ResubmitListing" : "UpdateListing",
             product.ProductId, before, JsonSerializer.Serialize(request));
-        await unitOfWork.CommitAsync(ct);
+        await repository.SaveListingAsync(product, unitOfWork, ct);
         var response = await GetProductAsync(userId, product.ProductId, ct);
         return response.IsSuccess ? FeatureResult<ProductResponse>.Ok(response.Value! with
         {
             Message = newProduct || resubmission ? ProductListingMessages.MSG71 : ProductListingMessages.MSG72,
             NotificationPending = notificationPending,
-            NotificationMessage = notificationPending ? ProductListingMessages.MSG187 : null
+            NotificationMessage = notificationPending
+                ? "Sản phẩm đã được gửi duyệt. Email thông báo đang được xử lý; không cần gửi duyệt lại." : null
         }) : response;
     }
     public async Task<FeatureResult<ProductResponse>> SetVisibilityAsync(long userId, long id,
@@ -112,7 +112,7 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
         }
         product.SetVisibility(published);
         repository.Audit(userId, published ? "PublishListing" : "HideListing", id, null, published.ToString());
-        await unitOfWork.CommitAsync(ct);
+        await repository.SaveListingAsync(product, unitOfWork, ct);
         return FeatureResult<ProductResponse>.Ok(repository.Map(product));
     }
     private async Task<FeatureResult<ProductResponse>> Abort(string code, string message, CancellationToken ct)

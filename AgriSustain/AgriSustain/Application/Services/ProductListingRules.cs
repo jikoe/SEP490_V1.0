@@ -4,6 +4,11 @@ namespace AgriSustain.Application.Services;
 
 public sealed class ProductListingRules
 {
+    public Task<FluentValidation.Results.ValidationResult> ValidateSubmission(
+        ProductRequest input, FluentValidation.IValidator<ProductRequest> validator, CancellationToken ct) =>
+        validator.ValidateAsync(input, ct);
+    public bool EnsureUnitUnchanged(Product product, ProductRequest input, bool unitLocked) =>
+        !unitLocked || product.Unit == input.Unit.Trim();
     public bool HasContentChanged(Product product, ProductRequest input) =>
         product.ProductName != input.ProductName.Trim() || product.CategoryId != input.CategoryId
         || product.Unit != input.Unit.Trim() || (product.Description ?? "") != input.Description.Trim()

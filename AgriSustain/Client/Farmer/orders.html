@@ -50,11 +50,12 @@
             </button>
           </nav>
 
-          <div id="orders-feedback" class="feedback" style="display:none;" role="status"></div>
+          <section aria-label="Thông báo" id="orders-feedback-section" style="display:none;margin-bottom:16px"><strong>Thông báo</strong><div id="orders-feedback" class="feedback" role="status"></div></section>
 
           <!-- ================= VIEW 1: LIST ================= -->
           <div id="view-list" class="view">
             <div class="field">
+              <label>Tìm kiếm và bộ lọc</label>
               <form class="filter-row order-filters" onsubmit="handleApplyFilters(event)">
                 <div class="filter-field filter-keyword">
                   <label for="orderKeyword">Tìm kiếm</label>
@@ -162,7 +163,7 @@
                         <strong>Tổng thanh toán: <span id="dt-final-amount">0 ₫</span></strong>
                         <br />
                         <span id="dt-payment-status" style="color: #176d40; font-weight: 600;">
-                          Đã xác minh thanh toán · Đã giữ đủ hàng
+                          Đang kiểm tra thanh toán và phân bổ hàng
                         </span>
                       </div>
                     </div>
@@ -265,7 +266,7 @@
                   <br />
                   Tài khoản nhận tiền: <strong id="rf-account-num">Chưa có thông tin</strong> · <span id="rf-recipient-name">Khách hàng</span>
                   <h3 id="rf-amount-heading" style="margin: 8px 0; color: #173b24;">Số tiền hoàn: 0 ₫</h3>
-                  <span id="rf-status-pill" class="pill">Chờ hoàn tiền</span>
+                  <span id="rf-status-pill" class="pill">—</span>
                   <p style="margin: 8px 0 0; font-size: 12px; color: #556c5e;">
                     Số tiền được tự động hoàn vào tài khoản nhận tiền đã xác thực. Thông báo hệ thống và email được gửi sau khi hoàn tiền hoàn tất.
                   </p>
@@ -321,6 +322,8 @@
     let ordersList = [];
     let selectedOrder = null;
     let totalRecords = 0;
+    let currentPage = 1;
+    let actionBusy = false;
 
     const statusMap = {
       Pending: 'Chờ xác nhận',
@@ -354,10 +357,12 @@
         fb.textContent = msg;
         fb.className = `feedback ${bad ? 'bad' : ''}`;
         fb.style.display = 'block';
-        setTimeout(() => { fb.style.display = 'none'; }, 5000);
+        document.getElementById('orders-feedback-section').style.display = 'block';
+
         Utils.showToast(msg, bad ? 'error' : 'success');
       } else {
         fb.style.display = 'none';
+        document.getElementById('orders-feedback-section').style.display = 'none';
       }
     }
 
@@ -374,7 +379,8 @@
       }
     }
 
-    async function loadOrders() {
+    async function loadOrders(page = 1) {
+      currentPage = page;
       const keyword = document.getElementById('orderKeyword').value.trim();
       const statusFilter = document.getElementById('orderStatus').value;
       const fromDate = document.getElementById('fromDate').value;
@@ -390,7 +396,11 @@
       const tbody = document.getElementById('orders-tbody');
       tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 24px; color: #62766a;">Đang tải dữ liệu đơn hàng…</td></tr>';
 
-      const params = { page: 1, pageSize: 10 };
+      if (fromDate && toDate && fromDate > toDate) {
+        setFeedback("Ngày bắt đầu không được sau ngày kết thúc.", true);
+        return;
+      }
+      const params = { page: currentPage, pageSize: 10 };
       if (keyword) params.keyword = keyword;
       if (apiStatus) params.status = apiStatus;
       if (fromDate) params.from = fromDate;
@@ -420,7 +430,7 @@
           totalRecords = 0;
           selectedOrder = null;
           renderOrdersTable([]);
-          setFeedback(res.error || 'Không có đơn hàng nào phù hợp với bộ lọc.', false);
+          setFeedback(res.error || 'Không thể tải dữ liệu. Vui lòng thử lại.', true);
         }
       } catch (err) {
         ordersList = [];
@@ -435,7 +445,7 @@
       const tbody = document.getElementById('orders-tbody');
       if (!items || items.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 24px; color: #718276;">Không có đơn hàng phù hợp với điều kiện đã chọn.</td></tr>';
-        document.getElementById('pagination-info').textContent = 'Hiển thị 0 trong 0 bản ghi · 10 bản ghi/trang';
+        renderOrderPager();
         return;
       }
 
@@ -484,15 +494,27 @@
         `;
       }).join('');
 
-      document.getElementById('pagination-info').textContent = `Hiển thị 1–${items.length} trong ${totalRecords} bản ghi · 10 bản ghi/trang`;
+      renderOrderPager();
     }
 
-    function openOrder(orderId, targetView = 'detail') {
-      const ord = ordersList.find(x => (x.sellerOrderId || x.id) === orderId);
-      if (ord) {
-        selectedOrder = ord;
-        switchView(targetView);
+    function renderOrderPager() {
+      const pages = Math.max(1, Math.ceil(totalRecords / 10));
+      const first = totalRecords ? (currentPage - 1) * 10 + 1 : 0;
+      document.getElementById('pagination-info').textContent = `Hiển thị ${first}–${Math.min(currentPage * 10, totalRecords)} trong ${totalRecords} bản ghi · 10 bản ghi/trang`;
+      document.getElementById('pagination-controls').innerHTML = `
+        <button type="button" ${currentPage <= 1 ? 'disabled' : ''} onclick="loadOrders(${currentPage - 1})">‹</button>
+        <button type="button" class="active">${currentPage} / ${pages}</button>
+        <button type="button" ${currentPage >= pages ? 'disabled' : ''} onclick="loadOrders(${currentPage + 1})">›</button>`;
+    }
+
+    async function openOrder(orderId, targetView = 'detail') {
+      const res = await API.getFarmerOrderDetail(orderId);
+      if (!res.success || !res.data) {
+        setFeedback(res.error || 'Không thể tải dữ liệu. Vui lòng thử lại.', true);
+        return;
       }
+      selectedOrder = res.data;
+      switchView(targetView);
     }
 
     function populateDetailView(o) {
@@ -524,9 +546,9 @@
         <div style="margin-bottom: 8px;">
           <strong>${Utils.escapeHtml(it.productName)}</strong> · ${it.quantity} ${it.unit}
           <br />
-          Đơn giá: ${Utils.formatVND(it.unitPrice)}/${it.unit} · Tiền hàng: ${Utils.formatVND(it.subtotal || it.quantity * it.unitPrice)}
+          Đơn giá: ${Utils.formatVND(it.unitPrice)}/${it.unit} · Tiền hàng: ${Utils.formatVND(it.lineAmount ?? it.subtotal ?? it.quantity * it.unitPrice)}
           <br />
-          Lô: ${it.allocations?.[0]?.batchCode || 'Lô thu hoạch nông trại'} · Hạn sử dụng: ${it.allocations?.[0]?.expirationDate || 'Đạt chuẩn'}
+          ${(it.allocations || []).map(a => `Lô: ${Utils.escapeHtml(a.batchCode || '—')} · Hạn sử dụng: ${Utils.escapeHtml(a.expirationDate || '—')}`).join('<br>') || 'Chưa có lô hàng được phân bổ'}
         </div>
       `).join('');
 
@@ -538,14 +560,14 @@
         ? 'Đã giải phóng hàng giữ chỗ'
         : ['Shipping', 'InTransit'].includes(o.status)
           ? 'Đã xuất giao hàng'
-          : 'Đã giữ đủ hàng';
+          : o.canConfirm || o.canMarkReady || o.canDispatch ? 'Đã có phân bổ hàng hợp lệ' : 'Cần kiểm tra thanh toán và phân bổ hàng';
       document.getElementById('dt-payment-status').textContent = `${o.paymentStatus === 'Paid' ? 'Đã xác minh thanh toán' : 'Chưa có thanh toán'} · ${statusDesc}`;
 
       // Buttons active/disabled states
-      document.getElementById('btn-confirm-order').disabled = (o.status !== 'Pending');
-      document.getElementById('btn-ready-order').disabled = !['Confirmed', 'Preparing'].includes(o.status);
-      document.getElementById('btn-dispatch-order').disabled = !['ReadyToShip', 'Ready'].includes(o.status);
-      document.getElementById('btn-goto-reject').disabled = !isBeforeShipping(o.status);
+      document.getElementById('btn-confirm-order').disabled = (actionBusy || !o.canConfirm);
+      document.getElementById('btn-ready-order').disabled = actionBusy || !o.canMarkReady;
+      document.getElementById('btn-dispatch-order').disabled = actionBusy || !o.canDispatch;
+      document.getElementById('btn-goto-reject').disabled = actionBusy || !o.canReject;
 
       // Timeline
       const timelineContainer = document.getElementById('dt-timeline');
@@ -571,67 +593,88 @@
       document.getElementById('rf-account-num').textContent = o.bankAccount || 'Chưa có thông tin';
       document.getElementById('rf-recipient-name').textContent = o.bankAccountName || o.recipientName || 'Khách hàng';
       document.getElementById('rf-amount-heading').textContent = `Số tiền hoàn: ${Utils.formatVND(o.isRefunded ? o.refundedAmount : o.refundableAmount)}`;
-      document.getElementById('rf-status-pill').textContent = o.isRefunded ? 'Đã hoàn tiền' : (o.refundableAmount > 0 ? 'Chờ hoàn tiền' : 'Không có khoản cần hoàn');
-      document.getElementById('btn-submit-reject').disabled = !isBeforeShipping(o.status);
+      document.getElementById('rf-status-pill').textContent = o.isRefunded ? 'Đã hoàn tiền' : (o.refundableAmount > 0 ? 'Tài khoản đã xác thực' : 'Không có khoản cần hoàn');
+      document.getElementById('btn-submit-reject').disabled = actionBusy || !o.canReject;
+    }
+
+    function showActionFeedback(message, order) {
+      renderOrdersTable(ordersList);
+      setFeedback(message + (order.notificationPending
+        ? ' Thông báo hệ thống hoặc email đang chờ gửi; hệ thống sẽ tiếp tục xử lý, không cần thực hiện lại thao tác.' : ''));
     }
 
     async function confirmCurrentOrder() {
-      if (!selectedOrder) return;
+      if (!selectedOrder || actionBusy) return;
       if (!confirm(Messages.order.confirmPacking)) return;
+      actionBusy = true;
+      populateDetailView(selectedOrder);
       try {
         const res = await API.confirmFarmerOrder(selectedOrder.sellerOrderId || selectedOrder.id, selectedOrder.version || '1');
         if (res.success && res.data) {
           selectedOrder = res.data;
           ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
           populateDetailView(selectedOrder);
-          setFeedback('Xác nhận đơn hàng thành công! Vui lòng tiến hành đóng gói sản phẩm.');
+          showActionFeedback('Đã xác nhận đơn hàng.', selectedOrder);
         } else {
           setFeedback(res.error || 'Xác nhận đơn hàng thất bại.', true);
         }
       } catch (err) {
         setFeedback(err.message || 'Lỗi khi gọi API xác nhận đơn hàng.', true);
+      } finally {
+        actionBusy = false;
+        populateDetailView(selectedOrder);
       }
     }
 
     async function readyCurrentOrder() {
-      if (!selectedOrder) return;
+      if (!selectedOrder || actionBusy) return;
       if (!confirm(Messages.order.readyToShip)) return;
+      actionBusy = true;
+      populateDetailView(selectedOrder);
       try {
         const res = await API.readyFarmerOrder(selectedOrder.sellerOrderId || selectedOrder.id, selectedOrder.version || '1');
         if (res.success && res.data) {
           selectedOrder = res.data;
           ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
           populateDetailView(selectedOrder);
-          setFeedback(`Đơn hàng ${selectedOrder.sellerOrderCode} đã sẵn sàng để giao hàng.`);
+          showActionFeedback('Đơn hàng sẵn sàng giao.', selectedOrder);
         } else {
           setFeedback(res.error || 'Thao tác không thành công.', true);
         }
       } catch (err) {
         setFeedback(err.message || 'Lỗi khi đánh dấu sẵn sàng giao.', true);
+      } finally {
+        actionBusy = false;
+        populateDetailView(selectedOrder);
       }
     }
 
     async function dispatchCurrentOrder() {
-      if (!selectedOrder) return;
+      if (!selectedOrder || actionBusy) return;
       if (!confirm(Messages.order.startShipping)) return;
+      actionBusy = true;
+      populateDetailView(selectedOrder);
       try {
         const res = await API.dispatchFarmerOrder(selectedOrder.sellerOrderId || selectedOrder.id, selectedOrder.version || '1');
         if (res.success && res.data) {
           selectedOrder = res.data;
           ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
           populateDetailView(selectedOrder);
-          setFeedback('Bắt đầu giao hàng mô phỏng thành công. Đơn hàng hiện đang trong trạng thái Đang giao hàng.');
+          showActionFeedback('Đã bắt đầu giao hàng mô phỏng.', selectedOrder);
         } else {
           setFeedback(res.error || 'Bắt đầu giao hàng thất bại.', true);
         }
       } catch (err) {
         setFeedback(err.message || 'Lỗi khi gọi API giao hàng mô phỏng.', true);
+      } finally {
+        actionBusy = false;
+        populateDetailView(selectedOrder);
       }
     }
 
     async function handleRejectSubmit(e) {
       e.preventDefault();
-      if (!selectedOrder) return;
+      if (!selectedOrder || actionBusy) return;
       const reason = document.getElementById('rejectionReasonInput').value.trim();
       if (!reason) {
         setFeedback('Vui lòng nhập lý do từ chối. Không được để trống hoặc chỉ nhập khoảng trắng.', true);
@@ -643,13 +686,17 @@
       const btn = document.getElementById('btn-submit-reject');
       btn.disabled = true;
       btn.textContent = 'Đang xử lý…';
+      actionBusy = true;
+      populateDetailView(selectedOrder);
 
       try {
         const res = await API.rejectFarmerOrder(selectedOrder.sellerOrderId || selectedOrder.id, reason, selectedOrder.version || '1');
         if (res.success && res.data) {
           selectedOrder = res.data;
           ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
-          setFeedback(`Đã từ chối đơn hàng ${selectedOrder.sellerOrderCode}. Hệ thống đã gửi thông báo hoàn tiền.`);
+          showActionFeedback(selectedOrder.isRefunded
+            ? `Đã từ chối đơn hàng và hoàn ${Utils.formatVND(selectedOrder.refundedAmount)} vào tài khoản nhận tiền của RetailCustomer.`
+            : 'Đã từ chối đơn hàng. Không có khoản tiền cần hoàn.', selectedOrder);
           switchView('detail');
         } else {
           setFeedback(res.error || 'Từ chối đơn hàng thất bại.', true);
@@ -657,28 +704,36 @@
       } catch (err) {
         setFeedback(err.message || 'Lỗi khi từ chối đơn hàng.', true);
       } finally {
-        btn.disabled = false;
+        actionBusy = false;
+        populateDetailView(selectedOrder);
         btn.textContent = 'Xác nhận từ chối';
       }
     }
 
-    function printOrderSlip() {
+    async function printOrderSlip() {
       if (!selectedOrder) return;
-      const o = selectedOrder;
       const popup = window.open('', '_blank', 'width=1000,height=760');
       if (!popup) {
         alert(Messages.order.popupBlockedNotice);
         return;
       }
 
+      const res = await API.getPackingSlip(selectedOrder.sellerOrderId);
+      if (!res.success || !res.data) {
+        popup.close();
+        setFeedback(res.error || 'Không thể tải phiếu in. Vui lòng thử lại.', true);
+        return;
+      }
+      const o = res.data;
       const itemRows = (o.items || []).map(it => `
         <tr>
           <td>${Utils.escapeHtml(it.productName)}</td>
           <td>${Utils.escapeHtml(it.unit)}</td>
           <td>${it.quantity}</td>
           <td>${Utils.formatVND(it.unitPrice)}</td>
-          <td>${Utils.formatVND(it.subtotal || it.quantity * it.unitPrice)}</td>
-          <td>${it.allocations?.[0]?.batchCode || '—'}</td>
+          <td>${Utils.formatVND(it.lineAmount ?? it.subtotal ?? it.quantity * it.unitPrice)}</td>
+          <td>${Utils.escapeHtml(it.batchCode || '—')}</td>
+          <td>${Utils.escapeHtml(it.expirationDate || '—')}</td>
         </tr>
       `).join('');
 
@@ -702,22 +757,23 @@
       <body>
         <h1>AgriSustain · Phiếu đóng gói / Giao nhận hàng</h1>
         <h2>${Utils.escapeHtml(o.sellerOrderCode)}</h2>
-        <p><strong>Đơn tổng:</strong> ${Utils.escapeHtml(o.orderCode)} · <strong>Ngày đặt:</strong> ${Utils.formatDateTime(o.orderDate)}</p>
+        <p><strong>Đơn tổng:</strong> ${Utils.escapeHtml(o.masterOrderCode)} · <strong>Ngày đặt:</strong> ${Utils.formatDateTime(o.orderDate)}</p>
         <p><strong>Người nhận:</strong> ${Utils.escapeHtml(o.recipientName)} · <strong>Điện thoại:</strong> ${Utils.escapeHtml(o.recipientPhone)}</p>
         <p><strong>Địa chỉ giao:</strong> ${Utils.escapeHtml(o.shippingAddress)}</p>
         <table>
           <thead>
             <tr>
-              <th>Sản phẩm</th><th>Đơn vị</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th>Mã lô</th>
+              <th>Sản phẩm</th><th>Đơn vị</th><th>Số lượng</th><th>Đơn giá</th><th>Thành tiền</th><th>Mã lô</th><th>Hạn sử dụng</th>
             </tr>
           </thead>
           <tbody>
-            ${itemRows || '<tr><td colspan="6">Không có dữ liệu hàng hóa</td></tr>'}
+            ${itemRows || '<tr><td colspan="7">Không có dữ liệu hàng hóa</td></tr>'}
           </tbody>
         </table>
         <div class="right">
           <p>Tiền hàng: ${Utils.formatVND(o.subtotal || 0)}</p>
           <p>Phí giao hàng: ${Utils.formatVND(o.deliveryFee || 0)}</p>
+          <p>Mã giảm giá: ${Utils.escapeHtml(o.voucherCode || 'Không áp dụng')}</p>
           <p>Giảm giá phân bổ: −${Utils.formatVND(o.discountShare || 0)}</p>
           <h3>Tổng thanh toán: ${Utils.formatVND(o.finalAmount || 0)}</h3>
         </div>
@@ -736,6 +792,7 @@
       popup.document.close();
       popup.focus();
       popup.print();
+      setFeedback("Phiếu đóng gói đã sẵn sàng in.");
     }
 
     function handleApplyFilters(e) {
