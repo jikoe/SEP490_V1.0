@@ -84,9 +84,10 @@ builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDevelopment", policy =>
-        policy.WithOrigins("http://127.0.0.1:5173", "http://localhost:5173")
+        policy.SetIsOriginAllowed(origin => true)
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
 
 // Standard Repositories and UnitOfWork
@@ -106,6 +107,7 @@ builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<AgriSustain.Infrastructure.Payments.BankTransferReconciler>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<CartPricingService>();
@@ -174,6 +176,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseCors("FrontendDevelopment");
 app.UseMiddleware<FeatureExceptionMiddleware>();
 app.Use(async (context, next) =>
 {
@@ -182,22 +185,35 @@ app.Use(async (context, next) =>
 });
 var publicRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
 Directory.CreateDirectory(publicRoot);
+var sourceImgDir = Path.Combine(publicRoot, "img");
+var targetMediaImgDir = Path.Combine(publicRoot, "media", "img");
+if (Directory.Exists(sourceImgDir))
+{
+    Directory.CreateDirectory(targetMediaImgDir);
+    foreach (var filePath in Directory.GetFiles(sourceImgDir))
+    {
+        var destFilePath = Path.Combine(targetMediaImgDir, Path.GetFileName(filePath));
+        if (!File.Exists(destFilePath))
+        {
+            File.Copy(filePath, destFilePath);
+        }
+    }
+}
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(publicRoot)
 });
-app.MapGet("/health", () => new { persistence = "SqlServer" });
+app.MapGet("/health", () => new { persistence = "SqlServer" }).RequireCors("FrontendDevelopment");
 app.MapGet("/health/database", async (AgriSustainContext database, CancellationToken cancellationToken) =>
 {
     bool connected = await database.Database.CanConnectAsync(cancellationToken);
     return connected ? Results.Ok(new { connected }) : Results.Json(new { connected }, statusCode: 503);
-});
+}).RequireCors("FrontendDevelopment");
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/users")
     || context.Request.Path.StartsWithSegments("/api/categories")
     || context.Request.Path.StartsWithSegments("/api/checkout"), branch =>
         branch.UseMiddleware<ExceptionMiddleware>());
 
-app.UseCors("FrontendDevelopment");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ActiveFeatureAccountMiddleware>();

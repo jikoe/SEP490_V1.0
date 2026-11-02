@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { request, queryString } from '../../api/client';
 import { Field, Notice, Pager, ProductThumbnail, localTime, money } from '../../components/ui/Common';
 import { Confirm, Empty, Errors, Status, Uploads, orderStatus, useFeatureData } from '../Commerce/Shared';
+import { safeUuid } from '../../utils/uuid';
 
 const initial = { keyword: '', status: '', orderType: '', paymentStatus: '', from: '', to: '', page: 1 };
 const actionNames = { confirm: 'Xác nhận đơn', ready: 'Đánh dấu sẵn sàng giao',
@@ -114,7 +115,7 @@ function OrderDetail({ id, navigate, tab }) {
     if (action === 'evidence' && (!requestId || response.trim().length < 15 || !responseFiles.length)) {
       state.setError(new Error('Chọn yêu cầu, nhập giải trình ít nhất 15 ký tự và tải bằng chứng.')); return;
     }
-    setPending({ action, requestKey: crypto.randomUUID() });
+    setPending({ action, requestKey: safeUuid() });
   }
   async function perform() {
     setBusy(true); state.setError(null);

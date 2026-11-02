@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { requestUseCase as request } from '../../api/client';
 import { Modal, Notice, localTime, money } from '../../components/ui/Common';
+import { safeUuid } from '../../utils/uuid';
 import './checkout.css';
 
 const emptyAddress = { recipientName: '', phone: '', provinceCode: '', province: '',
   districtCode: '', district: '', wardCode: '', ward: '', detail: '', catalogVersion: '' };
-const initial = { address: emptyAddress, deliveryMethod: 'Standard', paymentMethod: 'PayOS',
+const initial = { address: emptyAddress, deliveryMethod: 'Standard', paymentMethod: 'SePay',
   voucherCode: '', points: 0, notes: '' };
 // Written only after the buyer confirms. The older keys were written on every quote, so they are
 // dropped rather than resumed: resuming them could place an order nobody confirmed.
@@ -20,9 +21,17 @@ const methods = [
   { value: 'FreshExpress', title: 'Giao nhanh nông sản', desc: 'Dịch vụ Nhanh / Hỏa tốc' },
 ];
 const payments = [
-  { value: 'PayOS', title: 'PayOS', desc: 'Chuyển khoản qua cổng PayOS' },
-  { value: 'VietQR', title: 'VietQR', desc: 'Quét mã bằng ứng dụng ngân hàng' },
+  {
+    value: 'SePay',
+    title: 'Chuyển khoản ngân hàng (SePay)',
+    desc: 'Quét mã QR bằng app ngân hàng hoặc ví điện tử, SePay tự xác nhận khi tiền về.',
+    badge: 'Tự động duyệt'
+  },
 ];
+const transferMethods = ['SePay', 'VietQR'];
+const paymentPath = (order) => `/payment?orderCode=${encodeURIComponent(order.code)}&amount=${order.total}`
+  + `&method=${encodeURIComponent(order.paymentMethod || 'SePay')}&orderId=${encodeURIComponent(order.code)}`
+  + `&expiresAt=${encodeURIComponent(order.reservationExpiresAt || '')}`;
 
 const trustedCatalog = 'goship-v2';
 
@@ -275,8 +284,12 @@ export default function CheckoutScreen({ navigate }) {
     let pending = retry ? readJson(attemptStorage) : null;
     if (!pending) {
       if (retry) { setRecovering(false); return; }
-      if (!fresh) return;
-      pending = { quoteId: quote.id, requestKey: crypto.randomUUID(), confirmed: true };
+      if (!fresh || !quote) {
+        setPlaceError({ message: 'Bản tính giá đang được cập nhật lại, vui lòng thử lại sau giây lát...', retry: true });
+        setQuoteRefresh((value) => value + 1);
+        return;
+      }
+      pending = { quoteId: quote.id, requestKey: safeUuid(), confirmed: true };
       sessionStorage.setItem(attemptStorage, JSON.stringify(pending));
       sessionStorage.setItem(quoteStorage, JSON.stringify(quote));
     }
@@ -287,13 +300,16 @@ export default function CheckoutScreen({ navigate }) {
       if (placedQuote) setQuote(placedQuote);
       setOrder(result); setConfirm(false);
       sessionStorage.removeItem(attemptStorage); sessionStorage.removeItem(quoteStorage);
+      if (result && (result.status === 'PendingPayment' || transferMethods.includes(result.paymentMethod))) {
+        navigate(paymentPath(result));
+      }
     } catch (failure) {
       // Without an HTTP status the outcome is unknown: keep the key so "Thử lại" stays idempotent.
       const unknown = !failure.status;
       if (!unknown) { sessionStorage.removeItem(attemptStorage); sessionStorage.removeItem(quoteStorage); }
       setPlaceError({ message: failure.message, retry: unknown });
       if (['MSG88', 'MSG118', 'QUOTE_EXPIRED'].includes(failure.code)) {
-        setConfirm(false); setQuoteRefresh((value) => value + 1);
+        setQuoteRefresh((value) => value + 1);
       }
     } finally { inFlight.current = false; setBusy(false); setRecovering(false); }
   }
@@ -336,9 +352,37 @@ export default function CheckoutScreen({ navigate }) {
         <dt>Hạn giữ hàng</dt><dd>{localTime(order.reservationExpiresAt)}</dd>
         <dt><strong>Số tiền cần thanh toán</strong></dt><dd><strong>{money(order.total)}</strong></dd></dl>
       <Notice>{order.message}</Notice>
+      {(order.status === 'PendingPayment' || transferMethods.includes(order.paymentMethod)) && (
+        <div style={{ background: '#eaf5ee', border: '1px solid #c2e2cc', borderRadius: 8, padding: '16px', margin: '16px 0', textAlign: 'center' }}>
+          <p style={{ margin: '0 0 8px 0', fontWeight: 600, color: '#1e6546', fontSize: 16 }}>
+            Đơn hàng đang chờ thanh toán qua {order.paymentMethod || 'SePay'}
+          </p>
+          <p style={{ margin: '0 0 16px 0', color: '#4a5568', fontSize: 14 }}>
+            Vui lòng nhấn &quot;Thanh toán ngay&quot; để quét mã QR chuyển khoản ngân hàng.
+          </p>
+          <button
+            type="button"
+            className="primary"
+            style={{ background: '#1e6546', fontSize: 16, padding: '12px 28px', cursor: 'pointer', fontWeight: 600 }}
+            onClick={() => navigate(paymentPath(order))}
+          >
+            💳 Thanh toán ngay bằng mã QR
+          </button>
+        </div>
+      )}
       <div className="co-actions">
-        <button className="primary" onClick={() => navigate('/retail/orders')}>Theo dõi đơn hàng</button>
-        <button onClick={() => navigate('/cart')}>Xem giỏ hàng còn lại</button>
+        {(order.status === 'PendingPayment' || transferMethods.includes(order.paymentMethod)) && (
+          <button
+            type="button"
+            className="primary"
+            style={{ background: '#1e6546' }}
+            onClick={() => navigate(paymentPath(order))}
+          >
+            Thanh toán ngay
+          </button>
+        )}
+        <button type="button" onClick={() => navigate('/retail/orders')}>Theo dõi đơn hàng</button>
+        <button type="button" onClick={() => navigate('/cart')}>Xem giỏ hàng còn lại</button>
       </div>
     </div></div></section>;
 
@@ -414,8 +458,13 @@ export default function CheckoutScreen({ navigate }) {
             {methods.map((method) => <button key={method.value} type="button" className="co-choice"
               aria-pressed={form.deliveryMethod === method.value}
               onClick={() => update('deliveryMethod', method.value)}>
-              <span className="co-choice-row"><span className="co-choice-title">{method.title}</span>
-                <span className="co-choice-price">{methodPrice(method.value)}</span></span>
+              <span className="co-choice-row">
+                <span className="co-choice-title">
+                  <span className="co-radio-dot" aria-hidden="true" />
+                  {method.title}
+                </span>
+                <span className="co-choice-price">{methodPrice(method.value)}</span>
+              </span>
               <span className="co-choice-desc">{method.desc}</span>
             </button>)}
           </div>
@@ -442,11 +491,17 @@ export default function CheckoutScreen({ navigate }) {
 
         <fieldset className="co-card" disabled={busy}>
           <legend className="co-head"><span className="co-num">4</span>Thanh toán</legend>
-          <div className="co-grid-2">
+          <div className={payments.length > 1 ? "co-grid-2" : "co-grid-1"}>
             {payments.map((payment) => <button key={payment.value} type="button" className="co-choice"
               aria-pressed={form.paymentMethod === payment.value}
               onClick={() => update('paymentMethod', payment.value)}>
-              <span className="co-choice-title">{payment.title}</span>
+              <span className="co-choice-row">
+                <span className="co-choice-title">
+                  <span className="co-radio-dot" aria-hidden="true" />
+                  {payment.title}
+                </span>
+                {payment.badge && <span className="co-choice-badge">{payment.badge}</span>}
+              </span>
               <span className="co-choice-desc">{payment.desc}</span>
             </button>)}
           </div>
@@ -531,13 +586,15 @@ export default function CheckoutScreen({ navigate }) {
         <button type="button" className="text-button co-back" onClick={() => navigate('/cart')}>← Quay lại giỏ hàng</button>
       </div></aside>
     </div>}
-    {confirm && fresh && <Modal title="Xác nhận đặt đơn bán lẻ"
+    {confirm && <Modal title="Xác nhận đặt đơn bán lẻ"
       onClose={() => { if (!busy) setConfirm(false); }}>
-      <p>Đặt đơn {money(quote.total)} giao đến {recipient.recipientName} ({recipient.phone}) và giữ hàng để thanh toán?</p>
+      <p>Đặt đơn {quote ? money(quote.total) : '—'} giao đến {recipient.recipientName} ({recipient.phone}) và giữ hàng để thanh toán?</p>
       {placeError && <Notice error>{placeError.message}</Notice>}
       <div className="co-actions">
         <button disabled={busy} onClick={() => setConfirm(false)}>Kiểm tra lại</button>
-        <button className="primary" disabled={busy} onClick={() => place()}>Xác nhận đặt hàng</button>
+        <button className="primary" disabled={busy || quoting} onClick={() => place()}>
+          {busy ? 'Đang đặt hàng…' : 'Xác nhận đặt hàng'}
+        </button>
       </div></Modal>}
   </div></section>;
 }

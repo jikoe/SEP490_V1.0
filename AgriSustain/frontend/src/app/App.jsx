@@ -13,6 +13,7 @@ import CartScreen from '../features/RetailCustomer/CartScreen';
 import WholesaleDashboard from '../features/WholesaleBuyer/WholesaleDashboard';
 import Marketplace from '../features/Marketplace/Marketplace';
 import CheckoutScreen from '../features/RetailCustomer/CheckoutScreen';
+import QrPaymentScreen from '../features/RetailCustomer/QrPaymentScreen';
 import RegisterScreen from '../features/Guest/RegisterScreen';
 import ProfileScreen from '../features/RetailCustomer/ProfileScreen';
 import OrderTrackingScreen from '../features/RetailCustomer/OrderTrackingScreen';
@@ -261,12 +262,18 @@ export default function App() {
   useEffect(() => {
     if (isMarketplace) return;
     const controller = new AbortController();
-    fetch(backendUrl('/health'), { signal: controller.signal })
+    fetch(backendUrl('/health'), {
+      signal: controller.signal,
+      headers: { 'ngrok-skip-browser-warning': 'true' },
+    })
       .then((response) => response.json())
       .then(async (health) => {
         setPersistence(health.persistence);
         if (health.persistence === 'SqlServer') {
-          const response = await fetch(backendUrl('/health/database'), { signal: controller.signal });
+          const response = await fetch(backendUrl('/health/database'), {
+            signal: controller.signal,
+            headers: { 'ngrok-skip-browser-warning': 'true' },
+          });
           const readiness = await response.json().catch(() => ({}));
           setDatabaseReady(response.ok && readiness.connected === true);
         }
@@ -290,6 +297,7 @@ const DEMO_CREDENTIALS = {
   customer_support: { identifier: 'support_staff', password: '123456' },
   promotion_staff: { identifier: 'promotion_staff', password: '123456' },
   finance_staff: { identifier: 'finance_staff', password: '123456' },
+  retail_customer: { identifier: 'retail1', password: '123456' },
 };
 
   async function enterDemo(roleKeyName = 'administrator') {
@@ -393,6 +401,7 @@ const DEMO_CREDENTIALS = {
   else if (route.startsWith('/wholesale/dashboard')) currentTitle = 'Tổng quan mua buôn B2B';
   else if (route.startsWith('/retail/dashboard')) currentTitle = 'Cửa hàng nông sản';
   else if (route.startsWith('/checkout')) currentTitle = 'Thanh toán & Đơn hàng';
+  else if (route.startsWith('/payment') || route.startsWith('/retail/payment')) currentTitle = 'Thanh toán QR & Chuyển khoản';
   else if (route.startsWith('/retail/orders') || route.startsWith('/orders')) currentTitle = 'Đơn hàng của tôi';
   else if (route.startsWith('/farmer/profile')) currentTitle = 'Hồ sơ nông hộ & KYC';
   else if (route.startsWith('/retail/profile') || route.startsWith('/profile')) currentTitle = 'Hồ sơ cá nhân';
@@ -567,6 +576,7 @@ const DEMO_CREDENTIALS = {
           {route.startsWith('/customer-portal') && <CustomerPortalApp />}
 
           {route.startsWith('/checkout') && <CheckoutScreen fixture={fixture} navigate={navigate} />}
+          {(route.startsWith('/payment') || route.startsWith('/retail/payment')) && <QrPaymentScreen navigate={navigate} />}
           {(route.startsWith('/verification/kyc') || route.startsWith('/verification/dashboard'))
             && <KycVerificationReviewScreen route={route} navigate={navigate} />}
           {route.startsWith('/support/dashboard') && <SupportDashboard navigate={navigate} />}
@@ -583,7 +593,7 @@ const DEMO_CREDENTIALS = {
              '/moderation/products', '/farmer/dashboard', '/wholesale/dashboard',
              '/retail/dashboard', '/checkout', '/verification/dashboard', '/verification/kyc',
              '/support/dashboard', '/support/complaints', '/promotions/dashboard', '/promotions/vouchers', '/finance/dashboard', '/finance/refunds',
-             '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/account/password', '/customer-portal'].some((p) => route.startsWith(p)) && (
+             '/gateway/dashboard', '/notifications/dashboard', '/guest/dashboard', '/register', '/retail/profile', '/farmer/profile', '/profile', '/retail/orders', '/orders', '/account/password', '/customer-portal', '/payment', '/retail/payment'].some((p) => route.startsWith(p)) && (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
               <h2>Đang chuyển hướng về trang làm việc của bạn...</h2>
               <button className="primary" style={{ marginTop: 15 }} onClick={() => navigate(roleConfig.landingRoute)}>

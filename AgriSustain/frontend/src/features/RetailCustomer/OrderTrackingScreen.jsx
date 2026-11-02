@@ -309,9 +309,18 @@ export default function OrderTrackingScreen({ navigate }) {
           <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', gap: 8 }}>
               {actions.includes('PayNow') && (
-                <button type="button" className="primary" onClick={() => setNotice('Màn hình thanh toán QR (UC-RC-03) sẽ được tích hợp ở iteration sau.')}>
-                  Thanh toán ngay
-                </button>
+                <button
+                type="button"
+                className="primary"
+                style={{ background: '#1e6546' }}
+                onClick={() => {
+                  const payUrl = `/payment?orderId=${detail.orderId}&orderCode=${encodeURIComponent(detail.orderCode)}&amount=${detail.finalAmount}&method=${encodeURIComponent(detail.paymentMethod || 'SePay')}&expiresAt=${encodeURIComponent(detail.reservationExpiresAt || '')}`;
+                  if (navigate) navigate(payUrl);
+                  else window.location.hash = '#' + payUrl;
+                }}
+              >
+                💳 Thanh toán ngay (QR)
+              </button>
               )}
               {actions.includes('Review') && (
                 <button type="button" onClick={() => setNotice('Chức năng đánh giá sản phẩm (UC-RC-05) thuộc Iteration 2.')}>

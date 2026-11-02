@@ -1,6 +1,23 @@
 import { getSession } from '../session/session';
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+const API_BASE_URL = (() => {
+  const envUrl = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isLocal =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1' ||
+      hostname.endsWith('.local') ||
+      /^10\./.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+      /^192\.168\./.test(hostname);
+    if (isLocal) {
+      return '';
+    }
+  }
+  return envUrl;
+})();
 
 export function backendUrl(path) {
   return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
@@ -10,7 +27,10 @@ export async function login(credentials, { signal } = {}) {
   const response = await fetch(backendUrl('/api/auth/login'), {
     method: 'POST',
     signal,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    },
     body: JSON.stringify(credentials),
   });
   const data = await response.json().catch(() => ({}));
@@ -31,7 +51,10 @@ export async function logout() {
 
   const response = await fetch(backendUrl('/api/auth/logout'), {
     method: 'POST',
-    headers: { Authorization: `Bearer ${session.accessToken}` },
+    headers: {
+      Authorization: `Bearer ${session.accessToken}`,
+      'ngrok-skip-browser-warning': 'true'
+    },
   });
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
@@ -50,6 +73,7 @@ async function send(path, { signal, method = 'GET', body } = {}) {
     method,
     signal,
     headers: {
+      'ngrok-skip-browser-warning': 'true',
       ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
       // Uploads let the browser set the multipart boundary.
       ...(body === undefined || body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
