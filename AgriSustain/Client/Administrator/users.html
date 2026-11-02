@@ -122,24 +122,24 @@
       <p id="modal-action-desc"></p>
       <div id="modal-suspend-warning" class="muted" style="display:none; margin-bottom:12px;">Tài khoản sẽ mất quyền truy cập cho đến khi được kích hoạt lại.</div>
 
-      <label class="field">
+      <!-- Suspend / Reactivate require a preset reason or Other (BR-UM-04) -->
+      <label id="action-reason-field" class="field">
         <span>Lý do *</span>
-        <select id="action-reason-choice" required onchange="toggleOtherReason(this.value)">
-          <option value="">Chọn lý do</option>
-          <option value="Vi phạm điều khoản sử dụng">Vi phạm điều khoản sử dụng</option>
-          <option value="Gian lận hoặc lừa đảo trong giao dịch">Gian lận hoặc lừa đảo trong giao dịch</option>
-          <option value="Đăng sản phẩm giả, kém chất lượng hoặc sai nguồn gốc">Đăng sản phẩm giả, kém chất lượng hoặc sai nguồn gốc</option>
-          <option value="Nhiều khiếu nại chưa được giải quyết">Nhiều khiếu nại chưa được giải quyết</option>
-          <option value="Nghi ngờ tài khoản bị chiếm quyền">Nghi ngờ tài khoản bị chiếm quyền</option>
-          <option value="Khắc phục vi phạm thành công">Khắc phục vi phạm thành công</option>
-          <option value="Khác">Khác</option>
-        </select>
+        <select id="action-reason-choice" onchange="toggleOtherReason(this.value)"></select>
       </label>
 
       <label id="action-reason-other-field" class="field" style="display:none;">
         <span>Ghi rõ lý do *</span>
         <textarea id="action-reason-note" maxlength="480" placeholder="Mô tả chi tiết lý do..."></textarea>
       </label>
+
+      <!-- Unlock takes an optional note of at most 500 characters (BR-UM-04) -->
+      <label id="action-unlock-note-field" class="field" style="display:none;">
+        <span>Ghi chú (không bắt buộc)</span>
+        <textarea id="action-unlock-note" maxlength="500" placeholder="Ghi chú cho thao tác mở khóa..."></textarea>
+      </label>
+
+      <div id="modal-action-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
 
       <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" onclick="closeActionModal()">Hủy</button>
@@ -160,6 +160,44 @@
     const pageSize = 10;
     let pendingAction = null;
     let usersCache = [];
+
+    const statusLabels = {
+      Active: 'Hoạt động',
+      Pending: 'Chờ duyệt',
+      Rejected: 'Bị từ chối',
+      Suspended: 'Tạm ngưng'
+    };
+
+    // Action-specific preset reasons (BR-UM-04); "Khác" requires an explanation.
+    const reasonPresets = {
+      suspend: [
+        'Vi phạm điều khoản sử dụng',
+        'Gian lận hoặc lừa đảo trong giao dịch',
+        'Đăng sản phẩm giả, kém chất lượng hoặc sai nguồn gốc',
+        'Nhiều khiếu nại chưa được giải quyết',
+        'Nghi ngờ tài khoản bị chiếm quyền'
+      ],
+      activate: [
+        'Đã khắc phục vi phạm',
+        'Đã xác minh lại chủ tài khoản',
+        'Khiếu nại đã được giải quyết',
+        'Tạm ngưng nhầm'
+      ]
+    };
+
+    /**
+     * Status actions offered for an account (BR-UM-02, BR-UM-03, BR-UM-05): none on the
+     * Administrator's own account; Suspend/Reactivate only for marketplace accounts;
+     * Unlock only for an Active account with an unexpired lock; nothing for Pending/Rejected.
+     */
+    function eligibleActions(user) {
+      if (user.id === user.currentActorId) return [];
+      const actions = [];
+      if (user.canSuspend && user.status === 'Active') actions.push('suspend');
+      if (user.canSuspend && user.status === 'Suspended') actions.push('activate');
+      if (user.isLocked && user.status === 'Active') actions.push('unlock');
+      return actions;
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       loadUsers(1);
@@ -216,17 +254,18 @@
 
       tbody.innerHTML = items.map(user => {
         const kycBadge = getKycBadge(user.verificationStatus);
-        const statusBadge = `<span class="badge ${user.status || 'Active'}">${user.status === 'Active' ? 'Hoạt động' : (user.status === 'Suspended' ? 'Tạm ngưng' : 'Đang xử lý')}</span>${user.isLocked ? ' <small style="color:#b23b3b;font-weight:700;">Khóa tạm</small>' : ''}`;
-        const createdDate = Utils.formatDateTime(user.createdAt || user.createdDate);
+        const statusBadge = `<span class="badge ${user.status || 'Active'}">${statusLabels[user.status] || Utils.escapeHtml(user.status || '—')}</span>${user.isLocked ? ' <small style="color:#b23b3b;font-weight:700;">Khóa tạm</small>' : ''}`;
+        const createdDate = Utils.formatDate(user.createdAt || user.createdDate);
 
+        const actions = eligibleActions(user);
         let actionBtns = '';
-        if (user.canSuspend !== false && user.status !== 'Suspended') {
+        if (actions.includes('suspend')) {
           actionBtns += `<button class="danger-link" type="button" onclick="prepareStatus(${user.id}, 'suspend')">Tạm ngưng</button>`;
         }
-        if (user.status === 'Suspended') {
-          actionBtns += `<button type="button" onclick="prepareStatus(${user.id}, 'activate')">Kích hoạt</button>`;
+        if (actions.includes('activate')) {
+          actionBtns += `<button type="button" onclick="prepareStatus(${user.id}, 'activate')">Kích hoạt lại</button>`;
         }
-        if (user.isLocked) {
+        if (actions.includes('unlock')) {
           actionBtns += `<button type="button" onclick="prepareStatus(${user.id}, 'unlock')">Mở khóa</button>`;
         }
 
@@ -310,7 +349,9 @@
               <span style="font-size:12px;color:#687b70;">Email:</span>
               <p style="font-weight:600; margin:4px 0 12px;">${Utils.escapeHtml(u.email || '—')}</p>
               <span style="font-size:12px;color:#687b70;">Trạng thái tài khoản:</span>
-              <p style="margin:4px 0;"><span class="badge ${u.status || 'Active'}">${u.status || 'Active'}</span></p>
+              <p style="margin:4px 0 12px;"><span class="badge ${u.status || 'Active'}">${statusLabels[u.status] || Utils.escapeHtml(u.status || '—')}</span></p>
+              <span style="font-size:12px;color:#687b70;">Khóa đăng nhập tạm thời:</span>
+              <p style="margin:4px 0;">${u.isLocked ? `Đang khóa đến ${Utils.formatDateTime(u.lockedUntil)}` : 'Không khóa'} · Đăng nhập sai: ${u.failedLoginCount || 0} lần</p>
             </div>
             <div>
               <span style="font-size:12px;color:#687b70;">Số điện thoại:</span>
@@ -321,21 +362,21 @@
           </div>
         </article>
       `;
-      Utils.showModal('user-detail-modal');
+      document.getElementById('user-detail-modal').showModal();
     }
 
     function closeDetailModal() {
-      Utils.hideModal('user-detail-modal');
+      document.getElementById('user-detail-modal').close();
     }
 
     function prepareStatus(userId, action) {
       const u = usersCache.find(x => x.id === userId);
-      if (!u) return;
+      if (!u || !eligibleActions(u).includes(action)) return;
 
       pendingAction = { user: u, action };
       const titleMap = {
         suspend: 'Tạm ngưng tài khoản',
-        activate: 'Kích hoạt tài khoản',
+        activate: 'Kích hoạt lại tài khoản',
         unlock: 'Mở khóa tài khoản'
       };
       document.getElementById('modal-action-title').textContent = titleMap[action] || 'Thay đổi trạng thái';
@@ -351,47 +392,91 @@
       } else {
         warningEl.style.display = 'none';
         btnEl.className = 'primary';
-        btnEl.textContent = action === 'unlock' ? 'Xác nhận mở khóa' : 'Xác nhận kích hoạt';
+        btnEl.textContent = action === 'unlock' ? 'Xác nhận mở khóa' : 'Xác nhận kích hoạt lại';
       }
 
-      document.getElementById('action-reason-choice').value = '';
+      const needsReason = action !== 'unlock';
+      const choiceEl = document.getElementById('action-reason-choice');
+      choiceEl.innerHTML = '<option value="">Chọn lý do</option>'
+        + (reasonPresets[action] || []).map(r => `<option value="${Utils.escapeHtml(r)}">${Utils.escapeHtml(r)}</option>`).join('')
+        + '<option value="Khác">Khác</option>';
+      choiceEl.required = needsReason;
+      choiceEl.value = '';
+      document.getElementById('action-reason-field').style.display = needsReason ? 'block' : 'none';
       document.getElementById('action-reason-other-field').style.display = 'none';
       document.getElementById('action-reason-note').value = '';
+      document.getElementById('action-reason-note').required = false;
+      document.getElementById('action-unlock-note-field').style.display = needsReason ? 'none' : 'block';
+      document.getElementById('action-unlock-note').value = '';
+      setActionError('');
 
-      Utils.showModal('status-action-modal');
+      document.getElementById('status-action-modal').showModal();
     }
 
     function closeActionModal() {
-      Utils.hideModal('status-action-modal');
+      document.getElementById('status-action-modal').close();
       pendingAction = null;
     }
 
     function toggleOtherReason(val) {
       const field = document.getElementById('action-reason-other-field');
       field.style.display = (val === 'Khác') ? 'block' : 'none';
+      document.getElementById('action-reason-note').required = val === 'Khác';
+    }
+
+    function setActionError(msg) {
+      const el = document.getElementById('modal-action-error');
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
     }
 
     async function handleStatusSubmit(e) {
       e.preventDefault();
       if (!pendingAction) return;
 
-      const choice = document.getElementById('action-reason-choice').value;
-      const note = document.getElementById('action-reason-note').value.trim();
-      const reasonText = choice === 'Khác' ? `Khác: ${note}` : choice;
+      const { user, action } = pendingAction;
+      let reasonText = null;
+      if (action === 'unlock') {
+        reasonText = document.getElementById('action-unlock-note').value.trim() || null;
+      } else {
+        const choice = document.getElementById('action-reason-choice').value;
+        const note = document.getElementById('action-reason-note').value.trim();
+        if (!choice || (choice === 'Khác' && !note)) {
+          setActionError('Vui lòng chọn lý do hoặc ghi rõ lý do khác.');
+          return;
+        }
+        reasonText = choice === 'Khác' ? `Khác: ${note}` : choice;
+      }
 
+      const btnEl = document.getElementById('modal-action-btn');
+      btnEl.disabled = true;
+      setActionError('');
       try {
-        const res = await API.updateUserStatus(pendingAction.user.id, {
-          action: pendingAction.action,
+        const res = await API.updateUserStatus(user.id, {
+          action,
           reason: reasonText,
           confirmed: true
         });
 
+        if (!res.success) {
+          // Stale state, ineligible action or missing record: refresh instead of retrying (MSG-UM-04/06).
+          if ([403, 404, 409].includes(res.status)) {
+            closeActionModal();
+            await loadUsers(currentPage);
+          } else {
+            setActionError(res.error || 'Không thể thực hiện thao tác. Vui lòng thử lại.');
+          }
+          return;
+        }
+
         closeActionModal();
-        showAlert(`Đã ${pendingAction.action === 'suspend' ? 'tạm ngưng' : (pendingAction.action === 'unlock' ? 'mở khóa' : 'kích hoạt')} tài khoản thành công!`, 'success');
+        const doneMap = { suspend: 'tạm ngưng', activate: 'kích hoạt lại', unlock: 'mở khóa' };
+        showAlert(`Tài khoản #${user.id} đã được ${doneMap[action]}.`, 'success');
         await loadUsers(currentPage);
       } catch (err) {
-        closeActionModal();
-        showAlert(err.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.', 'error');
+        setActionError(err.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.');
+      } finally {
+        btnEl.disabled = false;
       }
     }
 

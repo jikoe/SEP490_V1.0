@@ -46,6 +46,11 @@ public interface IComplaintRepository
         IReadOnlyCollection<string> roles,
         CancellationToken cancellationToken);
 
+    /// <summary>The buyer's saved default account (UC-AUTH-03), snapshotted onto a new refund.</summary>
+    Task<UserBankAccount?> GetDefaultBankAccountAsync(
+        long userId,
+        CancellationToken cancellationToken);
+
     void AddRefund(RefundTransaction refund);
 
     void AddAudit(AuditLog audit);

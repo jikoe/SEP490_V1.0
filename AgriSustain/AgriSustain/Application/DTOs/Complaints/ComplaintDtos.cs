@@ -7,6 +7,10 @@ public sealed record ComplaintQuery(
     int Page = 1,
     int PageSize = 10);
 
+/// <summary>
+/// EvidenceDueAt is the earliest deadline of an open evidence request; EvidenceComplete means
+/// every request was answered.
+/// </summary>
 public sealed record ComplaintListItemDto(
     long TicketId,
     string? SellerOrderCode,
@@ -16,7 +20,9 @@ public sealed record ComplaintListItemDto(
     string TicketStatus,
     DateTime CreatedAt,
     decimal? RefundAmount,
-    bool HasOverdueEvidence);
+    bool HasOverdueEvidence,
+    DateTime? EvidenceDueAt = null,
+    bool EvidenceComplete = false);
 
 public sealed record ComplaintListDto(
     IReadOnlyList<ComplaintListItemDto> Items,

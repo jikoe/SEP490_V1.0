@@ -69,7 +69,8 @@ const API = {
         }
       }
 
-      if (response.status === 401) {
+      // Anonymous flows (e.g. password reset) use 401 for their own expired grant, not the sign-in session.
+      if (response.status === 401 && !options.skipAuthRedirect) {
         Auth.clearAuth();
         if (!options.suppressErrorToast) {
           const msg = (typeof window !== 'undefined' && window.Messages?.common?.sessionExpired)
@@ -173,7 +174,9 @@ const API = {
   },
 
   async resetPassword(data) {
-    return this.request('/auth/reset-password', { method: 'POST', body: data });
+    return this.request('/auth/reset-password', {
+      method: 'POST', body: data, skipAuthRedirect: true, suppressErrorToast: true
+    });
   },
 
   async uploadImage(file) {
@@ -436,7 +439,78 @@ const API = {
   async resolveComplaint(ticketId, resolutionData) {
     return this.request(`/support/complaints/${ticketId}/resolve`, {
       method: 'POST',
-      body: resolutionData
+      body: resolutionData,
+      suppressErrorToast: true
+    });
+  },
+
+  /** UC-CS-01: party is Buyer or Seller. */
+  async requestComplaintInfo(ticketId, party, instructions) {
+    return this.request(`/support/complaints/${ticketId}/request-info`, {
+      method: 'POST',
+      body: { party, instructions },
+      suppressErrorToast: true
+    });
+  },
+
+  /** Evidence is served only with the reviewer's token, so it is opened from a blob. */
+  async openComplaintEvidence(ticketId, evidenceId) {
+    const target = window.open('', '_blank');
+    try {
+      const response = await fetch(`${CONFIG.API_BASE_URL}/support/complaints/${ticketId}/evidence/${evidenceId}`, {
+        headers: { Authorization: `Bearer ${Auth.getAccessToken()}` }
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      const url = URL.createObjectURL(await response.blob());
+      if (target) target.location.href = url; else window.open(url, '_blank');
+      return { success: true };
+    } catch {
+      if (target) target.close();
+      Utils.showToast('Không thể mở bằng chứng. Vui lòng thử lại.', 'error');
+      return { success: false };
+    }
+  },
+
+  /* ---------------- FINANCE · PROCESS REFUND (UC-FIN-03) ---------------- */
+  async getRefunds(params = {}, options = {}) {
+    const query = this.toQueryString(params);
+    return this.request(`/finance/refunds${query ? `?${query}` : ''}`, options);
+  },
+
+  async getRefund(refundId) {
+    return this.request(`/finance/refunds/${refundId}`);
+  },
+
+  /** Start Transfer (Pending) or Transfer Again (Failed); expectedStatus detects a stale screen. */
+  async startRefundTransfer(refundId, expectedStatus) {
+    return this.request(`/finance/refunds/${refundId}/start-transfer`, {
+      method: 'POST', body: { expectedStatus }, suppressErrorToast: true
+    });
+  },
+
+  async cancelRefundTransfer(refundId, expectedStatus) {
+    return this.request(`/finance/refunds/${refundId}/cancel-transfer`, {
+      method: 'POST', body: { expectedStatus }, suppressErrorToast: true
+    });
+  },
+
+  async completeRefund(refundId, transferReference, note) {
+    return this.request(`/finance/refunds/${refundId}/complete`, {
+      method: 'POST',
+      body: { refundMethod: 'BankTransfer', transferReference, note: note || null },
+      suppressErrorToast: true
+    });
+  },
+
+  async failRefundTransfer(refundId, reason) {
+    return this.request(`/finance/refunds/${refundId}/transfer-failed`, {
+      method: 'POST', body: { reason }, suppressErrorToast: true
+    });
+  },
+
+  async markRefundReconciliation(refundId, note) {
+    return this.request(`/finance/refunds/${refundId}/needs-reconciliation`, {
+      method: 'POST', body: { note }, suppressErrorToast: true
     });
   },
 
@@ -449,7 +523,37 @@ const API = {
   async createVoucher(data) {
     return this.request('/promotions/vouchers', {
       method: 'POST',
-      body: data
+      body: data,
+      suppressErrorToast: true
+    });
+  },
+
+  async getVoucher(id) {
+    return this.request(`/promotions/vouchers/${id}`);
+  },
+
+  async updateVoucher(id, data) {
+    return this.request(`/promotions/vouchers/${id}`, {
+      method: 'PUT',
+      body: data,
+      suppressErrorToast: true
+    });
+  },
+
+  // UC-PS-01: activate | deactivate; version rejects a change made on stale data (MSG-PV-15).
+  async setVoucherActive(id, active, version) {
+    const query = this.toQueryString({ version });
+    return this.request(`/promotions/vouchers/${id}/${active ? 'activate' : 'deactivate'}${query ? `?${query}` : ''}`, {
+      method: 'POST',
+      suppressErrorToast: true
+    });
+  },
+
+  async deleteVoucher(id, version) {
+    const query = this.toQueryString({ version });
+    return this.request(`/promotions/vouchers/${id}${query ? `?${query}` : ''}`, {
+      method: 'DELETE',
+      suppressErrorToast: true
     });
   },
 
@@ -517,8 +621,11 @@ const API = {
   },
 
   async changePassword(data) {
-    // Backend expects { currentPassword, newPassword, confirmPassword } (UC-AUTH-05).
-    return this.request('/auth/change-password', { method: 'POST', body: data, suppressErrorToast: true });
+    const res = await this.request('/auth/change-password', { method: 'POST', body: data, suppressErrorToast: true });
+    if (!res.success) {
+      return this.request('/account/password', { method: 'POST', body: data });
+    }
+    return res;
   },
 
   /* ---------------- PROFILE MODULE ---------------- */
