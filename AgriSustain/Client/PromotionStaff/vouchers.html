@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quản lý voucher - AgriSustain</title>
+  <title>Voucher toàn sàn - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/promotion.css">
 </head>
 <body>
   <div class="app-shell">
@@ -15,58 +16,146 @@
       <header id="app-header"></header>
 
       <main>
-        <section style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">KHUYẾN MẠI &amp; MÃ GIẢM GIÁ</p>
-              <h1>Quản lý voucher khuyến mại</h1>
-              <p class="muted">Thiết lập ngân sách, mức chiết khấu và điều kiện áp dụng mã giảm giá cho khách hàng lẻ và doanh nghiệp.</p>
-            </div>
-            <button class="primary" onclick="alert(Messages.common.voucherCreateNotice)">+ Tạo Voucher Mới</button>
-          </div>
+        <!-- UC-PS-01 Manage Promotions and Vouchers (Figma UC-PS-01 / 01–06) -->
+        <section class="pv-page">
+          <p class="pv-crumbs">Vận hành / Voucher</p>
+          <h1 id="pv-title">Voucher toàn sàn</h1>
+          <p class="pv-sub">Thiết lập ưu đãi, thời gian áp dụng và giới hạn sử dụng trên toàn sàn.</p>
 
-          <div class="panel record-panel">
-            <div class="record-heading">
-              <h2>Danh sách mã giảm giá</h2>
-              <span class="count">4 mã đang hoạt động</span>
+          <!-- 01 List -->
+          <div id="view-list">
+            <div class="pv-actions-top">
+              <button type="button" class="pv-btn primary" onclick="openForm(null)">Tạo voucher</button>
             </div>
-            <div class="table-wrap">
-              <table>
+
+            <form class="pv-card pv-filters" onsubmit="event.preventDefault(); loadVouchers(1);">
+              <label>Trạng thái
+                <select id="filter-status" onchange="loadVouchers(1)">
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="Scheduled">Chờ bắt đầu</option>
+                  <option value="Active">Đang áp dụng</option>
+                  <option value="Expired">Hết hạn</option>
+                  <option value="Exhausted">Hết lượt</option>
+                  <option value="Deactivated">Ngừng áp dụng</option>
+                </select>
+              </label>
+              <label>Tìm kiếm
+                <input type="search" id="filter-search" maxlength="100" placeholder="Tên hoặc mã voucher" oninput="searchLater()">
+              </label>
+            </form>
+
+            <div class="pv-card">
+              <div class="pv-list-head" id="pv-count">Voucher toàn sàn · 0 kết quả</div>
+              <table class="pv-table">
                 <thead>
                   <tr>
-                    <th>Mã</th>
-                    <th>Hình thức</th>
-                    <th>Giá trị</th>
-                    <th>Đơn tối thiểu</th>
-                    <th>Hạn dùng</th>
-                    <th>Lượt dùng</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
+                    <th style="width:20%">Tên / Mã</th>
+                    <th style="width:17%">Ưu đãi</th>
+                    <th style="width:19%">Thời gian áp dụng</th>
+                    <th style="width:15%">Đã dùng / Giới hạn</th>
+                    <th style="width:13%">Trạng thái</th>
+                    <th></th>
                   </tr>
                 </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>WELCOME10</strong></td>
-                    <td>Giảm theo %</td>
-                    <td>10%</td>
-                    <td>150.000 ₫</td>
-                    <td>31/12/2026</td>
-                    <td>120/500</td>
-                    <td><span class="badge Active">Đang chạy</span></td>
-                    <td><button onclick="alert(Messages.common.voucherPauseNotice)">Tạm dừng</button></td>
-                  </tr>
-                  <tr>
-                    <td><strong>FREESHIP</strong></td>
-                    <td>Miễn phí vận chuyển</td>
-                    <td>25.000 ₫</td>
-                    <td>200.000 ₫</td>
-                    <td>30/11/2026</td>
-                    <td>215/300</td>
-                    <td><span class="badge Active">Đang chạy</span></td>
-                    <td><button onclick="alert(Messages.common.voucherPauseNotice)">Tạm dừng</button></td>
-                  </tr>
+                <tbody id="pv-rows">
+                  <tr><td colspan="6" class="empty">Đang tải voucher…</td></tr>
                 </tbody>
               </table>
+              <div class="pv-foot">
+                <button type="button" class="pv-btn" id="btn-back-list" style="display:none;" onclick="resetTitle(); loadVouchers(1);">Về danh sách</button>
+                <span id="pv-range"></span>
+                <div class="pv-pager" id="pv-pager"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 02 / 03 Create, edit and validation -->
+          <form class="pv-card" id="view-form" style="display:none;" onsubmit="saveVoucher(event)" novalidate>
+            <div class="pv-alert" id="form-alert" style="display:none;" role="alert">
+              <strong>Chưa thể lưu voucher</strong>
+              <p id="form-alert-text">Vui lòng sửa các trường được đánh dấu. Dữ liệu hợp lệ đã được giữ lại.</p>
+            </div>
+            <div class="pv-notice" id="form-locked" style="display:none;">
+              Voucher đã được sử dụng hoặc đã bắt đầu áp dụng. Chỉ được sửa tên, mô tả, gia hạn thời gian kết thúc hoặc tăng tổng lượt dùng.
+            </div>
+
+            <div class="pv-grid two">
+              <label class="pv-field" data-field="voucherName">Tên voucher *
+                <input id="f-name" maxlength="150">
+              </label>
+              <label class="pv-field" data-field="voucherCode">Mã voucher *
+                <input id="f-code" maxlength="20" data-lock style="text-transform: uppercase;" oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')">
+              </label>
+            </div>
+            <div class="pv-grid three">
+              <label class="pv-field" data-field="discountType">Loại giảm giá *
+                <select id="f-type" data-lock onchange="syncType()">
+                  <option value="Percentage">Phần trăm</option>
+                  <option value="FixedAmount">Số tiền cố định</option>
+                </select>
+              </label>
+              <label class="pv-field" data-field="discountValue">Giá trị giảm *
+                <input id="f-value" inputmode="decimal" data-lock data-money>
+              </label>
+              <label class="pv-field" data-field="maxDiscountAmount" id="field-max">Giảm tối đa (đ) *
+                <input id="f-max" inputmode="numeric" data-lock data-money>
+              </label>
+            </div>
+            <div class="pv-grid two">
+              <label class="pv-field" data-field="minOrderAmount">Giá trị đơn tối thiểu (đ)
+                <input id="f-min" inputmode="numeric" data-lock data-money>
+              </label>
+              <label class="pv-field" data-field="usageLimit">Tổng lượt sử dụng *
+                <input id="f-limit" inputmode="numeric" data-money>
+              </label>
+            </div>
+            <div class="pv-grid two">
+              <label class="pv-field" data-field="perCustomerLimit">Lượt mỗi khách *
+                <input id="f-per" inputmode="numeric" data-lock data-money>
+              </label>
+              <label class="pv-field" data-field="description">Mô tả
+                <input id="f-desc" maxlength="500">
+              </label>
+            </div>
+            <div class="pv-grid two">
+              <label class="pv-field" data-field="startDate">Bắt đầu *
+                <input id="f-start" type="datetime-local" data-lock oninput="syncStatusHint()">
+              </label>
+              <label class="pv-field" data-field="endDate">Kết thúc *
+                <input id="f-end" type="datetime-local">
+              </label>
+            </div>
+
+            <div class="pv-meta">
+              <div><span>Phạm vi</span><strong>Toàn sàn · Không gắn nông hộ</strong></div>
+              <div><span>Trạng thái sau khi lưu</span><strong id="f-status-hint">—</strong></div>
+            </div>
+            <p class="pv-rule">Mỗi đơn dùng tối đa 1 voucher toàn sàn, có thể dùng cùng điểm thưởng. Chỉ giảm tiền hàng, không giảm phí giao; sàn chịu khoản giảm. Khi đã có lượt dùng hoặc đã bắt đầu áp dụng, chỉ sửa tên, mô tả, gia hạn kết thúc và tăng tổng lượt.</p>
+            <div class="pv-buttons">
+              <button type="submit" class="pv-btn primary" id="btn-save">Lưu voucher</button>
+              <button type="button" class="pv-btn" onclick="cancelForm()">Hủy</button>
+              <button type="button" class="pv-btn" id="btn-form-deactivate" style="display:none;" onclick="openDeactivate(editing)">Ngừng áp dụng</button>
+              <button type="button" class="pv-btn danger" id="btn-form-delete" style="display:none;" onclick="askDelete(editing)">Xoá voucher</button>
+            </div>
+          </form>
+
+          <!-- 04 Deactivate confirmation (MSG-PV-13) -->
+          <div class="pv-card pv-confirm" id="view-deactivate" style="display:none;">
+            <h2 id="d-title"></h2>
+            <p id="d-text"></p>
+            <div class="pv-facts">
+              <div><span>Mã voucher</span><strong id="d-code"></strong></div>
+              <div><span>Đã sử dụng</span><strong id="d-used"></strong></div>
+              <div><span>Ưu đãi</span><strong id="d-offer"></strong></div>
+            </div>
+            <div class="pv-keep">
+              <strong>Giữ nguyên lịch sử</strong>
+              <p>Giữ nguyên lịch sử và ưu đãi của các đơn đang giữ voucher. Không hoàn lại lượt dùng khi đơn đã thanh toán được hoàn tiền.</p>
+            </div>
+            <p class="pv-error" id="d-error" style="display:none;" role="alert"></p>
+            <div class="pv-buttons">
+              <button type="button" class="pv-btn primary" id="btn-deactivate" onclick="confirmDeactivate()">Xác nhận ngừng áp dụng</button>
+              <button type="button" class="pv-btn" onclick="showView('list')">Hủy</button>
             </div>
           </div>
         </section>
@@ -78,12 +167,448 @@
     </div>
   </div>
 
+  <!-- MSG-PV-12 / MSG-PV-14 confirmation -->
+  <dialog id="pv-confirm-dialog" class="pv-dialog">
+    <h2 id="cd-title"></h2>
+    <p id="cd-text"></p>
+    <div class="pv-buttons">
+      <button type="button" class="pv-btn primary" id="cd-ok"></button>
+      <button type="button" class="pv-btn" onclick="document.getElementById('pv-confirm-dialog').close()">Hủy</button>
+    </div>
+  </dialog>
+
   <script src="../js/config.js"></script>
   <script src="../js/utils.js"></script>
-  <script src="../messages/common.js"></script>
   <script src="../messages/index.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
+
+  <script>
+    const pageSize = 10;
+    let currentPage = 1;
+    let vouchers = [];
+    let editing = null;
+    let formSnapshot = '';
+    let searchTimer = null;
+
+    const statusLabels = {
+      Scheduled: 'Chờ bắt đầu', Active: 'Đang áp dụng', Expired: 'Hết hạn',
+      Exhausted: 'Hết lượt', Deactivated: 'Ngừng áp dụng'
+    };
+    const fieldInputs = {
+      voucherName: 'f-name', voucherCode: 'f-code', discountType: 'f-type', discountValue: 'f-value',
+      maxDiscountAmount: 'f-max', minOrderAmount: 'f-min', usageLimit: 'f-limit',
+      perCustomerLimit: 'f-per', description: 'f-desc', startDate: 'f-start', endDate: 'f-end'
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('[data-money]').forEach(input => input.addEventListener('input', formatMoneyInput));
+      loadVouchers(1);
+    });
+
+    /* ---------------- Formatting ---------------- */
+
+    const number = (n) => Number(n || 0).toLocaleString('vi-VN');
+    const money = (n) => `${number(n)} đ`;
+    const parseNumber = (text) => {
+      const clean = String(text || '').replace(/\./g, '').replace(',', '.').trim();
+      return clean === '' ? null : Number(clean);
+    };
+
+    function formatMoneyInput(e) {
+      const input = e.target;
+      if (input.id === 'f-value' && document.getElementById('f-type').value === 'Percentage') {
+        input.value = input.value.replace(/[^0-9,]/g, '');
+        return;
+      }
+      const digits = input.value.replace(/\D/g, '');
+      input.value = digits ? Number(digits).toLocaleString('vi-VN') : '';
+    }
+
+    function offerText(v) {
+      return v.discountType === 'Percentage'
+        ? `${number(v.discountValue)}% · tối đa ${money(v.maxDiscountAmount)}`
+        : money(v.discountValue);
+    }
+
+    // Vietnam time, dd/MM – dd/MM/yyyy (BR-PV-04).
+    function datePart(value, withYear) {
+      const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric'
+      }).formatToParts(new Date(value)).map(p => [p.type, p.value]));
+      return `${parts.day}/${parts.month}${withYear ? `/${parts.year}` : ''}`;
+    }
+
+    function periodText(v) {
+      const sameYear = new Date(v.startDate).getUTCFullYear() === new Date(v.endDate).getUTCFullYear();
+      return `${datePart(v.startDate, !sameYear)} – ${datePart(v.endDate, true)}`;
+    }
+
+    function toLocalInput(value) {
+      const d = new Date(value);
+      const vn = new Date(d.getTime() + 7 * 3600 * 1000);
+      return vn.toISOString().slice(0, 16);
+    }
+
+    // datetime-local is entered in Vietnam time.
+    function fromLocalInput(value) {
+      return value ? new Date(`${value}:00+07:00`).toISOString() : null;
+    }
+
+    /* ---------------- Views ---------------- */
+
+    function showView(name) {
+      document.getElementById('view-list').style.display = name === 'list' ? '' : 'none';
+      document.getElementById('view-form').style.display = name === 'form' ? '' : 'none';
+      document.getElementById('view-deactivate').style.display = name === 'deactivate' ? '' : 'none';
+      if (name === 'list') resetTitle();
+      window.scrollTo(0, 0);
+    }
+
+    function resetTitle() {
+      document.getElementById('pv-title').textContent = 'Voucher toàn sàn';
+      document.getElementById('btn-back-list').style.display = 'none';
+    }
+
+    // UC-PS-01 / 05, 06: the list after a save or a deactivation carries the outcome in its title.
+    function showOutcome(title) {
+      showView('list');
+      document.getElementById('pv-title').textContent = title;
+      document.getElementById('btn-back-list').style.display = '';
+    }
+
+    /* ---------------- List (01) ---------------- */
+
+    function searchLater() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => loadVouchers(1), 300);
+    }
+
+    async function loadVouchers(page = 1) {
+      currentPage = page;
+      const rows = document.getElementById('pv-rows');
+      rows.innerHTML = '<tr><td colspan="6" class="empty">Đang tải voucher…</td></tr>';
+      const res = await API.getVouchers({
+        page, pageSize,
+        status: document.getElementById('filter-status').value,
+        search: document.getElementById('filter-search').value.trim()
+      });
+      if (!res.success || !res.data) {
+        vouchers = [];
+        rows.innerHTML = `<tr><td colspan="6" class="empty">Không tải được danh sách voucher.
+          <button type="button" class="pv-link" onclick="loadVouchers(${page})">Tải lại</button></td></tr>`;
+        renderFooter(0, 1);
+        return;
+      }
+      vouchers = res.data.items || [];
+      const total = res.data.total ?? vouchers.length;
+      document.getElementById('pv-count').textContent = `Voucher toàn sàn · ${total} kết quả`;
+      renderRows();
+      renderFooter(total, page);
+    }
+
+    function rowActions(v) {
+      const buttons = [];
+      if (v.status === 'Deactivated') {
+        buttons.push(v.canReactivate
+          ? `<button type="button" onclick="reactivate(${v.voucherId})">Kích hoạt lại</button>`
+          : `<button type="button" onclick="openForm(${v.voucherId})">Xem</button>`);
+      } else if (v.status === 'Expired' || v.status === 'Exhausted') {
+        return `<button type="button" class="pv-link" onclick="openForm(${v.voucherId})">Xem</button>`;
+      } else {
+        buttons.push(`<button type="button" onclick="openForm(${v.voucherId})">${v.canDelete ? 'Sửa' : 'Chỉnh sửa'}</button>`);
+        if (v.canDelete) buttons.push(`<button type="button" onclick="askDelete(${v.voucherId})">Xoá</button>`);
+      }
+      return `<span class="pv-row-actions">${buttons.join('<span class="sep">·</span>')}</span>`;
+    }
+
+    function renderRows() {
+      const rows = document.getElementById('pv-rows');
+      if (!vouchers.length) {
+        // MSG-PV-01
+        rows.innerHTML = '<tr><td colspan="6" class="empty">Không có voucher nào khớp với tìm kiếm hoặc bộ lọc.</td></tr>';
+        return;
+      }
+      rows.innerHTML = vouchers.map(v => `
+        <tr>
+          <td class="name">${Utils.escapeHtml(v.voucherName)} / ${Utils.escapeHtml(v.voucherCode)}</td>
+          <td>${offerText(v)}</td>
+          <td>${periodText(v)}</td>
+          <td>${number(v.usedCount)} / ${v.usageLimit == null ? '∞' : number(v.usageLimit)}</td>
+          <td><span class="pv-pill ${v.status}">${statusLabels[v.status] || v.status}</span></td>
+          <td>${rowActions(v)}</td>
+        </tr>`).join('');
+    }
+
+    function renderFooter(total, page) {
+      const from = total ? (page - 1) * pageSize + 1 : 0;
+      const to = Math.min(page * pageSize, total);
+      document.getElementById('pv-range').textContent = `Hiển thị ${from}–${to} / ${total} · ${pageSize} dòng / trang`;
+      const pages = Math.max(1, Math.ceil(total / pageSize));
+      let html = '';
+      if (pages > 1) {
+        for (let i = 1; i <= pages; i++) {
+          html += `<button type="button" class="${i === page ? 'current' : ''}" onclick="loadVouchers(${i})">${i}</button>`;
+        }
+      }
+      document.getElementById('pv-pager').innerHTML = html;
+    }
+
+    /* ---------------- Form (02, 03) ---------------- */
+
+    async function openForm(id) {
+      clearErrors();
+      editing = null;
+      if (id) {
+        const res = await API.getVoucher(id);
+        if (!res.success || !res.data) return;
+        editing = res.data;
+      }
+      const v = editing;
+      const start = new Date(Date.now() + 3600 * 1000);
+      start.setMinutes(0, 0, 0);
+      const end = new Date(start.getTime() + 30 * 24 * 3600 * 1000);
+      document.getElementById('f-name').value = v ? v.voucherName : '';
+      document.getElementById('f-code').value = v ? v.voucherCode : '';
+      document.getElementById('f-type').value = v ? v.discountType : 'Percentage';
+      document.getElementById('f-value').value = v ? number(v.discountValue) : '';
+      document.getElementById('f-max').value = v && v.maxDiscountAmount != null ? number(v.maxDiscountAmount) : '';
+      document.getElementById('f-min').value = number(v ? v.minOrderAmount : 0);         // BR-PV-03 default 0
+      document.getElementById('f-limit').value = v && v.usageLimit != null ? number(v.usageLimit) : '';
+      document.getElementById('f-per').value = number(v ? v.perCustomerLimit : 1);       // BR-PV-03 default 1
+      document.getElementById('f-desc').value = v ? (v.description || '') : '';
+      document.getElementById('f-start').value = toLocalInput(v ? v.startDate : start);
+      document.getElementById('f-end').value = toLocalInput(v ? v.endDate : end);
+
+      // BR-PV-07: economic terms are read-only once used or started; ended vouchers are view-only.
+      const readOnly = !!v && ['Expired', 'Exhausted'].includes(v.status);
+      const locked = !!v && (v.termsLocked || readOnly);
+      document.querySelectorAll('#view-form [data-lock]').forEach(input => { input.disabled = locked; });
+      ['f-name', 'f-desc', 'f-limit', 'f-end'].forEach(fid => { document.getElementById(fid).disabled = readOnly; });
+      document.getElementById('btn-save').style.display = readOnly ? 'none' : '';
+      document.getElementById('form-locked').style.display = locked && !readOnly ? '' : 'none';
+      document.getElementById('btn-form-deactivate').style.display = v && ['Active', 'Scheduled'].includes(v.status) ? '' : 'none';
+      document.getElementById('btn-form-delete').style.display = v && v.canDelete ? '' : 'none';
+
+      syncType();
+      syncStatusHint();
+      formSnapshot = JSON.stringify(readForm());
+      showView('form');
+      document.getElementById('pv-title').textContent = !v ? 'Tạo voucher toàn sàn'
+        : readOnly ? `Voucher ${v.voucherCode}` : `Chỉnh sửa voucher ${v.voucherCode}`;
+    }
+
+    function syncType() {
+      const percentage = document.getElementById('f-type').value === 'Percentage';
+      document.getElementById('field-max').style.visibility = percentage ? 'visible' : 'hidden';
+      document.getElementById('f-value').placeholder = percentage ? '1 – 100' : 'Số tiền (đ)';
+    }
+
+    function syncStatusHint() {
+      if (editing) {
+        document.getElementById('f-status-hint').textContent =
+          `${editing.isActive ? 'Đã bật' : 'Đã tắt'} · ${statusLabels[editing.status] || editing.status}`;
+        return;
+      }
+      const start = fromLocalInput(document.getElementById('f-start').value);
+      const later = start && new Date(start) > new Date();
+      document.getElementById('f-status-hint').textContent = later
+        ? 'Đã bật · Chờ bắt đầu theo thời gian' : 'Đã bật · Áp dụng ngay';
+    }
+
+    function readForm() {
+      const percentage = document.getElementById('f-type').value === 'Percentage';
+      return {
+        voucherName: document.getElementById('f-name').value.trim(),
+        voucherCode: document.getElementById('f-code').value.trim().toUpperCase(),
+        description: document.getElementById('f-desc').value.trim() || null,
+        discountType: document.getElementById('f-type').value,
+        discountValue: parseNumber(document.getElementById('f-value').value),
+        maxDiscountAmount: percentage ? parseNumber(document.getElementById('f-max').value) : null,
+        minOrderAmount: parseNumber(document.getElementById('f-min').value) ?? 0,
+        usageLimit: parseNumber(document.getElementById('f-limit').value),
+        perCustomerLimit: parseNumber(document.getElementById('f-per').value),
+        startDate: fromLocalInput(document.getElementById('f-start').value),
+        endDate: fromLocalInput(document.getElementById('f-end').value),
+        version: editing ? editing.version : null
+      };
+    }
+
+    // BR-PV-01..05 checked before sending; the server repeats every check.
+    function validate(data) {
+      const errors = {};
+      if (!data.voucherName) errors.voucherName = 'Vui lòng nhập tên voucher.';
+      if (!/^[A-Z0-9]{4,20}$/.test(data.voucherCode)) errors.voucherCode = 'Mã voucher phải gồm 4–20 chữ cái A–Z hoặc chữ số.';
+      const v = data.discountValue;
+      if (data.discountType === 'Percentage' ? !(v >= 1 && v <= 100) : !(v > 0)) {
+        errors.discountValue = data.discountType === 'Percentage'
+          ? 'Nhập tỷ lệ từ 1 đến 100%.' : 'Nhập số tiền lớn hơn 0 đ.';
+      }
+      if (data.discountType === 'Percentage' && !(data.maxDiscountAmount > 0)) errors.maxDiscountAmount = 'Nhập mức giảm tối đa lớn hơn 0 đ.';
+      if (!(data.usageLimit >= 1)) errors.usageLimit = 'Tổng lượt sử dụng phải là số dương.';
+      if (!(data.perCustomerLimit >= 1) || (data.usageLimit && data.perCustomerLimit > data.usageLimit)) {
+        errors.perCustomerLimit = 'Lượt mỗi khách phải dương và không vượt quá tổng lượt.';
+      }
+      if (!data.startDate) errors.startDate = 'Vui lòng chọn thời gian bắt đầu.';
+      if (!data.endDate || (data.startDate && new Date(data.endDate) <= new Date(data.startDate))) {
+        errors.endDate = 'Kết thúc phải sau thời gian bắt đầu.';
+      } else if (!editing && new Date(data.startDate) < new Date(Date.now() - 60000)) {
+        errors.startDate = 'Thời gian bắt đầu không được ở quá khứ.';
+      }
+      return errors;
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('#view-form .pv-field').forEach(field => {
+        field.classList.remove('invalid');
+        const message = field.querySelector('.pv-error');
+        if (message) message.remove();
+      });
+      document.getElementById('form-alert').style.display = 'none';
+    }
+
+    // MSG-PV-02..06: highlight each field and keep the entered data.
+    function showErrors(errors, summary) {
+      clearErrors();
+      for (const [key, message] of Object.entries(errors)) {
+        const field = document.querySelector(`#view-form .pv-field[data-field="${key}"]`);
+        if (!field) continue;
+        field.classList.add('invalid');
+        const note = document.createElement('span');
+        note.className = 'pv-error';
+        note.textContent = Array.isArray(message) ? message[0] : message;
+        field.appendChild(note);
+      }
+      document.getElementById('form-alert-text').textContent =
+        summary || 'Vui lòng sửa các trường được đánh dấu. Dữ liệu hợp lệ đã được giữ lại.';
+      document.getElementById('form-alert').style.display = '';
+      window.scrollTo(0, 0);
+    }
+
+    async function saveVoucher(e) {
+      e.preventDefault();
+      const data = readForm();
+      const errors = validate(data);
+      if (Object.keys(errors).length) {
+        showErrors(errors);
+        return;
+      }
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true;
+      try {
+        const res = editing ? await API.updateVoucher(editing.voucherId, data) : await API.createVoucher(data);
+        if (!res.success) {
+          await handleSaveError(res);
+          return;
+        }
+        // MSG-PV-08
+        Utils.showToast(res.data.message, 'success');
+        await loadVouchers(1);
+        showOutcome(`Đã lưu voucher ${res.data.voucher.voucherCode}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function handleSaveError(res) {
+      const fields = res.data && res.data.errors;
+      if (fields && Object.keys(fields).length) {
+        showErrors(fields);
+      } else if (res.code === 'VOUCHER_CHANGED') {
+        // MSG-PV-15: reload the latest data.
+        await openForm(editing.voucherId);
+        showErrors({}, res.error);
+      } else {
+        // MSG-PV-07 / MSG-PV-16
+        showErrors({}, res.error || 'Không thể lưu voucher. Chưa có thay đổi nào được lưu, vui lòng thử lại.');
+      }
+    }
+
+    // MSG-PV-14
+    function cancelForm() {
+      if (JSON.stringify(readForm()) === formSnapshot) {
+        showView('list');
+        return;
+      }
+      confirmDialog('Bỏ thay đổi?', 'Bỏ các thay đổi chưa lưu?', 'Bỏ thay đổi', () => showView('list'));
+    }
+
+    /* ---------------- Status changes (04) ---------------- */
+
+    async function openDeactivate(target) {
+      const id = typeof target === 'object' && target ? target.voucherId : target;
+      const res = await API.getVoucher(id);
+      if (!res.success || !res.data) return;
+      editing = res.data;
+      const v = editing;
+      document.getElementById('d-title').textContent = `Ngừng áp dụng ${v.voucherCode}?`;
+      // MSG-PV-13 with used count and pending reservations (BR-PV-08).
+      document.getElementById('d-text').textContent =
+        `Ngừng áp dụng cho giao dịch mới. ${number(v.reservedCount)} đơn chờ thanh toán đang giữ voucher vẫn được giảm giá đến khi trả tiền hoặc hết hạn thanh toán.`;
+      document.getElementById('d-code').textContent = v.voucherCode;
+      document.getElementById('d-used').textContent =
+        `${number(v.usedCount)} / ${v.usageLimit == null ? '∞' : number(v.usageLimit)} · giữ trên ${number(v.reservedCount)} đơn`;
+      document.getElementById('d-offer').textContent = offerText(v);
+      document.getElementById('d-error').style.display = 'none';
+      showView('deactivate');
+      document.getElementById('pv-title').textContent = 'Ngừng áp dụng voucher';
+    }
+
+    async function confirmDeactivate() {
+      const btn = document.getElementById('btn-deactivate');
+      btn.disabled = true;
+      try {
+        const res = await API.setVoucherActive(editing.voucherId, false, editing.version);
+        if (!res.success) {
+          const error = document.getElementById('d-error');
+          error.textContent = res.error || 'Không thể ngừng áp dụng voucher.';
+          error.style.display = '';
+          if (res.code === 'VOUCHER_CHANGED') await openDeactivate(editing.voucherId);
+          return;
+        }
+        Utils.showToast(res.data.message, 'success');   // MSG-PV-09
+        await loadVouchers(currentPage);
+        showOutcome(`Đã ngừng áp dụng ${editing.voucherCode}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function reactivate(id) {
+      const v = vouchers.find(x => x.voucherId === id);
+      const res = await API.setVoucherActive(id, true, v && v.version);
+      // MSG-PV-09 / MSG-PV-10
+      Utils.showToast(res.success ? res.data.message : (res.error || 'Không thể kích hoạt lại voucher.'),
+        res.success ? 'success' : 'error');
+      await loadVouchers(currentPage);
+    }
+
+    // MSG-PV-12 / MSG-PV-11
+    function askDelete(target) {
+      const v = typeof target === 'object' && target ? target : vouchers.find(x => x.voucherId === target);
+      if (!v) return;
+      confirmDialog('Xoá voucher', `Xoá voucher ${v.voucherCode}? Thao tác này không thể hoàn tác.`, 'Xoá', async () => {
+        const res = await API.deleteVoucher(v.voucherId, v.version);
+        Utils.showToast(res.success ? res.data.message : (res.error || 'Không thể xoá voucher.'),
+          res.success ? 'success' : 'error');
+        showView('list');
+        await loadVouchers(1);
+      });
+    }
+
+    function confirmDialog(title, text, okLabel, onOk) {
+      const dialog = document.getElementById('pv-confirm-dialog');
+      document.getElementById('cd-title').textContent = title;
+      document.getElementById('cd-text').textContent = text;
+      const ok = document.getElementById('cd-ok');
+      ok.textContent = okLabel;
+      ok.onclick = async () => {
+        dialog.close();
+        await onOk();
+      };
+      dialog.showModal();
+    }
+  </script>
 </body>
 </html>

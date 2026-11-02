@@ -6,6 +6,7 @@
   <title>Hồ sơ nông hộ & KYC - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/account.css">
   <link rel="stylesheet" href="../css/profile.css">
 </head>
 <body>
@@ -82,8 +83,18 @@
                 <button
                   type="button"
                   class="farmer-nav-btn active"
+                  data-farmer-tab="profile"
+                  onclick="showFarmerTab('profile')"
                 >
                   👤 Hồ sơ nông hộ & KYC
+                </button>
+                <button
+                  type="button"
+                  class="farmer-nav-btn"
+                  data-farmer-tab="bank"
+                  onclick="showFarmerTab('bank')"
+                >
+                  🏦 Tài khoản ngân hàng
                 </button>
                 <button
                   type="button"
@@ -240,13 +251,14 @@
 
                   <div class="farmer-form-grid-2">
                     <label class="field">
-                      <span>Số ĐKKD / Mã số nông hộ *</span>
+                      <span>Số ĐKKD / Mã số HTX</span>
                       <input
                         type="text"
                         id="farm-license"
                         maxlength="100"
-                        placeholder="Ví dụ: BL-2026-LD-889"
+                        placeholder="Ví dụ: 5800123456"
                       >
+                      <small>Bắt buộc nếu Loại hình là Hợp tác xã. Nông hộ cá nhân có thể bỏ trống.</small>
                     </label>
 
                     <label class="field">
@@ -322,6 +334,8 @@
                   </button>
                 </div>
               </form>
+              <!-- UC-AUTH-03 Manage Bank Account: payout account, required before KYC (BR-BA-03) -->
+              <div id="farmer-bank-tab" style="display:none;"><div id="bank-panel" class="acc-card" style="border:0; padding:0;"></div></div>
             </main>
           </div>
         </div>
@@ -373,6 +387,7 @@
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
+  <script src="../js/bank-account.js"></script>
 
   <script>
     let savedProfile = null;
@@ -670,6 +685,17 @@
       }
     }
 
+    let bankMounted = false;
+    function showFarmerTab(tab) {
+      document.getElementById('farmer-profile-form').style.display = tab === 'profile' ? '' : 'none';
+      document.getElementById('farmer-bank-tab').style.display = tab === 'bank' ? 'block' : 'none';
+      document.querySelectorAll('[data-farmer-tab]').forEach((b) => b.classList.toggle('active', b.dataset.farmerTab === tab));
+      if (tab === 'bank' && !bankMounted) {
+        BankAccountPanel.mount(document.getElementById('bank-panel'));
+        bankMounted = true;
+      }
+    }
+
     async function handleSubmitKyc() {
       if (!confirm(Messages.common.kycConfirmPrompt)) return;
 
@@ -688,6 +714,8 @@
           Utils.showToast(Messages.common.kycSubmitted, 'success');
         } else {
           showNotice(res.error || Messages.common.operationFailed, true);
+          // BR-BA-03: a payout bank account is required before KYC; open that tab for the farmer.
+          if (/bank|ngân hàng/i.test(JSON.stringify(res.data || res.error || ''))) showFarmerTab('bank');
         }
       } catch (err) {
         showNotice(err.message || Messages.common.networkError, true);

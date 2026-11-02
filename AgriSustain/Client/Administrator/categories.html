@@ -94,7 +94,7 @@
 
       <label class="field">
         <span>Tên danh mục *</span>
-        <input type="text" id="cat-name" required maxlength="150" placeholder="Nhập tên danh mục sản phẩm">
+        <input type="text" id="cat-name" required maxlength="100" placeholder="Nhập tên danh mục sản phẩm">
       </label>
 
       <label class="field">
@@ -111,9 +111,11 @@
         </select>
       </label>
 
+      <div id="category-form-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
+
       <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" onclick="closeCategoryModal()">Hủy</button>
-        <button type="submit" class="primary">Lưu danh mục</button>
+        <button type="submit" id="cat-save-btn" class="primary">Lưu danh mục</button>
       </div>
     </form>
   </dialog>
@@ -127,6 +129,7 @@
     <div style="margin-top:16px;">
       <p id="confirm-msg"></p>
       <p><strong id="confirm-cat-name"></strong></p>
+      <div id="confirm-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
       <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" onclick="closeConfirmModal()">Hủy</button>
         <button type="button" id="confirm-btn" class="primary" onclick="executeConfirmAction()">Xác nhận</button>
@@ -219,7 +222,6 @@
                 <button type="button" onclick="prepareConfirm(${item.id}, '${item.isActive ? 'deactivate' : 'activate'}')">
                   ${item.isActive ? 'Ẩn / khóa' : 'Kích hoạt'}
                 </button>
-                <button type="button" onclick="prepareConfirm(${item.id}, 'archive')">Lưu trữ</button>
                 <button type="button" class="danger-link" onclick="prepareConfirm(${item.id}, 'delete')">Xóa</button>
               </div>
             </td>
@@ -256,11 +258,12 @@
       document.getElementById('cat-isactive').value = cat ? String(cat.isActive) : 'true';
       document.getElementById('modal-category-title').textContent = cat ? 'Chi tiết danh mục' : 'Thêm danh mục sản phẩm';
       updateCharCount(document.getElementById('cat-description'));
-      Utils.showModal('category-modal');
+      setBoxError('category-form-error', '');
+      document.getElementById('category-modal').showModal();
     }
 
     function closeCategoryModal() {
-      Utils.hideModal('category-modal');
+      document.getElementById('category-modal').close();
     }
 
     function editCategory(id) {
@@ -279,21 +282,40 @@
       const description = document.getElementById('cat-description').value.trim();
       const isActive = document.getElementById('cat-isactive').value === 'true';
 
-      const payload = { name, description, isActive };
+      // Changing the status while editing needs the same MSG-CAT-03 confirmation as the row action.
+      const original = id ? categoriesCache.find(x => String(x.id) === id) : null;
+      const statusChanged = !!original && original.isActive !== isActive;
+      if (statusChanged && !window.confirm(statusConfirmText(original, isActive ? 'activate' : 'deactivate'))) {
+        return;
+      }
 
+      const payload = { name, description, isActive, confirmed: statusChanged };
+      const btn = document.getElementById('cat-save-btn');
+      btn.disabled = true;
+      setBoxError('category-form-error', '');
       try {
-        if (id) {
-          await API.updateCategory(id, payload);
-          showAlert('Đã cập nhật danh mục thành công!', 'success');
-        } else {
-          await API.createCategory(payload);
-          showAlert('Đã tạo danh mục mới thành công!', 'success');
+        const res = id ? await API.updateCategory(id, payload) : await API.createCategory(payload);
+        if (!res.success) {
+          setBoxError('category-form-error', errorText(res, 'Không thể lưu danh mục.'));
+          return;
         }
         closeCategoryModal();
+        showAlert(`Danh mục ${name} đã được lưu.`, 'success');
         await loadCategories(currentPage);
       } catch (err) {
-        showAlert(err.message || 'Không thể lưu danh mục.', 'error');
+        setBoxError('category-form-error', err.message || 'Không thể lưu danh mục.');
+      } finally {
+        btn.disabled = false;
       }
+    }
+
+    // MSG-CAT-03 with the product impact (BR-CAT-03).
+    function statusConfirmText(cat, action) {
+      const verb = action === 'activate' ? 'Kích hoạt' : 'Ẩn / khóa';
+      const impact = action === 'deactivate' && cat.productCount > 0
+        ? ` Danh mục đang có ${cat.productCount} sản phẩm; các sản phẩm hiện có vẫn hiển thị nhưng không thể tạo hoặc sửa sản phẩm mới vào danh mục này.`
+        : '';
+      return `${verb} danh mục ${cat.name}?${impact}`;
     }
 
     function prepareConfirm(catId, action) {
@@ -301,47 +323,68 @@
       if (!cat) return;
 
       pendingConfirm = { cat, action };
-      const msgMap = {
-        delete: 'Xóa danh mục không có tham chiếu; danh mục có lịch sử sẽ được lưu trữ. Sản phẩm đang hoạt động sẽ chặn thao tác.',
-        archive: 'Lưu trữ danh mục và giữ lại tham chiếu lịch sử?',
-        activate: 'Xác nhận kích hoạt danh mục hiển thị lại trên Marketplace?',
-        deactivate: 'Xác nhận ẩn / khóa danh mục này khỏi Marketplace?'
-      };
-
-      document.getElementById('confirm-msg').textContent = msgMap[action] || 'Xác nhận thao tác trên danh mục?';
+      // MSG-CAT-04 for delete; BR-CAT-04 decides delete vs archive on the server.
+      document.getElementById('confirm-msg').textContent = action === 'delete'
+        ? `Xóa danh mục ${cat.name}? Nếu danh mục đã từng được sử dụng, hệ thống sẽ lưu trữ thay vì xóa và danh mục không thể thay đổi nữa.`
+        : statusConfirmText(cat, action);
       document.getElementById('confirm-cat-name').textContent = cat.name;
+      setBoxError('confirm-error', '');
 
       const btn = document.getElementById('confirm-btn');
       btn.className = action === 'delete' ? 'danger' : 'primary';
 
-      Utils.showModal('confirm-modal');
+      document.getElementById('confirm-modal').showModal();
     }
 
     function closeConfirmModal() {
-      Utils.hideModal('confirm-modal');
+      document.getElementById('confirm-modal').close();
       pendingConfirm = null;
     }
 
     async function executeConfirmAction() {
       if (!pendingConfirm) return;
       const { cat, action } = pendingConfirm;
+      const btn = document.getElementById('confirm-btn');
+      btn.disabled = true;
+      setBoxError('confirm-error', '');
 
       try {
-        if (action === 'delete') {
-          await API.deleteCategory(cat.id);
-          showAlert('Đã xóa danh mục thành công.', 'success');
-        } else if (action === 'activate' || action === 'deactivate') {
-          await API.updateCategory(cat.id, { ...cat, isActive: action === 'activate' });
-          showAlert('Đã cập nhật trạng thái danh mục.', 'success');
-        } else {
-          showAlert('Đã thực hiện lưu trữ danh mục.', 'success');
+        const res = await API.changeCategoryStatus(cat.id, action, true);
+        if (!res.success) {
+          setBoxError('confirm-error', errorText(res, 'Thao tác không thành công.'));
+          return;
         }
         closeConfirmModal();
+        if (action === 'delete') {
+          // The server archives instead of deleting when the category has been used.
+          const check = await API.request(`/categories/${cat.id}`, { suppressErrorToast: true });
+          showAlert(check.status === 404
+            ? `Đã xóa danh mục ${cat.name}.`
+            : `Danh mục ${cat.name} đã được sử dụng nên đã được lưu trữ thay vì xóa.`, 'success');
+        } else {
+          showAlert(`Đã ${action === 'activate' ? 'kích hoạt' : 'ẩn / khóa'} danh mục ${cat.name}.`, 'success');
+        }
         await loadCategories(currentPage);
       } catch (err) {
-        closeConfirmModal();
-        showAlert(err.message || 'Thao tác không thành công.', 'error');
+        setBoxError('confirm-error', err.message || 'Thao tác không thành công.');
+      } finally {
+        btn.disabled = false;
       }
+    }
+
+    function errorText(res, fallback) {
+      const fields = res.data && res.data.errors;
+      if (fields && typeof fields === 'object') {
+        const first = Object.values(fields).flat()[0];
+        if (first) return first;
+      }
+      return res.error || fallback;
+    }
+
+    function setBoxError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
     }
 
     function showAlert(msg, type = 'success') {

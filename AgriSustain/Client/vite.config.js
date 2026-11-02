@@ -1,16 +1,23 @@
-import { cpSync, existsSync } from 'node:fs';
 import { resolve } from 'path';
+import { cpSync, existsSync, readdirSync } from 'node:fs';
 import { defineConfig } from 'vite';
+
+const clientRoot = __dirname;
+const htmlPages = [resolve(clientRoot, 'index.html'), ...readdirSync(clientRoot, { withFileTypes: true })
+  .filter(entry => entry.isDirectory() && /^[A-Z]/.test(entry.name))
+  .flatMap(entry => readdirSync(resolve(clientRoot, entry.name))
+    .filter(file => file.endsWith('.html')).map(file => resolve(clientRoot, entry.name, file)))];
 
 let clientOutput;
 export default defineConfig({
   plugins: [{
-    name: 'copy-classic-client-scripts',
+    name: 'copy-shared-client-scripts',
     apply: 'build',
     configResolved(config) { clientOutput = resolve(config.root, config.build.outDir); },
     closeBundle() {
+      // Classic scripts are shared globals; Vite only bundles module scripts.
       for (const directory of ['js', 'messages', 'css']) {
-        const source = resolve(__dirname, directory);
+        const source = resolve(clientRoot, directory);
         if (existsSync(source)) cpSync(source, resolve(clientOutput, directory), { recursive: true });
       }
     },
@@ -36,41 +43,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        guestLogin: resolve(__dirname, 'Guest/login.html'),
-        guestRegister: resolve(__dirname, 'Guest/register.html'),
-        guestForgotPassword: resolve(__dirname, 'Guest/forgot-password.html'),
-        retailIndex: resolve(__dirname, 'RetailCustomer/index.html'),
-        retailProductDetail: resolve(__dirname, 'RetailCustomer/product-detail.html'),
-        retailCart: resolve(__dirname, 'RetailCustomer/cart.html'),
-        retailCheckout: resolve(__dirname, 'RetailCustomer/checkout.html'),
-        retailOrders: resolve(__dirname, 'RetailCustomer/orders.html'),
-        retailProfile: resolve(__dirname, 'RetailCustomer/profile.html'),
-        retailFeedback: resolve(__dirname, 'RetailCustomer/feedback.html'),
-        adminDashboard: resolve(__dirname, 'Administrator/dashboard.html'),
-        adminUsers: resolve(__dirname, 'Administrator/users.html'),
-        adminCategories: resolve(__dirname, 'Administrator/categories.html'),
-        farmerComplaints: resolve(__dirname, 'Farmer/complaints.html'),
-        farmerCropSeasons: resolve(__dirname, 'Farmer/crop-seasons.html'),
-        farmerFarmingLogs: resolve(__dirname, 'Farmer/farming-logs.html'),
-        farmerHarvestBatches: resolve(__dirname, 'Farmer/harvest-batches.html'),
-        farmerProducts: resolve(__dirname, 'Farmer/products.html'),
-        farmerOrders: resolve(__dirname, 'Farmer/orders.html'),
-        farmerProfile: resolve(__dirname, 'Farmer/profile.html'),
-        moderation: resolve(__dirname, 'ContentModerator/moderation.html'),
-        supportDashboard: resolve(__dirname, 'CustomerSupport/dashboard.html'),
-        supportComplaints: resolve(__dirname, 'CustomerSupport/complaints.html'),
-        promotionDashboard: resolve(__dirname, 'PromotionStaff/dashboard.html'),
-        promotionVouchers: resolve(__dirname, 'PromotionStaff/vouchers.html'),
-        financeDashboard: resolve(__dirname, 'FinanceStaff/dashboard.html'),
-        financePayments: resolve(__dirname, 'FinanceStaff/payments.html'),
-        financeRefunds: resolve(__dirname, 'FinanceStaff/refunds.html'),
-        verificationDashboard: resolve(__dirname, 'VerificationOfficer/dashboard.html'),
-        wholesaleDashboard: resolve(__dirname, 'WholesaleBuyer/dashboard.html'),
-        gatewayDashboard: resolve(__dirname, 'PaymentGateway/dashboard.html'),
-        gmailDashboard: resolve(__dirname, 'GmailService/dashboard.html'),
-      },
+      input: htmlPages,
     },
   },
 });

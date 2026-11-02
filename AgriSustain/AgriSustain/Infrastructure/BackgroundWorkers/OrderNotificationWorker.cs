@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 namespace AgriSustain.Infrastructure.BackgroundWorkers;
 
-// This worker owns only product-submission emails; other teams' notifications are untouched.
+// Sends the queued order-update and refund (UC-FIN-03, MSG-RF-08/09) emails; other notifications are untouched.
 public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
     ILogger<OrderNotificationWorker> logger) : BackgroundService
 {
@@ -41,7 +41,8 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
             if (eventMarker > 0) await notices.RetryFailedChannelsAsync(payload[..eventMarker], cancellationToken);
         }
         var ids = await db.Notifications.AsNoTracking().Where(n =>
-            n.NotificationType == "FarmerOrderUpdate" && n.DeliveryChannel == "Email"
+            (n.NotificationType == "FarmerOrderUpdate" || n.NotificationType == "RefundEmail")
+            && n.DeliveryChannel == "Email"
             && ((n.DeliveryStatus == "Pending" || n.DeliveryStatus == "Failed" && n.SentAt <= now.AddMinutes(-1))
                 || n.DeliveryStatus == "Sending" && n.SentAt < now.AddMinutes(-5)))
             .OrderBy(n => n.NotificationId).Select(n => n.NotificationId).Take(25)

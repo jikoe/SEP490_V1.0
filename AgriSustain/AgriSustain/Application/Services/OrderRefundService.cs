@@ -13,7 +13,7 @@ public sealed class OrderRefundService(AgriSustainContext context, FulfillmentRu
         payment.PaymentStatus is "Success" or "Succeeded" or "Paid" or "Completed";
 
     private static bool ConsumesBalance(RefundTransaction refund) =>
-        refund.RefundStatus is "Completed" or "Succeeded" or "Success" or "Pending" or "Processing";
+        refund.ReservesPayment;
 
     public decimal GetCompletedAmount(SellerOrder order) => order.Order.PaymentTransactions
         .SelectMany(payment => payment.RefundTransactions)

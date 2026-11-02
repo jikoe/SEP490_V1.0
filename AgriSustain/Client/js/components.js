@@ -111,7 +111,7 @@ const ROLE_CONFIGS = {
     landingRoute: 'PromotionStaff/dashboard.html',
     navItems: [
       { key: 'promotion-dash', label: 'Chiến dịch khuyến mại', icon: '📊', path: 'PromotionStaff/dashboard.html' },
-      { key: 'promotion-vouchers', label: 'Quản lý voucher', icon: '🎟️', path: 'PromotionStaff/vouchers.html' },
+      { key: 'promotion-vouchers', label: 'Voucher toàn sàn', icon: '🎟️', path: 'PromotionStaff/vouchers.html' },
     ],
   },
   finance_staff: {

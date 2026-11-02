@@ -35,7 +35,7 @@
           <label style="display: block; font-size: 13px; font-weight: 700; color: #1e4834; margin-bottom: 10px;">
             1. BẠN MUỐN THAM GIA VỚI VAI TRÒ NÀO?
           </label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
             <!-- Card RetailCustomer -->
             <div
               id="role-retail-card"
@@ -72,6 +72,24 @@
                 Quản lý mùa vụ canh tác, niêm yết nông sản đạt chuẩn VietGAP và nhận thanh toán.
               </p>
               <span id="role-farmer-check" style="position: absolute; top: 10px; right: 10px; color: #1e6546; font-weight: 800; display: none;">✓</span>
+            </div>
+            <!-- Card WholesaleBuyer (UC-AUTH-02: company dossier is submitted later from the Profile) -->
+            <div
+              id="role-wholesale-card"
+              onclick="selectRole('WholesaleBuyer')"
+              style="border: 2px solid #d7e2da; border-radius: 12px; padding: 16px; cursor: pointer; background: #ffffff; transition: all 0.2s ease; position: relative;"
+            >
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span style="font-size: 22px;">🏢</span>
+                <div>
+                  <strong style="font-size: 14px; color: #1b4332;">WholesaleBuyer</strong>
+                  <div style="font-size: 11px; color: #5b7566;">Doanh nghiệp mua sỉ (B2B)</div>
+                </div>
+              </div>
+              <p style="margin: 0; font-size: 11.5px; color: #688273; line-height: 1.4;">
+                Mua sỉ, ký hợp đồng bao tiêu sau khi gửi hồ sơ doanh nghiệp và được duyệt KYC.
+              </p>
+              <span id="role-wholesale-check" style="position: absolute; top: 10px; right: 10px; color: #1e6546; font-weight: 800; display: none;">✓</span>
             </div>
           </div>
         </div>
@@ -267,28 +285,14 @@
 
     function selectRole(role) {
       selectedRole = role;
-      const retailCard = document.getElementById('role-retail-card');
-      const farmerCard = document.getElementById('role-farmer-card');
-      const retailCheck = document.getElementById('role-retail-check');
-      const farmerCheck = document.getElementById('role-farmer-check');
-
-      if (role === 'RetailCustomer') {
-        retailCard.style.border = '2px solid #1e6546';
-        retailCard.style.background = '#edf6f0';
-        retailCheck.style.display = 'block';
-
-        farmerCard.style.border = '2px solid #d7e2da';
-        farmerCard.style.background = '#ffffff';
-        farmerCheck.style.display = 'none';
-      } else {
-        farmerCard.style.border = '2px solid #1e6546';
-        farmerCard.style.background = '#edf6f0';
-        farmerCheck.style.display = 'block';
-
-        retailCard.style.border = '2px solid #d7e2da';
-        retailCard.style.background = '#ffffff';
-        retailCheck.style.display = 'none';
-      }
+      [['RetailCustomer', 'retail'], ['Farmer', 'farmer'], ['WholesaleBuyer', 'wholesale']].forEach(([name, key]) => {
+        const card = document.getElementById(`role-${key}-card`);
+        const check = document.getElementById(`role-${key}-check`);
+        const active = role === name;
+        card.style.border = `2px solid ${active ? '#1e6546' : '#d7e2da'}`;
+        card.style.background = active ? '#edf6f0' : '#ffffff';
+        check.style.display = active ? 'block' : 'none';
+      });
     }
 
     function handlePhoneInput(input) {

@@ -228,7 +228,10 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
         if (string.IsNullOrWhiteSpace(user.PhoneNumber)) missing.Add("phoneNumber");
         if (string.IsNullOrWhiteSpace(farm.Address)) missing.Add("address");
         if (string.IsNullOrWhiteSpace(farm.CultivationZone)) missing.Add("cultivationZone");
-        if (string.IsNullOrWhiteSpace(farm.BusinessLicenseNumber)) missing.Add("businessLicenseNumber");
+        // An individual farmer usually has no business registration; only a Cooperative (HTX) must give its
+        // registration / tax number. The Verification Officer checks it on the public registry (UC-VO-01).
+        if (farm.ProductionModel == "Cooperative" && string.IsNullOrWhiteSpace(farm.BusinessLicenseNumber))
+            missing.Add("businessLicenseNumber");
         // BR-BA-03: a payout bank account is required before submitting for verification.
         if (!await db.UserBankAccounts.AnyAsync(a => a.UserId == userId && a.IsDefault, cancellationToken))
             missing.Add("bankAccount");

@@ -6,6 +6,7 @@
   <title>Xử lý khiếu nại - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/support.css">
 </head>
 <body>
   <div class="app-shell">
@@ -15,57 +16,102 @@
       <header id="app-header"></header>
 
       <main>
-        <section style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">HỖ TRỢ &amp; GIẢI QUYẾT TRANH CHẤP</p>
-              <h1>Xử lý khiếu nại khách hàng</h1>
-              <p class="muted">Thẩm định chứng cứ thiệt hại, lỗi vận chuyển hoặc sai quy cách để đưa ra phương án đền bù hoặc hoàn tiền.</p>
-            </div>
-          </div>
+        <!-- UC-CS-01 Resolve Complaint (Figma UC-CS-01, node 73:317) -->
+        <section class="cs-page">
+          <p class="cs-crumbs">Chăm sóc khách hàng / Khiếu nại</p>
+          <h1>Xử lý khiếu nại</h1>
+          <p class="cs-sub">Xem xét bằng chứng của hai bên rồi từ chối khiếu nại hoặc duyệt hoàn tiền toàn bộ hay một phần cho đơn của nông trại.</p>
 
-          <div class="panel record-panel">
-            <div class="record-heading">
-              <h2>Hàng đợi khiếu nại cần phân xử</h2>
-              <span class="count">3 khiếu nại</span>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Mã phiếu</th>
-                    <th>Người gửi</th>
-                    <th>Đơn hàng</th>
-                    <th>Nội dung phản ánh</th>
-                    <th>Thời gian gửi</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>KN-9921</strong></td>
-                    <td>Phạm Văn Hải</td>
-                    <td>#ORD-98210</td>
-                    <td>Dưa lưới bị nứt vỡ trong quá trình vận chuyển liên tỉnh</td>
-                    <td>Hôm nay 09:30</td>
-                    <td><span class="badge Pending">Chờ phản hồi</span></td>
-                    <td><button class="primary" onclick="alert(Messages.order.compensationApprovedNotice)">Chấp thuận hoàn 100%</button></td>
-                  </tr>
-                  <tr>
-                    <td><strong>KN-9918</strong></td>
-                    <td>Vũ Thu Trang</td>
-                    <td>#ORD-98150</td>
-                    <td>Giao thiếu 2kg cam trong đơn hàng sỉ</td>
-                    <td>Hôm qua 16:40</td>
-                    <td><span class="badge Pending">Đang xác minh</span></td>
-                    <td><button class="primary" onclick="alert(Messages.order.weightAuditRequestedNotice)">Yêu cầu HTX đối soát</button></td>
-                  </tr>
-                </tbody>
+          <form class="cs-card cs-filters" id="cs-filters" onsubmit="event.preventDefault(); loadComplaints(1);">
+            <label><span class="cs-label">(1) Từ khoá</span>
+              <input id="f-search" type="search" maxlength="50" placeholder="Mã khiếu nại hoặc mã đơn"></label>
+            <label><span class="cs-label">(2) Trạng thái</span>
+              <select id="f-status">
+                <option value="">Tất cả trạng thái</option>
+                <option value="Open">Mới gửi</option>
+                <option value="UnderReview">Đang xem xét</option>
+                <option value="WaitingCustomerInfo">Chờ bổ sung</option>
+                <option value="RefundPending">Chờ hoàn tiền</option>
+                <option value="Rejected">Đã từ chối</option>
+                <option value="Closed">Đã đóng</option>
+              </select></label>
+            <label><span class="cs-label">(3) Lý do</span>
+              <select id="f-reason"><option value="">Tất cả lý do</option></select></label>
+            <button type="submit" class="cs-btn primary">(4) Tìm kiếm</button>
+          </form>
+
+          <div class="cs-columns">
+            <!-- (5)–(9) -->
+            <div class="cs-card">
+              <h2>Danh sách khiếu nại · <span id="cs-total">0</span></h2>
+              <table class="cs-table">
+                <thead><tr><th>(5) Mã</th><th>(6) Đơn nông trại</th><th>(7) Trạng thái</th><th>(8) Hạn</th></tr></thead>
+                <tbody id="cs-rows"><tr><td colspan="4" class="empty">Đang tải...</td></tr></tbody>
               </table>
+              <p class="cs-list-foot" id="cs-foot"></p>
+              <div class="cs-pager" id="cs-pager"></div>
+            </div>
+
+            <!-- (10)–(14) -->
+            <div class="cs-card cs-detail" id="cs-detail">
+              <p class="cs-placeholder">Chọn một khiếu nại để xem chi tiết.</p>
+            </div>
+
+            <!-- (15)–(21) -->
+            <div class="cs-card cs-decision" id="cs-decision">
+              <h2>(15) Quyết định</h2>
+              <div id="cs-final" class="cs-final" hidden></div>
+              <div id="cs-form">
+                <label class="cs-field"><span class="cs-label">(16) Kết quả *</span>
+                  <select id="d-resolution" onchange="onResolutionChange()">
+                    <option value="">Chọn kết quả</option>
+                    <option value="FullRefund">Hoàn toàn bộ</option>
+                    <option value="PartialRefund">Hoàn một phần</option>
+                    <option value="RejectClaim">Từ chối khiếu nại</option>
+                  </select></label>
+                <label class="cs-field"><span class="cs-label">(17) Bên có lỗi *</span>
+                  <select id="d-fault">
+                    <option value="">Chọn bên có lỗi</option>
+                    <option value="Seller">Nông dân / Người bán</option>
+                    <option value="Buyer">Người mua</option>
+                    <option value="NotDetermined">Chưa xác định</option>
+                  </select></label>
+                <label class="cs-field"><span class="cs-label">(18) Lý do *</span>
+                  <textarea id="d-reason" maxlength="1000" placeholder="Nêu căn cứ từ bằng chứng của hai bên"></textarea></label>
+                <span class="cs-label">Số tiền hoàn</span>
+                <p class="cs-amount" id="d-amount">—</p>
+                <p class="cs-error" id="d-error" hidden></p>
+                <button type="button" class="cs-btn primary" id="btn-confirm" onclick="openConfirm()">(19) Xác nhận quyết định</button>
+                <button type="button" class="cs-btn" id="btn-request" onclick="toggleRequestInfo(true)">(20) Yêu cầu bổ sung thông tin</button>
+                <button type="button" class="cs-btn" id="btn-cancel" onclick="resetDecision()">(21) Huỷ</button>
+
+                <div class="cs-info" id="cs-info" hidden>
+                  <label class="cs-field"><span class="cs-label">Bên cần bổ sung *</span>
+                    <select id="r-party">
+                      <option value="">Chọn bên</option>
+                      <option value="Buyer">Người mua</option>
+                      <option value="Seller">Nông dân / Người bán</option>
+                    </select></label>
+                  <label class="cs-field"><span class="cs-label">Hướng dẫn *</span>
+                    <textarea id="r-instructions" maxlength="1000" placeholder="Thông tin hoặc bằng chứng cần gửi thêm"></textarea></label>
+                  <p class="cs-error" id="r-error" hidden></p>
+                  <button type="button" class="cs-btn primary" id="btn-send-request" onclick="sendRequestInfo()">Gửi yêu cầu</button>
+                  <button type="button" class="cs-btn" onclick="toggleRequestInfo(false)">Đóng</button>
+                </div>
+                <p class="cs-note">Yêu cầu bổ sung: chọn Người mua hoặc Nông dân và nhập hướng dẫn. Mỗi bên chỉ có một yêu cầu đang mở.</p>
+              </div>
             </div>
           </div>
         </section>
+
+        <dialog id="confirm-dialog" class="cs-dialog">
+          <h2>Xác nhận quyết định</h2>
+          <dl id="confirm-facts"></dl>
+          <div class="actions">
+            <button type="button" class="cs-btn" onclick="document.getElementById('confirm-dialog').close()">Quay lại</button>
+            <button type="button" class="cs-btn primary" id="btn-submit" onclick="submitDecision()">Xác nhận</button>
+          </div>
+        </dialog>
       </main>
 
       <footer>
@@ -80,5 +126,341 @@
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
+
+  <script>
+    const pageSize = 5;
+    let currentPage = 1;
+    let selectedId = null;
+    let detail = null;
+
+    const statusLabels = {
+      Open: 'Mới gửi', UnderReview: 'Đang xem xét', WaitingCustomerInfo: 'Chờ bổ sung',
+      RefundPending: 'Chờ hoàn tiền', Rejected: 'Đã từ chối', Closed: 'Đã đóng'
+    };
+    const resolutionLabels = { FullRefund: 'Hoàn toàn bộ', PartialRefund: 'Hoàn một phần', RejectClaim: 'Từ chối khiếu nại' };
+    const partyLabels = { Buyer: 'Người mua', Seller: 'Nông dân', NotDetermined: 'Chưa xác định' };
+    const requestStatusLabels = { Pending: 'Đang chờ phản hồi', Closed: 'Đã đóng', Expired: 'Quá hạn' };
+    const refundStatusLabels = {
+      Pending: 'Chờ chuyển', Processing: 'Đang chuyển', Completed: 'Thành công',
+      Failed: 'Thất bại', NeedsReconciliation: 'Cần đối soát'
+    };
+    const awaitingDecision = ['Open', 'UnderReview', 'WaitingCustomerInfo'];
+
+    document.addEventListener('DOMContentLoaded', () => loadComplaints(1));
+
+    /* ---------------- Formatting (Vietnam time) ---------------- */
+
+    const esc = (s) => Utils.escapeHtml(s == null ? '' : String(s));
+    const money = (n) => `${Number(n || 0).toLocaleString('vi-VN')} đ`;
+    const qty = (n) => Number(n || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+
+    function vnParts(value) {
+      return Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+      }).formatToParts(new Date(value)).map(p => [p.type, p.value]));
+    }
+    const vnDate = (v) => { const p = vnParts(v); return `${p.day}/${p.month}/${p.year}`; };
+    const vnDateTime = (v) => { const p = vnParts(v); return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`; };
+    const vnShort = (v) => { const p = vnParts(v); return `${p.day}/${p.month} ${p.hour}:${p.minute}`; };
+
+    // KN-yyyy-NNN from the complaint id and the year it was sent.
+    const ticketCode = (id, createdAt) => `KN-${vnParts(createdAt).year}-${String(id).padStart(3, '0')}`;
+
+    /* ---------------- (1)–(9) List ---------------- */
+
+    async function loadComplaints(page) {
+      currentPage = page;
+      const rawSearch = document.getElementById('f-search').value.trim();
+      const code = rawSearch.match(/^KN-\d{4}-0*(\d+)$/i);
+      const params = {
+        search: code ? code[1] : rawSearch,
+        status: document.getElementById('f-status').value,
+        reason: document.getElementById('f-reason').value,
+        page, pageSize
+      };
+      const res = await API.getComplaints(params, { suppressErrorToast: true });
+      const rows = document.getElementById('cs-rows');
+      if (!res.success) {
+        rows.innerHTML = '<tr><td colspan="4" class="empty">Không thể tải danh sách khiếu nại. Vui lòng thử lại.</td></tr>';
+        document.getElementById('cs-foot').textContent = '';
+        document.getElementById('cs-pager').innerHTML = '';
+        return;
+      }
+
+      const data = res.data;
+      fillReasons(data.reasons || []);
+      document.getElementById('cs-total').textContent = data.total;
+      const items = data.items || [];
+      rows.innerHTML = items.length ? items.map(rowHtml).join('')
+        : '<tr><td colspan="4" class="empty">Không tìm thấy khiếu nại phù hợp.</td></tr>';
+      const from = data.total ? (data.page - 1) * data.pageSize + 1 : 0;
+      const to = Math.min(data.page * data.pageSize, data.total);
+      document.getElementById('cs-foot').textContent =
+        `(9) Hiển thị ${from}–${to} trên ${data.total} · Khiếu nại quá hạn bằng chứng được tô đỏ`;
+      renderPager(Math.ceil(data.total / data.pageSize));
+
+      if (!selectedId && items.length) selectComplaint(items[0].ticketId);
+    }
+
+    function rowHtml(c) {
+      const due = c.evidenceDueAt ? vnShort(c.evidenceDueAt) : c.evidenceComplete ? 'Đã đủ' : '—';
+      const classes = [c.hasOverdueEvidence ? 'overdue' : '', c.ticketId === selectedId ? 'selected' : ''].join(' ');
+      return `<tr class="${classes}" data-id="${c.ticketId}" onclick="selectComplaint(${c.ticketId})"
+          title="${esc(c.complainantName)} · ${esc(c.disputeReason)}">
+        <td>${ticketCode(c.ticketId, c.createdAt)}</td>
+        <td>${esc(c.sellerOrderCode || '—')}</td>
+        <td><span class="cs-pill ${esc(c.ticketStatus)}">${esc(statusLabels[c.ticketStatus] || c.ticketStatus)}</span></td>
+        <td class="due">${due}</td>
+      </tr>`;
+    }
+
+    function fillReasons(reasons) {
+      const select = document.getElementById('f-reason');
+      if (select.options.length > 1) return;
+      reasons.forEach(r => select.add(new Option(r, r)));
+    }
+
+    function renderPager(pages) {
+      const pager = document.getElementById('cs-pager');
+      pager.innerHTML = pages <= 1 ? '' : Array.from({ length: pages }, (_, i) =>
+        `<button type="button" class="${i + 1 === currentPage ? 'current' : ''}" onclick="loadComplaints(${i + 1})">${i + 1}</button>`
+      ).join('');
+    }
+
+    /* ---------------- (10)–(14) Detail ---------------- */
+
+    async function selectComplaint(id) {
+      selectedId = id;
+      document.querySelectorAll('#cs-rows tr').forEach(tr =>
+        tr.classList.toggle('selected', Number(tr.dataset.id) === id));
+      const res = await API.getComplaintDetail(id);
+      if (!res.success) {
+        detail = null;
+        document.getElementById('cs-detail').innerHTML =
+          '<p class="cs-placeholder">Không thể tải chi tiết khiếu nại. Vui lòng thử lại.</p>';
+        renderDecision();
+        return;
+      }
+      detail = res.data;
+      renderDetail();
+      renderDecision();
+    }
+
+    function renderDetail() {
+      const d = detail;
+      const buyer = d.buyer || d.complainant;
+      const evidence = d.evidences.length ? d.evidences.map(e => `<li>${esc(partyLabels[e.submittedByParty] || e.submittedByParty)}:
+          ${esc(e.description || (e.isDocument ? 'Tài liệu' : 'Ảnh'))}, gửi ${vnShort(e.submittedAt)}
+          · <button type="button" class="cs-link" onclick="API.openComplaintEvidence(${d.ticketId}, ${e.evidenceId})">Xem</button></li>`).join('')
+        : '<li>Chưa có bằng chứng.</li>';
+      const requests = d.evidenceRequests.length ? d.evidenceRequests.map(r => {
+        const state = r.respondedAt ? `Đã phản hồi ${vnShort(r.respondedAt)}`
+          : r.isOverdue ? 'Quá hạn' : (requestStatusLabels[r.requestStatus] || r.requestStatus);
+        return `<li class="${r.isOverdue ? 'overdue' : ''}">${esc(partyLabels[r.party] || r.party)}
+          · hạn ${r.dueAt ? vnDateTime(r.dueAt) : '—'} · ${esc(state)}</li>`;
+      }).join('') : '<li>Chưa có yêu cầu bổ sung.</li>';
+      const refunds = d.refunds.length ? `<p class="cs-head">Hoàn tiền</p><ul>${d.refunds.map(r =>
+          `<li>${esc(r.refundCode)} · ${money(r.amount)} · ${esc(refundStatusLabels[r.refundStatus] || r.refundStatus)}</li>`).join('')}</ul>` : '';
+
+      document.getElementById('cs-detail').innerHTML = `
+        <h2>(10) ${ticketCode(d.ticketId, d.createdAt)} · ${esc(d.disputeReason)}</h2>
+        <p class="cs-head">Người mua · Đơn nông trại</p>
+        <p>${esc(buyer?.fullName)} · ${esc(d.orderCode || '—')} / ${esc(d.sellerOrderCode || '—')}
+          ${d.seller ? `(${esc(d.seller.fullName)})` : ''}${d.deliveredAt ? ` · Đã giao ${vnDate(d.deliveredAt)}` : ''}</p>
+        <p class="cs-head">Mô tả</p>
+        <p>${esc(d.description || '—')}</p>
+        <p class="cs-head">(11) Bằng chứng</p>
+        <ul>${evidence}</ul>
+        <p class="cs-head">(12) Yêu cầu bằng chứng</p>
+        <ul>${requests}</ul>
+        <p class="cs-head">(13) Sản phẩm của đơn nông trại (chọn khi hoàn một phần)</p>
+        <table class="cs-items">
+          <thead><tr><th>Chọn</th><th>Sản phẩm</th><th>Đã giao</th><th>SL hoàn</th><th>Đơn giá đã trả</th></tr></thead>
+          <tbody>${d.items.map(itemRow).join('') || '<tr><td colspan="5">Không có sản phẩm.</td></tr>'}</tbody>
+        </table>
+        <p class="cs-head">(14) Số tiền tối đa còn hoàn được của đơn nông trại</p>
+        <p class="cs-amount">${money(d.maxRefundAmount)}</p>
+        ${refunds}`;
+      document.querySelectorAll('[data-item]').forEach(el => el.addEventListener('input', updateAmount));
+      setItemsEnabled();
+    }
+
+    const unitPaid = (item) => item.quantity > 0 ? item.paidValue / item.quantity : 0;
+
+    function itemRow(item) {
+      return `<tr>
+        <td><input type="checkbox" data-item="${item.orderItemId}" data-check aria-label="Chọn ${esc(item.productName)}"></td>
+        <td>${esc(item.productName || '—')}</td>
+        <td>${qty(item.quantity)} ${esc(item.unit)}</td>
+        <td><input type="number" min="0" max="${item.quantity}" step="0.001" data-item="${item.orderItemId}" data-qty
+             value="" aria-label="Số lượng hoàn ${esc(item.productName)}"></td>
+        <td>${money(Math.round(unitPaid(item)))}</td>
+      </tr>`;
+    }
+
+    /* ---------------- (15)–(21) Decision ---------------- */
+
+    function renderDecision() {
+      const open = detail && awaitingDecision.includes(detail.ticketStatus);
+      const final = document.getElementById('cs-final');
+      if (detail && !open) {
+        const refund = detail.refunds[0];
+        final.hidden = false;
+        final.innerHTML = `<strong>${esc(statusLabels[detail.ticketStatus] || detail.ticketStatus)}</strong><br>
+          Bên có lỗi: ${esc(partyLabels[detail.faultParty] || detail.faultParty || '—')}<br>
+          ${refund ? `Hoàn ${money(refund.amount)} · ${esc(refund.refundCode)} · ${esc(refundStatusLabels[refund.refundStatus] || refund.refundStatus)}<br>` : ''}
+          Lý do: ${esc(detail.resolutionNotes || '—')}`;
+      } else {
+        final.hidden = true;
+      }
+      document.getElementById('cs-form').hidden = !!(detail && !open);
+      ['d-resolution', 'd-fault', 'd-reason', 'btn-confirm', 'btn-request', 'btn-cancel']
+        .forEach(id => document.getElementById(id).disabled = !open);
+      resetDecision();
+    }
+
+    function resetDecision() {
+      document.getElementById('d-resolution').value = '';
+      document.getElementById('d-fault').value = '';
+      document.getElementById('d-reason').value = '';
+      document.querySelectorAll('[data-check]').forEach(c => c.checked = false);
+      document.querySelectorAll('[data-qty]').forEach(q => q.value = '');
+      showError('d-error', '');
+      toggleRequestInfo(false);
+      onResolutionChange();
+    }
+
+    function onResolutionChange() {
+      setItemsEnabled();
+      updateAmount();
+    }
+
+    function setItemsEnabled() {
+      const partial = document.getElementById('d-resolution').value === 'PartialRefund';
+      document.querySelectorAll('[data-check]').forEach(c => {
+        c.disabled = !partial;
+        const input = document.querySelector(`[data-qty][data-item="${c.dataset.item}"]`);
+        input.disabled = !partial || !c.checked;
+        if (input.disabled) input.value = '';
+      });
+    }
+
+    function selectedItems() {
+      return [...document.querySelectorAll('[data-check]:checked')].map(c => {
+        const item = detail.items.find(i => i.orderItemId === Number(c.dataset.item));
+        const quantity = Number(document.querySelector(`[data-qty][data-item="${c.dataset.item}"]`).value || 0);
+        return { item, quantity };
+      });
+    }
+
+    // Shows the amount the server will calculate (BR-CS-03 for partial, the remaining cap for full).
+    function updateAmount(e) {
+      if (e?.target?.matches('[data-check]')) {
+        setItemsEnabled();
+        const input = document.querySelector(`[data-qty][data-item="${e.target.dataset.item}"]`);
+        if (e.target.checked && !input.value) input.value = 1;
+      }
+      const resolution = document.getElementById('d-resolution').value;
+      const out = document.getElementById('d-amount');
+      if (!detail || !resolution) { out.textContent = '—'; return; }
+      if (resolution === 'RejectClaim') { out.textContent = '0 đ'; return; }
+      if (resolution === 'FullRefund') { out.textContent = money(detail.maxRefundAmount); return; }
+      const lines = selectedItems().filter(l => l.quantity > 0);
+      const total = lines.reduce((sum, l) => sum + Math.round(unitPaid(l.item) * l.quantity), 0);
+      const breakdown = lines.map(l => `${qty(l.quantity)} ${l.item.unit} × ${money(Math.round(unitPaid(l.item)))}`).join(' + ');
+      out.textContent = lines.length ? `${money(total)} (${breakdown})` : '—';
+    }
+
+    function showError(id, text) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.hidden = !text;
+    }
+
+    function decisionInput() {
+      const resolution = document.getElementById('d-resolution').value;
+      const faultParty = document.getElementById('d-fault').value;
+      const reason = document.getElementById('d-reason').value.trim();
+      if (!resolution) return { error: 'Vui lòng chọn kết quả xử lý.' };
+      if (!faultParty) return { error: 'Vui lòng chọn bên có lỗi.' };
+      if (!reason) return { error: 'Vui lòng nhập lý do quyết định.' };
+      let items = null;
+      if (resolution === 'PartialRefund') {
+        const lines = selectedItems();
+        if (!lines.length) return { error: 'Vui lòng chọn ít nhất một sản phẩm bị ảnh hưởng để hoàn tiền một phần.' };
+        const invalid = lines.find(l => !(l.quantity > 0) || l.quantity > l.item.quantity);
+        if (invalid) return { error: `Số lượng hoàn của ${invalid.item.productName} phải lớn hơn 0 và không vượt quá ${qty(invalid.item.quantity)} ${invalid.item.unit} đã giao.` };
+        items = lines.map(l => ({ orderItemId: l.item.orderItemId, quantity: l.quantity }));
+      }
+      return { body: { resolution, faultParty, items, reason } };
+    }
+
+    function openConfirm() {
+      const input = decisionInput();
+      showError('d-error', input.error || '');
+      if (input.error) return;
+      const b = input.body;
+      document.getElementById('confirm-facts').innerHTML = `
+        <dt>Khiếu nại</dt><dd>${ticketCode(detail.ticketId, detail.createdAt)} · ${esc(detail.sellerOrderCode)}</dd>
+        <dt>Kết quả</dt><dd>${resolutionLabels[b.resolution]}</dd>
+        <dt>Bên có lỗi</dt><dd>${partyLabels[b.faultParty]}</dd>
+        <dt>Số tiền hoàn</dt><dd>${esc(document.getElementById('d-amount').textContent)}</dd>
+        <dt>Lý do</dt><dd>${esc(b.reason)}</dd>`;
+      document.getElementById('confirm-dialog').showModal();
+    }
+
+    async function submitDecision() {
+      const input = decisionInput();
+      const button = document.getElementById('btn-submit');
+      button.disabled = true;
+      const res = await API.resolveComplaint(detail.ticketId, input.body);
+      button.disabled = false;
+      document.getElementById('confirm-dialog').close();
+      if (!res.success) {
+        const fieldError = res.data?.errors && Object.values(res.data.errors).flat()[0];
+        showError('d-error', fieldError || res.error);
+        if (res.status === 409 || res.status === 404) await refreshSelected();
+        return;
+      }
+      Utils.showToast(res.data.message, 'success');   // MSG-CS-05
+      await refreshSelected();
+    }
+
+    function toggleRequestInfo(show) {
+      document.getElementById('cs-info').hidden = !show;
+      if (show) {
+        document.getElementById('r-party').value = '';
+        document.getElementById('r-instructions').value = '';
+        showError('r-error', '');
+      }
+    }
+
+    async function sendRequestInfo() {
+      const party = document.getElementById('r-party').value;
+      const instructions = document.getElementById('r-instructions').value.trim();
+      if (!party) return showError('r-error', 'Vui lòng chọn bên cần bổ sung thông tin.');
+      if (!instructions) return showError('r-error', 'Vui lòng nhập nội dung thông tin cần bổ sung.');
+      const hasOpen = detail.evidenceRequests.some(r => r.party === party && r.requestStatus === 'Pending' && !r.respondedAt);
+      if (hasOpen) return showError('r-error', `${partyLabels[party]} đang có một yêu cầu bổ sung chưa phản hồi.`);
+
+      const button = document.getElementById('btn-send-request');
+      button.disabled = true;
+      const res = await API.requestComplaintInfo(detail.ticketId, party, instructions);
+      button.disabled = false;
+      if (!res.success) {
+        const fieldError = res.data?.errors && Object.values(res.data.errors).flat()[0];
+        return showError('r-error', fieldError || res.error);
+      }
+      Utils.showToast(res.data.message, 'success');
+      await refreshSelected();
+    }
+
+    async function refreshSelected() {
+      const id = selectedId;
+      await loadComplaints(currentPage);
+      if (id) await selectComplaint(id);
+    }
+  </script>
 </body>
 </html>
