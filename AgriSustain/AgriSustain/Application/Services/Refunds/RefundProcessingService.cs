@@ -2,7 +2,6 @@ using System.Text.Json;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Refunds;
 using AgriSustain.Application.Interfaces;
-using AgriSustain.Application.Services.Complaints;
 using AgriSustain.Domain.Entities;
 using FluentValidation;
 
@@ -21,8 +20,8 @@ public sealed class RefundProcessingService(
     IValidator<RefundTransferFailedRequest> failureValidator,
     TimeProvider timeProvider) : IRefundProcessingService
 {
-    public const string RefundedStatus = "Refunded";
-    public const string PartiallyRefundedStatus = "PartiallyRefunded";
+    public const string RefundedStatus = SellerOrder.StatusRefunded;
+    public const string PartiallyRefundedStatus = SellerOrder.StatusPartiallyRefunded;
     private const int MaximumPageSize = 100;
 
     private static readonly Error s_notFound = new(
@@ -151,17 +150,15 @@ public sealed class RefundProcessingService(
     }
 
     /// <summary>
-    /// Refunded once completed refunds cover everything the buyer paid for the order; otherwise
-    /// PartiallyRefunded, so the seller is still paid the remainder.
+    /// Refunded once completed refunds cover everything the buyer paid for this seller order;
+    /// otherwise PartiallyRefunded, so the seller is still paid the remainder. The parent order
+    /// status is then derived from all of its seller orders.
     /// </summary>
     private void MarkRefunded(SellerOrder sellerOrder, RefundTransaction refund, DateTime now)
     {
         var order = sellerOrder.Order;
-        decimal refundedTotal = order.PaymentTransactions
-            .SelectMany(payment => payment.RefundTransactions)
-            .Where(item => item.RefundStatus == RefundTransaction.StatusCompleted)
-            .Sum(item => item.Amount);
-        bool fullyRefunded = refundedTotal >= order.FinalAmount;
+        decimal refundedTotal = sellerOrder.CompletedRefundAmount;
+        bool fullyRefunded = refundedTotal >= sellerOrder.FinalAmount;
         string newStatus = fullyRefunded ? RefundedStatus : PartiallyRefundedStatus;
 
         string previous = sellerOrder.Status;
@@ -172,14 +169,11 @@ public sealed class RefundProcessingService(
             OldStatus = previous,
             NewStatus = newStatus,
             Reason = $"Đã hoàn {refund.Amount:N0} ₫ ({refund.RefundCode}); tổng đã hoàn "
-                + $"{refundedTotal:N0}/{order.FinalAmount:N0} ₫.",
+                + $"{refundedTotal:N0}/{sellerOrder.FinalAmount:N0} ₫.",
             OccurredAt = now
         });
 
-        order.OrderStatus = order.SellerOrders.Any(item =>
-            item.Status == ComplaintResolutionService.RefundPendingStatus)
-            ? ComplaintResolutionService.RefundPendingStatus
-            : newStatus;
+        order.SyncRefundStatus();
     }
 
     private void NotifyRefunded(SellerOrder sellerOrder, RefundTransaction refund)

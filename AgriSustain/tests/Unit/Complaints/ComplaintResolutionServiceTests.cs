@@ -35,12 +35,27 @@ public sealed class ComplaintResolutionServiceTests
         {
             PaymentTransactionId = 5, Amount = paid, PaymentStatus = paymentStatus
         });
+        // Seller order 3 is this farm's 200 000 ₫ share of a 300 000 ₫ order with another farm.
         var sellerOrder = new SellerOrder
         {
-            SellerOrderId = 3, SellerOrderCode = "SO-3", Status = "Delivered", FinalAmount = 200_000m,
-            Order = order, FarmerProfile = new FarmerProfile { UserId = FarmerUserId }
+            SellerOrderId = 3, SellerOrderCode = "SO-3", Status = "Delivered", Subtotal = 200_000m,
+            FinalAmount = 200_000m, Order = order, FarmerProfile = new FarmerProfile { UserId = FarmerUserId }
         };
+        sellerOrder.OrderItems.Add(new OrderItem
+        {
+            OrderItemId = 31, ProductNameSnapshot = "Cải bó xôi", Quantity = 10m, UnitSnapshot = "kg",
+            UnitPriceSnapshot = 15_000m, SubTotal = 150_000m
+        });
+        sellerOrder.OrderItems.Add(new OrderItem
+        {
+            OrderItemId = 32, ProductNameSnapshot = "Cà chua", Quantity = 5m, UnitSnapshot = "kg",
+            UnitPriceSnapshot = 10_000m, SubTotal = 50_000m
+        });
         order.SellerOrders.Add(sellerOrder);
+        order.SellerOrders.Add(new SellerOrder
+        {
+            SellerOrderId = 4, SellerOrderCode = "SO-4", Status = "Delivered", FinalAmount = 100_000m, Order = order
+        });
         return new DisputeTicket
         {
             DisputeTicketId = 7, SubmittedByUserId = BuyerId, DisputeReason = "Damaged",
@@ -48,9 +63,13 @@ public sealed class ComplaintResolutionServiceTests
         };
     }
 
-    private static ResolveComplaintRequest Decision(string resolution, decimal? amount = null,
+    private static ResolveComplaintRequest Decision(string resolution,
+        IReadOnlyList<RefundItemRequest>? items = null,
         string fault = ComplaintParties.Seller, string reason = "Hàng dập nát theo ảnh") =>
-        new(resolution, fault, amount, reason);
+        new(resolution, fault, items, reason);
+
+    private static RefundItemRequest[] Items(params (long Id, decimal Quantity)[] lines) =>
+        lines.Select(line => new RefundItemRequest(line.Id, line.Quantity)).ToArray();
 
     [Fact(DisplayName = "UTC-CS01-01 Full refund creates a Pending refund request and RefundPending order")]
     public async Task Resolve_FullRefund_CreatesRefundRequest()
@@ -61,7 +80,7 @@ public sealed class ComplaintResolutionServiceTests
 
         Assert.True(result.IsSuccess);
         var refund = Assert.Single(_store.Refunds);
-        Assert.Equal(300_000m, refund.Amount);                      // everything the buyer paid
+        Assert.Equal(200_000m, refund.Amount);                      // this farm's seller order only
         Assert.Equal(RefundTransaction.StatusPending, refund.RefundStatus);
         Assert.Equal("complaint:7", refund.RequestKey);
         Assert.Equal(DisputeTicket.StatusRefundPending, ticket.TicketStatus);
@@ -69,6 +88,7 @@ public sealed class ComplaintResolutionServiceTests
         Assert.Equal(SupportId, ticket.AssignedStaffUserId);
         Assert.Equal("RefundPending", ticket.SellerOrder!.Status);
         Assert.Equal("RefundPending", ticket.SellerOrder.Order.OrderStatus);
+        Assert.Equal("Delivered", ticket.SellerOrder.Order.SellerOrders.Single(x => x.SellerOrderId == 4).Status);
         Assert.Single(ticket.SellerOrder.OrderStatusHistories);
         Assert.Contains(_store.Notifications, n => n.UserId == FinanceId);
         Assert.Contains(_store.Notifications, n => n.UserId == BuyerId);
@@ -77,36 +97,49 @@ public sealed class ComplaintResolutionServiceTests
         Assert.Equal(1, _store.Saves);
     }
 
-    [Theory(DisplayName = "UTC-CS01-02 Partial refund amount must be within 0 < amount <= refundable")]
-    [InlineData(1, true)]
-    [InlineData(300_000, true)]
-    [InlineData(300_001, false)]
-    [InlineData(0, false)]
-    public async Task Resolve_PartialRefund_AmountBoundary(decimal amount, bool ok)
+    [Theory(DisplayName = "UTC-CS01-02 Partial refund is calculated from the selected items and quantities")]
+    [InlineData(31, 4, 60_000)]                // 4 of 10 kg × 150 000 ₫
+    [InlineData(31, 10, 150_000)]
+    [InlineData(32, 2.5, 25_000)]
+    public async Task Resolve_PartialRefund_CalculatedFromItems(long itemId, decimal quantity, decimal expected)
     {
         _store.Ticket = Ticket();
 
         var result = await Service().ResolveAsync(
-            7, Decision(ComplaintResolutions.PartialRefund, amount), default);
+            7, Decision(ComplaintResolutions.PartialRefund, Items((itemId, quantity))), default);
 
-        Assert.Equal(ok, result.IsSuccess);
-        Assert.Equal(ok ? 1 : 0, _store.Refunds.Count);
-        if (!ok)
-        {
-            Assert.Contains("refundAmount", result.Error!.Fields!.Keys);
-        }
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expected, Assert.Single(_store.Refunds).Amount);
+        Assert.Equal(expected, _store.Ticket!.RefundAmount);
     }
 
-    [Fact(DisplayName = "UTC-CS01-03 Partial refund requires an amount; full refund must not send one")]
-    public async Task Resolve_AmountRules()
+    [Theory(DisplayName = "UTC-CS01-03 Partial refund items must belong to the seller order and stay within delivered quantity")]
+    [InlineData(31, 10.001)]                   // more than delivered
+    [InlineData(99, 1)]                        // not in this seller order
+    [InlineData(31, 0)]                        // quantity must be positive
+    public async Task Resolve_PartialRefund_InvalidItems(long itemId, decimal quantity)
+    {
+        _store.Ticket = Ticket();
+
+        var result = await Service().ResolveAsync(
+            7, Decision(ComplaintResolutions.PartialRefund, Items((itemId, quantity))), default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Empty(_store.Refunds);
+        Assert.Equal(DisputeTicket.StatusOpen, _store.Ticket!.TicketStatus);
+    }
+
+    [Fact(DisplayName = "UTC-CS01-03b Partial refund requires items; full refund must not send any")]
+    public async Task Resolve_ItemRules()
     {
         _store.Ticket = Ticket();
 
         var missing = await Service().ResolveAsync(7, Decision(ComplaintResolutions.PartialRefund), default);
-        var extra = await Service().ResolveAsync(7, Decision(ComplaintResolutions.FullRefund, 1000), default);
+        var extra = await Service().ResolveAsync(
+            7, Decision(ComplaintResolutions.FullRefund, Items((31, 1))), default);
 
-        Assert.Contains("refundAmount", missing.Error!.Fields!.Keys);
-        Assert.Contains("refundAmount", extra.Error!.Fields!.Keys);
+        Assert.Contains("items", missing.Error!.Fields!.Keys);
+        Assert.Contains("items", extra.Error!.Fields!.Keys);
         Assert.Equal(0, _store.Saves);
     }
 
@@ -173,27 +206,42 @@ public sealed class ComplaintResolutionServiceTests
             new RefundTransaction { Amount = 100_000m, RefundStatus = RefundTransaction.StatusPending });
 
         var tooMuch = await Service().ResolveAsync(
-            7, Decision(ComplaintResolutions.PartialRefund, 150_001m), default);
+            7, Decision(ComplaintResolutions.PartialRefund, Items((31, 10), (32, 5))), default);
         var full = await Service().ResolveAsync(7, Decision(ComplaintResolutions.FullRefund), default);
 
-        Assert.Equal("REFUND_AMOUNT_EXCEEDED", tooMuch.Error!.Code);
+        Assert.Equal("REFUND_AMOUNT_EXCEEDED", tooMuch.Error!.Code);  // 200 000 > 150 000 left on payment
         Assert.True(full.IsSuccess);
         Assert.Equal(150_000m, _store.Refunds.Single().Amount);       // 250 000 paid − 100 000 refunded
     }
 
-    [Fact(DisplayName = "UTC-CS01-13 Refund cap is what the buyer paid for the whole order after vouchers")]
-    public async Task Resolve_CapIsOrderFinalAmount()
+    [Fact(DisplayName = "UTC-CS01-13 Refund cap is what the buyer paid for this seller order after its discount share")]
+    public async Task Resolve_CapIsSellerOrderFinalAmount()
     {
         var ticket = _store.Ticket = Ticket();
-        ticket.SellerOrder!.Order.FinalAmount = 270_000m;            // 300 000 − 30 000 voucher
+        ticket.SellerOrder!.DiscountShare = 20_000m;                  // voucher share of this farm
+        ticket.SellerOrder.FinalAmount = 180_000m;
 
-        var over = await Service().ResolveAsync(
-            7, Decision(ComplaintResolutions.PartialRefund, 270_001m), default);
-        var full = await Service().ResolveAsync(7, Decision(ComplaintResolutions.FullRefund), default);
+        var partial = await Service().ResolveAsync(
+            7, Decision(ComplaintResolutions.PartialRefund, Items((31, 10))), default);
 
-        Assert.Equal("REFUND_AMOUNT_EXCEEDED", over.Error!.Code);
-        Assert.Equal(270_000m, _store.Refunds.Single().Amount);
-        Assert.True(full.IsSuccess);
+        Assert.True(partial.IsSuccess);
+        Assert.Equal(135_000m, _store.Refunds.Single().Amount);       // 150 000 − 15 000 discount share
+    }
+
+    [Fact(DisplayName = "UTC-CS01-13b Earlier refunds for the same seller order reduce its cap")]
+    public async Task Resolve_EarlierSellerOrderRefunds_ReduceCap()
+    {
+        var ticket = _store.Ticket = Ticket();
+        var earlier = new DisputeTicket { DisputeTicketId = 6, SellerOrderId = 3, SellerOrder = ticket.SellerOrder };
+        ticket.SellerOrder!.Order.PaymentTransactions.Single().RefundTransactions.Add(new RefundTransaction
+        {
+            Amount = 50_000m, RefundStatus = RefundTransaction.StatusCompleted, DisputeTicket = earlier
+        });
+
+        var result = await Service().ResolveAsync(7, Decision(ComplaintResolutions.FullRefund), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(150_000m, _store.Refunds.Single().Amount);       // 200 000 − 50 000 already refunded
     }
 
     [Fact(DisplayName = "UTC-CS01-09 Request information opens a 48-hour request and notifies the party")]
@@ -271,7 +319,7 @@ public sealed class ComplaintResolutionServiceTests
         Assert.Equal(DisputeTicket.StatusRefundPending, ticket.TicketStatus);
         Assert.Equal(ComplaintParties.Seller, ticket.FaultParty);
         var refund = Assert.Single(_store.Refunds);
-        Assert.Equal(300_000m, refund.Amount);
+        Assert.Equal(200_000m, refund.Amount);
         Assert.Equal(SupportId, refund.ProcessedByUserId);               // the staff who asked
         Assert.Equal(DisputeTicket.EvidenceRequestExpired, ticket.DisputeEvidenceRequests.Single().RequestStatus);
         var audit = Assert.Single(_store.Audits);
@@ -340,7 +388,7 @@ public sealed class ComplaintResolutionServiceTests
         public int Saves { get; private set; }
 
         public Task<(int Total, IReadOnlyList<ComplaintListItemDto> Items)> SearchAsync(
-            ComplaintQuery query, CancellationToken ct) =>
+            ComplaintQuery query, DateTime now, CancellationToken ct) =>
             Task.FromResult<(int, IReadOnlyList<ComplaintListItemDto>)>((0, []));
         public Task<IReadOnlyList<string>> GetReasonsAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<string>>([]);

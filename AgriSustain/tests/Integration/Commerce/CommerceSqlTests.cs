@@ -40,6 +40,7 @@ public sealed partial class CommerceSqlTests
     [InlineData("name"), InlineData("category"), InlineData("unit"), InlineData("description")]
     [InlineData("zero-price"), InlineData("negative-price"), InlineData("minimum"), InlineData("wholesale-zero")]
     [InlineData("wholesale-high"), InlineData("no-primary"), InlineData("two-primary"), InlineData("foreign-image")]
+    [Trait("CaseId", "IT-FAR-03-AUTO-007")]
     public async Task InvalidSubmission_DoesNotPersistProductOrAudit(string invalid)
     {
         await using var f = await CommerceDatabase.Create();
@@ -107,6 +108,7 @@ public sealed partial class CommerceSqlTests
     }
     [CommerceSqlTheory, Trait("UseCase", "UC-FAR-03")]
     [InlineData("Pending"), InlineData("Rejected")]
+    [Trait("CaseId", "IT-FAR-03-AUTO-008")]
     public async Task NonApprovedProduct_CannotBePublished(string status)
     {
         await using var f = await CommerceDatabase.Create();
@@ -130,7 +132,8 @@ public sealed partial class CommerceSqlTests
         Assert.Equal(-5, (await db.InventoryMovements.SingleAsync()).QuantityChange);
         Assert.Equal("InTransit", (await db.Shipments.SingleAsync()).ShipmentStatus);
         Assert.Equal(3, await db.OrderStatusHistories.CountAsync());
-        Assert.Equal(3, await db.Notifications.CountAsync(x => x.UserId == f.BuyerId));
+        Assert.Equal(3, await db.Notifications.CountAsync(x => x.UserId == f.BuyerId && x.DeliveryChannel=="InApp"));
+        Assert.Equal(3, await db.Notifications.CountAsync(x => x.UserId == f.BuyerId && x.DeliveryChannel=="Email" && x.DeliveryStatus=="Pending"));
     }
     [CommerceSqlFact, Trait("UseCase", "UC-FAR-06"), Trait("CaseId", "IT-FAR-06-R2-012")]
     public async Task DispatchFailure_RollsBackEveryTable_AndRetrySucceeds()
@@ -160,7 +163,7 @@ public sealed partial class CommerceSqlTests
         var results = await Task.WhenAll(Enumerable.Range(0, 2)
             .Select(_ => client.PostAsJsonAsync($"api/farmer/orders/{f.SellerId}/dispatch", action)));
         Assert.Single(results, x => x.IsSuccessStatusCode);
-        Assert.Single(results, x => x.StatusCode == HttpStatusCode.Conflict);
+        Assert.True(results.Count(x => x.StatusCode == HttpStatusCode.Conflict)==1, f.Errors.ToString());
 
 
         await using var db = f.Open(); Assert.Equal(1, await db.Shipments.CountAsync());
@@ -168,6 +171,7 @@ public sealed partial class CommerceSqlTests
     }
     [CommerceSqlTheory, Trait("UseCase", "UC-FAR-06")]
     [InlineData("Pending", "ready"), InlineData("Confirmed", "dispatch"), InlineData("Shipping", "confirm"), InlineData("Shipping", "reject")]
+    [Trait("CaseId", "IT-FAR-06-AUTO-006")]
     public async Task WrongStateAction_DoesNotWriteHistoryOrStock(string state, string operation)
     {
         await using var f = await CommerceDatabase.Create();
@@ -179,6 +183,7 @@ public sealed partial class CommerceSqlTests
     }
     [CommerceSqlTheory, Trait("UseCase", "UC-FAR-06")]
     [InlineData("Expired"), InlineData("Recalled"), InlineData("Blocked"), InlineData("Unpaid"), InlineData("MissingAllocation")]
+    [Trait("CaseId", "IT-FAR-06-AUTO-007")]
     public async Task Dispatch_RevalidatesPaymentAndBatchAtCommit(string invalid)
     {
         await using var f = await CommerceDatabase.Create();
@@ -193,7 +198,7 @@ public sealed partial class CommerceSqlTests
         await using var db = f.Open(); Assert.Empty(await db.Shipments.ToListAsync()); Assert.Empty(await db.InventoryMovements.ToListAsync());
     }
     [CommerceSqlFact, Trait("UseCase", "UC-FAR-06"), Trait("CaseId", "IT-FAR-06-R2-006")]
-    public async Task RejectPaidOrder_ReleasesStock_QueuesFinanceWithoutClaimingRefund()
+    public async Task RejectPaidOrder_ReleasesStock_RecordsGatewayConfirmedRefund()
     {
         await using var f = await CommerceDatabase.Create();
         await Ok<SellerOrderResponse>(await f.Farmer().PostAsJsonAsync($"api/farmer/orders/{f.SellerId}/reject",
@@ -202,7 +207,11 @@ public sealed partial class CommerceSqlTests
         Assert.Equal("Released", (await db.OrderItemBatchAllocations.SingleAsync()).AllocationStatus);
         Assert.Equal(25, (await db.HarvestBatches.SingleAsync()).AvailableQuantity);
         Assert.Equal(0, (await db.HarvestBatches.SingleAsync()).ReservedQuantity);
-        Assert.Empty(await db.RefundTransactions.ToListAsync());
+        var refund = Assert.Single(await db.RefundTransactions.ToListAsync());
+        Assert.Equal("Completed",refund.RefundStatus); Assert.Equal("BankTransfer",refund.RefundMethod);
+        Assert.StartsWith("DEMO-",refund.GatewayReference); Assert.Equal("0123456789",refund.ReceiverAccountNumber);
+        Assert.Equal("TEST BUYER",refund.ReceiverAccountHolder); Assert.True(refund.Amount>0);
+        Assert.True(await db.Notifications.AnyAsync(n=>n.UserId==f.BuyerId && n.DeliveryChannel=="Email" && n.DeliveryStatus=="Pending"));
         Assert.True(await db.Notifications.AnyAsync(x => x.UserId == f.BuyerId));
     }
     [CommerceSqlTheory, Trait("UseCase", "UC-FAR-06")]
@@ -246,6 +255,7 @@ public sealed partial class CommerceSqlTests
     }
     [CommerceSqlTheory, Trait("UseCase", "UC-RC-01")]
     [InlineData(9, 30000, 270000), InlineData(10, 25000, 250000), InlineData(11, 25000, 275000)]
+    [Trait("CaseId", "IT-RC-01-AUTO-009")]
     public async Task QuantityCrossesWholesaleThreshold_UsesCurrentPricing(int quantity, int unitPrice, int total)
     {
         await using var f = await CommerceDatabase.Create();
@@ -268,6 +278,7 @@ public sealed partial class CommerceSqlTests
     }
     [CommerceSqlTheory, Trait("UseCase", "UC-RC-01")]
     [InlineData("sold-out"), InlineData("recalled"), InlineData("hidden"), InlineData("category-inactive")]
+    [Trait("CaseId", "IT-RC-01-AUTO-010")]
     public async Task CheckoutPreparation_RevalidatesOfferAndDeselectsUnavailable(string change)
     {
         await using var f = await CommerceDatabase.Create();
@@ -292,6 +303,7 @@ public sealed partial class CommerceSqlTests
         Assert.Equal(1, await db.Carts.CountAsync());
     }
     [CommerceSqlFact, Trait("UseCase", "UC-RC-01")]
+    [Trait("CaseId", "IT-RC-01-AUTO-011")]
     public async Task CartCommitFailure_RollsBackQuantityAndRetryPersists()
     {
         await using var f = await CommerceDatabase.Create(); f.Failure.Armed = true;

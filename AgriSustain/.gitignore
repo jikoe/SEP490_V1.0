@@ -1,36 +1,95 @@
-﻿# Visual Studio / .NET
+# ==============================================================================
+# .NET / Visual Studio Build & Artifacts
+# ==============================================================================
 .vs/
 **/bin/
 **/obj/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
 TestResults/
+*.mdf
+*.ldf
 
-# Editor / OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# Frontend
+# ==============================================================================
+# Node.js, Frontend & Client (Client / Frontend / Node)
+# ==============================================================================
+node_modules/
 **/node_modules/
+dist/
 **/dist/
+build/
 **/build/
+out/
+**/out/
+.next/
 **/.next/
+.vite/
+**/.vite/
+playwright-report/
 **/playwright-report/
+test-results/
 **/test-results/
 
-# Cấu hình riêng và mật khẩu
+# Specific Client exclusions
+Client/node_modules/
+Client/dist/
+
+# ==============================================================================
+# Package Managers & Logs
+# ==============================================================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+*.log
+
+# ==============================================================================
+# Environment, Secrets & Local Overrides
+# ==============================================================================
 .env
 .env.*
 !.env.example
 **/appsettings.Local.json
 **/appsettings.*.local.json
+**/config.local.js
+**/config.local.json
+*.pem
+*.pfx
+*.key
 
-# Log
-*.log
+# ==============================================================================
+# Cline & AI Coding Assistant Tools (Settings, Tasks, MCP keys)
+# ==============================================================================
+.cline/
+**/.cline/
+.clinerules*
+**/.clinerules*
+.roomodes
+cline_mcp_settings.json
+**/cline_mcp_settings.json
+.claude/
+**/.claude/
 
-# File upload local
+# ==============================================================================
+# Editor & Operating System Files
+# ==============================================================================
+.vscode/
+*.code-workspace
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.temp
+*.swp
+*~
+~$*
+
+# ==============================================================================
+# Local Media & Uploaded Files
+# ==============================================================================
 **/wwwroot/media/
 **/private-files/
-

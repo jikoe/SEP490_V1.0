@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý voucher - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <section style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">KHUYẾN MẠI &amp; MÃ GIẢM GIÁ</p>
+              <h1>Quản lý voucher khuyến mại</h1>
+              <p class="muted">Thiết lập ngân sách, mức chiết khấu và điều kiện áp dụng mã giảm giá cho khách hàng lẻ và doanh nghiệp.</p>
+            </div>
+            <button class="primary" onclick="alert(Messages.common.voucherCreateNotice)">+ Tạo Voucher Mới</button>
+          </div>
+
+          <div class="panel record-panel">
+            <div class="record-heading">
+              <h2>Danh sách mã giảm giá</h2>
+              <span class="count">4 mã đang hoạt động</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã</th>
+                    <th>Hình thức</th>
+                    <th>Giá trị</th>
+                    <th>Đơn tối thiểu</th>
+                    <th>Hạn dùng</th>
+                    <th>Lượt dùng</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>WELCOME10</strong></td>
+                    <td>Giảm theo %</td>
+                    <td>10%</td>
+                    <td>150.000 ₫</td>
+                    <td>31/12/2026</td>
+                    <td>120/500</td>
+                    <td><span class="badge Active">Đang chạy</span></td>
+                    <td><button onclick="alert(Messages.common.voucherPauseNotice)">Tạm dừng</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>FREESHIP</strong></td>
+                    <td>Miễn phí vận chuyển</td>
+                    <td>25.000 ₫</td>
+                    <td>200.000 ₫</td>
+                    <td>30/11/2026</td>
+                    <td>215/300</td>
+                    <td><span class="badge Active">Đang chạy</span></td>
+                    <td><button onclick="alert(Messages.common.voucherPauseNotice)">Tạm dừng</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Promotion Staff
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/common.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+</body>
+</html>

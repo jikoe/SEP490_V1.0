@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xử lý hoàn tiền - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+</head>
+<body>
+  <div class="app-shell finance-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <section style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">QUẢN LÝ HOÀN TIỀN</p>
+              <h1>Hàng đợi xử lý hoàn tiền khách hàng</h1>
+              <p class="muted">Đối chiếu biên bản hòa giải từ bộ phận CSKH và thực hiện lệnh hoàn tiền về ví PayOS / VNPay / Tài khoản ngân hàng.</p>
+            </div>
+          </div>
+
+          <div class="panel record-panel">
+            <div class="record-heading">
+              <h2>Lệnh hoàn tiền chờ giải ngân</h2>
+              <span class="count">2 lệnh</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã hoàn tiền</th>
+                    <th>Mã đơn</th>
+                    <th>Khách hàng</th>
+                    <th>Hình thức hoàn</th>
+                    <th>Số tiền</th>
+                    <th>Lý do</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>REF-2610-09</strong></td>
+                    <td>#ORD-98231</td>
+                    <td>Lê Hoàng Nam</td>
+                    <td>Ví PayOS QR</td>
+                    <td><strong style="color:#a0362c;">190.000 ₫</strong></td>
+                    <td>Dập nát khi vận chuyển</td>
+                    <td><button class="primary" onclick="alert(Messages.order.refundCommandIssued)">Giải ngân hoàn tiền</button></td>
+                  </tr>
+                  <tr>
+                    <td><strong>REF-2610-08</strong></td>
+                    <td>#ORD-98190</td>
+                    <td>Trần Thị Thu</td>
+                    <td>Chuyển khoản Vietcombank</td>
+                    <td><strong style="color:#a0362c;">150.000 ₫</strong></td>
+                    <td>Thiếu hàng đơn sỉ</td>
+                    <td><button class="primary" onclick="alert(Messages.order.refundManualConfirmed)">Xác nhận chuyển</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Finance Staff
+      </footer>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../messages/order.js"></script>
+  <script src="../messages/index.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+</body>
+</html>

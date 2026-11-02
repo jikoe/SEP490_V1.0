@@ -14,7 +14,7 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
     : IProductRepository
 {
     public Task<FarmerProfile?> GetFarmerAsync(long userId, CancellationToken cancellationToken) =>
-        context.FarmerProfiles.SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+        context.FarmerProfiles.Include(x => x.User).SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
 
     public async Task<ProductOptions> GetOptionsAsync(long userId,
         CancellationToken cancellationToken)
@@ -24,7 +24,7 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
             .OrderBy(x => x.CategoryName).ThenBy(x => x.CategoryId)
             .Select(x => new CategoryOption(x.CategoryId, x.CategoryName))
             .ToListAsync(cancellationToken);
-        return new ProductOptions(farm?.VerificationStatus == "Approved",
+        return new ProductOptions(farm?.VerificationStatus == "Approved" && farm.User.Status == "Active",
             farm?.VerificationStatus ?? "NotSubmitted", categories);
     }
 
@@ -110,8 +110,10 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
             product.WholesalePrice, product.ApprovalStatus, product.IsPublished,
             product.RejectionReason, product.HarvestBatches.Where(x => x.IsSaleable(today))
                 .Sum(x => x.AvailableQuantity), product.HarvestBatches.Count,
-            product.HarvestBatches.Count > 0 || product.OrderItems.Count > 0, version, images);
+            product.HarvestBatches.Count > 0 || product.OrderItems.Count > 0, version, images)
+        {
+            Batches = product.HarvestBatches.OrderBy(x => x.BatchCode).Select(x =>
+                new ProductBatchSummary(x.BatchCode, x.Status, x.AvailableQuantity, x.ExpirationDate)).ToArray()
+        };
     }
 }
-
-

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -92,7 +93,8 @@ internal sealed class CommerceDatabase : IAsyncDisposable
     private bool created;
     public readonly TestClock Clock = new();
     public readonly FailNextSave Failure = new();
-    private readonly string filesRoot = Path.Combine(Path.GetTempPath(), Prefix + Guid.NewGuid().ToString("N"));
+    public readonly TestErrorLog Errors = new();
+    private readonly string filesRoot = Path.Combine(AppContext.BaseDirectory, Prefix + Guid.NewGuid().ToString("N"));
     public long FarmerId, BuyerId, OtherBuyerId, ProductId, BatchId, SellerId, CartItemId, CategoryId;
     public WebApplication Host = null!;
     public HttpClient Client = null!;
@@ -149,6 +151,9 @@ internal sealed class CommerceDatabase : IAsyncDisposable
             db.Users.AddRange(farmerUser, buyer, otherBuyer, support);
             await db.SaveChangesAsync();
             FarmerId = farmerUser.UserId; BuyerId = buyer.UserId; OtherBuyerId = otherBuyer.UserId;
+            db.SupportedBanks.Add(new SupportedBank { BankCode="VCB", ShortName="Vietcombank", FullName="Test bank", IsActive=true });
+            db.UserBankAccounts.Add(new UserBankAccount { UserId=BuyerId, BankCode="VCB", AccountNumber="0123456789", AccountHolder="TEST BUYER", IsDefault=true, VerifiedAt=Clock.GetUtcNow().UtcDateTime, CreatedAt=Clock.GetUtcNow().UtcDateTime });
+            await db.SaveChangesAsync();
             var imageDirectory = Path.Combine(filesRoot, "wwwroot", "media", FarmerId.ToString());
             var evidenceDirectory = Path.Combine(filesRoot, "private-files", FarmerId.ToString());
             Directory.CreateDirectory(imageDirectory); Directory.CreateDirectory(evidenceDirectory);
@@ -284,7 +289,8 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         }
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Testing", ContentRootPath = filesRoot });
         builder.WebHost.UseTestServer();
-        builder.Logging.ClearProviders();
+        builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
+        builder.Logging.ClearProviders(); builder.Logging.AddProvider(Errors);
         builder.Services.AddSingleton<TimeProvider>(Clock);
         builder.Services.AddSingleton(Failure);
         builder.Services.AddDbContext<AgriSustainContext>(options => options.UseSqlServer(Connection)
@@ -295,9 +301,16 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<IProductRepository, ProductRepository>();
         builder.Services.AddScoped<ICartRepository, CartRepository>();
         builder.Services.AddScoped<IOrderRepository, OrderRepository>();
-        builder.Services.AddScoped<ProductService>();
-        builder.Services.AddScoped<CartService>();
+        builder.Services.AddScoped<FarmerProductService>();
+        builder.Services.AddScoped<RetailCartService>();
         builder.Services.AddScoped<OrderFulfillmentService>();
+        builder.Services.AddScoped<IFarmerProductRepository>(s=>s.GetRequiredService<IProductRepository>());
+        builder.Services.AddScoped<IRetailCartRepository>(s=>s.GetRequiredService<ICartRepository>());
+        builder.Services.AddScoped<IFarmerOrderRepository>(s=>s.GetRequiredService<IOrderRepository>());
+        builder.Services.AddScoped<FarmerOrderService>();
+        builder.Services.AddScoped<OrderRefundService>();
+        builder.Services.AddScoped<OrderNotificationService>();
+        builder.Services.AddSingleton(new AgriSustain.Infrastructure.Payments.PaymentGatewayProxy(new DemoGatewayEnvironment()));
         builder.Services.AddSingleton<IValidator<ProductRequest>, ProductRequestValidator>();
         builder.Services.AddSingleton<IValidator<ProductQuery>, ProductQueryValidator>();
         builder.Services.AddSingleton<ProductRequestValidator>();
@@ -310,7 +323,7 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<ICurrentActor, CurrentActor>();
         builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => { });
         builder.Services.AddAuthorization();
-        builder.Services.AddControllers().AddApplicationPart(typeof(ProductsController).Assembly);
+        builder.Services.AddControllers().AddApplicationPart(typeof(FarmerProductController).Assembly);
         Host = builder.Build();
         Host.UseMiddleware<FeatureExceptionMiddleware>();
         Host.UseAuthentication();
@@ -347,7 +360,7 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         if (Directory.Exists(filesRoot))
         {
             var fullPath = Path.GetFullPath(filesRoot);
-            var tempRoot = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            var tempRoot = Path.GetFullPath(AppContext.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             if (!fullPath.StartsWith(tempRoot, StringComparison.OrdinalIgnoreCase)
                 || !Path.GetFileName(fullPath).StartsWith(Prefix, StringComparison.Ordinal))
                 throw new InvalidOperationException("Refusing to remove non-test files.");
@@ -360,4 +373,22 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         await using var db = Open();
         await db.Database.EnsureDeletedAsync();
     }
+}
+
+internal sealed class DemoGatewayEnvironment : Microsoft.Extensions.Hosting.IHostEnvironment {
+ public string EnvironmentName {get;set;}="Development";
+ public string ApplicationName {get;set;}="IsolatedCommerceTests";
+ public string ContentRootPath {get;set;}=".";
+ public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider {get;set;}=new Microsoft.Extensions.FileProviders.NullFileProvider();
+}
+
+internal sealed class TestErrorLog : ILoggerProvider, ILogger
+{
+ public readonly System.Collections.Concurrent.ConcurrentQueue<string> Messages=new();
+ public ILogger CreateLogger(string categoryName)=>this;
+ public IDisposable? BeginScope<TState>(TState state) where TState:notnull=>null;
+ public bool IsEnabled(LogLevel level)=>level>=LogLevel.Error;
+ public void Log<TState>(LogLevel level,EventId id,TState state,Exception? ex,Func<TState,Exception?,string> formatter) {if(ex is not null) Messages.Enqueue(ex.ToString());}
+ public void Dispose(){}
+ public override string ToString()=>string.Join("; ",Messages);
 }

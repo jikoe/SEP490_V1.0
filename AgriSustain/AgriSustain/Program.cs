@@ -79,6 +79,12 @@ builder.Services.AddOptions<JwtOptions>()
     .ValidateOnStart();
 builder.Services.AddScoped<IMarketplaceService, MarketplaceService>();
 builder.Services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
+builder.Services.AddScoped<IOrderFeedbackService, OrderFeedbackService>();
+builder.Services.AddScoped<IOrderFeedbackRepository, OrderFeedbackRepository>();
+builder.Services.AddScoped<IOrderFeedbackStorage, OrderFeedbackStorage>();
+builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
+builder.Services.AddScoped<IFinanceService, AgriSustain.Application.Services.Finance.FinanceService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Finance.FinanceSampleService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddCors(options =>
@@ -102,20 +108,53 @@ builder.Services.AddScoped<AgriSustain.Application.Interfaces.IUnitOfWork>(servi
 
 builder.Services.Configure<QuantityOptions>(builder.Configuration.GetSection("Quantity"));
 builder.Services.AddScoped<ICurrentActor, CurrentActor>();
+builder.Services.AddScoped<IFarmerProductRepository>(services => services.GetRequiredService<IProductRepository>());
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IRetailCartRepository>(services => services.GetRequiredService<ICartRepository>());
 builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<IFarmerOrderRepository>(services => services.GetRequiredService<IOrderRepository>());
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
-builder.Services.AddScoped<ProductService>();
-builder.Services.AddScoped<CartService>();
+builder.Services.AddScoped<FarmerProductService>();
+builder.Services.AddScoped<ProductListingRules>();
+builder.Services.AddScoped<ProductNotificationService>();
+builder.Services.AddScoped<IProductNotificationRepository, ProductNotificationRepository>();
+// Review links only; NotificationGateway uses the shared GmailOptions registered below.
+builder.Services.Configure<AgriSustain.Infrastructure.Email.EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<INotificationGateway, AgriSustain.Infrastructure.Email.NotificationGateway>();
+if (builder.Configuration.GetValue("ProductNotifications:EnableWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.ProductNotificationWorker>();
+builder.Services.AddScoped<RetailCartService>();
 builder.Services.AddScoped<CartPricingService>();
 builder.Services.AddScoped<FulfillmentRules>();
 builder.Services.AddScoped<OrderFulfillmentService>();
+builder.Services.AddScoped<AgriSustain.Infrastructure.Payments.PaymentGatewayProxy>();
+builder.Services.AddScoped<OrderRefundService>();
+builder.Services.AddScoped<OrderNotificationService>();
+builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.OrderNotificationWorker>();
+builder.Services.AddScoped<FarmerOrderService>();
 builder.Services.AddValidatorsFromAssemblyContaining<ProductRequestValidator>();
 
 // DuND Application Services
-// Development adapter: OTP is written to the server log. Swap for a Gmail adapter in production.
-builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.LoggingEmailService>();
+// API-02 Gmail Notification Service: real Gmail SMTP by default; Gmail__Provider=Log keeps the
+// local adapter that writes the OTP to the server log.
+builder.Services.AddOptions<AgriSustain.Infrastructure.Email.GmailOptions>()
+    .Bind(builder.Configuration.GetSection(AgriSustain.Infrastructure.Email.GmailOptions.SectionName))
+    .Validate(options => !options.UsesGmail
+            || (!string.IsNullOrWhiteSpace(options.SenderAddress)
+                && !string.IsNullOrWhiteSpace(options.AppPassword)),
+        "Gmail__SenderAddress and Gmail__AppPassword must be set in .env (or set Gmail__Provider=Log).")
+    .ValidateOnStart();
+if (builder.Configuration.GetValue("Gmail:Provider", "Gmail")!
+    .Equals("Log", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.LoggingEmailService>();
+}
+else
+{
+    builder.Services.AddSingleton<IEmailService, AgriSustain.Infrastructure.Email.GmailEmailService>();
+}
 builder.Services.AddSingleton<IOtpGenerator, RandomOtpGenerator>();
 builder.Services.AddSingleton<IOtpChallengeStore,
     AgriSustain.Infrastructure.Data.InMemoryStore.InMemoryOtpChallengeStore>();
@@ -123,6 +162,12 @@ builder.Services.AddScoped<IEmailOtpVerifier, EmailOtpVerifier>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+// UC-AUTH-03 Manage Bank Account (BR-BA-01..06). The VietQR lookup is faked in development.
+builder.Services.AddScoped<AgriSustain.Application.Interfaces.Repositories.IBankAccountRepository,
+    AgriSustain.Infrastructure.Repositories.BankAccountRepository>();
+builder.Services.AddScoped<IBankAccountLookup, AgriSustain.Infrastructure.Banking.FakeBankAccountLookup>();
+builder.Services.AddSingleton<IBankAccountEmailSender, AgriSustain.Infrastructure.Email.BankAccountEmailSender>();
+builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 
 // DuND Validators

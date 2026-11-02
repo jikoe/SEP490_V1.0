@@ -29,11 +29,24 @@ public sealed class FileStorageService(IWebHostEnvironment environment, ICurrent
     {
         string directory = Path.Combine(environment.ContentRootPath, "wwwroot", "media", actor.UserId.ToString());
         Directory.CreateDirectory(directory);
-        string key = Guid.NewGuid().ToString("N") + extension;
-        await using var output = new FileStream(Path.Combine(directory, key), FileMode.CreateNew);
-        await content.CopyToAsync(output, cancellationToken);
+        using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, cancellationToken);
+        var hash = System.Security.Cryptography.SHA256.HashData(buffer.GetBuffer().AsSpan(0, (int)buffer.Length));
+        // Same content uploaded by the same owner has one reference, so duplicate gallery images fail validation.
+        string key = Convert.ToHexString(hash.AsSpan(0, 16)).ToLowerInvariant()
+            + (extension == ".jpeg" ? ".jpg" : extension);
+        string path = Path.Combine(directory, key);
+        if (!File.Exists(path))
+        {
+            string temporary = Path.Combine(directory, "." + Guid.NewGuid().ToString("N") + ".tmp");
+            try
+            {
+                await File.WriteAllBytesAsync(temporary, buffer.ToArray(), cancellationToken);
+                try { File.Move(temporary, path, overwrite: false); }
+                catch (IOException) when (File.Exists(path)) { /* Identical content was stored concurrently. */ }
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        }
         return $"/media/{actor.UserId}/{key}";
     }
 }
-
-

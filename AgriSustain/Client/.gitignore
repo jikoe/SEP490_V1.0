@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production build outputs
+dist/
+build/
+out/
+
+# Vite Cache & Logs
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local Environment & Local Overrides
+.env
+.env.local
+.env.*.local
+config.local.js
+config.local.json
+
+# Editor, OS & Temporary files
+.vscode/
+*.code-workspace
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.temp
+*~
