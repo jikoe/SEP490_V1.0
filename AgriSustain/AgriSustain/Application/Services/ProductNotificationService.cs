@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using AgriSustain.Infrastructure.Data;
 using System.Text.Json;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
@@ -5,7 +7,7 @@ namespace AgriSustain.Application.Services;
 
 // Queue both channels in the listing transaction. Only the email worker performs network I/O.
 public sealed class ProductNotificationService(IProductNotificationRepository repository,
-    TimeProvider clock)
+    TimeProvider clock, AgriSustainContext? context = null)
 {
     public async Task<bool> NotifyModeratorsAsync(Product product, string eventKey,
         CancellationToken cancellationToken)
@@ -18,7 +20,7 @@ public sealed class ProductNotificationService(IProductNotificationRepository re
                 + $"{product.FarmerProfile.FarmName} đã được gửi duyệt lúc "
                 + $"{now.AddHours(7):dd/MM/yyyy HH:mm}. Vui lòng kiểm tra thông tin sản phẩm.";
             foreach (var channel in new[] { "InApp", "Email" })
-                repository.Add(new Notification
+                repository.SaveNotificationsAsync(new Notification
                 {
                     UserId = userId, Title = "Có sản phẩm cần kiểm duyệt", Content = content,
                     NotificationType = "ProductListingReview", DeliveryChannel = channel,
@@ -30,5 +32,21 @@ public sealed class ProductNotificationService(IProductNotificationRepository re
                 });
         }
         return recipients.Count > 0;
+    }
+    public void RecordDeliveryResult(Notification notification, bool delivered, DateTime now)
+    {
+        notification.DeliveryStatus = delivered ? "Sent" : "Failed";
+        if (!delivered) notification.RetryCount++;
+        notification.SentAt = now;
+    }
+    public async Task RetryFailedChannelsAsync(string eventKey, CancellationToken ct = default)
+    {
+        if (context is null) return;
+        var cutoff = clock.GetUtcNow().UtcDateTime.AddMinutes(-1);
+        var failed = await context.Notifications.Where(n => n.NotificationType == "ProductListingReview"
+            && n.DeliveryStatus == "Failed" && n.SentAt <= cutoff && n.PayloadJson != null
+            && n.PayloadJson.Contains(eventKey)).ToListAsync(ct);
+        foreach (var row in failed) row.DeliveryStatus = "Pending";
+        await context.SaveChangesAsync(ct);
     }
 }

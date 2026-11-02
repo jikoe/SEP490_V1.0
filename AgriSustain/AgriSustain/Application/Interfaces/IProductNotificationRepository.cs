@@ -5,6 +5,7 @@ public interface IProductNotificationRepository
 {
     Task<IReadOnlyList<long>> GetModeratorIdsAsync(CancellationToken cancellationToken);
     void Add(Notification notification);
+    void SaveNotificationsAsync(Notification notification) => Add(notification);
 }
 
 public interface INotificationGateway

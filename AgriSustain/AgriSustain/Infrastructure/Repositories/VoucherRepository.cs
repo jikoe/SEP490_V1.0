@@ -30,15 +30,16 @@ public sealed class VoucherRepository : IVoucherRepository
 
         if (query.Search is not null)
         {
-            vouchers = vouchers.Where(voucher => voucher.VoucherCode.Contains(query.Search));
+            vouchers = vouchers.Where(voucher => voucher.VoucherCode.Contains(query.Search)
+                || voucher.VoucherName.Contains(query.Search));
         }
 
         // Mirrors Voucher.LifecycleStatus so the filter runs in SQL.
         vouchers = query.Status switch
         {
-            Voucher.StatusInactive => vouchers.Where(voucher => !voucher.IsActive),
+            Voucher.StatusDeactivated => vouchers.Where(voucher => !voucher.IsActive),
             Voucher.StatusExpired => vouchers.Where(voucher => voucher.IsActive && voucher.EndDate <= now),
-            Voucher.StatusDepleted => vouchers.Where(voucher => voucher.IsActive && voucher.EndDate > now
+            Voucher.StatusExhausted => vouchers.Where(voucher => voucher.IsActive && voucher.EndDate > now
                 && voucher.UsageLimit != null && voucher.UsedCount >= voucher.UsageLimit),
             Voucher.StatusScheduled => vouchers.Where(voucher => voucher.IsActive && voucher.EndDate > now
                 && (voucher.UsageLimit == null || voucher.UsedCount < voucher.UsageLimit)
@@ -65,11 +66,7 @@ public sealed class VoucherRepository : IVoucherRepository
             })
             .ToListAsync(cancellationToken);
 
-        var items = rows.Select(row => new VoucherDto(row.Voucher.VoucherId, row.Voucher.VoucherCode,
-                row.Voucher.DiscountType, row.Voucher.DiscountValue, row.Voucher.MaxDiscountAmount,
-                row.Voucher.MinOrderAmount, row.Voucher.UsageLimit, row.Voucher.UsedCount, row.Reserved,
-                row.Voucher.StartDate, row.Voucher.EndDate, row.Voucher.IsActive,
-                row.Voucher.LifecycleStatus(now), row.Voucher.UsedCount > 0 || row.Redemptions > 0))
+        var items = rows.Select(row => VoucherDto.From(row.Voucher, row.Reserved, row.Redemptions, now))
             .ToList();
         return (total, items);
     }

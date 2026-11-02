@@ -1,3 +1,4 @@
+using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using AgriSustain.Infrastructure.Payments;
@@ -6,13 +7,13 @@ using Microsoft.EntityFrameworkCore;
 namespace AgriSustain.Application.Services;
 
 public sealed class OrderRefundService(AgriSustainContext context, FulfillmentRules rules,
-    TimeProvider clock, PaymentGatewayProxy gateway)
+    TimeProvider clock, PaymentGatewayProxy gateway, IFarmerOrderRepository? repository = null)
 {
     private static bool IsPaid(PaymentTransaction payment) =>
         payment.PaymentStatus is "Success" or "Succeeded" or "Paid" or "Completed";
 
     private static bool ConsumesBalance(RefundTransaction refund) =>
-        refund.RefundStatus is "Completed" or "Succeeded" or "Success" or "Pending" or "Processing";
+        refund.ReservesPayment;
 
     public decimal GetCompletedAmount(SellerOrder order) => order.Order.PaymentTransactions
         .SelectMany(payment => payment.RefundTransactions)
@@ -54,8 +55,9 @@ public sealed class OrderRefundService(AgriSustainContext context, FulfillmentRu
                 throw new InvalidOperationException("Không xác định được khoản thanh toán của đơn nông trại.");
             return null;
         }
-        var account = await context.UserBankAccounts.AsNoTracking().SingleOrDefaultAsync(a =>
-            a.UserId == order.Order.BuyerUserId && a.IsDefault && a.BankCodeNavigation.IsActive, ct)
+        var account = (repository is not null ? await repository.LoadPaymentContextAsync(order, ct)
+            : await context.UserBankAccounts.AsNoTracking().SingleOrDefaultAsync(a =>
+                a.UserId == order.Order.BuyerUserId && a.IsDefault && a.BankCodeNavigation.IsActive, ct))
             ?? throw new InvalidOperationException("Người mua chưa có tài khoản nhận tiền mặc định hợp lệ.");
         RefundTransaction? last = null;
         now = clock.GetUtcNow().UtcDateTime;
@@ -89,7 +91,8 @@ public sealed class OrderRefundService(AgriSustainContext context, FulfillmentRu
                     ReceiverAccountHolder = account.AccountHolder, ReceiverAccountProvidedAt = now
                 };
                 payment.RefundTransactions.Add(last);
-                context.RefundTransactions.Add(last);
+                if (repository is not null) repository.SaveRefundResultAsync(last);
+                else context.RefundTransactions.Add(last);
                 remaining -= amount;
                 if (remaining <= 0) return last;
             }

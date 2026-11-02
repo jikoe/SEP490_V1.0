@@ -18,7 +18,7 @@
     registerSuccess: 'Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.',
     registerFailed: 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.',
     resetPasswordSuccess: 'Đặt lại mật khẩu thành công. Đang chuyển hướng về trang đăng nhập…',
-    resetSessionExpired: 'Phiên đặt lại mật khẩu đã hết hạn. Vui lòng thử lại từ đầu.',
+    resetSessionExpired: 'Phiên đặt lại mật khẩu đã hết hạn. Vui lòng xác thực lại email.',
     resendOtpFailed: 'Không thể gửi lại mã OTP.',
     otpSentSuccess: 'Mã OTP mới đã được gửi tới email của bạn.',
     verifyOtpFailed: 'Xác thực OTP thất bại.',

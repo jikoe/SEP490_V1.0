@@ -1,3 +1,4 @@
+using AgriSustain.Application.Services.Complaints;
 using AgriSustain.Application.DTOs.Complaints;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
@@ -10,7 +11,10 @@ public sealed class ComplaintRepository : IComplaintRepository
 {
     private static readonly string[] s_capturedStatuses = ["Success", "Succeeded", "Paid", "Completed"];
     private static readonly string[] s_reservingRefundStatuses =
-        [RefundTransaction.StatusPending, RefundTransaction.StatusCompleted, "Success", "Succeeded"];
+        [
+            RefundTransaction.StatusPending, RefundTransaction.StatusProcessing, RefundTransaction.StatusCompleted,
+            RefundTransaction.StatusFailed, RefundTransaction.StatusNeedsReconciliation, "Success", "Succeeded"
+        ];
 
     private readonly AgriSustainContext _context;
 
@@ -68,7 +72,14 @@ public sealed class ComplaintRepository : IComplaintRepository
                 ticket.DisputeEvidenceRequests.Any(request =>
                     request.RequestStatus == DisputeTicket.EvidenceRequestPending
                     && request.RespondedAt == null
-                    && (request.DueAt != null ? request.DueAt < now : request.RequestedAt < requestedBefore))))
+                    && (request.DueAt != null ? request.DueAt < now : request.RequestedAt < requestedBefore)),
+                ticket.DisputeEvidenceRequests
+                    .Where(request => request.RequestStatus == DisputeTicket.EvidenceRequestPending
+                        && request.RespondedAt == null)
+                    .Min(request => (DateTime?)(request.DueAt ?? request.RequestedAt.AddHours(48))),
+                ticket.DisputeEvidenceRequests.Any()
+                    && ticket.DisputeEvidenceRequests.All(request =>
+                        request.RequestStatus != DisputeTicket.EvidenceRequestPending || request.RespondedAt != null)))
             .ToListAsync(cancellationToken);
         return (total, items);
     }
@@ -177,6 +188,13 @@ public sealed class ComplaintRepository : IComplaintRepository
         }
 
         var ticket = detail.Ticket;
+        var responseAudits = await _context.AuditLogs.AsNoTracking()
+            .Where(x => x.EntityType == FarmerComplaintResponseText.Entity && x.EntityId == ticketId
+                && x.Action == FarmerComplaintResponseText.Action)
+            .OrderBy(x => x.AuditLogId).ToListAsync(cancellationToken);
+        var responseTextByFile = responseAudits.Select(FarmerComplaintResponseText.Read)
+            .Where(x => x != null).SelectMany(x => x!.EvidenceUrls.Select(url => (Url: url, x.Explanation)))
+            .GroupBy(x => x.Url).ToDictionary(x => x.Key, x => x.Last().Explanation);
         string PartyOf(long userId) => userId == detail.BuyerUserId
             ? ComplaintParties.Buyer : ComplaintParties.Seller;
         return new ComplaintDetailDto(
@@ -193,7 +211,7 @@ public sealed class ComplaintRepository : IComplaintRepository
                     detail.SellerOrderDiscountShare))).ToList(),
             detail.Evidences.Select(evidence => new ComplaintEvidenceDto(
                 evidence.DisputeEvidenceId, evidence.FullName, PartyOf(evidence.SubmittedByUserId),
-                evidence.Description, evidence.SubmittedAt,
+                responseTextByFile.TryGetValue(evidence.FileUrl, out var fullExplanation) ? fullExplanation : evidence.Description, evidence.SubmittedAt,
                 evidence.FileUrl.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))).ToList(),
             detail.Requests.Select(request => new ComplaintEvidenceRequestDto(
                 request.EvidenceRequestId, PartyOf(request.RequestedPartyUserId), request.Instructions,
@@ -275,6 +293,14 @@ public sealed class ComplaintRepository : IComplaintRepository
             .Where(user => user.Status == "Active" && roles.Contains(user.Role))
             .Select(user => user.UserId)
             .ToListAsync(cancellationToken);
+    }
+
+    public Task<UserBankAccount?> GetDefaultBankAccountAsync(
+        long userId,
+        CancellationToken cancellationToken)
+    {
+        return _context.UserBankAccounts.AsNoTracking()
+            .FirstOrDefaultAsync(account => account.UserId == userId && account.IsDefault, cancellationToken);
     }
 
     public void AddRefund(RefundTransaction refund)

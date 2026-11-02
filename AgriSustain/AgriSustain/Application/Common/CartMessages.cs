@@ -23,7 +23,7 @@ public static class CartMessages
 
     public static string Unavailable(string productName) =>
         $"{productName} không thể mua (hết hàng, bị thu hồi, ngừng bán hoặc không còn đủ điều kiện bán). "
-        + "Bỏ chọn để tiếp tục với các sản phẩm còn mua được hoặc xóa sản phẩm khỏi giỏ hàng.";
+        + "Sản phẩm đã được bỏ chọn. Bạn có thể tiếp tục với các sản phẩm còn mua được hoặc xóa sản phẩm này khỏi giỏ hàng.";
 
     public static string InvalidQuantity(string unit) =>
         $"Nhập số lượng lớn hơn 0 theo bước bán cho phép của đơn vị {unit}. "

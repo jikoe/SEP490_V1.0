@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Quản lý mùa vụ - AgriSustain</title>
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/farm-management-shell.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside id="app-sidebar" class="sidebar"></aside>
+      <div class="workspace">
+        <header id="app-header"></header>
+        <main><div id="farm-root" data-feature="crop-seasons"></div></main>
+      </div>
+    </div>
+    <template id="farm-template">
+      <link rel="stylesheet" href="../css/farmer-crop-seasons.css" />
+      <div class="app">
+        <div class="head">
+          <div>
+            <h1>Quản lý mùa vụ</h1>
+            <p>Quản lý hoạt động của nông trại</p>
+          </div>
+          <div class="actions create-actions">
+            <button class="btn primary" type="button" id="newSeason">+ Tạo mùa vụ</button>
+          </div>
+        </div>
+        <nav class="views">
+          <button class="btn" type="button" data-go="list">Danh sách mùa vụ</button>
+          <button class="btn" type="button" data-go="form">Kế hoạch / tiến độ</button>
+          <button class="btn" type="button" data-go="close">Hoàn thành / mất mùa</button>
+        </nav>
+        <div id="feedback" class="notice" role="alert" aria-live="polite" hidden></div>
+        <div class="view" data-view="list">
+          <form id="filters" class="toolbar">
+            <div class="field">
+              <label for="keyword">Tìm kiếm</label>
+              <input id="keyword" name="keyword" type="search" placeholder="Tên mùa vụ, sản phẩm, giống..." />
+            </div>
+            <div class="field">
+              <label for="filterStatus">Trạng thái / hoạt động</label>
+              <select id="filterStatus" name="filterStatus">
+                <option value="">Tất cả trạng thái</option>
+                <option value="Planned">Kế hoạch</option>
+                <option value="Planting">Đang trồng</option>
+                <option value="Growing">Đang sinh trưởng</option>
+                <option value="Harvesting">Đang thu hoạch</option>
+                <option value="Completed">Hoàn thành</option>
+                <option value="Cancelled">Đã hủy</option>
+                <option value="Crop Failure">Mất mùa</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="from">Từ ngày</label>
+              <input id="from" name="from" type="date" />
+            </div>
+            <div class="field">
+              <label for="to">Đến ngày</label>
+              <input id="to" name="to" type="date" />
+            </div>
+            <button class="btn primary">Áp dụng</button>
+            <button class="btn" type="button" id="clearFilters">Xóa bộ lọc</button>
+          </form>
+          <label class="block-label">Mùa vụ của nông trại</label>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mùa vụ / sản phẩm / giống</th>
+                  <th>Diện tích</th>
+                  <th>Lịch sản xuất</th>
+                  <th>Sản lượng / đơn vị</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span>
+              <span id="pageSummary"></span>
+              · 10 bản ghi/trang
+            </span>
+            <span>
+              <button class="btn" type="button" id="previousPage">‹</button>
+              <button class="btn" type="button" id="pageNumber">1</button>
+              <button class="btn" type="button" id="nextPage">›</button>
+            </span>
+          </div>
+        </div>
+        <div class="view" data-view="form">
+          <form id="seasonForm" novalidate>
+            <section class="section">
+              <h2>Kế hoạch sản xuất</h2>
+              <div class="inside">
+                <div class="grid">
+                  <div class="field">
+                    <label for="name">Tên mùa vụ *</label>
+                    <input
+                      id="name"
+                      name="name"
+                      type="text"
+                      required
+                      placeholder="Ví dụ: Xoài vụ Đông 2026"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="product">Sản phẩm / cây trồng *</label>
+                    <select id="product" name="product" required>
+                      <option value="">Chọn sản phẩm / cây trồng</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="variety">Giống cây *</label>
+                    <input id="variety" name="variety" type="text" required placeholder="Ví dụ: Cát Chu" />
+                  </div>
+                  <div class="field">
+                    <label for="area">Diện tích (ha) *</label>
+                    <input
+                      id="area"
+                      name="area"
+                      type="number"
+                      required
+                      min="0.01"
+                      step="any"
+                      placeholder="Ví dụ: 3.5"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="plant">Ngày trồng *</label>
+                    <input id="plant" name="plant" type="date" required />
+                  </div>
+                  <div class="field">
+                    <label for="estimate">Ngày thu hoạch dự kiến *</label>
+                    <input id="estimate" name="estimate" type="date" required />
+                  </div>
+                  <div class="field">
+                    <label for="yield">Sản lượng dự kiến *</label>
+                    <input
+                      id="yield"
+                      name="yield"
+                      type="number"
+                      required
+                      min="0.01"
+                      step="any"
+                      placeholder="Ví dụ: 500"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="unit">Đơn vị *</label>
+                    <select id="unit" name="unit" required>
+                      <option value="">Chọn đơn vị</option>
+                      <option value="kg">kg</option>
+                      <option value="tấn">tấn</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="status">Giai đoạn hiện tại</label>
+                    <input id="status" name="status" type="text" readonly />
+                  </div>
+                </div>
+              </div>
+            </section>
+            <div class="notice">
+              <strong>Cam kết sản xuất</strong>
+              <div id="commitments"></div>
+            </div>
+            <section class="section">
+              <h2>Tiến độ và thông tin liên quan</h2>
+              <div class="inside">
+                <div class="actions">
+                  <button class="btn" type="button" id="planting">Bắt đầu trồng</button>
+                  <button class="btn" type="button" id="growing">Chuyển sang sinh trưởng</button>
+                  <button class="btn" type="button" id="harvesting">Bắt đầu thu hoạch</button>
+                  <button class="btn" type="button" data-go="close">Kết thúc / mất mùa</button>
+                </div>
+                <div id="seasonHistory" class="space"></div>
+              </div>
+            </section>
+            <div class="actions end">
+              <button class="btn" type="button" data-go="list">Hủy</button>
+              <button class="btn primary" type="submit">Lưu kế hoạch</button>
+            </div>
+          </form>
+        </div>
+        <div class="view" data-view="close">
+          <div class="notice">
+            <strong id="closeSeasonTitle"></strong>
+            <div id="harvestSummary"></div>
+          </div>
+          <section class="section">
+            <h2>Hoàn thành mùa vụ</h2>
+            <div class="inside">
+              <form id="completeForm" novalidate>
+                <div class="grid">
+                  <div class="field">
+                    <label for="completion">Ngày hoàn tất thu hoạch *</label>
+                    <input id="completion" name="completion" type="date" required />
+                  </div>
+                  <div class="field">
+                    <label for="actual">Tổng sản lượng thực tế *</label>
+                    <input
+                      id="actual"
+                      name="actual"
+                      type="number"
+                      required
+                      min="0.001"
+                      step="any"
+                      placeholder="Nhập tổng sản lượng thực tế"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="batchTotal">Tổng lô thực tế đã ghi nhận</label>
+                    <input id="batchTotal" name="batchTotal" type="text" readonly />
+                  </div>
+                </div>
+                <div class="actions end">
+                  <button class="btn" type="button" data-go="list">Hủy</button>
+                  <button class="btn primary" type="submit">Xác nhận hoàn thành</button>
+                </div>
+              </form>
+            </div>
+          </section>
+          <section class="section">
+            <h2>Hủy mùa vụ / ghi nhận mất mùa</h2>
+            <div class="inside">
+              <form id="cancelForm" novalidate>
+                <div class="grid">
+                  <div class="field">
+                    <label for="outcome">Kết quả *</label>
+                    <select id="outcome" name="outcome" required>
+                      <option value="">Chọn kết quả</option>
+                      <option value="Cancelled">Hủy mùa vụ</option>
+                      <option value="Crop Failure">Mất mùa</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="reason">Lý do và ảnh hưởng cam kết *</label>
+                    <textarea
+                      id="reason"
+                      name="reason"
+                      required
+                      placeholder="Nhập lý do và ảnh hưởng đến cam kết"
+                    ></textarea>
+                  </div>
+                  <div class="field">
+                    <label for="realized">Sản lượng thực tế đã thu hoạch</label>
+                    <input
+                      id="realized"
+                      name="realized"
+                      type="number"
+                      required
+                      min="0"
+                      step="any"
+                      placeholder="Nhập sản lượng đã thu hoạch, ví dụ: 0"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="failureEvidence">Ảnh bằng chứng *</label>
+                    <div class="upload">
+                      <input
+                        id="failureEvidence"
+                        name="failureEvidence"
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        multiple
+                        required
+                      />
+                      <p class="hint">JPG, JPEG, PNG · tối đa 5 MB mỗi ảnh</p>
+                      <div class="gallery" data-preview="failureEvidence"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="notice">
+                  Dừng nhận cam kết mới; giữ nguyên lịch sử và các cam kết đã có. Thao tác này không thay đổi
+                  thỏa thuận mua hàng hoặc xác nhận hoàn tiền.
+                </div>
+                <div class="actions end">
+                  <button class="btn" type="button" data-go="list">Hủy</button>
+                  <button class="btn primary" type="submit">Xác nhận hủy / mất mùa</button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
+      <dialog id="confirm">
+        <h2>Xác nhận thao tác</h2>
+        <p id="confirmText"></p>
+        <div class="actions end">
+          <button class="btn" type="button" onclick="this.closest('dialog').close()">Quay lại</button>
+          <button class="btn primary" id="confirmOk">Xác nhận</button>
+        </div>
+      </dialog>
+      <dialog id="proofViewer">
+        <h2>Ảnh bằng chứng</h2>
+        <div id="proofContent"></div>
+        <div class="actions end"><button class="btn" type="button" data-close-dialog>Đóng</button></div>
+      </dialog>
+    </template>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/farm-management.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/farm-management.js"></script>
+    <script src="../js/farmer-crop-seasons.js"></script>
+  </body>
+</html>

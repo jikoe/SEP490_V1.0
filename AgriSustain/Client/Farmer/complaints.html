@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Phản hồi khiếu nại - AgriSustain</title>
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside id="app-sidebar" class="sidebar"></aside>
+      <div class="workspace">
+        <header id="app-header"></header>
+        <main><div id="complaint-root"></div></main>
+      </div>
+    </div>
+    <template id="complaint-template">
+      <link rel="stylesheet" href="../css/farmer-complaints.css" />
+      <div class="app">
+        <header class="heading">
+          <div>
+            <h1>Phản hồi khiếu nại đơn hàng</h1>
+            <p class="muted">Gửi giải trình, bằng chứng và theo dõi kết quả xử lý.</p>
+          </div>
+          <button id="back" hidden>← Danh sách khiếu nại</button>
+        </header>
+        <div id="feedback" role="status" hidden>
+          <span id="feedbackText"></span>
+        </div>
+        <section id="listView">
+          <form id="filters" class="filters">
+            <label>
+              <span>Tìm kiếm</span>
+              <input id="keyword" placeholder="Mã khiếu nại / mã đơn hàng" maxlength="100" />
+            </label>
+            <label>
+              <span>Trạng thái khiếu nại</span>
+              <select id="caseStatus">
+                <option value="">Tất cả</option>
+                <option>Đã gửi</option>
+                <option>Chờ bổ sung thông tin</option>
+                <option>Đang xem xét</option>
+                <option>Đã giải quyết – Chờ hoàn tiền</option>
+                <option>Từ chối</option>
+                <option>Đã đóng</option>
+              </select>
+            </label>
+            <label>
+              <span>Trạng thái yêu cầu</span>
+              <select id="requestStatus">
+                <option value="">Tất cả</option>
+                <option>Chờ phản hồi</option>
+                <option>Đã phản hồi</option>
+                <option>Quá hạn</option>
+                <option>Đã đóng</option>
+              </select>
+            </label>
+            <button class="primary">Áp dụng</button>
+            <button type="reset">Xóa bộ lọc</button>
+          </form>
+          <div class="table-wrap">
+            <table>
+              <caption>Khiếu nại thuộc đơn hàng của nông trại</caption>
+              <thead>
+                <tr>
+                  <th>Khiếu nại / Đơn hàng</th>
+                  <th>Lý do</th>
+                  <th>Trạng thái</th>
+                  <th>Hạn phản hồi</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <div class="pagination">
+            <span id="count"></span>
+            <button type="button" id="previousPage" disabled aria-label="Trang trước">‹</button>
+            <span id="pageNumber"></span>
+            <button type="button" id="nextPage" disabled aria-label="Trang sau">›</button>
+            <small>10 bản ghi / trang</small>
+          </div>
+        </section>
+        <section id="detailView" hidden>
+          <div class="columns">
+            <section class="panel">
+              <h2>Nội dung khiếu nại</h2>
+              <dl id="caseDetails"></dl>
+              <h3>Bằng chứng của RetailCustomer</h3>
+              <div id="buyerEvidence"></div>
+            </section>
+            <section class="panel">
+              <h2>Yêu cầu giải trình</h2>
+              <dl id="requestDetails"></dl>
+              <p class="hint">
+                Yêu cầu ban đầu và yêu cầu bổ sung đều có thời hạn phản hồi 48 giờ. Thời hạn được tính từ lúc
+                gửi từng yêu cầu.
+              </p>
+            </section>
+          </div>
+          <section class="panel">
+            <h2>Gửi phản hồi cho Customer Support</h2>
+            <form id="responseForm" novalidate>
+              <label for="explanation">
+                <span>Nội dung giải trình *</span>
+                <textarea
+                  id="explanation"
+                  rows="5"
+                  maxlength="2000"
+                  placeholder="Nhập giải trình về tình trạng hàng hóa, quá trình chuẩn bị và giao hàng (15–2.000 ký tự)"
+                ></textarea>
+                <small id="chars">0 / 2.000 ký tự</small>
+                <small class="error" id="explanationError"></small>
+              </label>
+              <label for="evidence">
+                <span>Bằng chứng đính kèm *</span>
+                <input id="evidence" type="file" accept=".jpg,.jpeg,.png,.pdf" multiple />
+                <small>Chọn 1–5 tệp JPG, JPEG, PNG hoặc PDF, tối đa 5 MB mỗi tệp.</small>
+                <small class="error" id="evidenceError"></small>
+              </label>
+              <ul id="files" class="files"></ul>
+              <p class="hint">
+                Sau khi gửi, Customer Support nhận email và thông báo hệ thống. Phản hồi đã gửi được giữ
+                nguyên để xem lại.
+              </p>
+              <div class="actions">
+                <button type="button" id="cancel">Hủy</button>
+                <button class="primary" id="submit">Gửi phản hồi</button>
+              </div>
+            </form>
+          </section>
+          <section class="panel">
+            <h2>Lịch sử phản hồi</h2>
+            <div id="history"></div>
+          </section>
+          <section class="panel">
+            <h2>Kết quả và tiến độ hoàn tiền</h2>
+            <div id="outcome"></div>
+          </section>
+        </section>
+        <dialog id="preview">
+          <h2>Bằng chứng đính kèm</h2>
+          <div id="previewContent"></div>
+          <button type="button" id="closePreview">Đóng</button>
+        </dialog>
+      </div>
+    </template>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/farmer-complaints.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/farmer-complaints.js"></script>
+  </body>
+</html>

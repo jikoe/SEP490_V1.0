@@ -260,7 +260,9 @@ public sealed class ComplaintResolutionService(
         }
         else
         {
-            var created = CreateRefund(ticket, sellerOrder, request, reason, staffUserId, now);
+            var account = await repository.GetDefaultBankAccountAsync(sellerOrder.Order.BuyerUserId,
+                cancellationToken);
+            var created = CreateRefund(ticket, sellerOrder, request, reason, staffUserId, account, now);
             if (!created.IsSuccess)
             {
                 return Result<RefundTransaction?>.FailureResult(created.Error!);
@@ -271,6 +273,7 @@ public sealed class ComplaintResolutionService(
                 refund.Amount, reason, staffUserId, now);
             MoveToRefundPending(sellerOrder, reason, staffUserId, now);
             await NotifyFinanceAsync(sellerOrder, refund, cancellationToken);
+            RequestRefundAccount(ticket, sellerOrder, refund, now);
         }
 
         NotifyParties(ticket, sellerOrder, DecisionMessage(request.Resolution, refund, reason));
@@ -315,7 +318,8 @@ public sealed class ComplaintResolutionService(
     }
 
     private Result<RefundTransaction> CreateRefund(DisputeTicket ticket, SellerOrder sellerOrder,
-        ResolveComplaintRequest request, string reason, long staffUserId, DateTime now)
+        ResolveComplaintRequest request, string reason, long staffUserId, UserBankAccount? account,
+        DateTime now)
     {
         var order = sellerOrder.Order;
         var payment = order.PaymentTransactions
@@ -372,7 +376,13 @@ public sealed class ComplaintResolutionService(
             Reason = reason.Length > 500 ? reason[..500] : reason,
             RefundStatus = RefundTransaction.StatusPending,
             // One refund request per complaint; the unique index rejects a concurrent duplicate.
-            RequestKey = $"complaint:{ticket.DisputeTicketId}"
+            RequestKey = $"complaint:{ticket.DisputeTicketId}",
+            // UC-FIN-08 lets the buyer confirm or change it; until then the saved default is used.
+            // Without one, Finance sees "Awaiting customer account" and cannot start the transfer.
+            ReceiverBankCode = account?.BankCode,
+            ReceiverAccountNumber = account?.AccountNumber,
+            ReceiverAccountHolder = account?.AccountHolder,
+            ReceiverAccountProvidedAt = account is null ? null : now
         };
         repository.AddRefund(refund);
         return Result<RefundTransaction>.SuccessResult(refund);
@@ -440,6 +450,27 @@ public sealed class ComplaintResolutionService(
                     + $"{sellerOrder.SellerOrderCode} đang chờ xử lý.",
                 refund.DisputeTicket?.DisputeTicketId ?? 0));
         }
+    }
+
+    /// <summary>BR-RF-07 / MSG-RF-07: the buyer is asked by email to provide or confirm the account.</summary>
+    private void RequestRefundAccount(DisputeTicket ticket, SellerOrder sellerOrder, RefundTransaction refund,
+        DateTime now)
+    {
+        repository.AddNotification(new Notification
+        {
+            UserId = sellerOrder.Order.BuyerUserId,
+            Title = $"Khoản hoàn tiền cho đơn {sellerOrder.Order.OrderCode} đang chờ chuyển",
+            Content = $"AgriSustain sẽ hoàn {refund.Amount:N0} ₫. Lý do: {refund.Reason}. Vui lòng đăng nhập "
+                + "để cung cấp hoặc xác nhận tài khoản ngân hàng nhận tiền hoàn.",
+            NotificationType = "RefundEmail",
+            IsRead = false,
+            SentAt = now,
+            DeliveryChannel = "Email",
+            DeliveryStatus = "Pending",
+            RelatedRecordType = "DisputeTicket",
+            RelatedRecordId = ticket.DisputeTicketId,
+            PayloadJson = $"complaint:{ticket.DisputeTicketId}:refund-requested"
+        });
     }
 
     private void NotifyParties(DisputeTicket ticket, SellerOrder sellerOrder, string content)

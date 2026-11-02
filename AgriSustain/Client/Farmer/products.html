@@ -21,11 +21,12 @@
             <div>
               <p class="commerce-subtitle">UC-FAR-03 · Nông trại</p>
               <h1>Quản lý sản phẩm</h1>
-              <p class="muted">Theo dõi kiểm duyệt, giá bán và lượng hàng từ các lô thực tế.</p>
+              <p class="muted">Quản lý hoạt động của nông trại</p>
             </div>
             <button type="button" class="primary" id="btn-create-product" onclick="openEditor(null)">+ Đăng sản phẩm</button>
           </div>
 
+          <nav class="commerce-actions" aria-label="Quản lý sản phẩm" style="margin-bottom:16px"><button type="button" class="primary">Danh sách sản phẩm</button></nav>
           <div id="list-notice" class="notice" style="display:none; margin-bottom:16px;"></div>
 
           <section class="panel">
@@ -43,22 +44,21 @@
               </label>
 
               <label class="field">
-                <span>Kiểm duyệt</span>
+                <span>Trạng thái duyệt</span>
                 <select id="filter-approval">
-                  <option value="">Tất cả trạng thái</option>
-                  <option value="Draft">Bản nháp</option>
+                  <option value="">Tất cả trạng thái duyệt</option>
                   <option value="Pending">Chờ duyệt</option>
                   <option value="Approved">Đã duyệt</option>
-                  <option value="Rejected">Bị từ chối</option>
+                  <option value="Rejected">Từ chối</option>
                 </select>
               </label>
 
               <label class="field">
                 <span>Hiển thị</span>
                 <select id="filter-published">
-                  <option value="">Tất cả</option>
-                  <option value="true">Đang bán</option>
-                  <option value="false">Đã ẩn / Chưa hiển thị</option>
+                  <option value="">Tất cả hiển thị</option>
+                  <option value="true">Đang hiển thị</option>
+                  <option value="false">Đang ẩn</option>
                 </select>
               </label>
 
@@ -68,25 +68,18 @@
 
             <div class="table-wrap">
               <table class="farmer-products-table" style="table-layout: fixed; width: 100%; min-width: 980px;">
-                <colgroup>
-                  <col style="width: 26%;">
-                  <col style="width: 14%;">
-                  <col style="width: 18%;">
-                  <col style="width: 18%;">
-                  <col style="width: 24%;">
-                </colgroup>
+                <colgroup><col style="width:34%"><col style="width:22%"><col style="width:22%"><col style="width:22%"></colgroup>
                 <thead>
                   <tr>
-                    <th style="width: 26%;">Sản phẩm / Đơn vị</th>
-                    <th style="width: 14%;">Danh mục</th>
-                    <th style="width: 18%;">Giá bán</th>
-                    <th style="width: 18%;">Tồn kho / Trạng thái</th>
-                    <th style="width: 24%;">Thao tác</th>
+                    <th>Sản phẩm / Đơn vị / Danh mục</th>
+                    <th>Giá bán</th>
+                    <th>Tồn kho / Trạng thái</th>
+                    <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody id="farmer-products-tbody">
                   <tr>
-                    <td colspan="5" style="text-align:center; padding:24px; color:#687b70;">Đang tải sản phẩm…</td>
+                    <td colspan="4" style="text-align:center; padding:24px; color:#687b70;">Đang tải sản phẩm…</td>
                   </tr>
                 </tbody>
               </table>
@@ -102,12 +95,13 @@
           <div class="commerce-top">
             <div>
               <p class="commerce-subtitle">UC-FAR-03 · Đăng / chỉnh sửa</p>
-              <h1 id="editor-title">Đăng sản phẩm mới</h1>
-              <p class="muted">Thay đổi nội dung đã duyệt sẽ được gửi kiểm duyệt lại.</p>
+              <h1 id="editor-title">Đăng sản phẩm</h1>
+              <p class="muted">Thông tin sản phẩm</p>
             </div>
             <button type="button" onclick="closeEditor()">← Danh sách sản phẩm</button>
           </div>
 
+          <nav class="commerce-actions" aria-label="Quản lý sản phẩm" style="margin-bottom:16px"><button type="button" onclick="closeEditor()">Danh sách sản phẩm</button></nav>
           <div id="editor-notice" class="notice" style="display:none; margin-bottom:16px;"></div>
 
           <form id="product-form" onsubmit="handleSaveProduct(event)" novalidate>
@@ -118,7 +112,7 @@
               <div class="commerce-form-grid product-form-grid">
                 <label class="field">
                   <span>Tên sản phẩm *</span>
-                  <input type="text" id="edit-name" required maxlength="255" placeholder="Tên sản phẩm nông sản…">
+                  <input type="text" id="edit-name" required maxlength="255" placeholder="Ví dụ: Xoài Cát Chu VietGAP">
                 </label>
 
                 <label class="field">
@@ -132,7 +126,7 @@
                     <option value="">Chọn đơn vị</option>
                     <optgroup label="Khối lượng">
                       <option value="g">Gam (g)</option>
-                      <option value="kg" selected>Kilôgam (kg)</option>
+                      <option value="kg">Kilôgam (kg)</option>
                       <option value="tạ">Tạ (100 kg)</option>
                       <option value="tấn">Tấn (1.000 kg)</option>
                     </optgroup>
@@ -174,37 +168,33 @@
 
                 <label class="field commerce-full">
                   <span>Mô tả sản phẩm *</span>
-                  <textarea id="edit-desc" rows="5" maxlength="10000" required placeholder="Mô tả giống cây trồng, quy trình canh tác đạt chuẩn VietGAP, bảo quản sau thu hoạch..."></textarea>
+                  <textarea id="edit-desc" rows="5" maxlength="10000" required placeholder="Ví dụ: Xoài tươi, đóng hộp 1 kg. Bảo quản nơi khô thoáng."></textarea>
                 </label>
 
                 <label class="field">
                   <span>Giá bán lẻ (đ/đơn vị) *</span>
-                  <input type="number" id="edit-retail-price" required min="0.01" step="any" max="999999999999" placeholder="Ví dụ: 35000" oninput="updateWholesaleDiscount()">
+                  <input type="number" id="edit-retail-price" required min="0.01" step="any" max="999999999999" placeholder="Ví dụ: 35000">
                 </label>
 
                 <label class="field">
                   <span>Ngưỡng bán sỉ</span>
                   <input type="number" id="edit-wholesale-min" min="1.001" step="any" max="999999999" placeholder="Ví dụ: 20">
+                  <small class="muted">Nhập cùng giá sỉ hoặc để trống cả hai.</small>
                 </label>
 
                 <label class="field">
                   <span>Giá bán sỉ (đ/đơn vị)</span>
-                  <input type="number" id="edit-wholesale-price" min="0.01" step="any" placeholder="Ví dụ: 30000" oninput="updateWholesaleDiscount()">
-                </label>
-
-                <label class="field">
-                  <span>Chiết khấu giá sỉ</span>
-                  <output id="edit-wholesale-discount" style="display:block; padding:10px 0; font-weight:700; color:#1e6546;">—</output>
+                  <input type="number" id="edit-wholesale-price" min="0.01" step="any" placeholder="Ví dụ: 30000">
+                  <small class="muted">Lớn hơn 0 và không vượt giá bán lẻ.</small>
                 </label>
               </div>
-              <p class="muted">Bỏ trống cả giá và ngưỡng khi không bán sỉ. Giá sỉ &gt; 0 và ≤ giá lẻ; ngưỡng sỉ &gt; 1.</p>
             </section>
 
             <!-- Product Images matching Shared.jsx Uploads 1:1 -->
             <section class="commerce-section">
               <div class="commerce-upload">
                 <label>
-                  Thư viện ảnh sản phẩm
+                  Thư viện ảnh sản phẩm *
                   <input
                     type="file"
                     id="product-images-input"
@@ -214,18 +204,20 @@
                   >
                 </label>
                 <p class="muted">
-                  JPG, JPEG, PNG · tối đa 5 MB/tệp · từ 1–10 ảnh khác nhau và đúng một ảnh đại diện
+                  Từ 1–10 ảnh khác nhau · JPG, JPEG, PNG · Tối đa 5 MB/ảnh
                   <span id="upload-busy-indicator" style="display:none; color:#1e6546; font-weight:600;"> · Đang tải lên…</span>
                 </p>
+                <p><strong>Chọn đúng một ảnh đại diện *</strong></p>
                 <div class="commerce-gallery" id="commerce-gallery-container"></div>
               </div>
             </section>
 
             <!-- Status Section (When Editing) -->
             <section id="editor-status-section" class="commerce-section" style="display:none;">
+              <h2>Kết quả duyệt và lý do từ chối</h2>
               <div class="commerce-actions">
                 <span id="editor-approval-status" class="status-badge">Chờ duyệt</span>
-                <span id="editor-published-status">Đang bán</span>
+                <span id="editor-published-status">Đang hiển thị</span>
                 <span id="editor-stock-status">Tồn kho: 0 kg</span>
               </div>
               <div id="editor-reject-reason-box" style="display:none; margin-top:12px; padding:12px 16px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; color:#991b1b; font-size:13px; line-height:1.5;">
@@ -253,13 +245,17 @@
               </div>
             </section>
 
-            <!-- Form Actions matching ProductsScreen.jsx -->
+            <h2>Lưu, gửi duyệt và hủy</h2>
             <div class="commerce-actions" style="margin-top:24px;">
               <button type="submit" class="primary" id="btn-save-product">Gửi duyệt</button>
               <button type="button" id="btn-save-price-only" style="display:none;" onclick="handleSavePriceOnly()">Lưu thay đổi giá</button>
               <button type="button" onclick="closeEditor()">Hủy thay đổi</button>
-              <button type="button" id="btn-toggle-vis" style="display:none;" onclick="handleToggleEditorVisibility()"></button>
+
             </div>
+            <section class="commerce-section" id="editor-visibility-section" style="display:none;">
+              <h2>Hiển thị sản phẩm và thông báo</h2>
+              <button type="button" id="btn-toggle-vis" style="display:none;" onclick="handleToggleEditorVisibility()"></button>
+            </section>
           </form>
         </div>
       </main>
@@ -287,6 +283,11 @@
     let currentEditingProduct = null;
     let productImages = [];
     let canManageProducts = true;
+    let editorSnapshot = '';
+    function editorState() {
+      return JSON.stringify([...document.querySelectorAll('#product-form input:not([type=file]):not([type=radio]), #product-form select, #product-form textarea')]
+        .map(el => [el.id, el.value]).concat([productImages]));
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
       await loadOptions();
@@ -320,7 +321,7 @@
       const filterSel = document.getElementById('filter-category');
       const editSel = document.getElementById('edit-category');
 
-      let filterHtml = '<option value="">Tất cả</option>';
+      let filterHtml = '<option value="">Tất cả danh mục</option>';
       let editHtml = '<option value="">Chọn danh mục</option>';
 
       cats.forEach(c => {
@@ -342,7 +343,7 @@
       const isPublished = document.getElementById('filter-published').value;
 
       const tbody = document.getElementById('farmer-products-tbody');
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:#687b70;">Đang tải sản phẩm…</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#687b70;">Đang tải sản phẩm…</td></tr>';
 
       const params = { page, pageSize };
       if (keyword) params.keyword = keyword;
@@ -377,7 +378,7 @@
     function renderProductsTable(items) {
       const tbody = document.getElementById('farmer-products-tbody');
       if (!items || items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:32px; color:#687b70;">Không có sản phẩm nào phù hợp với điều kiện đã chọn.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:32px; color:#687b70;">Không có sản phẩm nào phù hợp với điều kiện đã chọn.</td></tr>';
         return;
       }
 
@@ -385,7 +386,7 @@
         Draft: '<span class="status-badge" style="background:#f1f5f9;color:#475569;">Bản nháp</span>',
         Pending: '<span class="status-badge" style="background:#fef3c7;color:#92400e;">Chờ duyệt</span>',
         Approved: '<span class="status-badge" style="background:#dcfce7;color:#166534;">Đã duyệt</span>',
-        Rejected: '<span class="status-badge" style="background:#fee2e2;color:#991b1b;">Bị từ chối</span>'
+        Rejected: '<span class="status-badge" style="background:#fee2e2;color:#991b1b;">Từ chối</span>'
       };
 
       tbody.innerHTML = items.map(p => {
@@ -395,8 +396,8 @@
           : '';
 
         const pubBadge = p.isPublished
-          ? '<small style="display:block; color:#2e7d32; font-weight:600;">Đang bán</small>'
-          : '<small style="display:block; color:#888;">Chưa hiển thị</small>';
+          ? '<small style="display:block; color:#2e7d32; font-weight:600;">Đang hiển thị</small>'
+          : '<small style="display:block; color:#888;">Đang ẩn</small>';
 
         const primaryImg = p.images?.find(img => img.isPrimary)?.imageUrl || p.imageUrl || '';
         const thumbHtml = primaryImg
@@ -405,7 +406,7 @@
 
         const rejectNotice = p.rejectionReason
           ? `<div class="product-reject-box">
-              <strong style="color:#991b1b;">Bị từ chối:</strong> ${Utils.escapeHtml(p.rejectionReason)}
+              <strong style="color:#991b1b;">Từ chối:</strong> ${Utils.escapeHtml(p.rejectionReason)}
             </div>`
           : '';
 
@@ -416,11 +417,10 @@
                 ${thumbHtml}
                 <div style="min-width: 0; overflow: hidden;">
                   <strong style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${Utils.escapeHtml(p.productName || p.name)}">${Utils.escapeHtml(p.productName || p.name)}</strong>
-                  <small>${Utils.escapeHtml(p.unit || 'kg')}</small>
+                  <small>${Utils.escapeHtml(p.unit || '')} · ${Utils.escapeHtml(p.categoryName || 'Nông sản')}</small>
                 </div>
               </div>
             </td>
-            <td>${Utils.escapeHtml(p.categoryName || 'Nông sản')}</td>
             <td>
               Lẻ ${Utils.formatVND(p.baseRetailPrice || p.price)} / ${p.unit || 'kg'}
               ${wholesaleInfo}
@@ -435,7 +435,7 @@
               <div class="commerce-actions">
                 <button type="button" onclick="openEditor(${id})">Chi tiết / sửa</button>
                 ${(p.isPublished || p.approvalStatus === 'Approved') ? `
-                  <button type="button" ${canManageProducts ? '' : 'disabled'} onclick="toggleVisibility(${id}, ${p.isPublished}, ${p.version || 1})">
+                  <button type="button" ${canManageProducts ? '' : 'disabled'} onclick="toggleVisibility(${id}, ${p.isPublished}, '${p.version}')">
                     ${p.isPublished ? 'Ẩn' : 'Hiển thị'}
                   </button>
                 ` : ''}
@@ -494,6 +494,7 @@
 
     /* ================= EDITOR VIEW LOGIC ================= */
     async function openEditor(productId = null) {
+      clearFieldErrors();
       document.getElementById('product-list-view').style.display = 'none';
       document.getElementById('product-editor-view').style.display = 'block';
       const notice = document.getElementById('editor-notice');
@@ -512,15 +513,21 @@
         let prod = productsCache.find(x => (x.productId || x.id) === productId);
         try {
           const detailRes = await API.getFarmerProductDetail(productId);
-          if (detailRes.success && detailRes.data) {
-            prod = detailRes.data;
+          if (!detailRes.success || !detailRes.data) {
+            showEditorNotice(detailRes.error || 'Không thể tải dữ liệu. Vui lòng thử lại.', true);
+            return;
           }
-        } catch (e) {}
+          prod = detailRes.data;
+        } catch (e) {
+          showEditorNotice('Không thể tải dữ liệu. Vui lòng thử lại.', true);
+          return;
+        }
 
         currentEditingProduct = prod || null;
+        if (prod?.notificationMessage) showEditorNotice(prod.notificationMessage);
         document.getElementById('edit-name').value = prod?.productName || prod?.name || '';
         document.getElementById('edit-category').value = prod?.categoryId || 1;
-        document.getElementById('edit-unit').value = prod?.unit || 'kg';
+        document.getElementById('edit-unit').value = prod?.unit || '';
         document.getElementById('edit-desc').value = prod?.description || '';
         document.getElementById('edit-retail-price').value = prod?.baseRetailPrice || prod?.price || '';
         document.getElementById('edit-wholesale-min').value = prod?.wholesaleMinQuantity ?? '';
@@ -547,15 +554,15 @@
           if (rejectBox) rejectBox.style.display = 'none';
         }
 
-        updateWholesaleDiscount();
 
         document.getElementById('editor-status-section').style.display = 'block';
-        document.getElementById('editor-approval-status').textContent = prod?.approvalStatus === 'Approved' ? 'Đã duyệt' : (prod?.approvalStatus === 'Rejected' ? 'Bị từ chối' : 'Chờ duyệt');
-        document.getElementById('editor-published-status').textContent = prod?.isPublished ? 'Đang bán' : 'Chưa hiển thị';
+        document.getElementById('editor-approval-status').textContent = prod?.approvalStatus === 'Approved' ? 'Đã duyệt' : (prod?.approvalStatus === 'Rejected' ? 'Từ chối' : 'Chờ duyệt');
+        document.getElementById('editor-published-status').textContent = prod?.isPublished ? 'Đang hiển thị' : 'Đang ẩn';
         document.getElementById('editor-stock-status').textContent = `Tồn kho: ${prod?.availableQuantity || 0} ${prod?.unit || 'kg'} · ${prod?.batchCount || 0} lô`;
 
         document.getElementById('btn-save-price-only').style.display = 'inline-block';
 
+        document.getElementById('editor-visibility-section').style.display = 'block';
         const visBtn = document.getElementById('btn-toggle-vis');
         if (prod?.isPublished || prod?.approvalStatus === 'Approved') {
           visBtn.style.display = 'inline-block';
@@ -588,18 +595,20 @@
             </tr>
           `).join('');
         } else {
-          batchesSec.style.display = 'none';
+          batchesSec.style.display = 'block';
+          batchesTbody.innerHTML = '<tr><td colspan="4">Chưa có lô hàng liên quan.</td></tr>';
         }
 
         productImages = prod?.images ? [...prod.images] : [];
         renderGalleryImages();
       } else {
         currentEditingProduct = null;
-        document.getElementById('editor-title').textContent = 'Đăng sản phẩm mới';
+        document.getElementById('editor-visibility-section').style.display = 'none';
+        document.getElementById('editor-title').textContent = 'Đăng sản phẩm';
         document.getElementById('edit-product-id').value = '';
         document.getElementById('edit-name').value = '';
         document.getElementById('edit-category').value = categoriesList[0]?.categoryId || 1;
-        document.getElementById('edit-unit').value = 'kg';
+        document.getElementById('edit-unit').value = '';
         document.getElementById('edit-desc').value = '';
         document.getElementById('edit-retail-price').value = '';
         document.getElementById('edit-wholesale-min').value = '';
@@ -615,24 +624,14 @@
 
         productImages = [];
         renderGalleryImages();
-        updateWholesaleDiscount();
       }
+      editorSnapshot = editorState();
     }
 
-    function updateWholesaleDiscount() {
-      const retail = Number(document.getElementById('edit-retail-price').value);
-      const wholesale = Number(document.getElementById('edit-wholesale-price').value);
-      const discountEl = document.getElementById('edit-wholesale-discount');
-      if (!discountEl) return;
-      if (retail > 0 && wholesale > 0 && wholesale <= retail) {
-        const pct = ((1 - wholesale / retail) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-        discountEl.textContent = `${pct}%`;
-      } else {
-        discountEl.textContent = '—';
-      }
-    }
 
-    function closeEditor() {
+    function closeEditor(saved = false) {
+      if (!saved && editorSnapshot && editorSnapshot !== editorState()
+        && !confirm('Bạn có muốn bỏ các thay đổi chưa lưu không?')) return;
       const rejectBox = document.getElementById('editor-reject-reason-box');
       if (rejectBox) rejectBox.style.display = 'none';
       document.getElementById('product-editor-view').style.display = 'none';
@@ -669,44 +668,24 @@
           if (res && res.success && res.data && res.data.imageUrl) {
             productImages.push({
               imageUrl: res.data.imageUrl,
-              isPrimary: productImages.length === 0,
+              isPrimary: false,
               altText: file.name
             });
           } else {
-            const dataUrl = await readFileAsDataUrl(file);
-            productImages.push({
-              imageUrl: dataUrl,
-              isPrimary: productImages.length === 0,
-              altText: file.name
-            });
+            showEditorNotice(res.error || 'Không thể tải ảnh lên. Vui lòng thử lại.', true);
+            break;
           }
         } catch (err) {
-          const dataUrl = await readFileAsDataUrl(file);
-          productImages.push({
-            imageUrl: dataUrl,
-            isPrimary: productImages.length === 0,
-            altText: file.name
-          });
+          showEditorNotice(err.message || 'Không thể tải ảnh lên. Vui lòng thử lại.', true);
+          break;
         }
       }
 
       if (progressEl) progressEl.style.display = 'none';
       event.target.value = '';
 
-      if (productImages.length && !productImages.some(img => img.isPrimary)) {
-        productImages[0].isPrimary = true;
-      }
 
       renderGalleryImages();
-    }
-
-    function readFileAsDataUrl(file) {
-      return new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.onerror = () => resolve('');
-        reader.readAsDataURL(file);
-      });
     }
 
     function renderGalleryImages() {
@@ -745,48 +724,74 @@
 
     function removeGalleryImage(index) {
       productImages.splice(index, 1);
-      if (productImages.length && !productImages.some(img => img.isPrimary)) {
-        productImages[0].isPrimary = true;
-      }
       renderGalleryImages();
     }
 
+    const productFieldIds = {
+      ProductName: 'edit-name', CategoryId: 'edit-category', Unit: 'edit-unit',
+      Description: 'edit-desc', BaseRetailPrice: 'edit-retail-price',
+      WholesaleMinQuantity: 'edit-wholesale-min', WholesalePrice: 'edit-wholesale-price',
+      Images: 'product-images-input'
+    };
+    function clearFieldErrors() {
+      document.querySelectorAll('[data-product-field-error]').forEach(el => el.remove());
+      Object.values(productFieldIds).forEach(id => {
+        const el = document.getElementById(id);
+        el?.removeAttribute('aria-invalid');
+        el?.removeAttribute('aria-describedby');
+      });
+    }
+    function showFieldError(field, message) {
+      const name = field.replace(/^request\./i, '').split(/[.\[]/)[0];
+      const key = Object.keys(productFieldIds).find(key => key.toLowerCase() === name.toLowerCase());
+      const input = document.getElementById(productFieldIds[key]);
+      if (!input) return;
+      const id = input.id + '-error';
+      let error = document.getElementById(id);
+      if (!error) {
+        error = document.createElement('small');
+        error.id = id;
+        error.dataset.productFieldError = '';
+        error.setAttribute('role', 'alert');
+        error.style.cssText = 'display:block;color:#a1372b;margin-top:6px';
+        input.insertAdjacentElement('afterend', error);
+      }
+      error.textContent = message;
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', id);
+    }
+    function showServerFieldErrors(res) {
+      for (const [field, messages] of Object.entries(res.data?.errors || {}))
+        showFieldError(field, Array.isArray(messages) ? messages.join(' ') : String(messages));
+      document.querySelector('[aria-invalid="true"]')?.focus();
+    }
     function validateProductForm() {
-      const name = document.getElementById('edit-name').value.trim();
-      const catId = document.getElementById('edit-category').value;
-      const unit = document.getElementById('edit-unit').value.trim();
-      const desc = document.getElementById('edit-desc').value.trim();
-      const retailStr = document.getElementById('edit-retail-price').value.trim();
-      const wsMinStr = document.getElementById('edit-wholesale-min').value.trim();
-      const wsPriceStr = document.getElementById('edit-wholesale-price').value.trim();
-
-      if (!name || !catId || !unit || !desc || !retailStr) {
-        return 'Vui lòng điền đầy đủ các trường bắt buộc (Tên, Danh mục, Đơn vị, Mô tả, Giá bán lẻ).';
+      clearFieldErrors();
+      const val = id => document.getElementById(id).value.trim();
+      const errors = {};
+      if (!val('edit-name') || val('edit-name').length > 255) errors.ProductName = 'Nhập tên sản phẩm từ 1 đến 255 ký tự.';
+      if (!categoriesList.some(c => Number(c.categoryId || c.id) === Number(val('edit-category')))) errors.CategoryId = 'Chọn danh mục đang hoạt động.';
+      if (!val('edit-unit')) errors.Unit = 'Vui lòng chọn đơn vị.';
+      if (!val('edit-desc') || val('edit-desc').length > 10000) errors.Description = 'Nhập mô tả từ 1 đến 10.000 ký tự.';
+      const retail = Number(val('edit-retail-price'));
+      const moneyValid = n => Number.isFinite(n) && n > 0 && n <= 999999999999 && Math.abs(n * 100 - Math.round(n * 100)) < 0.01;
+      if (!moneyValid(retail)) errors.BaseRetailPrice = MSG.MSG77;
+      const min = val('edit-wholesale-min'), price = val('edit-wholesale-price');
+      if (min || price) {
+        const threshold = Number(min), wholesale = Number(price);
+        if (!min || !Number.isFinite(threshold) || threshold <= 1 || threshold > 999999999
+          || Math.abs(threshold * 1000 - Math.round(threshold * 1000)) > 0.001) errors.WholesaleMinQuantity = MSG.MSG77;
+        if (!price || !moneyValid(wholesale) || wholesale > retail) errors.WholesalePrice = MSG.MSG77;
       }
-
-      const retail = Number(retailStr);
-      if (!Number.isFinite(retail) || retail <= 0 || retail > 999999999999) {
-        return MSG.MSG77;
+      if (!productImages.length || productImages.length > 10
+        || new Set(productImages.map(img => img.imageUrl)).size !== productImages.length
+        || productImages.filter(img => img.isPrimary).length !== 1)
+        errors.Images = 'Chọn 1–10 ảnh khác nhau và chọn đúng một ảnh đại diện.';
+      for (const [field, message] of Object.entries(errors)) showFieldError(field, message);
+      if (Object.keys(errors).length) {
+        document.querySelector('[aria-invalid="true"]')?.focus();
+        return 'Vui lòng kiểm tra các trường được đánh dấu.';
       }
-
-      const hasWholesale = wsPriceStr !== '' || wsMinStr !== '';
-      if (hasWholesale) {
-        const wsMin = Number(wsMinStr);
-        const wsPrice = Number(wsPriceStr);
-        if (!Number.isFinite(wsMin) || !Number.isFinite(wsPrice) || wsMin <= 1 || wsMin > 999999999 || wsPrice <= 0 || wsPrice > retail) {
-          return MSG.MSG77;
-        }
-      }
-
-      if (!productImages.length || productImages.length > 10) {
-        return MSG.MSG76;
-      }
-
-      const uniqueUrls = new Set(productImages.map(img => img.imageUrl));
-      if (uniqueUrls.size !== productImages.length) {
-        return MSG.MSG76;
-      }
-
       return null;
     }
 
@@ -798,9 +803,6 @@
         return;
       }
 
-      if (!productImages.some(img => img.isPrimary)) {
-        productImages[0].isPrimary = true;
-      }
 
       const id = document.getElementById('edit-product-id').value;
       const wsMinVal = document.getElementById('edit-wholesale-min').value.trim();
@@ -814,6 +816,7 @@
         baseRetailPrice: Number(document.getElementById('edit-retail-price').value),
         wholesaleMinQuantity: wsMinVal ? Number(wsMinVal) : null,
         wholesalePrice: wsPriceVal ? Number(wsPriceVal) : null,
+        version: currentEditingProduct?.version ?? null,
         images: productImages.map(img => ({
           imageUrl: img.imageUrl,
           isPrimary: !!img.isPrimary,
@@ -834,10 +837,11 @@
         }
 
         if (res.success) {
-          Utils.showToast(id ? MSG.MSG72 : MSG.MSG71, 'success');
-          closeEditor();
-          loadProducts(currentPage);
+          Utils.showToast(res.data?.message || (id ? MSG.MSG72 : MSG.MSG71), 'success');
+          if (res.data?.notificationMessage) Utils.showToast(res.data.notificationMessage, 'warning');
+          closeEditor(true);
         } else {
+          showServerFieldErrors(res);
           showEditorNotice(res.error || Messages.common.operationFailed, true);
         }
       } catch (err) {
@@ -851,6 +855,15 @@
     async function handleSavePriceOnly() {
       const id = document.getElementById('edit-product-id').value;
       if (!id) return;
+      if (validateProductForm()) { showEditorNotice('Vui lòng kiểm tra các trường được đánh dấu.', true); return; }
+      if (!currentEditingProduct || document.getElementById('edit-name').value.trim() !== currentEditingProduct.productName
+        || Number(document.getElementById('edit-category').value) !== currentEditingProduct.categoryId
+        || document.getElementById('edit-unit').value !== currentEditingProduct.unit
+        || document.getElementById('edit-desc').value.trim() !== (currentEditingProduct.description || '')
+        || JSON.stringify(productImages) !== JSON.stringify(currentEditingProduct.images)) {
+        showEditorNotice('Nội dung sản phẩm đã thay đổi. Vui lòng chọn Gửi duyệt để kiểm duyệt lại.', true);
+        return;
+      }
       const retailStr = document.getElementById('edit-retail-price').value.trim();
       const wsMinStr = document.getElementById('edit-wholesale-min').value.trim();
       const wsPriceStr = document.getElementById('edit-wholesale-price').value.trim();
@@ -877,6 +890,8 @@
 
       try {
         const res = await API.updateFarmerProduct(id, {
+          ...currentEditingProduct,
+          version: currentEditingProduct.version,
           priceOnly: true,
           baseRetailPrice: retail,
           wholesaleMinQuantity: wholesaleMin,
@@ -884,9 +899,9 @@
         });
         if (res.success) {
           Utils.showToast(Messages.product.updatePriceKeepApproval, 'success');
-          closeEditor();
-          loadProducts(currentPage);
+          closeEditor(true);
         } else {
+          showServerFieldErrors(res);
           showEditorNotice(res.error || Messages.common.operationFailed, true);
         }
       } catch (err) {
@@ -916,8 +931,9 @@
     async function handleToggleEditorVisibility() {
       if (!currentEditingProduct) return;
       const id = currentEditingProduct.productId || currentEditingProduct.id;
-      await toggleVisibility(id, currentEditingProduct.isPublished, currentEditingProduct.version || 1);
-      closeEditor();
+      await toggleVisibility(id, currentEditingProduct.isPublished, currentEditingProduct.version);
+      const refreshed = await API.getFarmerProductDetail(id);
+      if (refreshed.success) currentEditingProduct = refreshed.data;
     }
   </script>
 </body>

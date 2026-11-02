@@ -26,9 +26,11 @@ public interface IVoucherManagementService
     Task<Result<VoucherActionResponse>> SetActiveAsync(
         long voucherId,
         bool isActive,
+        string? version,
         CancellationToken cancellationToken);
 
     Task<Result<VoucherActionResponse>> DeleteAsync(
         long voucherId,
+        string? version,
         CancellationToken cancellationToken);
 }

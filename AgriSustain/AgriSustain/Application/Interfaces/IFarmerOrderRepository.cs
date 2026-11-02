@@ -20,6 +20,14 @@ public interface IFarmerOrderRepository
     void Notify(long userId, string title, string content, long sellerOrderId);
     void AddEvidence(DisputeEvidence evidence);
     SellerOrderResponse Map(SellerOrder order);
+    Task<UserBankAccount?> LoadPaymentContextAsync(SellerOrder order, CancellationToken ct) =>
+        throw new NotSupportedException("Refund destination loading is not implemented.");
+    void SaveRefundResultAsync(RefundTransaction refund) =>
+        throw new NotSupportedException("Refund persistence is not implemented.");
+    void SaveNotificationsAsync(Notification notification) =>
+        throw new NotSupportedException("Notification persistence is not implemented.");
+    Task<SellerOrder?> LoadOwnedContextAsync(long actorId, long id, CancellationToken ct) => GetOwnedAsync(actorId, id, ct);
+    Task SaveFulfillmentAsync(SellerOrder order, IUnitOfWork unitOfWork, CancellationToken ct) => unitOfWork.CommitAsync(ct);
 }
 
 

@@ -235,4 +235,9 @@ public sealed class OrderRepository(AgriSustainContext context, FulfillmentRules
             context.Notifications.Local.Any(n => n.NotificationType == "FarmerOrderUpdate" && n.RelatedRecordId == order.SellerOrderId && n.DeliveryStatus != "Sent")
             || context.Notifications.AsNoTracking().Any(n => n.NotificationType == "FarmerOrderUpdate" && n.RelatedRecordId == order.SellerOrderId && n.DeliveryStatus != "Sent"));
     }
+    public Task<UserBankAccount?> LoadPaymentContextAsync(SellerOrder order, CancellationToken ct) =>
+        context.UserBankAccounts.AsNoTracking().SingleOrDefaultAsync(a =>
+            a.UserId == order.Order.BuyerUserId && a.IsDefault && a.BankCodeNavigation.IsActive, ct);
+    public void SaveRefundResultAsync(RefundTransaction refund) => context.RefundTransactions.Add(refund);
+    public void SaveNotificationsAsync(Notification notification) => context.Notifications.Add(notification);
 }
