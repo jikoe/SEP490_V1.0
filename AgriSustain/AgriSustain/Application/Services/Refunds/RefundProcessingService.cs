@@ -10,7 +10,7 @@ namespace AgriSustain.Application.Services.Refunds;
 
 /// <summary>
 /// UC-FIN-03 Process Refund. Finance transfers the money outside the platform (bank transfer, or a
-/// refund made in the PayOS/VietQR merchant portal) and records the transfer reference here; the
+/// refund made in the PayOS/SePay merchant portal) and records the transfer reference here; the
 /// refund becomes Completed, the complaint Closed and the seller order Refunded. A failed transfer
 /// is only recorded: the request stays Pending so it can be retried.
 /// </summary>

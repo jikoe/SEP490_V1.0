@@ -27,7 +27,7 @@ public sealed class SePayWebhookSqlTests
                 OrderDate = DateTime.UtcNow, ShippingAddress = "Test address", RecipientNameSnapshot = "Buyer",
                 RecipientPhoneSnapshot = "0912345678", TotalAmount = finalAmount, DiscountAmount = 0,
                 DeliveryFee = 0, FinalAmount = finalAmount, CheckoutRequestKey = Guid.NewGuid().ToString("D"),
-                ReservationExpiresAt = DateTime.UtcNow.AddMinutes(15), PaymentMethod = "VietQR"
+                ReservationExpiresAt = DateTime.UtcNow.AddMinutes(15), PaymentMethod = "SePay"
             };
             order.SellerOrders.Add(new SellerOrder
             {

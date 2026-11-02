@@ -24,7 +24,7 @@ Authorization: Bearer <AccessToken>
 - `address_to` lấy từ địa chỉ checkout 3 cấp, vốn là mã của chính Goship (xem `checkout-address-catalog.md`).
 - `weight` là tổng khối lượng theo gram của các dòng thuộc nông trại. Hệ thống chỉ quy đổi đơn vị `kg` và `g`; sản phẩm dùng đơn vị khác sẽ không được báo giá.
 - `amount` là tạm tính tiền hàng của nông trại (dùng để Goship tính phí bảo hiểm).
-- `cod = 0` vì checkout chỉ thanh toán trước (PayOS/VietQR).
+- `cod = 0` vì checkout chỉ thanh toán trước (PayOS/SePay).
 - Kích thước kiện dùng giá trị cấu hình `ParcelLength/Width/Height` (cm).
 
 ## Chọn báo giá

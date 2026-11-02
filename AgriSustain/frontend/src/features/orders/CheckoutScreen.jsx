@@ -184,7 +184,7 @@ export default function CheckoutScreen({ fixture }) {
                 <small>Thời gian giao dự kiến: chờ đơn vị vận chuyển xác nhận</small></span>
             </label>)}
           </div></section><section className="panel padded"><h2>Phương thức thanh toán</h2>
-            <div className="payment-options">{['PayOS', 'VietQR'].map((method) => <label key={method}
+            <div className="payment-options">{['PayOS', 'SePay'].map((method) => <label key={method}
               className={`choice-card ${form.paymentMethod === method ? 'chosen' : ''}`}>
               <input type="radio" name="paymentMethod" value={method} checked={form.paymentMethod === method}
                 onChange={() => update('paymentMethod', method)} /><span><strong>{method}</strong>

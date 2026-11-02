@@ -4,7 +4,7 @@ import { Field, Modal, Notice, Pager, localTime, money } from '../../components/
 
 const listRoute = '/finance/refunds';
 const statuses = { Pending: 'Chờ hoàn tiền', Completed: 'Đã hoàn tiền' };
-const methods = { BankTransfer: 'Chuyển khoản ngân hàng', GatewayRefund: 'Hoàn qua cổng thanh toán (PayOS/VietQR)' };
+const methods = { BankTransfer: 'Chuyển khoản ngân hàng', GatewayRefund: 'Hoàn qua cổng thanh toán (PayOS/SePay)' };
 const actions = {
   ResolveComplaint: 'Quyết định khiếu nại', CompleteRefund: 'Xác nhận đã hoàn tiền',
   RefundTransferFailed: 'Chuyển tiền thất bại',

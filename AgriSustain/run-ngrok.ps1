@@ -1,6 +1,6 @@
-<#
+﻿<#
 .SYNOPSIS
-    Runs the backend and exposes it through ngrok so VietQR / PayOS callbacks reach this machine.
+    Runs the backend and exposes it through ngrok so SePay / PayOS callbacks reach this machine.
 
 .EXAMPLE
     .\run-ngrok.ps1                 # start backend (if needed) + ngrok on NGROK_PUBLIC_URL from .env
@@ -113,20 +113,19 @@ if (-not $tunnel) {
 }
 $publicUrl = $tunnel.public_url.TrimEnd('/')
 
-$ping = Invoke-RestMethod "$publicUrl/vqr" -Headers @{ 'ngrok-skip-browser-warning' = 'true' } -TimeoutSec 15
-if ($ping.status -ne 'active') { throw "Tunnel is up but $publicUrl/vqr did not answer as expected." }
+$ping = Invoke-RestMethod "$publicUrl/payment/config" -Headers @{ 'ngrok-skip-browser-warning' = 'true' } -TimeoutSec 15
+if (-not $ping.bankName) { throw "Tunnel is up but $publicUrl/payment/config did not answer as expected." }
 
 Write-Host ''
 Write-Host "ngrok tunnel : $publicUrl -> http://localhost:$Port" -ForegroundColor Green
-Write-Host "Inspector    : http://127.0.0.1:4040 (live requests from VietQR)"
+Write-Host "Inspector    : http://127.0.0.1:4040 (live requests from SePay)"
 Write-Host ''
 Write-Host 'SePay webhook (SePay > Webhooks: incoming money, auth = API Key from Payment__SePay__WebhookApiKey in .env):'
 Write-Host "  $publicUrl/api/payment/sepay-webhook" -ForegroundColor Green
-Write-Host 'VietQR.vn partner portal (basePath = /vqr):'
-Write-Host "  API Get Token        : $publicUrl/vqr/api/token_generate"
-Write-Host "  API Transaction Sync : $publicUrl/vqr/bank/api/transaction-sync"
+
 if ($Url -and $publicUrl -ne $Url.TrimEnd('/')) {
-    Write-Warning "Public URL differs from NGROK_PUBLIC_URL ($Url); update .env, appsettings.json and the VietQR portal."
+    Write-Warning "Public URL differs from NGROK_PUBLIC_URL ($Url); update .env, appsettings.json "
 }
 Write-Host ''
 Write-Host "Test a payment: .\tests\Test-SePayWebhook.ps1 -OrderCode <RC-...> -Amount <final amount>"
+

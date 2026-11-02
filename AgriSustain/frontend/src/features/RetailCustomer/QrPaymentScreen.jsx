@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { request } from '../../api/client';
 import { money, localTime } from '../../components/ui/Common';
 import './qrPayment.css';
 
 // Tài khoản nhận chuyển khoản (SePay theo dõi biến động số dư) - cấu hình qua .env hoặc backend config
-const DEFAULT_VIETQR = {
+const DEFAULT_BENEFICIARY = {
   name: 'SePay',
   title: 'Chuyển khoản ngân hàng qua SePay',
-  bankName: import.meta.env.VITE_VIETQR_BANK_NAME || 'MB Bank (Ngân hàng TMCP Quân Đội)',
-  bankBin: import.meta.env.VITE_VIETQR_BANK_BIN || '970422',
-  bankShortName: import.meta.env.VITE_VIETQR_BANK_SHORT_NAME || 'MB',
-  accountNumber: import.meta.env.VITE_VIETQR_ACCOUNT_NUMBER || '0988776655',
-  accountName: import.meta.env.VITE_VIETQR_ACCOUNT_NAME || 'CONG TY CP NONG SAN VIET',
+  bankName: import.meta.env.VITE_SEPAY_BANK_NAME || 'MB Bank (Ngân hàng TMCP Quân Đội)',
+  bankBin: import.meta.env.VITE_SEPAY_BANK_BIN || '970422',
+  bankShortName: import.meta.env.VITE_SEPAY_BANK_SHORT_NAME || 'MB',
+  accountNumber: import.meta.env.VITE_SEPAY_ACCOUNT_NUMBER || '0988776655',
+  accountName: import.meta.env.VITE_SEPAY_ACCOUNT_NAME || 'CONG TY CP NONG SAN VIET',
   badge: 'Doanh nghiệp MB Bank',
   note: 'Chuyển khoản tới tài khoản MB Bank của Nông Sản Việt với đúng nội dung bên trên. SePay tự động xác nhận đơn hàng ngay khi tiền về tài khoản.'
 };
@@ -104,14 +104,14 @@ export default function QrPaymentScreen({ navigate }) {
   const [qrImgFailed, setQrImgFailed] = useState(false);
   const [autoRedirectTimer, setAutoRedirectTimer] = useState(null);
 
-  // Thông tin ngân hàng thụ hưởng VietQR
-  const [vietQrBeneficiary, setVietQrBeneficiary] = useState(DEFAULT_VIETQR);
+  // Thông tin ngân hàng thụ hưởng SePay
+  const [beneficiary, setBeneficiary] = useState(DEFAULT_BENEFICIARY);
 
   useEffect(() => {
     request('/payment/config')
       .then((cfg) => {
         if (cfg && cfg.accountNumber) {
-          setVietQrBeneficiary((prev) => ({
+          setBeneficiary((prev) => ({
             ...prev,
             bankName: cfg.bankName || prev.bankName,
             bankBin: cfg.bankBin || prev.bankBin,
@@ -124,7 +124,7 @@ export default function QrPaymentScreen({ navigate }) {
       .catch(() => {});
   }, []);
 
-  const activeBeneficiary = vietQrBeneficiary;
+  const activeBeneficiary = beneficiary;
 
   // Mã QR Napas giới hạn nội dung chuyển khoản 19 ký tự, không ký tự đặc biệt; webhook khớp "RC" + 16 ký tự hex đầu của mã đơn.
   const transferContent = useMemo(() => {
@@ -132,7 +132,7 @@ export default function QrPaymentScreen({ navigate }) {
   }, [queryParams.orderCode]);
 
   // Ảnh QR động của SePay
-  const vietQrUrl = useMemo(() => {
+  const qrUrl = useMemo(() => {
     const params = new URLSearchParams({
       acc: activeBeneficiary.accountNumber,
       bank: activeBeneficiary.bankShortName,
@@ -140,7 +140,7 @@ export default function QrPaymentScreen({ navigate }) {
       des: transferContent,
       template: 'compact',
     });
-    return `https://vietqr.app/img?${params}`;
+    return `https://qr.sepay.vn/img?${params}`;
   }, [transferContent, queryParams.amount, activeBeneficiary]);
 
   // Tự động kiểm tra trạng thái đơn hàng
@@ -366,10 +366,10 @@ export default function QrPaymentScreen({ navigate }) {
                     </button>
                   </div>
                 ) : qrImgFailed ? (
-                  <SvgQrFallback value={vietQrUrl} size={230} />
+                  <SvgQrFallback value={qrUrl} size={230} />
                 ) : (
                   <img
-                    src={vietQrUrl}
+                    src={qrUrl}
                     alt={`Mã QR thanh toán SePay cho đơn hàng ${queryParams.orderCode}`}
                     onError={() => setQrImgFailed(true)}
                   />
@@ -500,3 +500,4 @@ export default function QrPaymentScreen({ navigate }) {
     </div>
   );
 }
+

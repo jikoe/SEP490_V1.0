@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-// UI test for checkout + VietQR payment against the real backend and SQL database.
+// UI test for checkout + SePay payment against the real backend and SQL database.
 // Run: npx playwright test -c playwright.payment.config.js
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:5174';
 

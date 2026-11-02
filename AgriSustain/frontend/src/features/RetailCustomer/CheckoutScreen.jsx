@@ -28,7 +28,7 @@ const payments = [
     badge: 'Tự động duyệt'
   },
 ];
-const transferMethods = ['SePay', 'VietQR'];
+const transferMethods = ['SePay'];
 const paymentPath = (order) => `/payment?orderCode=${encodeURIComponent(order.code)}&amount=${order.total}`
   + `&method=${encodeURIComponent(order.paymentMethod || 'SePay')}&orderId=${encodeURIComponent(order.code)}`
   + `&expiresAt=${encodeURIComponent(order.reservationExpiresAt || '')}`;

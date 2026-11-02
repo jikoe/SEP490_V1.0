@@ -23,6 +23,21 @@ public sealed class SePayWebhookController(
     private const string Gateway = "SePay";
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
 
+    [HttpGet("/api/payment/config")]
+    [HttpGet("/payment/config")]
+    public IActionResult GetPaymentConfig()
+    {
+        var sePaySection = configuration.GetSection("Payment:SePay");
+        return Ok(new
+        {
+            bankName = sePaySection["BankName"] ?? "MB Bank (Ngân hàng TMCP Quân Đội)",
+            bankBin = sePaySection["BankBin"] ?? "970422",
+            bankShortName = sePaySection["BankShortName"] ?? "MB",
+            accountNumber = sePaySection["AccountNumber"] ?? "0000499456980",
+            accountName = sePaySection["AccountName"] ?? "CONG TY CP NONG SAN VIET"
+        });
+    }
+
     [HttpPost("/api/payment/sepay-webhook")]
     [HttpPost("/")]
     public async Task<IActionResult> Receive([FromBody] SePayWebhookPayload? payload, CancellationToken cancellationToken)

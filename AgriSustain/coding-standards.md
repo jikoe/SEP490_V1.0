@@ -176,7 +176,7 @@ Domain             -> Không phụ thuộc Api, Application, Infrastructure
 | `Infrastructure/Data` | AgriSustainContext, partial Fluent API mapping, phân loại lỗi persistence. SQL giao cho người dùng chạy đặt ở database/ tại cấp solution. |
 | `Infrastructure/Repositories` | Triển khai truy vấn và thao tác persistence theo hợp đồng. Không quyết định giá, quyền hoặc chuyển trạng thái đơn. |
 | `Infrastructure/UnitOfWork` | Triển khai commit và transaction, chia sẻ cùng DbContext với repositories trong một unit of work. |
-| `Infrastructure/Payments` | Adapter PayOS/VietQR; gửi request, xác minh chữ ký và chuyển dữ liệu nhà cung cấp thành kiểu nội bộ. |
+| `Infrastructure/Payments` | Adapter PayOS/SePay; gửi request, xác minh chữ ký và chuyển dữ liệu nhà cung cấp thành kiểu nội bộ. |
 | `Infrastructure/FileStorage` | Đọc/ghi/xóa file, sinh liên kết truy cập theo chính sách; không quyết định ai được duyệt hồ sơ. |
 | `Infrastructure/Email` | Adapter Gmail/API gửi mail, template và xử lý lỗi giao tiếp. |
 | `Infrastructure/Auditing` | Ghi lịch sử theo hợp đồng; phân biệt audit nghiệp vụ và log chẩn đoán. |
@@ -509,7 +509,7 @@ Việc tránh blocking và sử dụng I/O async phù hợp với
 - Checkout Quote chỉ lưu bản tính giá; Place mới revalidate và giữ kho/voucher/điểm
   trong transaction. RequestKey và unique quote index bảo vệ retry qua restart;
   sessionStorage phía frontend không thay thế cơ chế này trên server.
-- PendingPayment không phải Paid. PayOS/VietQR trong input và PaymentPath trả về
+- PendingPayment không phải Paid. PayOS/SePay trong input và PaymentPath trả về
   chỉ là contract bàn giao khi module thanh toán thực tế chưa được tích hợp.
 - Audit hành động quan trọng phải có actor, thời điểm, resource, hành động, kết quả và correlation
   phù hợp. Phân biệt actor hệ thống/webhook với người dùng; không gán giả user.

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace AgriSustain.Infrastructure.Payments;
 
-/// <summary>An incoming bank credit reported by a gateway webhook (VietQR, SePay).</summary>
+/// <summary>An incoming bank credit reported by a gateway webhook (SePay).</summary>
 /// <param name="ReferenceTexts">Fields that may carry the order reference, in priority order.</param>
 public sealed record BankTransfer(
     string Gateway,
