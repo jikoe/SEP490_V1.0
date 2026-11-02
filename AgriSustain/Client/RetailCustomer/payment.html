@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thanh toán đơn hàng qua SePay - Sàn Nông Sản Việt</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/qrPayment.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display: none;"></aside>
+
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+
+      <main style="padding: 24px 20px; min-height: 80vh;">
+        <div class="qr-pay-page">
+          <!-- Breadcrumbs -->
+          <nav class="qr-crumbs" aria-label="Đường dẫn">
+            <button type="button" onclick="window.location.href='cart.html'">Giỏ hàng</button>
+            <span aria-hidden="true">/</span>
+            <button type="button" onclick="window.location.href='checkout.html'">Thanh toán</button>
+            <span aria-hidden="true">/</span>
+            <span>Chuyển khoản SePay</span>
+          </nav>
+
+          <!-- Header -->
+          <div class="qr-header">
+            <div>
+              <span class="order-badge" id="header-order-badge">⏳ Chờ thanh toán · Mã đơn #<span id="badge-order-code">ORD-98231</span></span>
+              <h1>Thanh toán đơn hàng qua SePay</h1>
+              <p style="margin: 0; color: var(--pay-muted); font-size: 14px;">
+                Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử. SePay tự động xác nhận ngay khi tiền về tài khoản.
+              </p>
+            </div>
+
+            <!-- Countdown Timer -->
+            <div class="qr-timer-box" id="qr-timer-box" title="Thời gian giữ hàng và phiên thanh toán">
+              <span style="font-size: 20px;">⏱️</span>
+              <div>
+                <div id="timer-label" style="font-size: 11px; text-transform: uppercase; font-weight: 600; color: var(--pay-muted);">
+                  Thời gian giữ hàng
+                </div>
+                <div class="qr-timer-digits" id="timer-digits" style="color: var(--pay-primary);">
+                  15:00
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thông báo trạng thái feedbackMessage -->
+          <div id="qr-status-banner" class="qr-status-banner" style="display: none;" role="alert">
+            <div class="banner-icon" id="banner-icon">🎉</div>
+            <div>
+              <strong id="banner-title">Thành công!</strong> <span id="banner-text"></span>
+            </div>
+          </div>
+
+          <!-- Màn hình thành công hoàn tất (status === 'SUCCESS') -->
+          <div id="qr-success-card" class="qr-card qr-success-card" style="display: none;">
+            <div class="success-icon-large">✓</div>
+            <h2>Đã thanh toán thành công!</h2>
+            <p class="success-sub">
+              Cảm ơn bạn đã đặt hàng nông sản bền vững. Giao dịch chuyển khoản <strong id="succ-amount">0 ₫</strong> cho đơn hàng <strong id="succ-order-code">#---</strong> đã được xác nhận.
+            </p>
+            <div class="success-meta">
+              <div>
+                <span>Mã đơn hàng:</span>
+                <strong id="succ-meta-code">#---</strong>
+              </div>
+              <div>
+                <span>Phương thức:</span>
+                <strong id="succ-meta-method">Chuyển khoản SePay (MB Bank)</strong>
+              </div>
+              <div>
+                <span>Số tiền:</span>
+                <strong id="succ-meta-amount" style="color: var(--pay-primary);">0 ₫</strong>
+              </div>
+              <div>
+                <span>Thời gian:</span>
+                <strong id="succ-meta-time">—</strong>
+              </div>
+            </div>
+            <p style="font-size: 13px; color: var(--pay-muted);">
+              Hệ thống đang tự động điều hướng sang trang Đơn hàng sau vài giây...
+            </p>
+            <div class="qr-actions" style="justify-content: center;">
+              <button type="button" class="btn-primary-pay" onclick="handleReturnToOrder()">
+                Xem chi tiết đơn hàng
+              </button>
+              <button type="button" class="btn-secondary-pay" onclick="window.location.href='index.html'">
+                Tiếp tục mua hàng
+              </button>
+            </div>
+          </div>
+
+          <!-- Màn hình thanh toán chính (status !== 'SUCCESS') -->
+          <div id="qr-payment-grid" class="qr-grid">
+            <!-- Cột 1: Mã QR Code -->
+            <div class="qr-card qr-display">
+              <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 14px;">
+                <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: #1b4332;">
+                  Quét mã QR (<span id="qr-bank-short">MB</span>)
+                </h3>
+                <span style="font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; background: #eaf4e9; color: #1e6546;">
+                  ✓ NAPAS 247
+                </span>
+              </div>
+
+              <div class="qr-img-wrapper" id="qr-img-wrapper">
+                <div id="qr-expired-overlay" class="qr-expired-overlay" style="display: none;">
+                  <span style="font-size: 36px;">⏰</span>
+                  <strong style="color: var(--pay-error); font-size: 15px;">Mã QR đã hết hạn</strong>
+                  <p style="margin: 0; font-size: 12px; color: var(--pay-muted);">Vui lòng bấm Thử lại để tạo mã mới.</p>
+                  <button type="button" class="copy-btn" onclick="handleRetryPayment()" style="padding: 6px 14px;">
+                    Tạo lại mã QR
+                  </button>
+                </div>
+
+                <!-- SVG Fallback nếu ảnh QR online bị chặn -->
+                <svg id="svg-fallback" width="230" height="230" viewBox="0 0 100 100" style="shape-rendering: crispedges; display: none;">
+                  <rect width="100" height="100" fill="#ffffff" />
+                  <rect x="5" y="5" width="28" height="28" fill="#1b4332" />
+                  <rect x="9" y="9" width="20" height="20" fill="#ffffff" />
+                  <rect x="13" y="13" width="12" height="12" fill="#1b4332" />
+                  <rect x="67" y="5" width="28" height="28" fill="#1b4332" />
+                  <rect x="71" y="9" width="20" height="20" fill="#ffffff" />
+                  <rect x="75" y="13" width="12" height="12" fill="#1b4332" />
+                  <rect x="5" y="67" width="28" height="28" fill="#1b4332" />
+                  <rect x="9" y="71" width="20" height="20" fill="#ffffff" />
+                  <rect x="13" y="75" width="12" height="12" fill="#1b4332" />
+                  <rect x="36" y="8" width="4" height="4" fill="#1b4332" />
+                  <rect x="44" y="8" width="4" height="4" fill="#1b4332" />
+                  <rect x="52" y="8" width="4" height="4" fill="#1b4332" />
+                  <rect x="60" y="8" width="4" height="4" fill="#1b4332" />
+                  <rect x="8" y="36" width="4" height="4" fill="#1b4332" />
+                  <rect x="8" y="44" width="4" height="4" fill="#1b4332" />
+                  <rect x="8" y="52" width="4" height="4" fill="#1b4332" />
+                  <rect x="8" y="60" width="4" height="4" fill="#1b4332" />
+                  <rect x="38" y="38" width="24" height="24" fill="#1b4332" rx="3" />
+                </svg>
+
+                <img id="qr-image" src="" alt="Mã QR thanh toán SePay" onerror="handleQrError()">
+              </div>
+
+              <p class="qr-scan-guide">
+                Sử dụng app <strong>Ngân hàng</strong> hoặc <strong>Ví điện tử</strong> quét mã QR phía trên để chuyển khoản trực tiếp.
+              </p>
+              <div class="qr-app-logos">
+                <span>Vietcombank</span> · <span>MB</span> · <span>BIDV</span> · <span>Techcombank</span> · <span>MoMo</span>
+              </div>
+            </div>
+
+            <!-- Cột 2: Thông tin chuyển khoản chi tiết -->
+            <div class="qr-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="font-size: 17px; font-weight: 700; margin: 0; color: #1b4332;">
+                  Thông tin chuyển khoản ngân hàng
+                </h3>
+              </div>
+
+              <div class="transfer-info-list">
+                <div class="transfer-item">
+                  <div>
+                    <div class="label">Kênh thanh toán</div>
+                    <div class="val" style="color: #1b4332; font-weight: 700;">
+                      SePay · Chuyển khoản Napas 247
+                    </div>
+                  </div>
+                </div>
+
+                <div class="transfer-item">
+                  <div>
+                    <div class="label">Ngân hàng thụ hưởng</div>
+                    <div class="val" id="info-bank-name">MB Bank (Ngân hàng TMCP Quân Đội)</div>
+                  </div>
+                </div>
+
+                <div class="transfer-item">
+                  <div>
+                    <div class="label">Chủ tài khoản</div>
+                    <div class="val" id="info-account-name">CONG TY CP NONG SAN VIET</div>
+                  </div>
+                </div>
+
+                <div class="transfer-item">
+                  <div>
+                    <div class="label">Số tài khoản</div>
+                    <div class="val" id="info-account-number" style="font-family: monospace; letter-spacing: 1px;">0988776655</div>
+                  </div>
+                  <button type="button" class="copy-btn" id="btn-copy-acc" onclick="copyField('acc', beneficiary.accountNumber)">
+                    Sao chép
+                  </button>
+                </div>
+
+                <div class="transfer-item">
+                  <div>
+                    <div class="label">Số tiền cần thanh toán</div>
+                    <div class="val highlight" id="info-amount">214.500 ₫</div>
+                  </div>
+                  <button type="button" class="copy-btn" id="btn-copy-amount" onclick="copyField('amount', String(queryParams.amount))">
+                    Sao chép
+                  </button>
+                </div>
+
+                <div class="transfer-item" style="background: #f5faf6; border-color: #cfe5d7;">
+                  <div>
+                    <div class="label" style="color: var(--pay-primary);">
+                      Nội dung chuyển khoản (bắt buộc)
+                    </div>
+                    <div class="val" id="info-content" style="color: var(--pay-primary); font-family: monospace; font-weight: 700;">
+                      ORD98231
+                    </div>
+                  </div>
+                  <button type="button" class="copy-btn" id="btn-copy-content" onclick="copyField('content', transferContent)">
+                    Sao chép
+                  </button>
+                </div>
+              </div>
+
+              <p id="info-note-para" style="font-size: 12px; color: var(--pay-muted); margin: 14px 0 0; line-height: 1.5; background: #f9fbf9; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2ece5;">
+                💡 <em id="info-note">Chuyển khoản tới tài khoản MB Bank của Nông Sản Việt với đúng nội dung bên trên. SePay tự động xác nhận đơn hàng ngay khi tiền về tài khoản.</em>
+              </p>
+
+              <!-- Nút thao tác dưới form -->
+              <div class="qr-actions" id="qr-actions">
+                <button type="button" class="btn-secondary-pay" id="btn-cancel" onclick="handleCancelPayment()">
+                  Hủy thanh toán
+                </button>
+                <button type="button" class="btn-secondary-pay" onclick="handleReturnToOrder()">
+                  Quay lại đơn hàng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    /* ==========================================================================
+       SePay QR Payment Screen Client Controller
+       Replicates QrPaymentScreen.jsx 1:1
+       ========================================================================== */
+
+    const DEFAULT_BENEFICIARY = {
+      name: 'SePay',
+      title: 'Chuyển khoản ngân hàng qua SePay',
+      bankName: 'MB Bank (Ngân hàng TMCP Quân Đội)',
+      bankBin: '970422',
+      bankShortName: 'MB',
+      accountNumber: '0988776655',
+      accountName: 'CONG TY CP NONG SAN VIET',
+      badge: 'Doanh nghiệp MB Bank',
+      note: 'Chuyển khoản tới tài khoản MB Bank của Nông Sản Việt với đúng nội dung bên trên. SePay tự động xác nhận đơn hàng ngay khi tiền về tài khoản.'
+    };
+
+    let beneficiary = { ...DEFAULT_BENEFICIARY };
+    let queryParams = { orderId: '98231', orderCode: 'ORD-98231', amount: 214500, expiresAt: null };
+    let targetExpiry = 0;
+    let timeLeft = 0;
+    let status = 'PENDING';
+    let feedbackMessage = '';
+    let copiedField = null;
+    let qrImgFailed = false;
+    let countdownInterval = null;
+    let pollingInterval = null;
+    let autoRedirectTimer = null;
+    let transferContent = '';
+
+    function parseQueryParams() {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash || '';
+      const queryPart = hash.includes('?') ? hash.split('?')[1] : '';
+      const hashParams = new URLSearchParams(queryPart);
+
+      const get = (key) => searchParams.get(key) || hashParams.get(key);
+
+      queryParams = {
+        orderId: get('orderId') || '98231',
+        orderCode: get('orderCode') || 'ORD-98231',
+        amount: Number(get('amount')) || 214500,
+        expiresAt: get('expiresAt') || null
+      };
+
+      transferContent = queryParams.orderCode.replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 18);
+    }
+
+    function getInitialExpiry(orderCode, expiresAtParam) {
+      if (expiresAtParam) {
+        const parsed = new Date(expiresAtParam).getTime();
+        if (!isNaN(parsed) && parsed > Date.now()) {
+          return parsed;
+        }
+      }
+
+      const storageKey = `order_expiry_${orderCode}`;
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsedSaved = Number(saved);
+          if (!isNaN(parsedSaved) && parsedSaved > Date.now()) {
+            return parsedSaved;
+          }
+        }
+      } catch (_) {}
+
+      const defaultMs = Date.now() + 15 * 60 * 1000;
+      try {
+        localStorage.setItem(storageKey, String(defaultMs));
+      } catch (_) {}
+      return defaultMs;
+    }
+
+    function calculateTimeLeft() {
+      if (!targetExpiry) return 0;
+      const diffSeconds = Math.floor((targetExpiry - Date.now()) / 1000);
+      return Math.max(0, diffSeconds);
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      Components.init();
+      parseQueryParams();
+      targetExpiry = getInitialExpiry(queryParams.orderCode, queryParams.expiresAt);
+
+      renderStaticInfo();
+      await loadBeneficiaryConfig();
+      renderQrImage();
+
+      startTimer();
+      startStatusPolling();
+    });
+
+    async function loadBeneficiaryConfig() {
+      try {
+        const cfg = await API.get('/payment/config');
+        if (cfg && cfg.accountNumber) {
+          beneficiary = {
+            ...beneficiary,
+            bankName: cfg.bankName || beneficiary.bankName,
+            bankBin: cfg.bankBin || beneficiary.bankBin,
+            bankShortName: cfg.bankShortName || beneficiary.bankShortName,
+            accountNumber: cfg.accountNumber || beneficiary.accountNumber,
+            accountName: cfg.accountName || beneficiary.accountName
+          };
+          renderBeneficiaryInfo();
+          renderQrImage();
+        }
+      } catch (_) {}
+    }
+
+    function renderStaticInfo() {
+      document.getElementById('badge-order-code').textContent = queryParams.orderCode;
+      renderBeneficiaryInfo();
+      document.getElementById('info-amount').textContent = Utils.formatVND(queryParams.amount);
+      document.getElementById('info-content').textContent = transferContent;
+    }
+
+    function renderBeneficiaryInfo() {
+      document.getElementById('qr-bank-short').textContent = beneficiary.bankShortName;
+      document.getElementById('info-bank-name').textContent = beneficiary.bankName;
+      document.getElementById('info-account-name').textContent = beneficiary.accountName;
+      document.getElementById('info-account-number').textContent = beneficiary.accountNumber;
+      document.getElementById('info-note').textContent = beneficiary.note;
+    }
+
+    function renderQrImage() {
+      if (qrImgFailed) {
+        document.getElementById('svg-fallback').style.display = 'block';
+        document.getElementById('qr-image').style.display = 'none';
+        return;
+      }
+
+      const params = new URLSearchParams({
+        acc: beneficiary.accountNumber,
+        bank: beneficiary.bankShortName,
+        amount: String(queryParams.amount),
+        des: transferContent,
+        template: 'compact'
+      });
+      const qrUrl = `https://qr.sepay.vn/img?${params.toString()}`;
+      const img = document.getElementById('qr-image');
+      img.src = qrUrl;
+      img.alt = `Mã QR thanh toán SePay cho đơn hàng ${queryParams.orderCode}`;
+      img.style.display = 'block';
+      document.getElementById('svg-fallback').style.display = 'none';
+    }
+
+    function handleQrError() {
+      qrImgFailed = true;
+      renderQrImage();
+    }
+
+    function startTimer() {
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      const tick = () => {
+        if (status !== 'PENDING') return;
+
+        timeLeft = calculateTimeLeft();
+        const timerBox = document.getElementById('qr-timer-box');
+        const digits = document.getElementById('timer-digits');
+        const label = document.getElementById('timer-label');
+
+        digits.textContent = formatTime(timeLeft);
+
+        const isTimeWarning = timeLeft < 120;
+        if (isTimeWarning) {
+          timerBox.classList.add('warning');
+          digits.style.color = 'var(--pay-error)';
+          label.style.color = 'var(--pay-error)';
+        } else {
+          timerBox.classList.remove('warning');
+          digits.style.color = 'var(--pay-primary)';
+          label.style.color = 'var(--pay-muted)';
+        }
+
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          status = 'EXPIRED';
+          showStatusBanner('error', 'Phiên thanh toán đã hết hạn. Đơn hàng đã hết thời gian giữ hàng (15 phút). Bạn có thể bấm "Thử lại thanh toán" để tạo mã mới.');
+          document.getElementById('qr-expired-overlay').style.display = 'flex';
+          renderActions();
+        }
+      };
+
+      tick();
+      countdownInterval = setInterval(tick, 1000);
+    }
+
+    function showStatusBanner(type, message) {
+      const banner = document.getElementById('qr-status-banner');
+      const icon = document.getElementById('banner-icon');
+      const title = document.getElementById('banner-title');
+      const text = document.getElementById('banner-text');
+
+      banner.className = `qr-status-banner ${type}`;
+      icon.textContent = type === 'success' ? '🎉' : '⚠️';
+      title.textContent = type === 'success' ? 'Thành công!' : 'Thông báo:';
+      text.textContent = message;
+      banner.style.display = 'flex';
+    }
+
+    function hideStatusBanner() {
+      document.getElementById('qr-status-banner').style.display = 'none';
+    }
+
+    function renderActions() {
+      const container = document.getElementById('qr-actions');
+      if (status === 'PENDING') {
+        container.innerHTML = `
+          <button type="button" class="btn-secondary-pay" id="btn-cancel" onclick="handleCancelPayment()">
+            Hủy thanh toán
+          </button>
+          <button type="button" class="btn-secondary-pay" onclick="handleReturnToOrder()">
+            Quay lại đơn hàng
+          </button>
+        `;
+      } else {
+        container.innerHTML = `
+          <button type="button" class="btn-primary-pay" onclick="handleRetryPayment()">
+            🔄 Thử lại thanh toán
+          </button>
+          <button type="button" class="btn-secondary-pay" onclick="handleReturnToOrder()">
+            Quay lại đơn hàng
+          </button>
+        `;
+      }
+    }
+
+    function handleRetryPayment() {
+      const newExpiry = Date.now() + 15 * 60 * 1000;
+      targetExpiry = newExpiry;
+      try {
+        localStorage.setItem(`order_expiry_${queryParams.orderCode}`, String(newExpiry));
+      } catch (_) {}
+
+      timeLeft = 900;
+      status = 'PENDING';
+      qrImgFailed = false;
+      hideStatusBanner();
+      document.getElementById('qr-expired-overlay').style.display = 'none';
+      renderActions();
+      renderQrImage();
+      startTimer();
+    }
+
+    function handleCancelPayment() {
+      if (window.confirm('Bạn có chắc chắn muốn hủy phiên thanh toán này? Đơn hàng sẽ vẫn được lưu ở trạng thái "Chờ thanh toán" trong lịch sử đơn hàng.')) {
+        status = 'CANCELLED';
+        showStatusBanner('error', 'Bạn đã hủy phiên thanh toán. Đơn hàng vẫn được lưu lại, bạn có thể thanh toán sau hoặc chọn Thử lại.');
+        renderActions();
+      }
+    }
+
+    function handleReturnToOrder() {
+      window.location.href = 'orders.html';
+    }
+
+    function copyField(field, text) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      }
+      const btn = document.getElementById(`btn-copy-${field}`);
+      if (btn) {
+        btn.textContent = '✓ Đã sao chép';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Sao chép';
+          btn.classList.remove('copied');
+        }, 2500);
+      }
+    }
+
+    function startStatusPolling() {
+      if (!queryParams.orderCode || queryParams.orderCode === 'ORD-98231') return;
+
+      const check = async () => {
+        if (status !== 'PENDING') return;
+        try {
+          const detail = await API.get(`/orders/by-code/${encodeURIComponent(queryParams.orderCode)}`);
+          if (!detail) return;
+
+          if (detail.orderStatus === 'Confirmed' || detail.paymentStatus === 'Paid') {
+            onPaymentSuccess(detail);
+            return;
+          }
+
+          if (detail.reservationExpiresAt) {
+            const expMs = new Date(detail.reservationExpiresAt).getTime();
+            if (!isNaN(expMs) && expMs > 0) {
+              targetExpiry = expMs;
+              try { localStorage.setItem(`order_expiry_${queryParams.orderCode}`, String(expMs)); } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      };
+
+      check();
+      pollingInterval = setInterval(check, 3000);
+    }
+
+    function onPaymentSuccess(detail) {
+      status = 'SUCCESS';
+      if (pollingInterval) clearInterval(pollingInterval);
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      // Hide timer
+      document.getElementById('qr-timer-box').style.display = 'none';
+      // Hide payment grid
+      document.getElementById('qr-payment-grid').style.display = 'none';
+
+      // Update success card
+      document.getElementById('succ-amount').textContent = Utils.formatVND(queryParams.amount);
+      document.getElementById('succ-order-code').textContent = `#${queryParams.orderCode}`;
+      document.getElementById('succ-meta-code').textContent = `#${queryParams.orderCode}`;
+      document.getElementById('succ-meta-method').textContent = `Chuyển khoản SePay (${beneficiary.bankShortName} Bank)`;
+      document.getElementById('succ-meta-amount').textContent = Utils.formatVND(queryParams.amount);
+      document.getElementById('succ-meta-time').textContent = Utils.formatDateTime(new Date().toISOString());
+
+      // Show banner and success card
+      showStatusBanner('success', 'Thanh toán thành công! Hệ thống đã tự động xác nhận chuyển khoản cho đơn hàng của bạn.');
+      document.getElementById('qr-success-card').style.display = 'block';
+
+      // Auto redirect to orders after 4s
+      setTimeout(() => {
+        window.location.href = 'orders.html';
+      }, 4000);
+    }
+  </script>
+</body>
+</html>

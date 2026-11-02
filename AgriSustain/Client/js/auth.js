@@ -62,6 +62,10 @@ const Auth = {
     } catch {}
   },
 
+  getUser() {
+    return this.getUserInfo();
+  },
+
   getUserInfo() {
     const raw = sessionStorage.getItem(CONFIG.STORAGE_KEYS.USER_INFO);
     try {

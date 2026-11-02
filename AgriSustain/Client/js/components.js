@@ -85,7 +85,7 @@ const ROLE_CONFIGS = {
     hasSidebar: true,
     landingRoute: 'VerificationOfficer/dashboard.html',
     navItems: [
-      { key: 'verification-dash', label: 'Thẩm định chất lượng', icon: '📊', path: 'VerificationOfficer/dashboard.html' },
+      { key: 'verification-kyc', label: 'Xét duyệt hồ sơ KYC', icon: '✓', path: 'VerificationOfficer/dashboard.html' },
     ],
   },
   customer_support: {
@@ -219,7 +219,7 @@ const Components = {
 
     const navButtons = config.navItems.map(item => {
       const fullLink = `${root}${item.path}`;
-      const isSelected = currentPath.endsWith(item.path.split('/').pop().toLowerCase());
+      const isSelected = currentPath.endsWith(item.path.split('/').pop().toLowerCase()) || (item.path.includes('dashboard.html') && currentPath.includes('kyc.html'));
 
       return `
         <button type="button" class="${isSelected ? 'selected' : ''}" onclick="window.location.href='${fullLink}'">
