@@ -7,10 +7,12 @@ public static class VerificationStatuses
     public const string PendingApproval = "PendingApproval";
     public const string Approved = "Approved";
     public const string Rejected = "Rejected";
+    public const string AdditionalInfoRequired = "AdditionalInfoRequired";
 
     /// <summary>Legacy values written by earlier builds; treated as "waiting for review".</summary>
     public static bool IsPending(string? status) =>
         status is PendingApproval or "Pending" or "PendingVerification";
 
-    public static bool CanSubmit(string? status) => status is NotSubmitted or Rejected;
+    public static bool CanSubmit(string? status) =>
+        status is NotSubmitted or Rejected or AdditionalInfoRequired;
 }
