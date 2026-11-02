@@ -48,22 +48,25 @@ public sealed class PromotionVouchersController : ControllerBase
     [HttpPost("{voucherId:long}/activate")]
     public async Task<IActionResult> Activate(
         long voucherId,
+        [FromQuery] string? version,
         CancellationToken cancellationToken) =>
         ApiResults.From(
-            await _voucherService.SetActiveAsync(voucherId, true, cancellationToken),
+            await _voucherService.SetActiveAsync(voucherId, true, version, cancellationToken),
             HttpContext);
 
     [HttpPost("{voucherId:long}/deactivate")]
     public async Task<IActionResult> Deactivate(
         long voucherId,
+        [FromQuery] string? version,
         CancellationToken cancellationToken) =>
         ApiResults.From(
-            await _voucherService.SetActiveAsync(voucherId, false, cancellationToken),
+            await _voucherService.SetActiveAsync(voucherId, false, version, cancellationToken),
             HttpContext);
 
     [HttpDelete("{voucherId:long}")]
     public async Task<IActionResult> Delete(
         long voucherId,
+        [FromQuery] string? version,
         CancellationToken cancellationToken) =>
-        ApiResults.From(await _voucherService.DeleteAsync(voucherId, cancellationToken), HttpContext);
+        ApiResults.From(await _voucherService.DeleteAsync(voucherId, version, cancellationToken), HttpContext);
 }

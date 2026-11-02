@@ -29,6 +29,7 @@ public sealed class CheckoutService(
         var items = await repository.SelectedItemsAsync(actor.UserId, cancellationToken);
         var addresses = await repository.AddressesAsync(actor.UserId, cancellationToken);
         var vouchers = await repository.VouchersAsync(clock.GetUtcNow(), cancellationToken);
+        var uses = await repository.CustomerVoucherUsesAsync(actor.UserId, cancellationToken);
         var lines = items.Select(item => Line(item, [], RetailPricing.UnitPrice(item.Product,
             items.Where(x => x.ProductId == item.ProductId).Sum(x => x.Quantity)))).ToList();
         return UseCaseResult<CheckoutContextDto>.Success(new CheckoutContextDto(lines,
@@ -38,10 +39,11 @@ public sealed class CheckoutService(
             await repository.PointsAsync(actor.UserId, cancellationToken),
             vouchers.Where(x => x.FarmerProfileId is null
                 || lines.Any(line => line.FarmerId == x.FarmerProfileId))
-                .Select(x => VoucherOption(x, lines)).ToList()));
+                .Select(x => VoucherOption(x, lines, uses.GetValueOrDefault(x.VoucherId))).ToList()));
     }
 
-    private static VoucherOption VoucherOption(Voucher voucher, IReadOnlyList<CheckoutLine> lines)
+    private static VoucherOption VoucherOption(Voucher voucher, IReadOnlyList<CheckoutLine> lines,
+        int customerUses)
     {
         // Same base as CalculateAsync: a farm voucher only counts that farm's lines.
         var farmLines = voucher.FarmerProfileId is long farmerId
@@ -51,7 +53,8 @@ public sealed class CheckoutService(
             voucher.MaxDiscountAmount, voucher.MinOrderAmount, voucher.EndDate,
             voucher.FarmerProfileId,
             voucher.FarmerProfileId is null ? null : farmLines.FirstOrDefault()?.SellerName,
-            subtotal > 0 && subtotal >= voucher.MinOrderAmount);
+            subtotal > 0 && subtotal >= voucher.MinOrderAmount
+                && customerUses < voucher.PerCustomerLimit);
     }
 
     public IReadOnlyList<DeliveryArea> GetAreas() => policy.Areas;
@@ -319,7 +322,12 @@ public sealed class CheckoutService(
         {
             var reserved = voucher is null ? 0
                 : await repository.ReservedVoucherCountAsync(voucher.VoucherId, cancellationToken);
+            // GBR-17 / BR-PV-03: the customer must still have a use left on this voucher.
+            var customerUses = voucher is null ? 0
+                : (await repository.CustomerVoucherUsesAsync(actor.UserId, cancellationToken))
+                    .GetValueOrDefault(voucher.VoucherId);
             if (voucher is null || !voucher.IsActive || voucher.StartDate > now.UtcDateTime
+                || customerUses >= voucher.PerCustomerLimit
                 || voucher.EndDate <= now.UtcDateTime || voucherBase < voucher.MinOrderAmount
                 || voucherBase <= 0 || voucher.DiscountValue <= 0
                 || voucher.DiscountType is not ("Percentage" or "FixedAmount")
