@@ -5,146 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tổng quan tài chính - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/finance.css">
 </head>
-<body>
+<body data-finance-page="dashboard">
   <div class="app-shell finance-shell">
     <aside id="app-sidebar" class="sidebar"></aside>
-
     <div class="workspace">
       <header id="app-header"></header>
-
-      <main>
-        <section style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">KẾ TOÁN &amp; TÀI CHÍNH SÀN</p>
-              <h1>Báo Cáo Doanh Thu &amp; Đối Soát</h1>
-              <p class="muted">Theo dõi dòng tiền GMV, hoa hồng nền tảng, các đợt quyết toán cho nông dân và lệnh hoàn tiền.</p>
-            </div>
-          </div>
-
-          <!-- Period filter -->
-          <div class="panel" style="padding:14px 20px; margin-bottom:24px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-              <div style="display:flex; gap:8px;">
-                <button type="button" class="tab-btn">Ngày</button>
-                <button type="button" class="tab-btn active">Tháng này</button>
-                <button type="button" class="tab-btn">Quý này</button>
-                <button type="button" class="tab-btn">Cả năm 2026</button>
-              </div>
-              <div style="font-size:12px; color:#52695c;">
-                Kỳ đối soát: <strong>01/10/2026 – 31/10/2026</strong>
-              </div>
-            </div>
-          </div>
-
-          <div class="dashboard-grid">
-            <div class="metric-card">
-              <div class="metric-icon green">💰</div>
-              <div class="metric-info">
-                <p class="metric-label">Tổng GMV</p>
-                <h3 class="metric-value">485.200.000 ₫</h3>
-                <p class="metric-sub">Đã trừ đơn hủy &amp; hoàn tiền</p>
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-icon blue">📈</div>
-              <div class="metric-info">
-                <p class="metric-label">Doanh thu hoa hồng</p>
-                <h3 class="metric-value">38.816.000 ₫</h3>
-                <p class="metric-sub">Hoa hồng 8% sàn thu</p>
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-icon purple">💳</div>
-              <div class="metric-info">
-                <p class="metric-label">Thu phí gói B2B</p>
-                <h3 class="metric-value">12.000.000 ₫</h3>
-                <p class="metric-sub">Gói hội viên doanh nghiệp</p>
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-icon red">🔄</div>
-              <div class="metric-info">
-                <p class="metric-label">Hoàn tiền đã duyệt</p>
-                <h3 class="metric-value">4.350.000 ₫</h3>
-                <p class="metric-sub">12 giao dịch hoàn thành</p>
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-icon gold">🌾</div>
-              <div class="metric-info">
-                <p class="metric-label">Chờ quyết toán nông hộ</p>
-                <h3 class="metric-value">18.250.000 ₫</h3>
-                <p class="metric-sub">Kỳ thanh toán 25 hàng tháng</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="dashboard-sections" style="margin-top:24px;">
-            <div class="panel padded">
-              <div class="record-heading" style="padding: 0 0 16px;">
-                <h2>Chứng từ đối soát kỳ hiện tại</h2>
-                <button class="primary" style="padding: 6px 12px; font-size: 11px;" onclick="window.location.href='refunds.html'">
-                  Xem lệnh hoàn tiền →
-                </button>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Mã chứng từ</th>
-                      <th>Nội dung thanh toán</th>
-                      <th>Người thụ hưởng / Nộp</th>
-                      <th>Số tiền</th>
-                      <th>Thời gian</th>
-                      <th>Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td><strong>DOC-2610-88</strong></td>
-                      <td>Quyết toán doanh thu đợt 1</td>
-                      <td>HTX Rau Sạch Đà Lạt</td>
-                      <td>32.400.000 ₫</td>
-                      <td>20/10/2026</td>
-                      <td><span class="badge Active">Đã giải ngân</span></td>
-                    </tr>
-                    <tr>
-                      <td><strong>DOC-2610-87</strong></td>
-                      <td>Hoàn tiền đơn hàng dập nát</td>
-                      <td>Lê Hoàng Nam</td>
-                      <td>190.000 ₫</td>
-                      <td>19/10/2026</td>
-                      <td><span class="badge Active">Hoàn tất</span></td>
-                    </tr>
-                    <tr>
-                      <td><strong>DOC-2610-86</strong></td>
-                      <td>Quyết toán doanh thu đợt 1</td>
-                      <td>Vườn Cam Vĩnh Long</td>
-                      <td>18.250.000 ₫</td>
-                      <td>18/10/2026</td>
-                      <td><span class="badge Pending">Đang xử lý</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <footer>
-        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Finance Staff
-      </footer>
+      <main><section class="finance-page">
+        <div id="finance-heading"></div>
+        <div id="finance-filters"></div>
+        <div id="finance-notice" class="notice error" role="alert" hidden></div>
+        <div id="finance-content" aria-live="polite"><p role="status">Đang tải dữ liệu tài chính…</p></div>
+        <div id="finance-source"></div>
+      </section></main>
     </div>
   </div>
-
+  <dialog id="finance-dialog" aria-labelledby="finance-dialog-title"><div class="modal-heading"><h2 id="finance-dialog-title"></h2><button type="button" id="finance-close-dialog" aria-label="Đóng">×</button></div><div id="finance-dialog-content"></div></dialog>
   <script src="../js/config.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
+  <script type="module" src="../js/finance.js"></script>
 </body>
 </html>

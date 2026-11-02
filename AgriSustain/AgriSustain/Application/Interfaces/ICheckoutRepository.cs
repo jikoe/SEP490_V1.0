@@ -22,6 +22,10 @@ public interface ICheckoutRepository
 
     Task<int> ReservedVoucherCountAsync(long voucherId, CancellationToken cancellationToken);
 
+    /// <summary>Uses of each voucher by this customer that still count (reserved or used, not released).</summary>
+    Task<IReadOnlyDictionary<long, int>> CustomerVoucherUsesAsync(long userId,
+        CancellationToken cancellationToken);
+
     Task<RetailCheckoutQuote?> QuoteAsync(Guid id, long userId,
         CancellationToken cancellationToken);
 

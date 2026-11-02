@@ -1,0 +1,12 @@
+@media print {
+  #app-sidebar,
+  #app-header {
+    display: none !important;
+  }
+  .workspace {
+    margin: 0 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+}

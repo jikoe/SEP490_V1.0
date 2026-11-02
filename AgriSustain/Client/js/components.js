@@ -28,7 +28,6 @@ const ROLE_CONFIGS = {
     landingRoute: 'ContentModerator/moderation.html',
     navItems: [
       { key: 'moderation', label: 'Kiểm duyệt sản phẩm', icon: '✓', path: 'ContentModerator/moderation.html' },
-      { key: 'review-moderation', label: 'Kiểm duyệt đánh giá', icon: '★', path: 'ContentModerator/reviews.html' },
     ],
   },
   farmer: {
@@ -40,10 +39,13 @@ const ROLE_CONFIGS = {
     hasSidebar: true,
     landingRoute: 'Farmer/products.html',
     navItems: [
+      { key: 'farmer-seasons', label: 'Quản lý mùa vụ', icon: '🌱', path: 'Farmer/crop-seasons.html' },
+      { key: 'farmer-logs', label: 'Nhật ký canh tác', icon: '📖', path: 'Farmer/farming-logs.html' },
+      { key: 'farmer-batches', label: 'Quản lý lô thu hoạch', icon: '▦', path: 'Farmer/harvest-batches.html' },
       { key: 'farmer-products', label: 'Quản lý sản phẩm', icon: '🌾', path: 'Farmer/products.html' },
       { key: 'farmer-orders', label: 'Xử lý đơn hàng', icon: '📦', path: 'Farmer/orders.html' },
+      { key: 'farmer-complaints', label: 'Phản hồi khiếu nại', icon: '⚖️', path: 'Farmer/complaints.html' },
       { key: 'farmer-profile', label: 'Hồ sơ nông hộ & KYC', icon: '🌾', path: 'Farmer/profile.html' },
-      { key: 'farmer-certificates', label: 'Chứng nhận chất lượng', icon: '🏅', path: 'Farmer/certificates.html' },
     ],
   },
   wholesale_buyer: {
@@ -57,8 +59,6 @@ const ROLE_CONFIGS = {
     navItems: [
       { key: 'wholesale-dash', label: 'Tổng quan mua buôn', icon: '📊', path: 'WholesaleBuyer/dashboard.html' },
       { key: 'marketplace', label: 'Khám phá nông sản', icon: '✦', path: 'RetailCustomer/index.html' },
-      { key: 'wholesale-profile', label: 'Hồ sơ & Tài khoản', icon: '👤', path: 'WholesaleBuyer/profile.html' },
-      { key: 'wholesale-refunds', label: 'Hoàn tiền', icon: '↩', path: 'RetailCustomer/refunds.html' },
     ],
   },
   retail_customer: {
@@ -73,8 +73,6 @@ const ROLE_CONFIGS = {
       { key: 'retail-dash', label: 'Trang chủ mua sắm', icon: '🏠', path: 'RetailCustomer/index.html' },
       { key: 'cart', label: 'Giỏ hàng', icon: '🛒', path: 'RetailCustomer/cart.html' },
       { key: 'retail-orders', label: 'Đơn hàng của tôi', icon: '📦', path: 'RetailCustomer/orders.html' },
-      { key: 'retail-refunds', label: 'Hoàn tiền', icon: '↩', path: 'RetailCustomer/refunds.html' },
-      { key: 'retail-trace', label: 'Tra cứu nguồn gốc', icon: '🔎', path: 'Guest/trace.html' },
       { key: 'retail-profile', label: 'Hồ sơ cá nhân', icon: '👤', path: 'RetailCustomer/profile.html' },
     ],
   },
@@ -113,7 +111,7 @@ const ROLE_CONFIGS = {
     landingRoute: 'PromotionStaff/dashboard.html',
     navItems: [
       { key: 'promotion-dash', label: 'Chiến dịch khuyến mại', icon: '📊', path: 'PromotionStaff/dashboard.html' },
-      { key: 'promotion-vouchers', label: 'Quản lý voucher', icon: '🎟️', path: 'PromotionStaff/vouchers.html' },
+      { key: 'promotion-vouchers', label: 'Voucher toàn sàn', icon: '🎟️', path: 'PromotionStaff/vouchers.html' },
     ],
   },
   finance_staff: {

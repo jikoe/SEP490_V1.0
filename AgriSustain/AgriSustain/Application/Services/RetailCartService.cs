@@ -11,11 +11,11 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
     public async Task<CartResponse> GetCartAsync(long userId, CancellationToken cancellationToken)
     {
         await unitOfWork.BeginAsync(cancellationToken);
-        var cart = await repository.GetOwnedAsync(userId, cancellationToken);
+        var cart = await repository.LoadOwnedCartAsync(userId, cancellationToken);
         var messages = pricing.Availability.ReconcileAvailability(cart);
         if (messages.Count > 0 && cart is not null)
             cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
-        await unitOfWork.CommitAsync(cancellationToken);
+        await repository.SaveCartAsync(cart, unitOfWork, cancellationToken);
         return pricing.Calculate(cart, messages);
     }
 
@@ -35,7 +35,7 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
         }
 
         await unitOfWork.BeginAsync(cancellationToken);
-        var batch = await repository.GetOfferAsync(request.ProductId, request.HarvestBatchId,
+        var batch = await repository.LoadSaleContextAsync(request.ProductId, request.HarvestBatchId,
             cancellationToken);
         if (batch is null || !pricing.Availability.ValidateLine(batch.Product, batch))
         {
@@ -47,15 +47,14 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
             return Fail("VALIDATION", CartMessages.InvalidQuantity(batch.Product.Unit));
         }
 
-        var cart = await repository.GetOwnedAsync(userId, cancellationToken);
+        var cart = await repository.LoadOwnedCartAsync(userId, cancellationToken);
         if (cart is null)
         {
             cart = new Cart { UserId = userId, UpdatedAt = clock.GetUtcNow().UtcDateTime };
             repository.Add(cart);
         }
 
-        var item = cart.CartItems.SingleOrDefault(x => x.ProductId == request.ProductId
-            && x.HarvestBatchId == request.HarvestBatchId && x.PreOrderCampaignId == null);
+        var item = cart.FindLine(request.ProductId, request.HarvestBatchId);
         if (item is null && cart.CartItems.Count >= 100)
         {
             return Fail("VALIDATION", "Giỏ hàng tối đa 100 dòng sản phẩm.");
@@ -76,7 +75,7 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
 
         item.ChangeQuantity(quantity);
         cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
-        await unitOfWork.CommitAsync(cancellationToken);
+        await repository.SaveCartAsync(cart, unitOfWork, cancellationToken);
         return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, new[]
         {
             desired > quantity ? CartMessages.Adjusted(batch.Product.ProductName, batch.AvailableQuantity, quantity, batch.Product.Unit)
@@ -100,7 +99,7 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
         decimal quantity, CancellationToken cancellationToken)
     {
         await unitOfWork.BeginAsync(cancellationToken);
-        var cart = await repository.GetOwnedAsync(userId, cancellationToken);
+        var cart = await repository.LoadOwnedCartAsync(userId, cancellationToken);
         var item = cart?.CartItems.SingleOrDefault(x => x.CartItemId == id);
         if (cart is null || item is null)
         {
@@ -115,7 +114,7 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
         var messages = new List<string>();
         if (!pricing.Availability.ValidateLine(item.Product, item.HarvestBatch))
         {
-            item.IsSelected = false;
+            item.DeselectUnavailable();
             messages.Add(CartMessages.Unavailable(item.Product.ProductName));
         }
         else if (item.HarvestBatch is { } batch)
@@ -138,7 +137,7 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
         }
 
         cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
-        await unitOfWork.CommitAsync(cancellationToken);
+        await repository.SaveCartAsync(cart, unitOfWork, cancellationToken);
         return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, messages));
     }
 
@@ -152,7 +151,7 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
         }
 
         await unitOfWork.BeginAsync(cancellationToken);
-        var cart = await repository.GetOwnedAsync(userId, cancellationToken);
+        var cart = await repository.LoadOwnedCartAsync(userId, cancellationToken);
         var ids = request.ItemIds.Distinct().ToHashSet();
         if (cart is null || ids.Any(id => !cart.CartItems.Any(x => x.CartItemId == id)))
         {
@@ -164,19 +163,19 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
             if (remove)
             {
                 repository.Remove(item);
-                cart.CartItems.Remove(item);
+                cart.RemoveLines(new[] { item.CartItemId });
             }
             else
             {
-                item.IsSelected = request.IsSelected
-                    && pricing.Availability.ValidateLine(item.Product, item.HarvestBatch);
+                item.SetSelected(request.IsSelected
+                    && pricing.Availability.ValidateLine(item.Product, item.HarvestBatch));
             }
         }
 
         var selectionMessages = remove ? new List<string> { CartMessages.Removed(ids.Count) }
             : pricing.Availability.ReconcileAvailability(cart).ToList();
         cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
-        await unitOfWork.CommitAsync(cancellationToken);
+        await repository.SaveCartAsync(cart, unitOfWork, cancellationToken);
         return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, selectionMessages));
     }
 
@@ -189,7 +188,7 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
         }
 
         await unitOfWork.BeginAsync(cancellationToken);
-        var cart = await repository.GetOwnedAsync(userId, cancellationToken);
+        var cart = await repository.LoadOwnedCartAsync(userId, cancellationToken);
         var messages = pricing.Availability.ReconcileAvailability(cart, selectedOnly: true).ToList();
         bool changed = messages.Count > 0;
 
@@ -210,7 +209,7 @@ public sealed class RetailCartService(IRetailCartRepository repository, IUnitOfW
             cart.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         }
 
-        await unitOfWork.CommitAsync(cancellationToken);
+        await repository.SaveCartAsync(cart, unitOfWork, cancellationToken);
         return FeatureResult<CartResponse>.Ok(pricing.Calculate(cart, messages,
             !changed && result.SelectedCount > 0));
     }

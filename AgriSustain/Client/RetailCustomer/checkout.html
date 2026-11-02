@@ -247,7 +247,7 @@
           <div class="notice error" id="confirm-modal-error" style="display: none; margin-bottom: 16px;"></div>
           <div class="co-actions">
             <button type="button" id="btn-modal-cancel" onclick="closeConfirmModal()" style="padding: 9px 18px; border: 1px solid #cddbd5; border-radius: 7px; background: #fff; cursor: pointer;">Kiểm tra lại</button>
-            <button type="button" id="btn-modal-submit" class="primary" onclick="placeOrderAuthoritative(false)" style="padding: 9px 20px; border-radius: 7px; font-weight: 600; cursor: pointer;">Xác nhận đặt hàng</button>
+            <button type="button" id="btn-modal-submit" class="primary" onclick="placeOrderAuthoritative(false)" style="padding: 9px 20px; border-radius: 7px; font-weight: 600; cursor: pointer;">Xác nhận và thanh toán</button>
           </div>
         </dialog>
 
@@ -1151,7 +1151,11 @@
       const modal = document.getElementById('modal-checkout-confirm');
       const desc = document.getElementById('confirm-modal-description');
       const recipient = state.form.address;
-      desc.textContent = `Đặt đơn ${Utils.formatVND(state.quote.total)} giao đến ${recipient.recipientName} (${recipient.phone}) và giữ hàng để thanh toán?`;
+      // UC-RC-02 Step 6: payable amount, recipient, address and payment method.
+      const address = [recipient.detail, recipient.ward, recipient.district, recipient.province]
+        .filter(Boolean).join(', ');
+      desc.textContent = `Đặt đơn ${Utils.formatVND(state.quote.total)} giao đến ${recipient.recipientName} (${recipient.phone}), `
+        + `địa chỉ ${address}, thanh toán qua ${state.form.paymentMethod}, và giữ hàng để thanh toán?`;
       document.getElementById('confirm-modal-error').style.display = 'none';
       modal.showModal();
     }
@@ -1229,7 +1233,7 @@
         document.getElementById('recovering-notice').style.display = 'none';
         if (btnSubmitModal) {
           btnSubmitModal.disabled = false;
-          btnSubmitModal.textContent = 'Xác nhận đặt hàng';
+          btnSubmitModal.textContent = 'Xác nhận và thanh toán';
         }
         renderQuoteAndBreakdown();
       }

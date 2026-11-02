@@ -60,6 +60,17 @@ public sealed class CheckoutRepository(AgriSustainContext context) : ICheckoutRe
             && x.Status == "Reserved", cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<long, int>> CustomerVoucherUsesAsync(long userId,
+        CancellationToken cancellationToken)
+    {
+        // A released hold gives the use back (BR-PV-10); a refunded paid order does not.
+        return await context.VoucherRedemptions.AsNoTracking()
+            .Where(x => x.Order.BuyerUserId == userId && x.Status != "Released")
+            .GroupBy(x => x.VoucherId)
+            .Select(group => new { group.Key, Count = group.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
+    }
+
     public Task<RetailCheckoutQuote?> QuoteAsync(Guid id, long userId,
         CancellationToken cancellationToken)
     {

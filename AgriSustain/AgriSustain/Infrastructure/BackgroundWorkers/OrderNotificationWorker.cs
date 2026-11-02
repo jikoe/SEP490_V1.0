@@ -1,3 +1,4 @@
+using AgriSustain.Application.Services;
 using System.Text.Json;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Infrastructure.Data;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 namespace AgriSustain.Infrastructure.BackgroundWorkers;
 
-// This worker owns only product-submission emails; other teams' notifications are untouched.
+// Sends the queued order-update and refund (UC-FIN-03, MSG-RF-08/09) emails; other notifications are untouched.
 public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
     ILogger<OrderNotificationWorker> logger) : BackgroundService
 {
@@ -28,9 +29,20 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
         var gateway = scope.ServiceProvider.GetRequiredService<INotificationGateway>();
         var settings = scope.ServiceProvider.GetRequiredService<IOptions<EmailSettings>>().Value;
         var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+        var notices = scope.ServiceProvider.GetRequiredService<OrderNotificationService>();
         var now = clock.GetUtcNow().UtcDateTime;
+        var retryKeys = await db.Notifications.AsNoTracking().Where(n =>
+            n.NotificationType == "FarmerOrderUpdate" && n.DeliveryStatus == "Failed"
+            && n.SentAt <= now.AddMinutes(-1)).Select(n => n.PayloadJson).ToListAsync(cancellationToken);
+        foreach (var payload in retryKeys.Where(p => p != null).Distinct())
+        {
+            var marker = payload!.LastIndexOf(':');
+            var eventMarker = marker > 0 ? payload.LastIndexOf(':', marker - 1) : -1;
+            if (eventMarker > 0) await notices.RetryFailedChannelsAsync(payload[..eventMarker], cancellationToken);
+        }
         var ids = await db.Notifications.AsNoTracking().Where(n =>
-            n.NotificationType == "FarmerOrderUpdate" && n.DeliveryChannel == "Email"
+            (n.NotificationType == "FarmerOrderUpdate" || n.NotificationType == "RefundEmail")
+            && n.DeliveryChannel == "Email"
             && ((n.DeliveryStatus == "Pending" || n.DeliveryStatus == "Failed" && n.SentAt <= now.AddMinutes(-1))
                 || n.DeliveryStatus == "Sending" && n.SentAt < now.AddMinutes(-5)))
             .OrderBy(n => n.NotificationId).Select(n => n.NotificationId).Take(25)
@@ -50,15 +62,12 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
             {
                 await gateway.SendEmailAsync(notification.User.Email,notification.Title,notification.Content,
                     notification.PayloadJson ?? $"order-notice:{id}",cancellationToken);
-                notification.DeliveryStatus = "Sent";
-                notification.SentAt = clock.GetUtcNow().UtcDateTime;
+                notices.RecordDeliveryResult(notification, true, clock.GetUtcNow().UtcDateTime);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                notification.DeliveryStatus = "Failed";
-                notification.RetryCount++;
-                notification.SentAt = clock.GetUtcNow().UtcDateTime;
+                notices.RecordDeliveryResult(notification, false, clock.GetUtcNow().UtcDateTime);
                 logger.LogWarning("Product email {Id} pending retry ({Type}).", id, ex.GetType().Name);
             }
             await db.SaveChangesAsync(cancellationToken);
