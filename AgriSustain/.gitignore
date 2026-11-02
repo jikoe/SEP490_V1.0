@@ -94,6 +94,7 @@ desktop.ini
 **/wwwroot/media/
 **/private-files/
 
+**/private-farm-evidence/
 # ==============================================================================
 # Local-only folders (old React frontend, database scripts shared outside the repo)
 # ==============================================================================

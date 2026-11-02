@@ -50,6 +50,15 @@ builder.Services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
 builder.Services.AddScoped<IProductModerationRepository, ProductModerationRepository>();
 builder.Services.AddScoped<IProductModerationService, ProductModerationService>();
 builder.Services.AddScoped<IComplaintRepository, ComplaintRepository>();
+// UC-FAR-10: controller -> application service -> owned complaint repository.
+builder.Services.AddScoped<IFarmerComplaintRepository, FarmerComplaintRepository>();
+builder.Services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Complaints.FarmerComplaintService>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmerComplaintInputFilter>();
+if (builder.Configuration.GetValue("FarmerComplaints:EnableNotificationWorker", true))
+{
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.FarmerComplaintNotificationWorker>();
+}
 builder.Services.AddScoped<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>();
 builder.Services.AddScoped<IComplaintResolutionService>(services => services
     .GetRequiredService<AgriSustain.Application.Services.Complaints.ComplaintResolutionService>());
@@ -90,9 +99,10 @@ builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDevelopment", policy =>
-        policy.WithOrigins("http://127.0.0.1:5173", "http://localhost:5173")
+        policy.SetIsOriginAllowed(origin => true)
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
 
 // Standard Repositories and UnitOfWork
@@ -115,6 +125,18 @@ builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IFarmerOrderRepository>(services => services.GetRequiredService<IOrderRepository>());
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<IFarmerCropSeasonRepository, FarmerCropSeasonRepository>();
+builder.Services.AddScoped<IFarmerFarmingLogRepository, FarmerFarmingLogRepository>();
+builder.Services.AddScoped<IFarmerHarvestBatchRepository, FarmerHarvestBatchRepository>();
+builder.Services.AddScoped<IFarmerEvidenceStorage, FarmerEvidenceStorage>();
+builder.Services.AddScoped<FarmerCropSeasonService>();
+builder.Services.AddScoped<FarmerFarmingLogService>();
+builder.Services.AddScoped<FarmerHarvestBatchService>();
+builder.Services.AddScoped<FarmerCropSeasonRules>();
+builder.Services.AddScoped<FarmerFarmingLogRules>();
+builder.Services.AddScoped<FarmerHarvestBatchRules>();
+builder.Services.AddScoped<FarmerTraceabilityLabelService>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmInputFilter>();
 builder.Services.AddScoped<FarmerProductService>();
 builder.Services.AddScoped<ProductListingRules>();
 builder.Services.AddScoped<ProductNotificationService>();
@@ -241,6 +263,7 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+app.UseCors("FrontendDevelopment");
 app.UseMiddleware<FeatureExceptionMiddleware>();
 app.Use(async (context, next) =>
 {
@@ -249,22 +272,35 @@ app.Use(async (context, next) =>
 });
 var publicRoot = Path.Combine(app.Environment.ContentRootPath, "wwwroot");
 Directory.CreateDirectory(publicRoot);
+var sourceImgDir = Path.Combine(publicRoot, "img");
+var targetMediaImgDir = Path.Combine(publicRoot, "media", "img");
+if (Directory.Exists(sourceImgDir))
+{
+    Directory.CreateDirectory(targetMediaImgDir);
+    foreach (var filePath in Directory.GetFiles(sourceImgDir))
+    {
+        var destFilePath = Path.Combine(targetMediaImgDir, Path.GetFileName(filePath));
+        if (!File.Exists(destFilePath))
+        {
+            File.Copy(filePath, destFilePath);
+        }
+    }
+}
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(publicRoot)
 });
-app.MapGet("/health", () => new { persistence = "SqlServer" });
+app.MapGet("/health", () => new { persistence = "SqlServer" }).RequireCors("FrontendDevelopment");
 app.MapGet("/health/database", async (AgriSustainContext database, CancellationToken cancellationToken) =>
 {
     bool connected = await database.Database.CanConnectAsync(cancellationToken);
     return connected ? Results.Ok(new { connected }) : Results.Json(new { connected }, statusCode: 503);
-});
+}).RequireCors("FrontendDevelopment");
 app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/users")
     || context.Request.Path.StartsWithSegments("/api/categories")
     || context.Request.Path.StartsWithSegments("/api/checkout"), branch =>
         branch.UseMiddleware<ExceptionMiddleware>());
 
-app.UseCors("FrontendDevelopment");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ActiveFeatureAccountMiddleware>();

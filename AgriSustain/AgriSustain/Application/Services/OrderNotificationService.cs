@@ -71,7 +71,7 @@ public sealed class OrderNotificationService(
             string eventKey=$"{key}:{eventCode}:{channel}";
             if(context.Notifications.Local.Any(n=>n.PayloadJson==eventKey)
                 || await context.Notifications.AnyAsync(n=>n.NotificationType=="FarmerOrderUpdate" && n.PayloadJson==eventKey,cancellationToken)) continue;
-            context.Notifications.Add(new Notification { UserId=buyerUserId,Title=channel=="Email"?emailSubject:title,
+            repository.SaveNotificationsAsync(new Notification { UserId=buyerUserId,Title=channel=="Email"?emailSubject:title,
                 Content=channel=="Email"?emailBody:inAppMessage,NotificationType="FarmerOrderUpdate",DeliveryChannel=channel,
                 DeliveryStatus=channel=="InApp"?"Sent":"Pending",SentAt=DateTime.UtcNow,RelatedRecordType="SellerOrder",RelatedRecordId=order.SellerOrderId,PayloadJson=eventKey });
         }
@@ -84,5 +84,11 @@ public sealed class OrderNotificationService(
             && n.PayloadJson.StartsWith(prefix) && n.DeliveryStatus=="Failed").ToListAsync(ct);
         foreach(var row in failed) row.DeliveryStatus="Pending";
         await context.SaveChangesAsync(ct);
+    }
+    public void RecordDeliveryResult(Notification notification, bool delivered, DateTime now)
+    {
+        notification.DeliveryStatus = delivered ? "Sent" : "Failed";
+        if (!delivered) notification.RetryCount++;
+        notification.SentAt = now;
     }
 }

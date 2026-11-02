@@ -26,6 +26,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -102,10 +103,10 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         .UseSqlServer(Connection, sql => sql.CommandTimeout(30)).AddInterceptors(Failure).Options;
     public AgriSustainContext Open() => new(Options);
 
-    public static async Task<CommerceDatabase> Create()
+    public static async Task<CommerceDatabase> Create(IDictionary<string, string?>? settings = null)
     {
         var fixture = new CommerceDatabase();
-        try { await fixture.Initialize(); return fixture; }
+        try { await fixture.Initialize(settings); return fixture; }
         catch (Exception original)
         {
             try { await fixture.DisposeAsync(); }
@@ -113,19 +114,19 @@ internal sealed class CommerceDatabase : IAsyncDisposable
             throw;
         }
     }
-    private async Task Initialize()
+    private async Task Initialize(IDictionary<string, string?>? settings)
     {
         var server = Environment.GetEnvironmentVariable("AGRISUSTAIN_TEST_SQL_SERVER");
         var configured = Environment.GetEnvironmentVariable("AGRISUSTAIN_TEST_SQL_CONNECTION");
         if (string.IsNullOrWhiteSpace(server) && string.IsNullOrWhiteSpace(configured))
             throw new InvalidOperationException("Missing test SQL Server configuration.");
-        var settings = string.IsNullOrWhiteSpace(configured)
+        var sql = string.IsNullOrWhiteSpace(configured)
             ? new SqlConnectionStringBuilder { DataSource = server, IntegratedSecurity = true, TrustServerCertificate = true }
             : new SqlConnectionStringBuilder(configured);
         // Never use a configured application's catalog; all operations target this unique test catalog.
-        settings.InitialCatalog = databaseName; settings.ConnectTimeout = 5; settings.Pooling = false;
-        settings.AttachDBFilename = "";
-        Connection = settings.ConnectionString;
+        sql.InitialCatalog = databaseName; sql.ConnectTimeout = 5; sql.Pooling = false;
+        sql.AttachDBFilename = "";
+        Connection = sql.ConnectionString;
         var probe = new SqlConnectionStringBuilder(Connection) { InitialCatalog = "master" };
         await using (var connection = new SqlConnection(probe.ConnectionString))
             await connection.OpenAsync();
@@ -291,11 +292,13 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.WebHost.UseTestServer();
         builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
         builder.Logging.ClearProviders(); builder.Logging.AddProvider(Errors);
+        if (settings is not null) builder.Configuration.AddInMemoryCollection(settings);
         builder.Services.AddSingleton<TimeProvider>(Clock);
         builder.Services.AddSingleton(Failure);
         builder.Services.AddDbContext<AgriSustainContext>(options => options.UseSqlServer(Connection)
             .AddInterceptors(Failure));
         builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+        builder.Services.AddScoped<AgriSustain.Infrastructure.Payments.BankTransferReconciler>();
         builder.Services.AddSingleton(new SqlDemoDependencies());
         builder.Services.AddScoped<AgriSustain.Application.Interfaces.IUnitOfWork, UnitOfWork>();
         builder.Services.AddScoped<IProductRepository, ProductRepository>();

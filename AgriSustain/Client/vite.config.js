@@ -1,5 +1,5 @@
 import { resolve } from 'path';
-import { cpSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync } from 'node:fs';
 import { defineConfig } from 'vite';
 
 const clientRoot = __dirname;
@@ -8,14 +8,17 @@ const htmlPages = [resolve(clientRoot, 'index.html'), ...readdirSync(clientRoot,
   .flatMap(entry => readdirSync(resolve(clientRoot, entry.name))
     .filter(file => file.endsWith('.html')).map(file => resolve(clientRoot, entry.name, file)))];
 
+let clientOutput;
 export default defineConfig({
   plugins: [{
     name: 'copy-shared-client-scripts',
     apply: 'build',
+    configResolved(config) { clientOutput = resolve(config.root, config.build.outDir); },
     closeBundle() {
       // Classic scripts are shared globals; Vite only bundles module scripts.
-      for (const directory of ['js', 'messages']) {
-        cpSync(resolve(clientRoot, directory), resolve(clientRoot, 'dist', directory), { recursive: true });
+      for (const directory of ['js', 'messages', 'css']) {
+        const source = resolve(clientRoot, directory);
+        if (existsSync(source)) cpSync(source, resolve(clientOutput, directory), { recursive: true });
       }
     },
   }],

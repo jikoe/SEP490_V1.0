@@ -63,7 +63,12 @@ const BusinessProfilePanel = (() => {
   }
 
   function setErrors(map) {
-    root.querySelectorAll('[data-biz]').forEach((el) => { el.textContent = map[el.dataset.biz] || ''; });
+    root.querySelectorAll('[data-biz]').forEach((el) => {
+      const message = map[el.dataset.biz] || '';
+      el.textContent = message;
+      const input = el.parentElement.querySelector('input, select');
+      if (input) input.classList.toggle('has-error', Boolean(message));
+    });
   }
 
   async function submit(event) {

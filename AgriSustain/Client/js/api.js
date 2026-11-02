@@ -71,8 +71,9 @@ const API = {
         }
       }
 
-      // Anonymous flows (e.g. password reset) use 401 for their own expired grant, not the sign-in session.
-      if (response.status === 401 && !options.skipAuthRedirect) {
+      // 401 means "session expired" only when a token was sent. A failed login (wrong
+      // password) also returns 401 and must show the server message instead.
+      if (response.status === 401 && token) {
         Auth.clearAuth();
         if (!options.suppressErrorToast) {
           const msg = (typeof window !== 'undefined' && window.Messages?.common?.sessionExpired)
@@ -87,7 +88,7 @@ const API = {
 
       const contentType = response.headers.get('content-type') || '';
       let data = null;
-      if (contentType.includes('json')) {
+      if (/[/+]json/i.test(contentType)) {
         data = await response.json();
       } else {
         data = await response.text();
