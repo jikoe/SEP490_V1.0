@@ -44,7 +44,7 @@ public sealed class BankTransferReconciler(AgriSustainContext db, ILogger<BankTr
         }
 
         var order = await FindOrderAsync(transfer, cancellationToken);
-        var outcome = order is null || order.OrderStatus != "PendingPayment" ? BankTransferOutcome.Unmatched
+        var outcome = order is null || (order.OrderStatus != "PendingPayment" && order.OrderStatus != "Pending") ? BankTransferOutcome.Unmatched
             : transfer.Amount < order.FinalAmount ? BankTransferOutcome.AmountMismatch
             : BankTransferOutcome.Success;
         var now = DateTime.UtcNow;
@@ -123,15 +123,22 @@ public sealed class BankTransferReconciler(AgriSustainContext db, ILogger<BankTr
         db.PaymentTransactions.AsNoTracking()
             .AnyAsync(p => p.TransactionCode == transactionCode, cancellationToken);
 
+
     private async Task<Order?> FindOrderAsync(BankTransfer transfer, CancellationToken cancellationToken)
     {
-        foreach (var text in transfer.ReferenceTexts)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                continue;
-            }
+        var rawTexts = transfer.ReferenceTexts
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t!.Trim())
+            .ToList();
 
+        if (rawTexts.Count == 0)
+        {
+            return null;
+        }
+
+        // 1. Standard regex matching for Retail ("RC" + 16 hex chars)
+        foreach (var text in rawTexts)
+        {
             var retail = RetailReference.Match(text);
             if (retail.Success)
             {
@@ -149,10 +156,57 @@ public sealed class BankTransferReconciler(AgriSustainContext db, ILogger<BankTr
             var legacy = LegacyReference.Match(text);
             if (legacy.Success)
             {
-                var code = "ORD-" + legacy.Groups[1].Value.ToUpperInvariant();
+                var legacyCode = "ORD-" + legacy.Groups[1].Value.ToUpperInvariant();
                 var order = await db.Orders.Include(o => o.SellerOrders)
-                    .FirstOrDefaultAsync(o => o.OrderCode == code, cancellationToken);
+                    .FirstOrDefaultAsync(o => o.OrderCode == legacyCode, cancellationToken);
                 if (order is not null)
+                {
+                    return order;
+                }
+            }
+        }
+
+        // 2. Exact match against database OrderCode
+        foreach (var text in rawTexts)
+        {
+            var order = await db.Orders.Include(o => o.SellerOrders)
+                .FirstOrDefaultAsync(o => o.OrderCode == text, cancellationToken);
+            if (order is not null)
+            {
+                return order;
+            }
+        }
+
+        // 3. Multi-strategy normalized matching across all pending orders
+        var normalizedTexts = rawTexts
+            .Select(t => Regex.Replace(t, @"[^A-Za-z0-9]", "").ToUpperInvariant())
+            .ToList();
+
+        var pendingOrders = await db.Orders.Include(o => o.SellerOrders)
+            .Where(o => o.OrderStatus == "PendingPayment" || o.OrderStatus == "Pending")
+            .OrderByDescending(o => o.OrderId)
+            .Take(100)
+            .ToListAsync(cancellationToken);
+
+        foreach (var order in pendingOrders)
+        {
+            var normOrderCode = Regex.Replace(order.OrderCode, @"[^A-Za-z0-9]", "").ToUpperInvariant();
+            var napasTruncated = normOrderCode.Length > 18 ? normOrderCode[..18] : normOrderCode;
+            var rc16Prefix = normOrderCode.StartsWith("RC") && normOrderCode.Length >= 18 ? normOrderCode[..18] : null;
+
+            foreach (var normText in normalizedTexts)
+            {
+                if (normText.Contains(normOrderCode) || normOrderCode.Contains(normText))
+                {
+                    return order;
+                }
+
+                if (normText.Contains(napasTruncated))
+                {
+                    return order;
+                }
+
+                if (rc16Prefix != null && normText.Contains(rc16Prefix))
                 {
                     return order;
                 }

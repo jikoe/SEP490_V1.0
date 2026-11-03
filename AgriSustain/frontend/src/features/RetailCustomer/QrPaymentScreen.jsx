@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { request } from '../../api/client';
 import { money, localTime } from '../../components/ui/Common';
 import './qrPayment.css';
@@ -146,7 +146,7 @@ export default function QrPaymentScreen({ navigate }) {
   // Tự động kiểm tra trạng thái đơn hàng
   useEffect(() => {
     let active = true;
-    if (!queryParams.orderCode || queryParams.orderCode === 'ORD-98231' || status !== 'PENDING') {
+    if (!queryParams.orderCode || status !== 'PENDING') {
       return;
     }
 
@@ -236,7 +236,7 @@ export default function QrPaymentScreen({ navigate }) {
     setStatus('PENDING');
     setFeedbackMessage('');
     setQrImgFailed(false);
-  };
+  };
 
   const handleCancelPayment = () => {
     if (window.confirm('Bạn có chắc chắn muốn hủy phiên thanh toán này? Đơn hàng sẽ vẫn được lưu ở trạng thái "Chờ thanh toán" trong lịch sử đơn hàng.')) {
@@ -472,7 +472,7 @@ export default function QrPaymentScreen({ navigate }) {
               {/* Nút thao tác dưới form */}
               <div className="qr-actions">
                 {status === 'PENDING' ? (
-                  <>
+                  <>
                     <button type="button" className="btn-secondary-pay" onClick={handleCancelPayment}>
                       Hủy thanh toán
                     </button>

@@ -116,6 +116,11 @@
       return `feedback.html?orderId=${encodeURIComponent(orderId)}&mode=${mode}`;
     }
 
+    function goToPayment(orderCode, amount) {
+      const cleanCode = (orderCode || '').replace(/^#/, '');
+      window.location.href = `payment.html?orderCode=${encodeURIComponent(cleanCode)}&amount=${encodeURIComponent(amount || 0)}&method=SePay`;
+    }
+
     // Every filter change is a new server query (UC-RC-04 AF Step 3).
     async function loadOrders() {
       const container = document.getElementById('orders-list-container');
@@ -180,7 +185,7 @@
                   <strong style="font-size:17px; color:#1e6546;">${Utils.formatVND(o.finalAmount)}</strong>
                 </div>
                 <button type="button" onclick="openDetail(${Number(o.orderId)})">Xem chi tiết</button>
-                ${(o.orderStatus === 'PendingPayment' || (o.paymentStatus && o.paymentStatus !== 'Paid' && o.orderStatus !== 'Cancelled')) ? `<button type="button" class="primary" onclick="window.location.href='payment.html?orderCode=' + encodeURIComponent(o.orderCode) + '&amount=' + encodeURIComponent(o.finalAmount || 0) + '&method=SePay'" style="background:#1e6546; color:#fff;">💳 Thanh toán</button>` : ''}
+                ${(o.orderStatus === 'PendingPayment' || (o.paymentStatus && o.paymentStatus !== 'Paid' && o.orderStatus !== 'Cancelled')) ? `<button type="button" class="primary" onclick="goToPayment('${esc(o.orderCode)}', ${Number(o.finalAmount || 0)})" style="background:#1e6546; color:#fff;">💳 Thanh toán</button>` : ''}
                 ${canReview ? `<button type="button" class="primary" onclick="window.location.href='${feedbackUrl(o.orderId, 'review')}'">⭐ Đánh giá</button>` : ''}
               </div>
             </div>
@@ -303,7 +308,7 @@
           ℹ️ Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao, trong vòng 48 giờ kể từ khi giao.</p>`}
         <div class="modal-actions" style="justify-content:space-between; flex-wrap:wrap;">
           <div style="display:flex; gap:8px;">
-            ${actions.includes('PayNow') ? `<button type="button" class="primary" onclick="window.location.href='payment.html?orderCode=' + encodeURIComponent(d.orderCode) + '&amount=' + encodeURIComponent(d.finalAmount || d.totalAmount || 0) + '&method=SePay'">Thanh toán ngay</button>` : ''}
+            ${actions.includes('PayNow') ? `<button type="button" class="primary" onclick="goToPayment('${esc(d.orderCode)}', ${Number(d.finalAmount || d.totalAmount || 0)})">Thanh toán ngay</button>` : ''}
             ${actions.includes('Review') || actions.includes('EditReview')
               ? `<button type="button" onclick="window.location.href='${feedbackUrl(d.orderId, 'review')}'">⭐ ${reviewLabel}</button>` : ''}
             ${actions.includes('SubmitComplaint')

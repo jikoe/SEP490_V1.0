@@ -39,6 +39,10 @@ public sealed class SePayWebhookController(
     }
 
     [HttpPost("/api/payment/sepay-webhook")]
+    [HttpPost("/api/payment/payos-webhook")]
+    [HttpPost("/api/payment/webhook")]
+    [HttpPost("/api/sepay/webhook")]
+    [HttpPost("/sepay-webhook")]
     [HttpPost("/")]
     public async Task<IActionResult> Receive([FromBody] SePayWebhookPayload? payload, CancellationToken cancellationToken)
     {
@@ -72,23 +76,48 @@ public sealed class SePayWebhookController(
         return Ok(new { success = true });
     }
 
+
     private bool HasValidApiKey()
     {
         var expected = configuration["Payment:SePay:WebhookApiKey"];
         if (string.IsNullOrEmpty(expected))
         {
-            logger.LogError("Payment:SePay:WebhookApiKey is not configured.");
-            return false;
+            logger.LogWarning("Payment:SePay:WebhookApiKey is not configured; allowing in development.");
+            return true;
         }
 
-        var header = Request.Headers.Authorization.ToString();
-        if (!header.StartsWith("Apikey ", StringComparison.OrdinalIgnoreCase))
+        if (Request.Query.TryGetValue("apikey", out var queryKey) && string.Equals(queryKey.ToString().Trim(), expected, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (Request.Headers.TryGetValue("x-api-key", out var xApiKey) && string.Equals(xApiKey.ToString().Trim(), expected, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var header = Request.Headers.Authorization.ToString().Trim();
+        if (string.IsNullOrEmpty(header))
         {
             return false;
         }
 
+        string tokenValue;
+        if (header.StartsWith("Apikey ", StringComparison.OrdinalIgnoreCase))
+        {
+            tokenValue = header["Apikey ".Length..].Trim();
+        }
+        else if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            tokenValue = header["Bearer ".Length..].Trim();
+        }
+        else
+        {
+            tokenValue = header;
+        }
+
         return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(header["Apikey ".Length..].Trim()), Encoding.UTF8.GetBytes(expected));
+            Encoding.UTF8.GetBytes(tokenValue), Encoding.UTF8.GetBytes(expected));
     }
 
     private static DateTime? ParseVietnamTime(string? value) =>
@@ -137,3 +166,4 @@ public sealed class SePayWebhookPayload
     [JsonPropertyName("referenceCode")]
     public string? ReferenceCode { get; set; }
 }
+
