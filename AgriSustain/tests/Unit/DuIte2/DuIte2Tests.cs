@@ -194,32 +194,35 @@ public sealed class ReviewModerationTests
     private ReviewModerationService Service() =>
         new(_repo, new FakeCurrentUser(9, "ContentModerator"), new FakeClock(new DateTimeOffset(Now)));
 
-    [Theory(DisplayName = "UTC-REV01 Flag rules: banned word, phone, link, 1 star with comment")]
-    [InlineData(5, "Hàng tốt, gọi 0912 345 678 nhé", "Chứa số điện thoại")]
-    [InlineData(5, "Mua rẻ hơn tại www.reshop.vn", "Chứa đường link")]
-    [InlineData(4, "shop vcl", "Chứa từ ngữ cấm")]
-    [InlineData(1, "Rau héo", "1 sao kèm bình luận")]
-    public void Flags(int stars, string comment, string expected) =>
-        Assert.Contains(expected, ReviewFlagRules.Evaluate((byte)stars, comment, 1));
+    [Theory(DisplayName = "UTC-REV01 Flag rules: vulgar language, regional discrimination, reactionary content")]
+    [InlineData("Shop vcl, giao hàng như hạch", ReviewFlagRules.Vulgar)]
+    [InlineData("Đúng là bọn bắc kỳ bán hàng", ReviewFlagRules.RegionalDiscrimination)]
+    [InlineData("Phải lật đổ cái chế độ này", ReviewFlagRules.Reactionary)]
+    public void Flags(string comment, string expected) =>
+        Assert.Contains(expected, ReviewFlagRules.Evaluate(comment));
 
-    [Fact(DisplayName = "UTC-REV02 Clean review has no flag; more than 5 reviews in 24h is flagged")]
-    public void SpamRule()
-    {
-        Assert.Empty(ReviewFlagRules.Evaluate(5, "Rau tươi, giao nhanh", 1));
-        Assert.Contains(ReviewFlagRules.Evaluate(5, "ok", 6), r => r.Contains("24 giờ"));
-    }
+    [Theory(DisplayName = "UTC-REV02 Negative but polite reviews, phone numbers and links are not flagged")]
+    [InlineData("Rau tươi, giao nhanh")]
+    [InlineData("Rau héo, giao trễ, rất thất vọng")]
+    [InlineData("Liên hệ 0912 345 678 để mua thêm")]
+    [InlineData("Xem thêm tại www.reshop.vn")]
+    [InlineData("")]
+    public void NotFlagged(string comment) => Assert.Empty(ReviewFlagRules.Evaluate(comment));
 
-    [Fact(DisplayName = "UTC-REV03 Unreviewed and Flagged tabs list only reviews not yet moderated")]
+    [Fact(DisplayName = "UTC-REV03 Queue lists only flagged reviews not yet handled; clean reviews never enter it")]
     public async Task Tabs()
     {
         _repo.Add(1, 5, "Rau tươi", reviewed: false);
-        _repo.Add(2, 1, "Rau héo", reviewed: false);
+        _repo.Add(2, 1, "Rau héo, shop vcl", reviewed: false);
         _repo.Add(3, 5, "Ngon", reviewed: true);
 
-        var result = await Service().ListAsync(new ReviewQuery(ReviewTabs.Flagged, null), default);
+        var result = await Service().ListAsync(new ReviewQuery(ReviewTabs.Flagged), default);
 
-        Assert.Equal(new ReviewTabCounts(2, 1, 3, 0), result.Value!.Counts);
+        Assert.Equal(new ReviewTabCounts(1, 0), result.Value!.Counts);
         Assert.Equal(2, Assert.Single(result.Value.Items).ProductReviewId);
+
+        var byDefault = await Service().ListAsync(new ReviewQuery(null), default);
+        Assert.Equal(2, Assert.Single(byDefault.Value!.Items).ProductReviewId);
     }
 
     [Fact(DisplayName = "UTC-REV04 Hiding without a reason is blocked (AF3)")]
@@ -333,6 +336,17 @@ public sealed class RefundAccountStateTests
     [Fact(DisplayName = "UTC-RFA03 A corrected account after the failure is ready for transfer again")]
     public void Corrected() => Assert.Equal(RefundAccountStates.ReadyForTransfer, RefundAccountService.State(
         Record(number: "1023456789", provided: new DateTime(2026, 10, 30), failed: new DateTime(2026, 10, 29))));
+
+    [Theory(DisplayName = "UTC-RFA15 Transfer in progress is locked; a Failed transfer can be corrected")]
+    [InlineData("Processing", "Transferring", false)]
+    [InlineData("NeedsReconciliation", "Transferring", false)]
+    [InlineData("Failed", "TransferFailed", true)]
+    public void FinanceStatuses(string status, string state, bool editable)
+    {
+        var record = Record(status, "1023456789", provided: new DateTime(2026, 10, 28), failed: new DateTime(2026, 10, 29));
+        Assert.Equal(state, RefundAccountService.State(record));
+        Assert.Equal(editable, RefundAccountService.IsEditable(status));
+    }
 
     [Fact(DisplayName = "UTC-RFA04 Completed refund is read-only")]
     public void Completed() => Assert.Equal(RefundAccountStates.Completed, RefundAccountService.State(Record("Completed", "1023456789")));

@@ -33,7 +33,9 @@ const BusinessProfilePanel = (() => {
     const editable = status === 'NotSubmitted' || status === 'Rejected';
     const dis = editable ? '' : 'disabled';
     const s = STATUS[status] || [status, ''];
-    const options = Object.entries(TYPES).map(([v, l]) => `<option value="${v}" ${p.businessType === v ? 'selected' : ''}>${l}</option>`).join('');
+    // Older/seed data may hold a free-text business type: keep showing it.
+    const types = p.businessType && !TYPES[p.businessType] ? { ...TYPES, [p.businessType]: p.businessType } : TYPES;
+    const options = Object.entries(types).map(([v, l]) => `<option value="${v}" ${p.businessType === v ? 'selected' : ''}>${l}</option>`).join('');
     root.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
         <div>
