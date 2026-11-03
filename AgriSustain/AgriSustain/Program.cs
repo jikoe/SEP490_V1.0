@@ -125,6 +125,7 @@ builder.Services.AddScoped<ICartRepository, CartRepository>();
 builder.Services.AddScoped<IFarmerOrderRepository>(services => services.GetRequiredService<IOrderRepository>());
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<AgriSustain.Infrastructure.Payments.BankTransferReconciler>();
 builder.Services.AddScoped<IFarmerCropSeasonRepository, FarmerCropSeasonRepository>();
 builder.Services.AddScoped<IFarmerFarmingLogRepository, FarmerFarmingLogRepository>();
 builder.Services.AddScoped<IFarmerHarvestBatchRepository, FarmerHarvestBatchRepository>();

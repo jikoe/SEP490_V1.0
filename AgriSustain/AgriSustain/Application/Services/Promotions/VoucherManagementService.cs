@@ -45,7 +45,7 @@ public sealed class VoucherManagementService(
 
     public async Task<Result<VoucherListDto>> SearchAsync(
         VoucherQuery query,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var normalized = query with
         {
@@ -62,7 +62,7 @@ public sealed class VoucherManagementService(
 
     public async Task<Result<VoucherDto>> GetAsync(
         long voucherId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var voucher = await repository.GetPlatformVoucherAsync(voucherId, cancellationToken);
         return voucher is null
@@ -72,7 +72,7 @@ public sealed class VoucherManagementService(
 
     public async Task<Result<VoucherActionResponse>> CreateAsync(
         SaveVoucherRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var error = await RequestValidation.CheckAsync(validator, request, cancellationToken);
         if (error is not null)
@@ -107,7 +107,7 @@ public sealed class VoucherManagementService(
     public async Task<Result<VoucherActionResponse>> UpdateAsync(
         long voucherId,
         SaveVoucherRequest request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var error = await RequestValidation.CheckAsync(validator, request, cancellationToken);
         if (error is not null)
@@ -172,7 +172,7 @@ public sealed class VoucherManagementService(
         long voucherId,
         bool isActive,
         string? version,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var voucher = await repository.GetPlatformVoucherAsync(voucherId, cancellationToken);
         if (voucher is null)
@@ -212,7 +212,7 @@ public sealed class VoucherManagementService(
     public async Task<Result<VoucherActionResponse>> DeleteAsync(
         long voucherId,
         string? version,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var voucher = await repository.GetPlatformVoucherAsync(voucherId, cancellationToken);
         if (voucher is null)
@@ -260,7 +260,7 @@ public sealed class VoucherManagementService(
     }
 
     private async Task<Result<VoucherActionResponse>> SavedAsync(Voucher voucher,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var dto = await ToDtoAsync(voucher, cancellationToken);
         // MSG-PV-08
@@ -270,7 +270,7 @@ public sealed class VoucherManagementService(
             dto));
     }
 
-    private async Task<VoucherDto> ToDtoAsync(Voucher voucher, CancellationToken cancellationToken)
+    private async Task<VoucherDto> ToDtoAsync(Voucher voucher, CancellationToken cancellationToken = default)
     {
         int reserved = voucher.VoucherId == 0
             ? 0 : await repository.CountReservedAsync(voucher.VoucherId, cancellationToken);

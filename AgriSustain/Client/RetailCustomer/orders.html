@@ -180,6 +180,7 @@
                   <strong style="font-size:17px; color:#1e6546;">${Utils.formatVND(o.finalAmount)}</strong>
                 </div>
                 <button type="button" onclick="openDetail(${Number(o.orderId)})">Xem chi tiết</button>
+                ${(o.orderStatus === 'PendingPayment' || (o.paymentStatus && o.paymentStatus !== 'Paid' && o.orderStatus !== 'Cancelled')) ? `<button type="button" class="primary" onclick="window.location.href='payment.html?orderCode=' + encodeURIComponent(o.orderCode) + '&amount=' + encodeURIComponent(o.finalAmount || 0) + '&method=SePay'" style="background:#1e6546; color:#fff;">💳 Thanh toán</button>` : ''}
                 ${canReview ? `<button type="button" class="primary" onclick="window.location.href='${feedbackUrl(o.orderId, 'review')}'">⭐ Đánh giá</button>` : ''}
               </div>
             </div>
@@ -302,7 +303,7 @@
           ℹ️ Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao, trong vòng 48 giờ kể từ khi giao.</p>`}
         <div class="modal-actions" style="justify-content:space-between; flex-wrap:wrap;">
           <div style="display:flex; gap:8px;">
-            ${actions.includes('PayNow') ? `<button type="button" class="primary" onclick="notice('Thanh toán cho đơn hàng này chưa được tích hợp.'); closeDetail();">Thanh toán ngay</button>` : ''}
+            ${actions.includes('PayNow') ? `<button type="button" class="primary" onclick="window.location.href='payment.html?orderCode=' + encodeURIComponent(d.orderCode) + '&amount=' + encodeURIComponent(d.finalAmount || d.totalAmount || 0) + '&method=SePay'">Thanh toán ngay</button>` : ''}
             ${actions.includes('Review') || actions.includes('EditReview')
               ? `<button type="button" onclick="window.location.href='${feedbackUrl(d.orderId, 'review')}'">⭐ ${reviewLabel}</button>` : ''}
             ${actions.includes('ConfirmReceived')

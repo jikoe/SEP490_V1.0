@@ -70,7 +70,22 @@ public sealed record SaveVoucherRequest(
     int PerCustomerLimit,
     DateTimeOffset StartDate,
     DateTimeOffset EndDate,
-    string? Version = null);
+    string? Version = null)
+{
+    public SaveVoucherRequest(
+        string voucherCode,
+        string discountType,
+        decimal discountValue,
+        decimal? maxDiscountAmount,
+        decimal minOrderAmount,
+        int? usageLimit,
+        DateTimeOffset startDate,
+        DateTimeOffset endDate,
+        bool active = true)
+        : this(voucherCode, voucherCode, null, discountType, discountValue, maxDiscountAmount, minOrderAmount, usageLimit ?? 100, 1, startDate, endDate, null)
+    {
+    }
+}
 
 public sealed record VoucherActionResponse(
     long VoucherId,
