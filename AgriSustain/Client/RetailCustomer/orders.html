@@ -305,11 +305,25 @@
             ${actions.includes('PayNow') ? `<button type="button" class="primary" onclick="notice('Thanh toán cho đơn hàng này chưa được tích hợp.'); closeDetail();">Thanh toán ngay</button>` : ''}
             ${actions.includes('Review') || actions.includes('EditReview')
               ? `<button type="button" onclick="window.location.href='${feedbackUrl(d.orderId, 'review')}'">⭐ ${reviewLabel}</button>` : ''}
+            ${actions.includes('ConfirmReceived')
+              ? `<button type="button" class="primary" onclick="confirmReceived(${Number(d.orderId)}, '${esc(d.orderCode)}')">✓ Đã nhận được hàng</button>` : ''}
             ${actions.includes('SubmitComplaint')
               ? `<button type="button" style="color:#b23b3b;" onclick="window.location.href='${feedbackUrl(d.orderId, 'complaint')}'">Gửi khiếu nại</button>` : ''}
           </div>
           <button type="button" class="primary" onclick="closeDetail()">← Quay lại danh sách</button>
         </div>`;
+    }
+
+    async function confirmReceived(orderId, orderCode) {
+      if (!confirm(`Xác nhận bạn đã nhận đủ hàng của đơn #${orderCode}?\nSau khi xác nhận, đơn sẽ hoàn thành và không thể gửi khiếu nại nữa.`)) return;
+      const res = await API.request(`/orders/${orderId}/confirm-received`, { method: 'POST' });
+      if (!res.success) {
+        notice(res.error || 'Không xác nhận được. Vui lòng thử lại.', true);
+        return;
+      }
+      closeDetail();
+      await loadOrders();
+      notice('Đã xác nhận nhận hàng. Đơn đã hoàn thành, bạn có thể đánh giá sản phẩm.');
     }
 
     function openBatch(key) {

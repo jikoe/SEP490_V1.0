@@ -73,6 +73,62 @@ public sealed class OrderTrackingService(
             return await CompleteAsync(uow, buyerId, order, $"Không tìm thấy đơn hàng có mã {code}.", cancellationToken);
         }, cancellationToken);
 
+    public Task<Result<string>> ConfirmReceivedAsync(
+        long orderId, CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteAsync(async uow =>
+        {
+            if (SignedInUserId() is not long buyerId)
+            {
+                return Result<string>.FailureResult(s_signInRequired);
+            }
+
+            var order = await uow.Orders.GetOrderForReceiptAsync(buyerId, orderId, cancellationToken);
+            if (order == null)
+            {
+                return Result<string>.FailureResult(
+                    new Error("ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng #{orderId}.", "NotFound"));
+            }
+
+            if (order.OrderStatus != "Delivered")
+            {
+                return Result<string>.FailureResult(new Error("ORDER_NOT_DELIVERED",
+                    "Chỉ có thể xác nhận đã nhận hàng khi đơn ở trạng thái Đã giao.", "Conflict"));
+            }
+
+            if (order.SellerOrders.Any(seller => seller.DisputeTickets.Any(ticket =>
+                    ticket.TicketStatus is "Open" or "Reviewing")))
+            {
+                return Result<string>.FailureResult(new Error("COMPLAINT_IN_PROGRESS",
+                    "Đơn hàng đang có khiếu nại chưa xử lý xong, chưa thể xác nhận đã nhận hàng.", "Conflict"));
+            }
+
+            DateTime now = timeProvider.GetUtcNow().UtcDateTime;
+            ApplyReceipt(order, buyerId, now);
+            return Result<string>.SuccessResult(order.OrderCode);
+        }, cancellationToken);
+
+    /// <summary>Delivered seller orders become Completed with ReceivedAt; the parent order becomes Completed.</summary>
+    public static void ApplyReceipt(Domain.Entities.Order order, long buyerId, DateTime now)
+    {
+        foreach (var seller in order.SellerOrders.Where(seller => seller.Status is "Delivered" or "Received"))
+        {
+            seller.OrderStatusHistories.Add(new Domain.Entities.OrderStatusHistory
+            {
+                SellerOrderId = seller.SellerOrderId,
+                ChangedByUserId = buyerId,
+                OldStatus = seller.Status,
+                NewStatus = "Completed",
+                Reason = "Người mua xác nhận đã nhận hàng",
+                OccurredAt = now
+            });
+            seller.Status = "Completed";
+            seller.ReceivedAt = now;
+        }
+
+        order.OrderStatus = "Completed";
+        order.CompletedAt = now;
+    }
+
     /// <summary>Contextual actions for the Order Details screen (SRS UC-RC-04 alternative flows, step 7).</summary>
     public static IReadOnlyList<string> ResolveActions(OrderDetailDto order, DateTimeOffset now)
     {
@@ -101,6 +157,11 @@ public sealed class OrderTrackingService(
             && deliveredAt <= now && now - deliveredAt <= ComplaintWindow)
         {
             actions.Add(OrderActions.SubmitComplaint);
+        }
+
+        if (order.OrderStatus == "Delivered")
+        {
+            actions.Add(OrderActions.ConfirmReceived);
         }
 
         return actions;

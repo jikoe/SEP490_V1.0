@@ -154,6 +154,12 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
                 && n.RelatedRecordType == "Order" && n.RelatedRecordId == orderId)
             .ExecuteUpdateAsync(set => set.SetProperty(n => n.IsRead, true), cancellationToken);
 
+    public Task<Order?> GetOrderForReceiptAsync(
+        long buyerId, long orderId, CancellationToken cancellationToken) =>
+        db.Orders
+            .Include(o => o.SellerOrders).ThenInclude(so => so.DisputeTickets)
+            .FirstOrDefaultAsync(o => o.OrderId == orderId && o.BuyerUserId == buyerId, cancellationToken);
+
     private static IQueryable<Order> WithTrackingData(IQueryable<Order> orders) => orders
         .Include(o => o.SellerOrders)
             .ThenInclude(so => so.FarmerProfile)

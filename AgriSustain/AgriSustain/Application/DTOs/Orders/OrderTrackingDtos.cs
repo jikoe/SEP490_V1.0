@@ -75,6 +75,7 @@ public static class OrderActions
     public const string Review = "Review";
     public const string EditReview = "EditReview";
     public const string SubmitComplaint = "SubmitComplaint";
+    public const string ConfirmReceived = "ConfirmReceived";
 }
 
 public sealed record OrderStatusTimelineDto(

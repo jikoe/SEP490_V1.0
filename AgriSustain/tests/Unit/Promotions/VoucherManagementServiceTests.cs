@@ -174,10 +174,10 @@ public sealed class VoucherManagementServiceTests
 
     [Theory(DisplayName = "UTC-PS01-11 Lifecycle status follows flag, dates and usage")]
     [InlineData(true, 0, 30, null, 0, Voucher.StatusActive)]
-    [InlineData(false, 0, 30, null, 0, Voucher.StatusInactive)]
+    [InlineData(false, 0, 30, null, 0, Voucher.StatusDeactivated)]
     [InlineData(true, 2, 30, null, 0, Voucher.StatusScheduled)]
     [InlineData(true, -30, -1, null, 0, Voucher.StatusExpired)]
-    [InlineData(true, 0, 30, 5, 5, Voucher.StatusDepleted)]
+    [InlineData(true, 0, 30, 5, 5, Voucher.StatusExhausted)]
     public void LifecycleStatus_Derived(bool active, int startDays, int endDays, int? limit, int used,
         string expected)
     {

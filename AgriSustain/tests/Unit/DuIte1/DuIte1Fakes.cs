@@ -138,6 +138,11 @@ internal sealed class FakeOrderRepository : IOrderTrackingRepository
     public Task<OrderDetailDto?> GetOrderDetailByCodeAsync(long buyerId, string orderCode, CancellationToken ct) =>
         Task.FromResult(Details.Values.FirstOrDefault(d => d.OrderCode == orderCode && Owners[d.OrderId] == buyerId));
 
+    public Dictionary<long, Order> Entities { get; } = [];
+
+    public Task<Order?> GetOrderForReceiptAsync(long buyerId, long orderId, CancellationToken ct) =>
+        Task.FromResult(Entities.TryGetValue(orderId, out var order) && order.BuyerUserId == buyerId ? order : null);
+
     public Task MarkOrderNotificationsReadAsync(long buyerId, long orderId, CancellationToken ct)
     {
         MarkedRead.Add((buyerId, orderId));

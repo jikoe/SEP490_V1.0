@@ -13,4 +13,8 @@ public interface IOrderTrackingService
 
     Task<Result<OrderDetailDto>> GetOrderDetailByCodeAsync(
         string orderCode, CancellationToken cancellationToken);
+
+    /// <summary>The buyer confirms the delivered order was received; the order becomes Completed.</summary>
+    Task<Result<string>> ConfirmReceivedAsync(
+        long orderId, CancellationToken cancellationToken);
 }
