@@ -118,7 +118,8 @@ const API = {
         }
       }
 
-      return { success: true, status: response.status, data: payload, raw: data };
+      const spreadable = (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) ? payload : {};
+      return { success: true, status: response.status, data: payload, raw: data, ...spreadable };
     } catch (err) {
       if (err.name === 'AbortError') throw err;
       console.error('API Client Network Error:', err);
@@ -129,6 +130,27 @@ const API = {
       }
       return { success: false, error: err.message };
     }
+  },
+
+  /* ---------------- CONVENIENCE HTTP METHODS ---------------- */
+  async get(endpoint, options = {}) {
+    return this.request(endpoint, { method: 'GET', ...options });
+  },
+
+  async post(endpoint, body = null, options = {}) {
+    return this.request(endpoint, { method: 'POST', body, ...options });
+  },
+
+  async put(endpoint, body = null, options = {}) {
+    return this.request(endpoint, { method: 'PUT', body, ...options });
+  },
+
+  async delete(endpoint, options = {}) {
+    return this.request(endpoint, { method: 'DELETE', ...options });
+  },
+
+  async patch(endpoint, body = null, options = {}) {
+    return this.request(endpoint, { method: 'PATCH', body, ...options });
   },
 
   /* ---------------- AUTHENTICATION MODULE ---------------- */
