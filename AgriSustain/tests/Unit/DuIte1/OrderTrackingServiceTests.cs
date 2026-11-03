@@ -1,6 +1,7 @@
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.Services.Orders;
 using AgriSustain.Application.Validators.Orders;
+using AgriSustain.Domain.Entities;
 using Xunit;
 
 namespace AgriSustain.UnitTests.DuIte1;
@@ -102,7 +103,7 @@ public sealed class OrderTrackingServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("BN-20260920-01", result.Value!.SellerOrders[0].Items[0].Batches[0].BatchCode);
-        Assert.Equal(new[] { OrderActions.Review, OrderActions.SubmitComplaint }, result.Value.AllowedActions);
+        Assert.Equal(new[] { OrderActions.SubmitComplaint, OrderActions.ConfirmReceived }, result.Value.AllowedActions);
         Assert.Contains((Buyer, 101L), _uow.OrderRepo.MarkedRead);
     }
 
@@ -186,6 +187,87 @@ public sealed class OrderTrackingServiceTests
         var order = Detail(1, status, deliveredAt: Now.AddHours(-1), reservationExpiresAt: Now.AddMinutes(10));
 
         Assert.DoesNotContain(OrderActions.SubmitComplaint, OrderTrackingService.ResolveActions(order, Now));
+    }
+
+    // ---------- Confirm Received ----------
+
+    private Order Entity(long id, string status, params string[] sellerStatuses)
+    {
+        var order = new Order { OrderId = id, BuyerUserId = Buyer, OrderCode = $"ORD-{id}", OrderStatus = status };
+        long n = 0;
+        foreach (string s in sellerStatuses)
+        {
+            order.SellerOrders.Add(new SellerOrder { SellerOrderId = id * 10 + ++n, Status = s, DeliveredAt = Now.UtcDateTime.AddHours(-3) });
+        }
+        _uow.OrderRepo.Entities[id] = order;
+        return order;
+    }
+
+    [Fact(DisplayName = "UTC-RC04-C1 Confirm received completes a Delivered order and stamps ReceivedAt")]
+    public async Task UTC_C1_ConfirmReceived_Completes()
+    {
+        var order = Entity(301, "Delivered", "Delivered", "Cancelled");
+
+        var result = await Service().ConfirmReceivedAsync(301, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Completed", order.OrderStatus);
+        Assert.NotNull(order.CompletedAt);
+        var delivered = order.SellerOrders.First();
+        Assert.Equal("Completed", delivered.Status);
+        Assert.NotNull(delivered.ReceivedAt);
+        Assert.Equal("Completed", delivered.OrderStatusHistories.Single().NewStatus);
+        Assert.Equal("Cancelled", order.SellerOrders.Last().Status);
+    }
+
+    [Fact(DisplayName = "UTC-RC04-C5 A Shipping order can be confirmed as received")]
+    public async Task UTC_C5_Shipping_Completes()
+    {
+        var order = Entity(305, "Shipping", "Shipping");
+        order.SellerOrders.First().DeliveredAt = null;
+        order.SellerOrders.First().Shipments.Add(new Shipment { ShipmentStatus = "InTransit" });
+
+        var result = await Service().ConfirmReceivedAsync(305, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Completed", order.OrderStatus);
+        Assert.NotNull(order.SellerOrders.First().DeliveredAt);
+        Assert.Equal("Delivered", order.SellerOrders.First().Shipments.First().ShipmentStatus);
+    }
+
+    [Theory(DisplayName = "UTC-RC04-C2 Only a Shipping or Delivered order can be confirmed")]
+    [InlineData("Processing")]
+    [InlineData("Completed")]
+    [InlineData("Cancelled")]
+    public async Task UTC_C2_NotDelivered_Rejected(string status)
+    {
+        Entity(302, status, status);
+
+        var result = await Service().ConfirmReceivedAsync(302, default);
+
+        Assert.Equal("ORDER_NOT_DELIVERED", result.Error!.Code);
+    }
+
+    [Fact(DisplayName = "UTC-RC04-C3 An open complaint blocks confirmation")]
+    public async Task UTC_C3_OpenComplaint_Rejected()
+    {
+        var order = Entity(303, "Delivered", "Delivered");
+        order.SellerOrders.First().DisputeTickets.Add(new DisputeTicket { TicketStatus = "Open" });
+
+        var result = await Service().ConfirmReceivedAsync(303, default);
+
+        Assert.Equal("COMPLAINT_IN_PROGRESS", result.Error!.Code);
+        Assert.Equal("Delivered", order.OrderStatus);
+    }
+
+    [Fact(DisplayName = "UTC-RC04-C4 Another buyer's order cannot be confirmed")]
+    public async Task UTC_C4_OtherBuyer_NotFound()
+    {
+        Entity(304, "Delivered", "Delivered");
+
+        var result = await Service(OtherBuyer).ConfirmReceivedAsync(304, default);
+
+        Assert.Equal("ORDER_NOT_FOUND", result.Error!.Code);
     }
 
     [Fact(DisplayName = "UTC-RC04-B7 Cancelled order has no actions")]

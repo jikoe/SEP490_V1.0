@@ -24,4 +24,9 @@ public sealed class OrdersController(IOrderTrackingService service) : Controller
     public async Task<IActionResult> GetOrderDetailByCode(
         string code, CancellationToken cancellationToken) =>
         ApiResults.From(await service.GetOrderDetailByCodeAsync(code, cancellationToken), HttpContext);
+
+    [HttpPost("{id:long}/confirm-received")]
+    public async Task<IActionResult> ConfirmReceived(
+        long id, CancellationToken cancellationToken) =>
+        ApiResults.From(await service.ConfirmReceivedAsync(id, cancellationToken), HttpContext);
 }
