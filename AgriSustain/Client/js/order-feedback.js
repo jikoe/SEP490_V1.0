@@ -36,7 +36,7 @@ function productSummary(item) {
 }
 function sidebar(item) {
   const order = `<dl class="feedback-metadata"><dt>Mã đơn hàng</dt><dd>#${esc(context.orderCode)}</dd>
-    <dt>Ngày đặt</dt><dd>${esc(localTime(context.orderDate))}</dd><dt>Trạng thái</dt><dd><span class="feedback-badge">Đã giao hàng</span></dd>
+    <dt>Ngày đặt</dt><dd>${esc(localTime(context.orderDate))}</dd><dt>Trạng thái</dt><dd><span class="feedback-badge">${context.status === 'Completed' ? 'Hoàn thành' : 'Đã giao hàng'}</span></dd>
     <dt>Tổng tiền</dt><dd class="feedback-price">${money(context.total)}</dd></dl>`;
   const tips = `<ul class="feedback-tips"><li>${icon('shield')}Chỉ đánh giá sản phẩm trong đơn hàng đã hoàn tất và đã nhận.</li>
     <li>${icon('card')}Mỗi dòng hàng có một đánh giá. Bạn có thể sửa đánh giá của mình.</li>
@@ -62,7 +62,7 @@ function render() {
     : 'Chia sẻ trải nghiệm của bạn để giúp người mua khác lựa chọn tốt hơn.';
   if (!eligible.length) {
     content.innerHTML = `<section class="feedback-panel feedback-empty"><h2>${complaint ? 'Đơn hàng chưa đủ điều kiện gửi khiếu nại' : 'Không còn sản phẩm đủ điều kiện đánh giá'}</h2>
-      <p>${complaint ? 'Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao, trong vòng 48 giờ sau giao và chưa có khiếu nại đang xử lý.' : 'Bạn có thể gửi hoặc sửa đánh giá của mình cho sản phẩm trong đơn đã hoàn thành và đã nhận.'}</p>
+      <p>${complaint ? 'Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao hoặc Hoàn thành, trong vòng 48 giờ kể từ lúc giao hàng và chưa có khiếu nại đang xử lý.' : 'Bạn có thể gửi hoặc sửa đánh giá của mình cho sản phẩm trong đơn đã hoàn thành và đã nhận.'}</p>
       <a href="orders.html">Trở về đơn hàng</a></section>`;
     return;
   }
@@ -72,7 +72,7 @@ function render() {
       <input type="radio" name="rating" value="${index + 1}" ${item.review?.rating === index + 1 ? 'checked' : ''} required aria-label="${index + 1} sao – ${label}"><span aria-hidden="true">☆</span></label>`).join('')}</div><p id="feedback-rating-caption" class="feedback-muted"></p></fieldset>
     <label class="feedback-field">Nhận xét của bạn <span>*</span><textarea name="comment" required maxlength="1000" rows="5" placeholder="Chia sẻ trải nghiệm thực tế về sản phẩm…">${esc(item.review?.comment || '')}</textarea></label>
     <p class="feedback-counter"><span id="feedback-length">${(item.review?.comment || '').length}</span>/1.000 ký tự</p>${actions(editing ? 'Lưu thay đổi' : '★ Gửi đánh giá')}</div>` : '';
-  const products = complaint ? `<p class="feedback-order-caption">Đặt ngày ${esc(localTime(context.orderDate))}<span class="feedback-badge">Đã giao hàng</span></p>
+  const products = complaint ? `<p class="feedback-order-caption">Đặt ngày ${esc(localTime(context.orderDate))}<span class="feedback-badge">${context.status === 'Completed' ? 'Hoàn thành' : 'Đã giao hàng'}</span></p>
     <fieldset class="feedback-products"><legend>Chọn sản phẩm cần khiếu nại <span>*</span></legend><div class="feedback-product-selection"><p>Bạn có thể chọn nhiều sản phẩm để gửi trong một lần.</p><button id="feedback-select-all" type="button">Chọn tất cả</button></div>
     <div class="feedback-product-options">${eligible.map((p, index) => `<label class="feedback-product-option ${index === 0 ? 'selected' : ''}"><input type="checkbox" name="orderItemIds" value="${p.id}" ${index === 0 ? 'checked' : ''} aria-label="Khiếu nại ${esc(p.name)} từ ${esc(p.farmName)}">${productImage(p.imageUrl, p.name)}<span><strong>${esc(p.name)}</strong><small>${esc(p.farmName)}</small><small>${money(p.price)} / ${esc(p.unit)}</small></span></label>`).join('')}</div><p id="feedback-selection-count" class="feedback-selection-count" role="status"></p></fieldset>
     <div class="feedback-total"><span>Tổng tiền đơn hàng</span><strong>${money(context.total)}</strong></div>` : '';

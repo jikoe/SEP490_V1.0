@@ -381,6 +381,9 @@ public sealed class ComplaintResolutionServiceTests
 
     private sealed class ComplaintStore : IComplaintRepository
     {
+        public Task<UserBankAccount?> GetDefaultBankAccountAsync(long userId, CancellationToken ct) =>
+            Task.FromResult<UserBankAccount?>(null);
+
         public DisputeTicket? Ticket { get; set; }
         public List<RefundTransaction> Refunds { get; } = [];
         public List<AuditLog> Audits { get; } = [];

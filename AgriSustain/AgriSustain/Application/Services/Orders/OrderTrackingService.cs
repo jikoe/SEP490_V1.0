@@ -170,7 +170,7 @@ public sealed class OrderTrackingService(
             actions.Add(OrderActions.EditReview);
         }
 
-        if (order.OrderStatus == "Delivered" && order.DeliveredAt is { } deliveredAt
+        if (order.OrderStatus is ("Delivered" or "Completed") && order.DeliveredAt is { } deliveredAt
             && deliveredAt <= now && now - deliveredAt <= ComplaintWindow)
         {
             actions.Add(OrderActions.SubmitComplaint);
