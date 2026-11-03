@@ -220,8 +220,23 @@ public sealed class OrderTrackingServiceTests
         Assert.Equal("Cancelled", order.SellerOrders.Last().Status);
     }
 
-    [Theory(DisplayName = "UTC-RC04-C2 Only a Delivered order can be confirmed")]
-    [InlineData("Shipping")]
+    [Fact(DisplayName = "UTC-RC04-C5 A Shipping order can be confirmed as received")]
+    public async Task UTC_C5_Shipping_Completes()
+    {
+        var order = Entity(305, "Shipping", "Shipping");
+        order.SellerOrders.First().DeliveredAt = null;
+        order.SellerOrders.First().Shipments.Add(new Shipment { ShipmentStatus = "InTransit" });
+
+        var result = await Service().ConfirmReceivedAsync(305, default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Completed", order.OrderStatus);
+        Assert.NotNull(order.SellerOrders.First().DeliveredAt);
+        Assert.Equal("Delivered", order.SellerOrders.First().Shipments.First().ShipmentStatus);
+    }
+
+    [Theory(DisplayName = "UTC-RC04-C2 Only a Shipping or Delivered order can be confirmed")]
+    [InlineData("Processing")]
     [InlineData("Completed")]
     [InlineData("Cancelled")]
     public async Task UTC_C2_NotDelivered_Rejected(string status)

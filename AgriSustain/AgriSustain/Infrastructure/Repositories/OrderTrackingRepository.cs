@@ -158,6 +158,7 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
         long buyerId, long orderId, CancellationToken cancellationToken) =>
         db.Orders
             .Include(o => o.SellerOrders).ThenInclude(so => so.DisputeTickets)
+            .Include(o => o.SellerOrders).ThenInclude(so => so.Shipments)
             .FirstOrDefaultAsync(o => o.OrderId == orderId && o.BuyerUserId == buyerId, cancellationToken);
 
     private static IQueryable<Order> WithTrackingData(IQueryable<Order> orders) => orders

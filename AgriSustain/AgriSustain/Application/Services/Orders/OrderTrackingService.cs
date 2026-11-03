@@ -89,10 +89,10 @@ public sealed class OrderTrackingService(
                     new Error("ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng #{orderId}.", "NotFound"));
             }
 
-            if (order.OrderStatus != "Delivered")
+            if (!CanConfirmReceipt(order))
             {
                 return Result<string>.FailureResult(new Error("ORDER_NOT_DELIVERED",
-                    "Chỉ có thể xác nhận đã nhận hàng khi đơn ở trạng thái Đã giao.", "Conflict"));
+                    "Chỉ có thể xác nhận đã nhận hàng khi đơn đang vận chuyển hoặc đã giao.", "Conflict"));
             }
 
             if (order.SellerOrders.Any(seller => seller.DisputeTickets.Any(ticket =>
@@ -107,11 +107,28 @@ public sealed class OrderTrackingService(
             return Result<string>.SuccessResult(order.OrderCode);
         }, cancellationToken);
 
+    private static readonly string[] s_receivable = ["Shipping", "InTransit", "Delivered", "Received"];
+
+    /// <summary>The order is out for delivery or delivered, and every live seller order has left the farm.</summary>
+    public static bool CanConfirmReceipt(Domain.Entities.Order order) =>
+        order.OrderStatus is "Shipping" or "Delivered"
+        && order.SellerOrders.Any(seller => s_receivable.Contains(seller.Status))
+        && order.SellerOrders.All(seller => s_receivable.Contains(seller.Status)
+            || seller.Status is "Cancelled" or "Rejected");
+
     /// <summary>Delivered seller orders become Completed with ReceivedAt; the parent order becomes Completed.</summary>
     public static void ApplyReceipt(Domain.Entities.Order order, long buyerId, DateTime now)
     {
-        foreach (var seller in order.SellerOrders.Where(seller => seller.Status is "Delivered" or "Received"))
+        foreach (var seller in order.SellerOrders.Where(seller => s_receivable.Contains(seller.Status)))
         {
+            seller.DeliveredAt ??= now;
+            foreach (var shipment in seller.Shipments.Where(x => x.ShipmentStatus is "InTransit" or "Shipping" or "Delivered"))
+            {
+                shipment.ShipmentStatus = "Delivered";
+                shipment.DeliveredAt ??= now;
+                shipment.ReceivedAt = now;
+            }
+
             seller.OrderStatusHistories.Add(new Domain.Entities.OrderStatusHistory
             {
                 SellerOrderId = seller.SellerOrderId,
@@ -159,7 +176,10 @@ public sealed class OrderTrackingService(
             actions.Add(OrderActions.SubmitComplaint);
         }
 
-        if (order.OrderStatus == "Delivered")
+        if (order.OrderStatus is "Shipping" or "Delivered"
+            && order.SellerOrders.Any(seller => s_receivable.Contains(seller.Status))
+            && order.SellerOrders.All(seller => s_receivable.Contains(seller.Status)
+                || seller.Status is "Cancelled" or "Rejected"))
         {
             actions.Add(OrderActions.ConfirmReceived);
         }
