@@ -197,6 +197,7 @@
                       </label>
                       <button type="button" id="btn-use-all-points" class="co-btn-outline" disabled onclick="useAllPoints()">Dùng hết</button>
                     </div>
+                    <div class="notice error" id="points-error-notice" style="display: none;" role="alert"></div>
                   </fieldset>
 
                   <!-- Cost Breakdown Lines -->
@@ -315,6 +316,7 @@
     const phonePattern = /^(0[35789][0-9]{8}|\+84[35789][0-9]{8})$/;
     const addressErrors = ['ADDRESS_INVALID', 'VALIDATION'];
     const shippingErrors = ['SHIPPING_RATE_UNAVAILABLE', 'MSG117'];
+    const pointsErrors = ['POINTS_INVALID', 'POINT_POLICY_UNAVAILABLE'];
     const trustedCatalog = 'goship-v2';
 
     const methods = [
@@ -1074,7 +1076,14 @@
       const qMsg = state.quoteError?.message || '';
       const isAddrErr = addressErrors.includes(state.quoteError?.code);
       const isShipErr = shippingErrors.includes(state.quoteError?.code);
-      const isSummErr = state.quoteError && !isAddrErr && !isShipErr;
+      const isPointsErr = pointsErrors.includes(state.quoteError?.code);
+      const isSummErr = state.quoteError && !isAddrErr && !isShipErr && !isPointsErr;
+
+      // MSG-CO-03 is shown in red under the reward points field.
+      const pointsErrNotice = document.getElementById('points-error-notice');
+      pointsErrNotice.textContent = isPointsErr ? qMsg : '';
+      pointsErrNotice.style.display = isPointsErr ? 'block' : 'none';
+      document.getElementById('points-input').setAttribute('aria-invalid', isPointsErr ? 'true' : 'false');
 
       const addrErrNotice = document.getElementById('address-error-notice');
       addrErrNotice.textContent = isAddrErr ? qMsg : '';
