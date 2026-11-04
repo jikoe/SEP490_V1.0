@@ -1,14 +1,22 @@
 using System.Globalization;
 using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.Interfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace AgriSustain.Infrastructure.Shipping;
 
-/// <summary>Quotes one parcel per farm through Goship POST /rates.</summary>
+/// <summary>
+/// Quotes one parcel per farm through Goship POST /rates. A null result is shown to the customer
+/// as MSG-CO-02; the cause is logged for the team instead.
+/// </summary>
 public sealed class GoshipShippingRateProvider(GoshipClient client,
-    IOptions<GoshipOptions> options) : IShippingRateProvider
+    IOptions<GoshipOptions> options, ILogger<GoshipShippingRateProvider>? logger = null)
+    : IShippingRateProvider
 {
+    private readonly ILogger _logger = logger ?? NullLogger<GoshipShippingRateProvider>.Instance;
+
     private static readonly string[] ExpressServiceKeywords = ["nhanh", "hỏa tốc", "hoả tốc"];
 
     private readonly GoshipOptions _options = options.Value;
@@ -22,14 +30,22 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
     {
         if (!_options.Enabled || string.IsNullOrWhiteSpace(_options.AccessToken))
         {
+            _logger.LogWarning("Goship is disabled or has no access token; no delivery fee was quoted.");
             return null;
         }
 
+        // The pickup address is read from Goship__PickupLocations__{FarmerProfileId} in configuration,
+        // because FarmerProfile stores no Goship city/district codes.
         _options.PickupLocations.TryGetValue(
             request.FarmerProfileId.ToString(CultureInfo.InvariantCulture), out var pickup);
         if (pickup is null || string.IsNullOrWhiteSpace(pickup.City)
-            || string.IsNullOrWhiteSpace(pickup.District)
-            || string.IsNullOrWhiteSpace(request.Recipient.ProvinceCode)
+            || string.IsNullOrWhiteSpace(pickup.District))
+        {
+            _logger.LogWarning("No Goship pickup location is configured for farmer profile {FarmerProfileId}.",
+                request.FarmerProfileId);
+            return null;
+        }
+        if (string.IsNullOrWhiteSpace(request.Recipient.ProvinceCode)
             || string.IsNullOrWhiteSpace(request.Recipient.DistrictCode))
         {
             return null;
@@ -38,6 +54,8 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
         var weight = CalculateWeightGrams(request.Lines);
         if (weight is null || weight <= 0)
         {
+            _logger.LogWarning("Parcel weight for farmer profile {FarmerProfileId} could not be derived from the selling units.",
+                request.FarmerProfileId);
             return null;
         }
 

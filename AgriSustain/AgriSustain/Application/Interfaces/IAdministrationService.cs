@@ -22,13 +22,14 @@ public interface IAdministrationService
     Task<UseCaseResult<CategoryDto>> GetCategoryAsync(long id, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Validates hierarchy, uniqueness and media before committing category and audit.
+    /// Validates BR-CAT-02 and the displayed version before committing category and audit.
     /// </summary>
     Task<UseCaseResult<CategoryDto>> SaveCategoryAsync(long? id, CategoryRequest request,
         CancellationToken cancellationToken);
     /// <summary>
-    /// Referenced categories are archived; active product references block removal.
+    /// Activate, deactivate or delete (BR-CAT-04): used categories are archived instead of
+    /// deleted, and active products block both.
     /// </summary>
-    Task<UseCaseResult<bool>> ChangeCategoryAsync(long id, string action, bool confirmed,
-        CancellationToken cancellationToken);
+    Task<UseCaseResult<CategoryChangeResultDto>> ChangeCategoryAsync(long id, string action,
+        ConfirmationRequest request, CancellationToken cancellationToken);
 }

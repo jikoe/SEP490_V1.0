@@ -35,10 +35,11 @@
 
             <label class="field">
               <span>Trạng thái</span>
-              <select id="filter-active">
+              <select id="filter-status">
                 <option value="">Tất cả trạng thái</option>
-                <option value="true">Hoạt động</option>
-                <option value="false">Ẩn / khóa</option>
+                <option value="Active">Hoạt động</option>
+                <option value="Inactive">Ẩn / khóa</option>
+                <option value="Archived">Đã lưu trữ</option>
               </select>
             </label>
 
@@ -157,7 +158,7 @@
     async function loadCategories(page = 1) {
       currentPage = page;
       const keyword = document.getElementById('search-keyword').value.trim();
-      const isActive = document.getElementById('filter-active').value;
+      const status = document.getElementById('filter-status').value;
 
       const tbody = document.getElementById('categories-table-body');
       tbody.innerHTML = '<tr><td colspan="5" class="empty">Đang tải danh mục…</td></tr>';
@@ -167,7 +168,7 @@
           page,
           pageSize,
           keyword,
-          isActive: isActive !== '' ? isActive : undefined
+          status: status || undefined
         });
 
         if (res.success && res.data) {
@@ -197,14 +198,25 @@
     function renderCategoriesTable(items) {
       const tbody = document.getElementById('categories-table-body');
       if (!items || items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty">Không tìm thấy danh mục phù hợp.</td></tr>';
+        // MSG01
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Không có kết quả tìm kiếm.</td></tr>';
         return;
       }
 
       tbody.innerHTML = items.map(item => {
-        const statusBadge = item.isActive
-          ? '<span class="badge Active">Hoạt động</span>'
-          : '<span class="badge Suspended">Ẩn / khóa</span>';
+        // BR-CAT-01: the Archived flag is shown separately and the row is read-only.
+        const statusBadge = item.isArchived
+          ? '<span class="badge">Đã lưu trữ</span>'
+          : item.isActive
+            ? '<span class="badge Active">Hoạt động</span>'
+            : '<span class="badge Suspended">Ẩn / khóa</span>';
+        const actions = item.isArchived
+          ? `<button type="button" onclick="editCategory(${item.id})">Xem</button>`
+          : `<button type="button" onclick="editCategory(${item.id})">Chi tiết / Sửa</button>
+                <button type="button" onclick="prepareConfirm(${item.id}, '${item.isActive ? 'deactivate' : 'activate'}')">
+                  ${item.isActive ? 'Ẩn / khóa' : 'Kích hoạt'}
+                </button>
+                <button type="button" class="danger-link" onclick="prepareConfirm(${item.id}, 'delete')">Xóa</button>`;
 
         return `
           <tr>
@@ -218,11 +230,7 @@
             <td>${item.productCount || 0}</td>
             <td>
               <div class="actions">
-                <button type="button" onclick="editCategory(${item.id})">Chi tiết / Sửa</button>
-                <button type="button" onclick="prepareConfirm(${item.id}, '${item.isActive ? 'deactivate' : 'activate'}')">
-                  ${item.isActive ? 'Ẩn / khóa' : 'Kích hoạt'}
-                </button>
-                <button type="button" class="danger-link" onclick="prepareConfirm(${item.id}, 'delete')">Xóa</button>
+                ${actions}
               </div>
             </td>
           </tr>
@@ -256,7 +264,14 @@
       document.getElementById('cat-name').value = cat ? cat.name : '';
       document.getElementById('cat-description').value = cat ? (cat.description || '') : '';
       document.getElementById('cat-isactive').value = cat ? String(cat.isActive) : 'true';
-      document.getElementById('modal-category-title').textContent = cat ? 'Chi tiết danh mục' : 'Thêm danh mục sản phẩm';
+      const readOnly = !!cat && cat.isArchived;
+      ['cat-name', 'cat-description', 'cat-isactive'].forEach(fieldId => {
+        document.getElementById(fieldId).disabled = readOnly;
+      });
+      document.getElementById('cat-save-btn').style.display = readOnly ? 'none' : '';
+      document.getElementById('modal-category-title').textContent = readOnly
+        ? 'Danh mục đã lưu trữ (chỉ xem)'
+        : cat ? 'Chi tiết danh mục' : 'Thêm danh mục sản phẩm';
       updateCharCount(document.getElementById('cat-description'));
       setBoxError('category-form-error', '');
       document.getElementById('category-modal').showModal();
@@ -289,17 +304,30 @@
         return;
       }
 
-      const payload = { name, description, isActive, confirmed: statusChanged };
+      // The version the form was opened with lets the server detect a concurrent change (MSG122).
+      const payload = { name, description, isActive, confirmed: statusChanged, version: original ? original.version : null };
       const btn = document.getElementById('cat-save-btn');
       btn.disabled = true;
       setBoxError('category-form-error', '');
       try {
-        const res = id ? await API.updateCategory(id, payload) : await API.createCategory(payload);
+        const res = await API.request(id ? `/categories/${id}` : '/categories', {
+          method: id ? 'PUT' : 'POST', body: payload, suppressErrorToast: true
+        });
         if (!res.success) {
-          setBoxError('category-form-error', errorText(res, 'Không thể lưu danh mục.'));
+          if (res.status === 409 && (res.code === 'CATEGORY_CHANGED' || res.code === 'ARCHIVED')) {
+            closeCategoryModal();
+            showAlert(res.error, 'error');
+            await loadCategories(currentPage);
+          } else if (res.status >= 500) {
+            // MSG123
+            setBoxError('category-form-error', 'Không thể lưu danh mục. Hãy tải lại để kiểm tra thông tin mới nhất trước khi thử lại.');
+          } else {
+            setBoxError('category-form-error', errorText(res, 'Không thể lưu danh mục.'));
+          }
           return;
         }
         closeCategoryModal();
+        // MSG-CAT-01
         showAlert(`Danh mục ${name} đã được lưu.`, 'success');
         await loadCategories(currentPage);
       } catch (err) {
@@ -312,9 +340,10 @@
     // MSG-CAT-03 with the product impact (BR-CAT-03).
     function statusConfirmText(cat, action) {
       const verb = action === 'activate' ? 'Kích hoạt' : 'Ẩn / khóa';
-      const impact = action === 'deactivate' && cat.productCount > 0
-        ? ` Danh mục đang có ${cat.productCount} sản phẩm; các sản phẩm hiện có vẫn hiển thị nhưng không thể tạo hoặc sửa sản phẩm mới vào danh mục này.`
-        : '';
+      const active = cat.activeProductCount || 0;
+      const impact = action === 'deactivate' && active > 0
+        ? ` Danh mục đang có ${active} sản phẩm đang bán; các sản phẩm này vẫn hiển thị nhưng không sản phẩm mới nào được dùng danh mục này.`
+        : ` Danh mục đang có ${active} sản phẩm đang bán.`;
       return `${verb} danh mục ${cat.name}?${impact}`;
     }
 
@@ -349,21 +378,26 @@
       setBoxError('confirm-error', '');
 
       try {
-        const res = await API.changeCategoryStatus(cat.id, action, true);
+        const res = await API.request(`/categories/${cat.id}/${action}`, {
+          method: 'POST', body: { confirmed: true, version: cat.version }, suppressErrorToast: true
+        });
         if (!res.success) {
-          setBoxError('confirm-error', errorText(res, 'Thao tác không thành công.'));
+          if (res.status === 409 && (res.code === 'CATEGORY_CHANGED' || res.code === 'ARCHIVED')) {
+            // MSG122: reload the current state instead of retrying.
+            closeConfirmModal();
+            showAlert(res.error, 'error');
+            await loadCategories(currentPage);
+          } else if (res.status >= 500) {
+            setBoxError('confirm-error', 'Không thể lưu danh mục. Hãy tải lại để kiểm tra thông tin mới nhất trước khi thử lại.');
+          } else {
+            // MSG-CAT-05 and other refusals stay in the dialog.
+            setBoxError('confirm-error', errorText(res, 'Thao tác không thành công.'));
+          }
           return;
         }
         closeConfirmModal();
-        if (action === 'delete') {
-          // The server archives instead of deleting when the category has been used.
-          const check = await API.request(`/categories/${cat.id}`, { suppressErrorToast: true });
-          showAlert(check.status === 404
-            ? `Đã xóa danh mục ${cat.name}.`
-            : `Danh mục ${cat.name} đã được sử dụng nên đã được lưu trữ thay vì xóa.`, 'success');
-        } else {
-          showAlert(`Đã ${action === 'activate' ? 'kích hoạt' : 'ẩn / khóa'} danh mục ${cat.name}.`, 'success');
-        }
+        // The server says whether a delete removed the category or archived it (BR-CAT-04).
+        showAlert(res.data.message, 'success');
         await loadCategories(currentPage);
       } catch (err) {
         setBoxError('confirm-error', err.message || 'Thao tác không thành công.');

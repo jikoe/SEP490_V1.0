@@ -252,10 +252,11 @@ const API = {
     return this.request(`/categories/${id}`, { method: 'PUT', body: data });
   },
 
-  async changeCategoryStatus(id, operation, confirmed = true) {
+  // version is the CategoryDto.version shown to the Administrator (MSG122).
+  async changeCategoryStatus(id, operation, confirmed = true, version = null) {
     return this.request(`/categories/${id}/${operation}`, {
       method: 'POST',
-      body: { confirmed }
+      body: { confirmed, version }
     });
   },
 
@@ -605,8 +606,8 @@ const API = {
     return this.changeUserStatus(id, actionData);
   },
 
-  async deleteCategory(id) {
-    return this.changeCategoryStatus(id, 'delete');
+  async deleteCategory(id, version) {
+    return this.changeCategoryStatus(id, 'delete', true, version);
   },
 
   async updateProductVisibility(id, isPublished) {

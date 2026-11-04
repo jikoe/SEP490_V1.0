@@ -229,7 +229,8 @@ public sealed class AdministrationService(
         {
             return Denied<Page<CategoryDto>>();
         }
-        if (!ValidPage(search.Page, search.PageSize) || search.Keyword?.Length > 100)
+        if (!ValidPage(search.Page, search.PageSize) || search.Keyword?.Length > 100
+            || search.Status is not (null or "" or "Active" or "Inactive" or "Archived"))
         {
             return Invalid<Page<CategoryDto>>();
         }
@@ -257,6 +258,13 @@ public sealed class AdministrationService(
             return UseCaseResult<CategoryDto>.Validation(validation.Errors.GroupBy(x => x.PropertyName)
                 .ToDictionary(x => x.Key, x => x.Select(error => error.ErrorMessage).ToArray()));
         }
+        if (id.HasValue && string.IsNullOrWhiteSpace(request.Version))
+        {
+            return UseCaseResult<CategoryDto>.Validation(new Dictionary<string, string[]>
+            {
+                ["Version"] = ["Hãy tải lại danh mục trước khi lưu."]
+            });
+        }
         await using var transaction = await unitOfWork.BeginAsync(cancellationToken);
         if (!await IsAdministratorAsync(cancellationToken))
         {
@@ -271,18 +279,27 @@ public sealed class AdministrationService(
         var settings = id.HasValue
             ? await repository.GetCategorySettingsAsync(id.Value, cancellationToken)
             : new CategorySettings();
+        if (id.HasValue && !MatchesVersion(category, settings, request.Version))
+        {
+            return CategoryChanged<CategoryDto>();
+        }
         if (settings.IsArchived)
         {
-            return UseCaseResult<CategoryDto>.Failure("ARCHIVED", "Danh mục đã lưu trữ.", "Conflict");
+            return Archived<CategoryDto>();
         }
         if (id.HasValue && category.IsActive != request.IsActive && !request.Confirmed)
         {
             return Invalid<CategoryDto>();
         }
-        if (await repository.CategoryNameExistsAsync(request.Name.Trim(), id ?? 0, cancellationToken))
+        string name = request.Name.Trim();
+        if (await repository.CategoryNameExistsAsync(name, id ?? 0, cancellationToken))
         {
-            return UseCaseResult<CategoryDto>.Failure("CATEGORY_DUPLICATE",
-                "Tên danh mục đã tồn tại.", "Conflict");
+            // MSG-CAT-02, shown under the name field (GBR-09).
+            return new UseCaseResult<CategoryDto>(default, new Error("CATEGORY_DUPLICATE",
+                $"Đã có danh mục tên {name}.", "Validation", new Dictionary<string, string[]>
+                {
+                    ["Name"] = [$"Đã có danh mục tên {name}."]
+                }));
         }
         var before = CategorySnapshot(category, settings);
         category.UpdateDetails(request.Name, request.Description);
@@ -300,57 +317,92 @@ public sealed class AdministrationService(
         return await GetCategoryAsync(category.CategoryId, cancellationToken);
     }
 
-    public async Task<UseCaseResult<bool>> ChangeCategoryAsync(long id, string action, bool confirmed,
-        CancellationToken cancellationToken)
+    public async Task<UseCaseResult<CategoryChangeResultDto>> ChangeCategoryAsync(long id, string action,
+        ConfirmationRequest request, CancellationToken cancellationToken)
     {
-        if (!confirmed || action is not ("activate" or "deactivate" or "delete" or "archive"))
+        if (!request.Confirmed || action is not ("activate" or "deactivate" or "delete"))
         {
-            return Invalid<bool>();
+            return Invalid<CategoryChangeResultDto>();
+        }
+        if (string.IsNullOrWhiteSpace(request.Version))
+        {
+            return UseCaseResult<CategoryChangeResultDto>.Validation(new Dictionary<string, string[]>
+            {
+                ["Version"] = ["Hãy tải lại danh mục trước khi xác nhận."]
+            });
         }
         await using var transaction = await unitOfWork.BeginAsync(cancellationToken);
         if (!await IsAdministratorAsync(cancellationToken))
         {
-            return Denied<bool>();
+            return Denied<CategoryChangeResultDto>();
         }
         var category = await repository.FindCategoryAsync(id, cancellationToken);
         if (category is null)
         {
-            return Missing<bool>();
+            return Missing<CategoryChangeResultDto>();
         }
         var settings = await repository.GetCategorySettingsAsync(id, cancellationToken);
+        if (!MatchesVersion(category, settings, request.Version))
+        {
+            return CategoryChanged<CategoryChangeResultDto>();
+        }
         if (settings.IsArchived)
         {
-            return UseCaseResult<bool>.Failure("ARCHIVED", "Danh mục đã lưu trữ.", "Conflict");
+            return Archived<CategoryChangeResultDto>();
         }
         var before = CategorySnapshot(category, settings);
-        if (action is "delete" or "archive")
+        string name = category.CategoryName;
+        string outcome;
+        string message;
+        if (action == "delete")
         {
-            if (await repository.HasActiveProductsAsync(id, cancellationToken))
+            int activeProducts = await repository.CountActiveProductsAsync(id, cancellationToken);
+            if (activeProducts > 0)
             {
-                return UseCaseResult<bool>.Failure("CATEGORY_IN_USE",
-                    "Danh mục còn sản phẩm đang hoạt động; hãy chuyển sản phẩm trước.", "Conflict");
+                // MSG-CAT-05
+                return UseCaseResult<CategoryChangeResultDto>.Failure("CATEGORY_IN_USE",
+                    $"Danh mục {name} còn {activeProducts} sản phẩm đang bán. Hãy chuyển danh mục "
+                        + "hoặc ẩn các sản phẩm đó trước khi xóa.", "Conflict");
             }
-            if (action == "archive"
-                || await repository.HasCategoryReferencesAsync(id, cancellationToken))
+            if (await repository.HasCategoryReferencesAsync(id, cancellationToken))
             {
+                // BR-CAT-04: a used category is archived permanently instead of deleted.
                 category.SetAvailability(false);
                 settings.Archive();
-                action = "archive";
+                outcome = "archived";
+                message = $"Danh mục {name} đã được sử dụng nên đã được lưu trữ; danh mục này chỉ còn xem được.";
             }
             else
             {
                 repository.DeleteCategory(category, settings);
+                outcome = "deleted";
+                message = $"Đã xóa danh mục {name}.";
             }
         }
         else
         {
             category.SetAvailability(action == "activate");
+            outcome = action == "activate" ? "activated" : "deactivated";
+            message = action == "activate" ? $"Đã kích hoạt danh mục {name}." : $"Đã ngừng kích hoạt danh mục {name}.";
         }
-        Audit("Category", id, action, before, CategorySnapshot(category, settings), null);
+        Audit("Category", id, outcome == "archived" ? "archive" : action, before,
+            CategorySnapshot(category, settings), null);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return UseCaseResult<bool>.Success(true);
+        return UseCaseResult<CategoryChangeResultDto>.Success(new CategoryChangeResultDto(outcome, message));
     }
+
+    private static bool MatchesVersion(Category category, CategorySettings settings, string? version) =>
+        Category.VersionOf(category.CategoryName, category.Description, category.IsActive, settings.IsArchived)
+            == version;
+
+    // MSG122: someone else changed or archived the category after it was shown.
+    private static UseCaseResult<T> CategoryChanged<T>() => UseCaseResult<T>.Failure("CATEGORY_CHANGED",
+        "Danh mục này đã thay đổi hoặc thao tác đã được xử lý. Hãy tải lại để xem kết quả hiện tại; "
+            + "chưa có thao tác nào được thực hiện thêm.", "Conflict");
+
+    private static UseCaseResult<T> Archived<T>() => UseCaseResult<T>.Failure("ARCHIVED",
+        "Danh mục đã lưu trữ chỉ xem được và không thể thay đổi hoặc kích hoạt lại.", "Conflict");
 
     private void Audit(string type, long id, string action, string before, string after,
         string? reason)
