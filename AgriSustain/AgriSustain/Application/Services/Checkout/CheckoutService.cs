@@ -356,14 +356,19 @@ public sealed class CheckoutService(
                 return UseCaseResult<CheckoutQuoteDto>.Failure("POINT_POLICY_UNAVAILABLE",
                     "Chưa cấu hình chính sách quy đổi điểm. Có thể tiếp tục với 0 điểm.");
             }
+            // BR-RP-01..03: points discount the item subtotal after voucher, up to the cap.
             pointsDiscount = RetailPricing.Money(input.Points * policy.PointValueVnd.Value);
-            var limit = RetailPricing.Money((subtotal - voucherDiscount)
+            var limit =RetailPricing.Money((subtotal - voucherDiscount)
                 * policy.MaximumPointDiscountPercent.Value / 100);
-            if (input.Points > await repository.PointsAsync(actor.UserId, cancellationToken)
-                || pointsDiscount > limit)
+            var balance = await repository.PointsAsync(actor.UserId, cancellationToken);
+            var maxPoints = Math.Max(0, Math.Min(balance,
+                (long)Math.Floor(limit / policy.PointValueVnd.Value)));
+            // BR-RP-04 / MSG-CO-03: reject and tell the customer the most points this order accepts.
+            if (input.Points > balance || pointsDiscount > limit)
             {
                 return UseCaseResult<CheckoutQuoteDto>.Failure("POINTS_INVALID",
-                    "Điểm vượt số dư hoặc mức giảm cho phép.");
+                    "Điểm thưởng vượt số dư hoặc mức giảm cho phép. "
+                    + $"Đơn này dùng tối đa {maxPoints} điểm.");
             }
         }
         return UseCaseResult<CheckoutQuoteDto>.Success(new CheckoutQuoteDto(Guid.NewGuid(), input,
