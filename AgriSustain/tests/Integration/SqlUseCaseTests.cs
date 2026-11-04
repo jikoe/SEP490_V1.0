@@ -66,7 +66,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         _context.RewardPointEntries.Add(new RewardPointEntry { UserId = buyer.UserId,
             EntryType = "Earn", Points = 1000, RequestKey = "test-earn",
             OccurredAt = _clock.GetUtcNow().UtcDateTime });
-        _context.Vouchers.Add(new Voucher { VoucherCode = "TEST10", DiscountType = "Percentage",
+        _context.Vouchers.Add(new Voucher { VoucherCode = "TEST10", VoucherName = "Test 10%", DiscountType = "Percentage",
             DiscountValue = 10, MinOrderAmount = 1000, UsageLimit = 1, IsActive = true,
             StartDate = _clock.GetUtcNow().UtcDateTime.AddDays(-1),
             EndDate = _clock.GetUtcNow().UtcDateTime.AddDays(1) });
@@ -89,7 +89,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     public async Task ChangeAccount_SelfAction_DoesNotWriteAudit()
     {
         var result = await Admin().ChangeAccountAsync(1,
-            new AccountActionRequest("suspend", "Test reason", true), default);
+            new AccountActionRequest("suspend", "Test reason", true, "Active"), default);
         Assert.Equal("SELF_ACTION", result.Error?.Code);
         Assert.Empty(await _context.AuditLogs.ToListAsync());
     }
@@ -98,7 +98,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     public async Task ChangeAccount_Cancelled_DoesNotChangeAccount()
     {
         var result = await Admin().ChangeAccountAsync(2,
-            new AccountActionRequest("suspend", "Test reason", false), default);
+            new AccountActionRequest("suspend", "Test reason", false, "Active"), default);
         Assert.False(result.IsSuccess);
         Assert.Equal("Active", (await _context.Users.FindAsync(2L))!.Status);
         Assert.Empty(await _context.AuditLogs.ToListAsync());
@@ -108,14 +108,38 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     public async Task ChangeAccount_SuspendAndActivate_WritesBeforeAndAfterAudit()
     {
         Assert.True((await Admin().ChangeAccountAsync(2,
-            new AccountActionRequest("suspend", "Test suspension", true), default)).IsSuccess);
+            new AccountActionRequest("suspend", "Test suspension", true, "Active"), default)).IsSuccess);
         Assert.True((await Admin().ChangeAccountAsync(2,
-            new AccountActionRequest("activate", "Test activation", true), default)).IsSuccess);
+            new AccountActionRequest("activate", "Test activation", true, "Suspended"), default)).IsSuccess);
         var logs = await _context.AuditLogs.OrderBy(x => x.AuditLogId).ToListAsync();
         Assert.Equal(2, logs.Count);
         Assert.Contains("Active", logs[0].OldValue);
         Assert.Contains("Suspended", logs[0].NewValue);
         Assert.Equal(1, logs[0].PerformedByUserId);
+    }
+
+    [Fact]
+    public async Task ChangeAccount_Suspend_QueuesAccountEmailWithTheChange()
+    {
+        var result = await Admin().ChangeAccountAsync(2,
+            new AccountActionRequest("suspend", "Test reason", true, "Active"), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.False(result.Value!.EmailSent);
+        var email = await _context.Notifications.AsNoTracking()
+            .SingleAsync(x => x.NotificationType == AdministrationService.AccountEmailType);
+        Assert.Equal((2L, "Email", "Pending", 0), (email.UserId, email.DeliveryChannel, email.DeliveryStatus,
+            email.RetryCount));
+        Assert.Contains("Test reason", email.Content);
+    }
+
+    [Fact]
+    public async Task GetAccountImpact_TranslatesToSql()
+    {
+        var result = await Admin().GetAccountImpactAsync(2, default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(0m, result.Value!.HeldPayoutAmount);
     }
 
     [Fact]
@@ -126,7 +150,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         user.FailedLoginCount = 5;
         await _context.SaveChangesAsync();
         var result = await Admin().ChangeAccountAsync(2,
-            new AccountActionRequest("unlock", null, true), default);
+            new AccountActionRequest("unlock", null, true, "Active", _clock.GetUtcNow().AddMinutes(10)), default);
         Assert.True(result.IsSuccess);
         Assert.Null(user.LockedUntil);
         Assert.Equal(0, user.FailedLoginCount);
@@ -152,7 +176,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         _context.Users.Add(staff);
         await _context.SaveChangesAsync();
         var result = await Admin().ChangeAccountAsync(staff.UserId,
-            new AccountActionRequest("suspend", "Test reason", true), default);
+            new AccountActionRequest("suspend", "Test reason", true, "Active"), default);
         Assert.Equal("ROLE_NOT_SUSPENDABLE", result.Error?.Code);
         Assert.Equal("Active", (await _context.Users.AsNoTracking()
             .SingleAsync(x => x.UserId == staff.UserId)).Status);

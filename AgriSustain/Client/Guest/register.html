@@ -236,7 +236,7 @@
         </div>
 
         <div style="text-align: center; font-size: 13px; color: #688273; margin-bottom: 24px;">
-          <div>Mã OTP có hiệu lực trong <strong style="color: #d9534f;">5 phút</strong>.</div>
+          <div id="otp-expiry">Mã OTP có hiệu lực trong <strong style="color: #d9534f;" id="otp-expiry-time">05:00</strong>.</div>
           <div style="margin-top: 8px;">
             Chưa nhận được mã?
             <button
@@ -525,19 +525,28 @@
       }
     }
 
-    function startResendCooldown(seconds) {
-      resendCooldown = seconds;
-      const resendBtn = document.getElementById('btn-resend-otp');
-      if (resendTimer) clearInterval(resendTimer);
+    const OTP_TTL_SECONDS = 300; // OTP valid 5 minutes
+    let otpSentAt = 0;
 
-      updateResendButton();
-      resendTimer = setInterval(() => {
-        resendCooldown--;
+    function startResendCooldown(seconds) {
+      otpSentAt = Date.now();
+      if (resendTimer) clearInterval(resendTimer);
+      const tick = () => {
+        const elapsed = Math.floor((Date.now() - otpSentAt) / 1000);
+        resendCooldown = Math.max(0, seconds - elapsed);
         updateResendButton();
-        if (resendCooldown <= 0) {
+        const left = Math.max(0, OTP_TTL_SECONDS - elapsed);
+        const box = document.getElementById('otp-expiry');
+        if (left > 0) {
+          box.innerHTML = 'Mã OTP có hiệu lực trong <strong style="color: #d9534f;">'
+            + `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}</strong>.`;
+        } else {
+          box.innerHTML = '<strong style="color: #d9534f;">Mã OTP đã hết hạn.</strong> Vui lòng gửi lại mã.';
           clearInterval(resendTimer);
         }
-      }, 1000);
+      };
+      tick();
+      resendTimer = setInterval(tick, 1000);
     }
 
     function updateResendButton() {
@@ -581,4 +590,4 @@
     }
   </script>
 </body>
-</html>
+</html>

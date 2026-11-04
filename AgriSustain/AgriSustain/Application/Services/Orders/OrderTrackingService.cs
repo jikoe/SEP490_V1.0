@@ -73,6 +73,79 @@ public sealed class OrderTrackingService(
             return await CompleteAsync(uow, buyerId, order, $"Không tìm thấy đơn hàng có mã {code}.", cancellationToken);
         }, cancellationToken);
 
+    public Task<Result<string>> ConfirmReceivedAsync(
+        long orderId, CancellationToken cancellationToken) =>
+        unitOfWork.ExecuteAsync(async uow =>
+        {
+            if (SignedInUserId() is not long buyerId)
+            {
+                return Result<string>.FailureResult(s_signInRequired);
+            }
+
+            var order = await uow.Orders.GetOrderForReceiptAsync(buyerId, orderId, cancellationToken);
+            if (order == null)
+            {
+                return Result<string>.FailureResult(
+                    new Error("ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng #{orderId}.", "NotFound"));
+            }
+
+            if (!CanConfirmReceipt(order))
+            {
+                return Result<string>.FailureResult(new Error("ORDER_NOT_DELIVERED",
+                    "Chỉ có thể xác nhận đã nhận hàng khi đơn đang vận chuyển hoặc đã giao.", "Conflict"));
+            }
+
+            if (order.SellerOrders.Any(seller => seller.DisputeTickets.Any(ticket =>
+                    ticket.TicketStatus is "Open" or "Reviewing")))
+            {
+                return Result<string>.FailureResult(new Error("COMPLAINT_IN_PROGRESS",
+                    "Đơn hàng đang có khiếu nại chưa xử lý xong, chưa thể xác nhận đã nhận hàng.", "Conflict"));
+            }
+
+            DateTime now = timeProvider.GetUtcNow().UtcDateTime;
+            ApplyReceipt(order, buyerId, now);
+            return Result<string>.SuccessResult(order.OrderCode);
+        }, cancellationToken);
+
+    private static readonly string[] s_receivable = ["Shipping", "InTransit", "Delivered", "Received"];
+
+    /// <summary>The order is out for delivery or delivered, and every live seller order has left the farm.</summary>
+    public static bool CanConfirmReceipt(Domain.Entities.Order order) =>
+        order.OrderStatus is "Shipping" or "Delivered"
+        && order.SellerOrders.Any(seller => s_receivable.Contains(seller.Status))
+        && order.SellerOrders.All(seller => s_receivable.Contains(seller.Status)
+            || seller.Status is "Cancelled" or "Rejected");
+
+    /// <summary>Delivered seller orders become Completed with ReceivedAt; the parent order becomes Completed.</summary>
+    public static void ApplyReceipt(Domain.Entities.Order order, long buyerId, DateTime now)
+    {
+        foreach (var seller in order.SellerOrders.Where(seller => s_receivable.Contains(seller.Status)))
+        {
+            seller.DeliveredAt ??= now;
+            foreach (var shipment in seller.Shipments.Where(x => x.ShipmentStatus is "InTransit" or "Shipping" or "Delivered"))
+            {
+                shipment.ShipmentStatus = "Delivered";
+                shipment.DeliveredAt ??= now;
+                shipment.ReceivedAt = now;
+            }
+
+            seller.OrderStatusHistories.Add(new Domain.Entities.OrderStatusHistory
+            {
+                SellerOrderId = seller.SellerOrderId,
+                ChangedByUserId = buyerId,
+                OldStatus = seller.Status,
+                NewStatus = "Completed",
+                Reason = "Người mua xác nhận đã nhận hàng",
+                OccurredAt = now
+            });
+            seller.Status = "Completed";
+            seller.ReceivedAt = now;
+        }
+
+        order.OrderStatus = "Completed";
+        order.CompletedAt = now;
+    }
+
     /// <summary>Contextual actions for the Order Details screen (SRS UC-RC-04 alternative flows, step 7).</summary>
     public static IReadOnlyList<string> ResolveActions(OrderDetailDto order, DateTimeOffset now)
     {
@@ -97,10 +170,18 @@ public sealed class OrderTrackingService(
             actions.Add(OrderActions.EditReview);
         }
 
-        if (order.OrderStatus == "Delivered" && order.DeliveredAt is { } deliveredAt
+        if (order.OrderStatus is ("Delivered" or "Completed") && order.DeliveredAt is { } deliveredAt
             && deliveredAt <= now && now - deliveredAt <= ComplaintWindow)
         {
             actions.Add(OrderActions.SubmitComplaint);
+        }
+
+        if (order.OrderStatus is "Shipping" or "Delivered"
+            && order.SellerOrders.Any(seller => s_receivable.Contains(seller.Status))
+            && order.SellerOrders.All(seller => s_receivable.Contains(seller.Status)
+                || seller.Status is "Cancelled" or "Rejected"))
+        {
+            actions.Add(OrderActions.ConfirmReceived);
         }
 
         return actions;

@@ -6,13 +6,15 @@ namespace AgriSustain.Application.Services.Moderation;
 
 // UC-CM-02 Moderate Product Review.
 
+/// <summary>
+/// Post-moderation: a clean review is published at once and never enters the queue. The moderator only
+/// works on reviews the automatic rules flagged (Flagged = "Cần xử lý") and can restore hidden ones.
+/// </summary>
 public static class ReviewTabs
 {
-    public const string Unreviewed = "Unreviewed";
     public const string Flagged = "Flagged";
-    public const string Visible = "Visible";
     public const string Hidden = "Hidden";
-    public static readonly string[] All = [Unreviewed, Flagged, Visible, Hidden];
+    public static readonly string[] All = [Flagged, Hidden];
 }
 
 public static class ReviewStatuses
@@ -69,9 +71,9 @@ public sealed record ReviewDetailDto(
     bool IsReviewed,
     IReadOnlyList<string> FlagReasons);
 
-public sealed record ReviewQuery(string? Tab, string? Search, int Page = 1, int PageSize = 10);
+public sealed record ReviewQuery(string? Tab, int Page = 1, int PageSize = 10);
 
-public sealed record ReviewTabCounts(int Unreviewed, int Flagged, int Visible, int Hidden);
+public sealed record ReviewTabCounts(int Flagged, int Hidden);
 
 public sealed record ReviewListDto(
     IReadOnlyList<ReviewListItemDto> Items, int Total, int Page, int PageSize, ReviewTabCounts Counts);
@@ -93,53 +95,49 @@ public interface IReviewModerationRepository
         long moderatorUserId, DateTime now, CancellationToken cancellationToken);
 }
 
-/// <summary>Automatic flag rules applied when a review is listed (UC-CM-02 Step 2).</summary>
-public static partial class ReviewFlagRules
+/// <summary>
+/// Automatic flag rules (UC-CM-02 Step 2). Only offensive content is flagged: vulgar or obscene language,
+/// regional discrimination, and reactionary / anti-state content. Low ratings, links or phone numbers are
+/// not violations by themselves.
+/// </summary>
+public static class ReviewFlagRules
 {
-    public const int SpamReviewLimit = 5;
-    public static readonly TimeSpan SpamWindow = TimeSpan.FromHours(24);
+    public const string Vulgar = "Ngôn từ thô tục";
+    public const string RegionalDiscrimination = "Phân biệt vùng miền";
+    public const string Reactionary = "Dấu hiệu phản động";
 
-    private static readonly string[] s_bannedWords =
+    private static readonly string[] s_vulgar =
     [
-        "đm", "dm", "vcl", "vkl", "vl", "cc", "clm", "đéo", "địt", "lồn", "cặc", "ngu như",
-        "fuck", "shit", "scam"
+        "đm", "dm", "đmm", "vcl", "vkl", "vl", "cc", "clm", "cl", "đéo", "địt", "lồn", "cặc", "buồi", "đĩ",
+        "óc chó", "ngu như chó", "mẹ mày", "con mẹ", "fuck", "shit", "bitch"
     ];
 
-    public static IReadOnlyList<string> Evaluate(
-        byte ratingStars, string? comment, int authorReviewsInWindow)
+    private static readonly string[] s_regional =
+    [
+        "bắc kỳ", "bắc kì", "nam kỳ", "nam kì", "trung kỳ", "trung kì", "parky", "nam cầy", "mọi rợ",
+        "dân thanh hóa", "thanh hoá ăn trộm", "dân nghệ", "rau muống", "bò đỏ", "dân rau muống"
+    ];
+
+    private static readonly string[] s_reactionary =
+    [
+        "lật đổ", "phản động", "đả đảo", "chế độ thối nát", "cộng phỉ", "ba que", "3 que", "việt tân",
+        "đảng cướp", "bọn cộng sản"
+    ];
+
+    public static IReadOnlyList<string> Evaluate(string? comment)
     {
         var reasons = new List<string>();
-        string text = comment?.Trim() ?? string.Empty;
-        if (text.Length > 0)
-        {
-            string lower = text.ToLowerInvariant();
-            if (s_bannedWords.Any(word => WordPattern(word).IsMatch(lower)))
-                reasons.Add("Chứa từ ngữ cấm");
-            if (PhonePattern().IsMatch(text))
-                reasons.Add("Chứa số điện thoại");
-            if (LinkPattern().IsMatch(lower))
-                reasons.Add("Chứa đường link");
-            if (ratingStars == 1)
-                reasons.Add("1 sao kèm bình luận");
-        }
-
-        if (authorReviewsInWindow > SpamReviewLimit)
-            reasons.Add($"Người viết đăng hơn {SpamReviewLimit} đánh giá trong 24 giờ");
+        string text = (comment ?? string.Empty).Trim().ToLowerInvariant();
+        if (text.Length == 0) return reasons;
+        if (ContainsAny(text, s_vulgar)) reasons.Add(Vulgar);
+        if (ContainsAny(text, s_regional)) reasons.Add(RegionalDiscrimination);
+        if (ContainsAny(text, s_reactionary)) reasons.Add(Reactionary);
         return reasons;
     }
 
-    /// <summary>Number of reviews the author posted in the 24 hours up to <paramref name="reviewDate"/>.</summary>
-    public static int CountInWindow(IEnumerable<DateTime> authorDates, DateTime reviewDate) =>
-        authorDates.Count(d => d <= reviewDate && reviewDate - d < SpamWindow);
-
-    private static Regex WordPattern(string word) =>
-        new($@"(^|[^\p{{L}}\p{{N}}]){Regex.Escape(word)}($|[^\p{{L}}\p{{N}}])", RegexOptions.CultureInvariant);
-
-    [GeneratedRegex(@"(\+84|0)[\s.\-]?\d{2,3}[\s.\-]?\d{3}[\s.\-]?\d{3,4}")]
-    private static partial Regex PhonePattern();
-
-    [GeneratedRegex(@"https?://|www\.|\b[a-z0-9-]+\.(com|vn|net|org|xyz|info|me|io)\b")]
-    private static partial Regex LinkPattern();
+    private static bool ContainsAny(string text, string[] words) =>
+        words.Any(word => Regex.IsMatch(text,
+            $@"(^|[^\p{{L}}\p{{N}}]){Regex.Escape(word)}($|[^\p{{L}}\p{{N}}])", RegexOptions.CultureInvariant));
 }
 
 public interface IReviewModerationService
@@ -164,37 +162,27 @@ public sealed class ReviewModerationService(
 
     public async Task<Result<ReviewListDto>> ListAsync(ReviewQuery query, CancellationToken cancellationToken)
     {
-        string tab = ReviewTabs.All.Contains(query.Tab) ? query.Tab! : ReviewTabs.Unreviewed;
+        string tab = ReviewTabs.All.Contains(query.Tab) ? query.Tab! : ReviewTabs.Flagged;
         int page = Math.Max(1, query.Page);
         int pageSize = Math.Clamp(query.PageSize, 1, 50);
 
         var rows = await repository.ListAsync(cancellationToken);
         var evaluated = await EvaluateAsync(rows, cancellationToken);
 
-        bool InTab(ReviewListItemDto r, string t) => t switch
-        {
-            ReviewTabs.Unreviewed => !r.IsReviewed && r.ModerationStatus != ReviewStatuses.Hidden,
-            ReviewTabs.Flagged => !r.IsReviewed && r.ModerationStatus != ReviewStatuses.Hidden && r.FlagReasons.Count > 0,
-            ReviewTabs.Hidden => r.ModerationStatus == ReviewStatuses.Hidden,
-            _ => r.ModerationStatus == ReviewStatuses.Visible
-        };
+        // Queue: flagged, still visible and not handled yet. Kept-visible reviews leave the queue.
+        bool InTab(ReviewListItemDto r, string t) => t == ReviewTabs.Hidden
+            ? r.ModerationStatus == ReviewStatuses.Hidden
+            : !r.IsReviewed && r.ModerationStatus != ReviewStatuses.Hidden && r.FlagReasons.Count > 0;
 
         var counts = new ReviewTabCounts(
-            evaluated.Count(r => InTab(r, ReviewTabs.Unreviewed)),
             evaluated.Count(r => InTab(r, ReviewTabs.Flagged)),
-            evaluated.Count(r => InTab(r, ReviewTabs.Visible)),
             evaluated.Count(r => InTab(r, ReviewTabs.Hidden)));
 
-        // AF1: search by product name or comment text.
-        string? search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
-        var filtered = evaluated.Where(r => InTab(r, tab))
-            .Where(r => search is null
-                || r.ProductName.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || (r.Comment?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false))
-            // Flagged reviews first, then the newest.
-            .OrderByDescending(r => r.FlagReasons.Count > 0)
-            .ThenByDescending(r => r.ReviewDate)
-            .ToList();
+        // Oldest first in the queue so nothing waits forever; newest first among hidden ones.
+        var inTab = evaluated.Where(r => InTab(r, tab));
+        var filtered = (tab == ReviewTabs.Flagged
+            ? inTab.OrderBy(r => r.ReviewDate)
+            : inTab.OrderByDescending(r => r.ReviewDate)).ToList();
 
         return Result<ReviewListDto>.SuccessResult(new ReviewListDto(
             filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList(),
@@ -268,17 +256,11 @@ public sealed class ReviewModerationService(
         return Result<ReviewDetailDto>.SuccessResult(await DetailAsync(updated!, cancellationToken));
     }
 
-    private async Task<List<ReviewListItemDto>> EvaluateAsync(
-        IReadOnlyList<ReviewRecord> rows, CancellationToken cancellationToken)
-    {
-        var dates = await repository.ReviewDatesAsync(rows.Select(r => r.UserId).Distinct().ToList(), cancellationToken);
-        var byUser = dates.GroupBy(d => d.UserId).ToDictionary(g => g.Key, g => g.Select(d => d.ReviewDate).ToList());
-        return rows.Select(r => new ReviewListItemDto(r.ProductReviewId, r.ProductName, r.ReviewerName,
+    private static Task<List<ReviewListItemDto>> EvaluateAsync(
+        IReadOnlyList<ReviewRecord> rows, CancellationToken cancellationToken) =>
+        Task.FromResult(rows.Select(r => new ReviewListItemDto(r.ProductReviewId, r.ProductName, r.ReviewerName,
             r.RatingStars, r.Comment, r.ReviewDate, r.ModerationStatus, r.IsReviewed,
-            ReviewFlagRules.Evaluate(r.RatingStars, r.Comment,
-                ReviewFlagRules.CountInWindow(byUser.GetValueOrDefault(r.UserId) ?? [], r.ReviewDate))))
-            .ToList();
-    }
+            ReviewFlagRules.Evaluate(r.Comment))).ToList());
 
     private async Task<ReviewDetailDto> DetailAsync(ReviewRecord row, CancellationToken cancellationToken)
     {

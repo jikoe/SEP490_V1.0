@@ -20,8 +20,8 @@ public static class OrderFeedbackRules
         && item.ItemStatus != "Cancelled";
 
     public static bool CanComplain(Order order, OrderItem item, DateTime now) =>
-        order.OrderStatus == "Delivered"
-        && item.SellerOrder.Status == "Delivered"
+        order.OrderStatus is ("Delivered" or "Completed")
+        && item.SellerOrder.Status is ("Delivered" or "Completed")
         && item.ItemStatus != "Cancelled"
         && item.Quantity > 0
         && DeliveredAt(item.SellerOrder) is { } deliveredAt

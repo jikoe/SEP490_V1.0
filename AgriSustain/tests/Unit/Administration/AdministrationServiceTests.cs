@@ -27,8 +27,9 @@ public sealed class AdministrationServiceTests
         _store.Settings[9] = new CategorySettings { CategoryId = 9 };
     }
 
-    private AdministrationService Service(long actorId = 1) =>
-        new(_store, _uow, new Actor(actorId), new FakeClock(T0));
+    private AdministrationService Service(long actorId = 1, INotificationGateway? gateway = null) =>
+        new(_store, _uow, new Actor(actorId), new FakeClock(T0), gateway,
+            new AccountNotificationSettings("support@example.test"));
 
     // ---------- UC-ADM-03: AccountActionValidator / User rules ----------
 
@@ -38,7 +39,7 @@ public sealed class AdministrationServiceTests
     public async Task AccountAction_ReasonLengthBoundary(int length, bool valid)
     {
         var result = await new AccountActionValidator().ValidateAsync(
-            new AccountActionRequest("suspend", new string('a', length), true));
+            new AccountActionRequest("suspend", new string('a', length), true, "Active"));
 
         Assert.Equal(valid, result.IsValid);
         Assert.Equal(!valid, result.Errors.Any(error => error.PropertyName == "Reason"));
@@ -95,7 +96,7 @@ public sealed class AdministrationServiceTests
     [Fact(DisplayName = "[UC-ADM-03 #23] Suspend active customer writes one audit and commits")]
     public async Task ChangeAccount_Suspend_AuditsAndCommits()
     {
-        var result = await Service().ChangeAccountAsync(2, new("suspend", "Vi phạm chính sách", true), default);
+        var result = await Service().ChangeAccountAsync(2, new("suspend", "Vi phạm chính sách", true, "Active"), default);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
         Assert.Equal("Suspended", _store.Users[2].Status);
@@ -111,7 +112,7 @@ public sealed class AdministrationServiceTests
     {
         _store.Users[2].Status = "Suspended";
 
-        var result = await Service().ChangeAccountAsync(2, new("activate", "Đã xác minh", true), default);
+        var result = await Service().ChangeAccountAsync(2, new("activate", "Đã xác minh", true, "Suspended"), default);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
         Assert.Equal("Active", _store.Users[2].Status);
@@ -126,7 +127,7 @@ public sealed class AdministrationServiceTests
         user.LockedUntil = T0.UtcDateTime.AddHours(1);
         user.FailedLoginCount = 5;
 
-        var result = await Service().ChangeAccountAsync(2, new("unlock", null, true), default);
+        var result = await Service().ChangeAccountAsync(2, new("unlock", null, true, "Active", T0.AddHours(1)), default);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
         Assert.Null(user.LockedUntil);
@@ -138,13 +139,13 @@ public sealed class AdministrationServiceTests
     [Theory(DisplayName = "[UC-ADM-03 #26-#30] Self action, staff role, invalid state or missing user is refused")]
     [InlineData(1L, "suspend", "SELF_ACTION")]
     [InlineData(3L, "suspend", "ROLE_NOT_SUSPENDABLE")]
-    [InlineData(2L, "activate", "STATE_CONFLICT")]
-    [InlineData(2L, "unlock", "STATE_CONFLICT")]
+    [InlineData(2L, "activate", "ACTION_NOT_ALLOWED")]
+    [InlineData(2L, "unlock", "ACTION_NOT_ALLOWED")]
     [InlineData(999L, "suspend", "NOT_FOUND")]
     public async Task ChangeAccount_Refused_WithoutAudit(long id, string action, string code)
     {
         var result = await Service().ChangeAccountAsync(id,
-            new(action, action == "unlock" ? null : "Review", true), default);
+            new(action, action == "unlock" ? null : "Review", true, "Active"), default);
 
         Assert.Equal(code, result.Error?.Code);
         Assert.Empty(_store.Audits);
@@ -155,11 +156,142 @@ public sealed class AdministrationServiceTests
     [Fact(DisplayName = "[UC-ADM-03 #31] Validation runs before the transaction")]
     public async Task ChangeAccount_BlankReason_NoTransaction()
     {
-        var result = await Service().ChangeAccountAsync(2, new("suspend", "", true), default);
+        var result = await Service().ChangeAccountAsync(2, new("suspend", "", true, "Active"), default);
 
         Assert.Contains("Reason", result.Error!.Fields!.Keys);
         Assert.Equal(0, _uow.Begins);
         Assert.Equal(0, _store.UserLookups);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #32] Missing displayed version is a MSG-UM-05 field error")]
+    public async Task ChangeAccount_MissingExpectedStatus_IsRejected()
+    {
+        var result = await Service().ChangeAccountAsync(2, new("suspend", "Vi phạm", true), default);
+
+        Assert.Contains("ExpectedStatus", result.Error!.Fields!.Keys);
+        Assert.Equal(0, _uow.Begins);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #33] Stale displayed status is refused with MSG-UM-06 (BR-UM-12)")]
+    public async Task ChangeAccount_StaleStatus_IsRefusedWithoutAudit()
+    {
+        var result = await Service().ChangeAccountAsync(2, new("activate", "Đã xác minh", true, "Suspended"), default);
+
+        Assert.Equal("STATE_CONFLICT", result.Error?.Code);
+        Assert.Contains("đã thay đổi", result.Error!.Message);
+        Assert.Empty(_store.Audits);
+        Assert.Equal(0, _uow.Commits);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #34] A repeated confirmation is not applied twice")]
+    public async Task ChangeAccount_RepeatedConfirmation_AppliesOnce()
+    {
+        AccountActionRequest request = new("suspend", "Vi phạm", true, "Active");
+
+        Assert.True((await Service().ChangeAccountAsync(2, request, default)).IsSuccess);
+        var second = await Service().ChangeAccountAsync(2, request, default);
+
+        Assert.Equal("STATE_CONFLICT", second.Error?.Code);
+        Assert.Single(_store.Audits);
+        Assert.Single(_store.Notifications);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #35] Lock state is part of the displayed version")]
+    public async Task ChangeAccount_LockChangedSinceDisplay_IsRefused()
+    {
+        _store.Users[2].LockedUntil = T0.UtcDateTime.AddMinutes(15);
+
+        var result = await Service().ChangeAccountAsync(2, new("unlock", null, true, "Active", T0.AddMinutes(5)), default);
+
+        Assert.Equal("STATE_CONFLICT", result.Error?.Code);
+        Assert.NotNull(_store.Users[2].LockedUntil);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #36] Suspend uses the KYC-derived status: a Pending Farmer has no action")]
+    public async Task ChangeAccount_PendingFarmer_HasNoSuspend()
+    {
+        _store.Users[6] = new User
+        {
+            UserId = 6, Role = "Farmer", Status = "Active",
+            FarmerProfile = new FarmerProfile { VerificationStatus = "Pending" }
+        };
+
+        var result = await Service().ChangeAccountAsync(6, new("suspend", "Vi phạm", true, "Pending"), default);
+
+        Assert.Equal("ACTION_NOT_ALLOWED", result.Error?.Code);
+        Assert.Equal("Active", _store.Users[6].Status);
+        Assert.Empty(_store.Audits);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #37] Unlock works for an Active staff account (BR-UM-05)")]
+    public async Task ChangeAccount_UnlockStaff_IsAllowed()
+    {
+        _store.Users[3].LockedUntil = T0.UtcDateTime.AddMinutes(10);
+
+        var result = await Service().ChangeAccountAsync(3, new("unlock", null, true, "Active", T0.AddMinutes(10)), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Null(_store.Users[3].LockedUntil);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #38] Unlock is refused for a Suspended account")]
+    public async Task ChangeAccount_UnlockSuspended_IsRefused()
+    {
+        _store.Users[2].Status = "Suspended";
+        _store.Users[2].LockedUntil = T0.UtcDateTime.AddMinutes(10);
+
+        var result = await Service().ChangeAccountAsync(2, new("unlock", null, true, "Suspended", T0.AddMinutes(10)), default);
+
+        Assert.Equal("ACTION_NOT_ALLOWED", result.Error?.Code);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #39] Suspension email carries the reason and support contact (MSG-UM-08)")]
+    public async Task ChangeAccount_EmailSent_ReturnsMsgUm08()
+    {
+        var gateway = new RecordingGateway();
+        _store.Users[2].Email = "buyer@example.test";
+
+        var result = await Service(gateway: gateway).ChangeAccountAsync(2,
+            new("suspend", "Gian lận trong giao dịch", true, "Active"), default);
+
+        Assert.True(result.Value!.EmailSent);
+        Assert.Equal("Tài khoản #2 đã được tạm ngưng.", result.Value.Message);
+        var (to, body) = Assert.Single(gateway.Sent);
+        Assert.Equal("buyer@example.test", to);
+        Assert.Contains("Gian lận trong giao dịch", body);
+        Assert.Contains("support@example.test", body);
+        var email = Assert.Single(_store.Notifications);
+        Assert.Equal(("Email", "Sent"), (email.DeliveryChannel, email.DeliveryStatus));
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #40] Email failure keeps the change and returns MSG-UM-09")]
+    public async Task ChangeAccount_EmailFails_KeepsChange()
+    {
+        var gateway = new RecordingGateway { Fail = true };
+
+        var result = await Service(gateway: gateway).ChangeAccountAsync(2,
+            new("suspend", "Vi phạm", true, "Active"), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value!.EmailSent);
+        Assert.Contains("gửi lại", result.Value.Message);
+        Assert.Equal("Suspended", _store.Users[2].Status);
+        var email = Assert.Single(_store.Notifications);
+        Assert.Equal(("Failed", 1), (email.DeliveryStatus, email.RetryCount));
+        Assert.Equal(AdministrationService.AccountEmailType, email.NotificationType);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #41] Action impact for MSG-UM-07 is admin-only")]
+    public async Task GetAccountImpact_ReturnsCountsForAdministrator()
+    {
+        _store.Impact = new AccountImpactDto(2, 1, 350_000m);
+
+        var denied = await Service(actorId: 5).GetAccountImpactAsync(2, default);
+        var impact = await Service().GetAccountImpactAsync(2, default);
+
+        Assert.Equal("FORBIDDEN", denied.Error?.Code);
+        Assert.True(impact.Value!.HasOpenTransactions);
+        Assert.Equal(350_000m, impact.Value.HeldPayoutAmount);
     }
 
     // ---------- UC-ADM-05: CategoryValidator / search ----------
@@ -335,6 +467,23 @@ public sealed class AdministrationServiceTests
 
     private sealed record Actor(long UserId) : IActorContext;
 
+    private sealed class RecordingGateway : INotificationGateway
+    {
+        public bool Fail { get; init; }
+        public List<(string To, string Body)> Sent { get; } = [];
+
+        public Task SendEmailAsync(string recipient, string subject, string content, string eventKey,
+            CancellationToken cancellationToken)
+        {
+            if (Fail)
+            {
+                throw new InvalidOperationException("SMTP unavailable");
+            }
+            Sent.Add((recipient, content));
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class RecordingUnitOfWork : IUseCaseUnitOfWork
     {
         public int Begins { get; private set; }
@@ -389,6 +538,14 @@ public sealed class AdministrationServiceTests
 
         public Task<User?> FindActorAsync(long id, CancellationToken ct) =>
             Task.FromResult(Users.GetValueOrDefault(id));
+
+        public List<Notification> Notifications { get; } = [];
+        public AccountImpactDto Impact { get; set; } = new(0, 0, 0);
+
+        public Task<AccountImpactDto> GetAccountImpactAsync(long userId, CancellationToken ct) =>
+            Task.FromResult(Impact);
+
+        public void AddNotification(Notification notification) => Notifications.Add(notification);
 
         public Task<Page<UserDto>> SearchUsersAsync(UserSearch search, long actorId, DateTimeOffset now,
             CancellationToken ct)

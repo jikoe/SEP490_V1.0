@@ -50,6 +50,7 @@ const API = {
     const fetchConfig = {
       method: options.method || 'GET',
       headers,
+      signal: options.signal,
       body: (options.body && !(options.body instanceof FormData))
         ? JSON.stringify(options.body)
         : options.body
@@ -60,6 +61,7 @@ const API = {
       try {
         response = await fetch(url, fetchConfig);
       } catch (networkError) {
+        if (networkError.name === 'AbortError') throw networkError;
         // Fallback to secondary base URL if primary localhost port fails
         if (CONFIG.API_BASE_URL_FALLBACK && url.includes(CONFIG.API_BASE_URL)) {
           url = url.replace(CONFIG.API_BASE_URL, CONFIG.API_BASE_URL_FALLBACK);
@@ -69,8 +71,9 @@ const API = {
         }
       }
 
-      // Anonymous flows (e.g. password reset) use 401 for their own expired grant, not the sign-in session.
-      if (response.status === 401 && !options.skipAuthRedirect) {
+      // 401 means "session expired" only when a token was sent. A failed login (wrong
+      // password) also returns 401 and must show the server message instead.
+      if (response.status === 401 && token) {
         Auth.clearAuth();
         if (!options.suppressErrorToast) {
           const msg = (typeof window !== 'undefined' && window.Messages?.common?.sessionExpired)
@@ -80,12 +83,12 @@ const API = {
         setTimeout(() => {
           window.location.href = `${Utils.getRootPath()}Guest/login.html`;
         }, 1200);
-        return { success: false, status: 401, error: 'Unauthorized' };
+        return { success: false, status: 401, error: 'Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.' };
       }
 
       const contentType = response.headers.get('content-type') || '';
       let data = null;
-      if (contentType.includes('application/json')) {
+      if (/[/+]json/i.test(contentType)) {
         data = await response.json();
       } else {
         data = await response.text();
@@ -115,8 +118,10 @@ const API = {
         }
       }
 
-      return { success: true, status: response.status, data: payload, raw: data };
+      const spreadable = (typeof payload === 'object' && payload !== null && !Array.isArray(payload)) ? payload : {};
+      return { success: true, status: response.status, data: payload, raw: data, ...spreadable };
     } catch (err) {
+      if (err.name === 'AbortError') throw err;
       console.error('API Client Network Error:', err);
       if (!options.suppressErrorToast) {
         const msg = (typeof window !== 'undefined' && window.Messages?.common?.networkError)
@@ -125,6 +130,27 @@ const API = {
       }
       return { success: false, error: err.message };
     }
+  },
+
+  /* ---------------- CONVENIENCE HTTP METHODS ---------------- */
+  async get(endpoint, options = {}) {
+    return this.request(endpoint, { method: 'GET', ...options });
+  },
+
+  async post(endpoint, body = null, options = {}) {
+    return this.request(endpoint, { method: 'POST', body, ...options });
+  },
+
+  async put(endpoint, body = null, options = {}) {
+    return this.request(endpoint, { method: 'PUT', body, ...options });
+  },
+
+  async delete(endpoint, options = {}) {
+    return this.request(endpoint, { method: 'DELETE', ...options });
+  },
+
+  async patch(endpoint, body = null, options = {}) {
+    return this.request(endpoint, { method: 'PATCH', body, ...options });
   },
 
   /* ---------------- AUTHENTICATION MODULE ---------------- */
@@ -621,11 +647,7 @@ const API = {
   },
 
   async changePassword(data) {
-    const res = await this.request('/auth/change-password', { method: 'POST', body: data, suppressErrorToast: true });
-    if (!res.success) {
-      return this.request('/account/password', { method: 'POST', body: data });
-    }
-    return res;
+    return this.request('/auth/change-password', { method: 'POST', body: data, suppressErrorToast: true });
   },
 
   /* ---------------- PROFILE MODULE ---------------- */

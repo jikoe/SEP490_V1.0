@@ -7,6 +7,8 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Unit/TestIT2/Infrastructure/FarmerTestData.cs" Link="TestIT2/Infrastructure/FarmerTestData.cs" />
+    <Compile Include="../Unit/TestIT2/Infrastructure/NotificationGatewayProbe.cs" Link="TestIT2/Infrastructure/NotificationGatewayProbe.cs" />
     <Compile Include="../Unit/Commerce/CommerceFixture.cs" Link="Shared/CommerceFixture.cs" />
     <ProjectReference Include="../../AgriSustain/AgriSustain.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />

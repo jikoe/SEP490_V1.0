@@ -22,7 +22,8 @@ public sealed class VoucherManagementServiceTests
     private static SaveVoucherRequest Request(string code = " sale10 ", string type = Voucher.TypePercentage,
         decimal value = 10, decimal? max = 50_000, decimal min = 100_000, int? limit = 100,
         int startDays = 0, int endDays = 30, bool active = true) =>
-        new(code, type, value, max, min, limit, T0.AddDays(startDays), T0.AddDays(endDays), active);
+        new("Unit voucher", code, null, type, value, max, min, limit ?? 100, 1,
+            T0.AddDays(startDays), T0.AddDays(endDays));
 
     private Voucher Existing(int usedCount = 0, int redemptions = 0, int reserved = 0, bool active = true,
         int endDays = 30)
@@ -145,10 +146,10 @@ public sealed class VoucherManagementServiceTests
     {
         var voucher = Existing(active: false);
 
-        var activated = await Service().SetActiveAsync(4, true, default);
+        var activated = await Service().SetActiveAsync(4, true, null, default);
         voucher.EndDate = T0.UtcDateTime.AddDays(-1);
         voucher.IsActive = false;
-        var expired = await Service().SetActiveAsync(4, true, default);
+        var expired = await Service().SetActiveAsync(4, true, null, default);
 
         Assert.Equal(Voucher.StatusActive, activated.Value!.Voucher!.Status);
         Assert.Equal("VOUCHER_EXPIRED", expired.Error!.Code);
@@ -159,12 +160,12 @@ public sealed class VoucherManagementServiceTests
     public async Task Delete_UnusedRemoved_UsedArchived()
     {
         var unused = Existing();
-        var deleted = await Service().DeleteAsync(4, default);
+        var deleted = await Service().DeleteAsync(4, null, default);
         Assert.True(deleted.IsSuccess);
         Assert.DoesNotContain(unused, _store.Vouchers);
 
         var used = Existing(redemptions: 1);
-        var archived = await Service().DeleteAsync(4, default);
+        var archived = await Service().DeleteAsync(4, null, default);
 
         Assert.True(archived.IsSuccess);
         Assert.Contains(used, _store.Vouchers);
@@ -174,10 +175,10 @@ public sealed class VoucherManagementServiceTests
 
     [Theory(DisplayName = "UTC-PS01-11 Lifecycle status follows flag, dates and usage")]
     [InlineData(true, 0, 30, null, 0, Voucher.StatusActive)]
-    [InlineData(false, 0, 30, null, 0, Voucher.StatusInactive)]
+    [InlineData(false, 0, 30, null, 0, Voucher.StatusDeactivated)]
     [InlineData(true, 2, 30, null, 0, Voucher.StatusScheduled)]
     [InlineData(true, -30, -1, null, 0, Voucher.StatusExpired)]
-    [InlineData(true, 0, 30, 5, 5, Voucher.StatusDepleted)]
+    [InlineData(true, 0, 30, 5, 5, Voucher.StatusExhausted)]
     public void LifecycleStatus_Derived(bool active, int startDays, int endDays, int? limit, int used,
         string expected)
     {

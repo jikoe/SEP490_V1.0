@@ -104,6 +104,11 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
             product.WholesalePrice, product.ApprovalStatus, product.IsPublished, Images = images
         });
         string version = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint)));
+        var deliveryStates = context.Notifications.AsNoTracking()
+            .Where(n => n.NotificationType == "ProductListingReview" && n.RelatedRecordId == product.ProductId)
+            .Select(n => n.DeliveryStatus).ToList();
+        bool pending = deliveryStates.Any(state => state != "Sent");
+        bool failed = deliveryStates.Contains("Failed");
         return new ProductResponse(product.ProductId, product.ProductName, product.CategoryId,
             product.Category?.CategoryName ?? "", product.Unit,
             product.Description, product.BaseRetailPrice, product.WholesaleMinQuantity,
@@ -112,6 +117,9 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
                 .Sum(x => x.AvailableQuantity), product.HarvestBatches.Count,
             product.HarvestBatches.Count > 0 || product.OrderItems.Count > 0, version, images)
         {
+            NotificationPending = pending,
+            NotificationMessage = failed ? ProductListingMessages.MSG187 : pending
+                ? "Email thông báo đang được xử lý; không cần gửi duyệt lại." : null,
             Batches = product.HarvestBatches.OrderBy(x => x.BatchCode).Select(x =>
                 new ProductBatchSummary(x.BatchCode, x.Status, x.AvailableQuantity, x.ExpirationDate)).ToArray()
         };

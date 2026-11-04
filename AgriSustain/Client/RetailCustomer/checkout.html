@@ -6,6 +6,7 @@
   <title>Thanh toán - Sàn Nông Sản Việt</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/checkout.css">
 </head>
 <body>
   <div class="app-shell">
@@ -134,15 +135,16 @@
                 <fieldset class="co-card" id="card-payment">
                   <legend class="co-head"><span class="co-num">4</span>Thanh toán</legend>
 
-                  <div class="co-grid-2">
-                    <button type="button" class="co-choice" id="pay-PayOS" aria-pressed="true" onclick="selectPaymentMethod('PayOS')">
-                      <span class="co-choice-title">PayOS</span>
-                      <span class="co-choice-desc">Chuyển khoản qua cổng PayOS</span>
-                    </button>
-
-                    <button type="button" class="co-choice" id="pay-VietQR" aria-pressed="false" onclick="selectPaymentMethod('VietQR')">
-                      <span class="co-choice-title">VietQR</span>
-                      <span class="co-choice-desc">Quét mã bằng ứng dụng ngân hàng</span>
+                  <div class="co-grid-1" id="payment-options-grid">
+                    <button type="button" class="co-choice" id="pay-SePay" aria-pressed="true" onclick="selectPaymentMethod('SePay')">
+                      <span class="co-choice-row">
+                        <span class="co-choice-title">
+                          <span class="co-radio-dot" aria-hidden="true"></span>
+                          Chuyển khoản ngân hàng (SePay)
+                        </span>
+                        <span class="co-choice-badge">Tự động duyệt</span>
+                      </span>
+                      <span class="co-choice-desc">Quét mã QR bằng app ngân hàng hoặc ví điện tử, SePay tự xác nhận khi tiền về.</span>
                     </button>
                   </div>
 
@@ -252,7 +254,7 @@
           </div>
         </dialog>
 
-        <!-- SUCCESS VIEW: matching CheckoutScreen.jsx lines 325-343 -->
+        <!-- SUCCESS VIEW: matching CheckoutScreen.jsx lines 341-385 1:1 -->
         <section class="co-page" id="order-success-view" style="display: none;">
           <div class="co-wrap">
             <h1 style="color:#103e2d; margin:4px 0 0; font-size:26px;">Đặt hàng thành công</h1>
@@ -271,8 +273,28 @@
                 <dt style="color:#62796c;"><strong>Số tiền cần thanh toán</strong></dt><dd><strong id="succ-total" style="color: #1e6546; font-size: 18px;"></strong></dd>
               </dl>
               <div class="notice" id="succ-message" style="display: none; margin-bottom: 18px;"></div>
+
+              <!-- SePay Callout Box matching CheckoutScreen.jsx lines 355-372 -->
+              <div id="succ-qr-callout" style="background: #eaf5ee; border: 1px solid #c2e2cc; border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center;">
+                <p style="margin: 0 0 8px 0; font-weight: 600; color: #1e6546; font-size: 16px;">
+                  Đơn hàng đang chờ thanh toán qua <span id="succ-qr-method-name">SePay</span>
+                </p>
+                <p style="margin: 0 0 16px 0; color: #4a5568; font-size: 14px;">
+                  Vui lòng nhấn &quot;Thanh toán ngay&quot; để quét mã QR chuyển khoản ngân hàng.
+                </p>
+                <button
+                  type="button"
+                  class="primary"
+                  style="background: #1e6546; font-size: 16px; padding: 12px 28px; cursor: pointer; font-weight: 600; border-radius: 8px;"
+                  onclick="goToPaymentFromSuccess()"
+                >
+                  💳 Thanh toán ngay bằng mã QR
+                </button>
+              </div>
+
               <div class="co-actions">
-                <button type="button" class="primary" onclick="window.location.href='orders.html'" style="padding: 10px 22px; font-weight: 600; border-radius: 8px;">Theo dõi đơn hàng</button>
+                <button type="button" class="primary" id="btn-succ-pay-now" onclick="goToPaymentFromSuccess()" style="background: #1e6546; padding: 10px 22px; font-weight: 600; border-radius: 8px;">Thanh toán ngay</button>
+                <button type="button" onclick="window.location.href='orders.html'" style="padding: 10px 20px; border-radius: 8px; border: 1px solid #cddbd5; background: #fff; cursor: pointer;">Theo dõi đơn hàng</button>
                 <button type="button" onclick="window.location.href='cart.html'" style="padding: 10px 20px; border-radius: 8px; border: 1px solid #cddbd5; background: #fff; cursor: pointer;">Xem giỏ hàng còn lại</button>
               </div>
             </div>
@@ -282,7 +304,16 @@
     </div>
   </div>
 
-  <script src="../js/config.js"></script>
+  <script src="../js/config.js">
+    function goToPaymentFromSuccess() {
+      const o = state.order;
+      const q = state.quote;
+      const code = o?.code || o?.orderCode || '';
+      const total = o?.total || q?.total || 0;
+      const exp = o?.reservationExpiresAt || '';
+      window.location.href = `payment.html?orderCode=${encodeURIComponent(code)}&amount=${encodeURIComponent(total)}&method=SePay&orderId=${encodeURIComponent(code)}&expiresAt=${encodeURIComponent(exp)}`;
+    }
+  </script>
   <script src="../js/utils.js"></script>
   <script src="../messages/checkout.js"></script>
   <script src="../messages/common.js"></script>
@@ -304,7 +335,7 @@
     const initial = {
       address: { ...emptyAddress },
       deliveryMethod: 'Standard',
-      paymentMethod: 'PayOS',
+      paymentMethod: 'SePay',
       voucherCode: '',
       points: 0,
       notes: ''
@@ -324,8 +355,8 @@
       { value: 'FreshExpress', title: 'Giao nhanh nông sản', desc: 'Dịch vụ Nhanh / Hỏa tốc' },
     ];
     const payments = [
-      { value: 'PayOS', title: 'PayOS', desc: 'Chuyển khoản qua cổng PayOS' },
-      { value: 'VietQR', title: 'VietQR', desc: 'Quét mã bằng ứng dụng ngân hàng' },
+      { value: 'SePay', title: 'Chuyển khoản QR (SePay)', desc: 'Quét mã Napas 247 xác nhận tự động' },
+      { value: 'PayOS', title: 'Cổng PayOS', desc: 'Chuyển khoản qua cổng PayOS' },
     ];
 
     /** Compares place names without administrative prefixes matching Frontend */
@@ -1213,6 +1244,15 @@
           sessionStorage.removeItem(attemptStorage);
           sessionStorage.removeItem(quoteStorage);
           closeConfirmModal();
+          const result = res.data;
+          const transferMethods = ['SePay'];
+          if (result && (result.status === 'PendingPayment' || transferMethods.includes(result.paymentMethod) || state.form.paymentMethod === 'SePay')) {
+            const code = result.code || result.orderCode || '';
+            const total = result.total || state.quote?.total || 0;
+            const exp = result.reservationExpiresAt || '';
+            window.location.href = `payment.html?orderCode=${encodeURIComponent(code)}&amount=${encodeURIComponent(total)}&method=SePay&orderId=${encodeURIComponent(code)}&expiresAt=${encodeURIComponent(exp)}`;
+            return;
+          }
           renderSuccessView();
         } else {
           const unknown = !res.status;

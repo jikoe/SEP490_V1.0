@@ -86,7 +86,8 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
         string accountHolder, long userId, DateTime now, CancellationToken cancellationToken)
     {
         var refund = await db.RefundTransactions.FirstOrDefaultAsync(r => r.RefundTransactionId == refundId
-            && r.RefundStatus == RefundTransaction.StatusPending, cancellationToken);
+            && (r.RefundStatus == RefundTransaction.StatusPending || r.RefundStatus == "Failed"),
+            cancellationToken);
         if (refund is null) return false;
 
         bool changed = refund.ReceiverAccountNumber is not null;

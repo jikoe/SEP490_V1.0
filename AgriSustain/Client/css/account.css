@@ -59,3 +59,8 @@
 .otp-meta button { border: 0; background: none; color: #255c3e; font-size: 11px; cursor: pointer; padding: 0; }
 .otp-meta button:disabled { color: #9aa79e; cursor: default; }
 @media (max-width: 860px) { .acc-layout { grid-template-columns: 1fr; } .acc-grid, .acc-grid3 { grid-template-columns: 1fr; } }
+
+/* Field validation errors (business dossier and other account forms) */
+small.err { display: block; min-height: 14px; margin-top: 4px; font-size: 12px; color: #c0392b; }
+small.err:empty { min-height: 0; margin-top: 0; }
+.field input.has-error, .field select.has-error { border-color: #c0392b; }

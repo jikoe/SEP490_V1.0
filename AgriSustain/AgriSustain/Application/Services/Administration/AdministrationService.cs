@@ -11,8 +11,13 @@ public sealed class AdministrationService(
     IAdministrationRepository repository,
     IUseCaseUnitOfWork unitOfWork,
     IActorContext actorContext,
-    TimeProvider clock) : IAdministrationService
+    TimeProvider clock,
+    INotificationGateway? notificationGateway = null,
+    AccountNotificationSettings? notificationSettings = null) : IAdministrationService
 {
+    /// <summary>Queued account emails; the notification retry worker resends this type (JOB-09).</summary>
+    public const string AccountEmailType = "AccountStatusEmail";
+
     public async Task<bool> IsAdministratorAsync(CancellationToken cancellationToken)
     {
         var actor = await repository.FindActorAsync(actorContext.UserId, cancellationToken);
@@ -47,60 +52,174 @@ public sealed class AdministrationService(
         return user is null ? Missing<UserDto>() : UseCaseResult<UserDto>.Success(user);
     }
 
-    public async Task<UseCaseResult<UserDto>> ChangeAccountAsync(long id, AccountActionRequest request,
+    /// <summary>Step 6: what a Suspend would affect, for MSG-UM-07 in the confirmation.</summary>
+    public async Task<UseCaseResult<AccountImpactDto>> GetAccountImpactAsync(long id,
         CancellationToken cancellationToken)
+    {
+        if (!await IsAdministratorAsync(cancellationToken))
+        {
+            return Denied<AccountImpactDto>();
+        }
+        if (await repository.FindActorAsync(id, cancellationToken) is null)
+        {
+            return Missing<AccountImpactDto>();
+        }
+        return UseCaseResult<AccountImpactDto>.Success(
+            await repository.GetAccountImpactAsync(id, cancellationToken));
+    }
+
+    public async Task<UseCaseResult<AccountActionResultDto>> ChangeAccountAsync(long id,
+        AccountActionRequest request, CancellationToken cancellationToken)
     {
         var validation = await new AccountActionValidator()
             .ValidateAsync(request, cancellationToken);
         if (!validation.IsValid)
         {
-            return UseCaseResult<UserDto>.Validation(validation.Errors.GroupBy(x => x.PropertyName)
+            return UseCaseResult<AccountActionResultDto>.Validation(validation.Errors
+                .GroupBy(x => x.PropertyName)
                 .ToDictionary(x => x.Key, x => x.Select(error => error.ErrorMessage).ToArray()));
         }
-        await using var transaction = await unitOfWork.BeginAsync(cancellationToken);
-        if (!await IsAdministratorAsync(cancellationToken))
+        var now = clock.GetUtcNow();
+        Notification? email;
+        await using (var transaction = await unitOfWork.BeginAsync(cancellationToken))
         {
-            return Denied<UserDto>();
+            if (!await IsAdministratorAsync(cancellationToken))
+            {
+                return Denied<AccountActionResultDto>();
+            }
+            var actor = await repository.FindActorAsync(actorContext.UserId, cancellationToken);
+            var user = await repository.FindUserAsync(id, cancellationToken);
+            if (user is null)
+            {
+                return Missing<AccountActionResultDto>();
+            }
+            if (!user.CanBeManagedBy(actor!))
+            {
+                // MSG-UM-03
+                return UseCaseResult<AccountActionResultDto>.Failure("SELF_ACTION",
+                    "Bạn không thể tạm ngưng, kích hoạt lại hoặc mở khóa tài khoản của chính mình.",
+                    "Forbidden");
+            }
+            if (!MatchesDisplayedVersion(user, request))
+            {
+                // BR-UM-12 / MSG-UM-06: changed by someone else, or this confirmation already applied.
+                return UseCaseResult<AccountActionResultDto>.Failure("STATE_CONFLICT",
+                    "Tài khoản này đã thay đổi hoặc thao tác đã được xử lý. Hãy tải lại trạng thái "
+                        + "hiện tại trước khi xác nhận lại.", "Conflict");
+            }
+            if (!user.AllowsAccountAction(request.Action, now))
+            {
+                // MSG-UM-04
+                return UseCaseResult<AccountActionResultDto>.Failure(
+                    user.CanBeSuspended ? "ACTION_NOT_ALLOWED" : "ROLE_NOT_SUSPENDABLE",
+                    "Thao tác này không áp dụng cho vai trò hoặc trạng thái hiện tại của tài khoản. "
+                        + "Hãy tải lại và chọn thao tác phù hợp.", "Conflict");
+            }
+            string? reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+            var before = AccountSnapshot(user);
+            switch (request.Action)
+            {
+                case "suspend": user.Suspend(reason!); break;
+                case "activate": user.Activate(reason!); break;
+                case "unlock": user.Unlock(); break;
+            }
+            Audit("User", id, request.Action, before, AccountSnapshot(user), reason);
+            // BR-UM-10: the email is enqueued in the same transaction as the change and its audit.
+            email = AccountEmail(user, request.Action, reason, now.UtcDateTime);
+            repository.AddNotification(email);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
-        var actor = await repository.FindActorAsync(actorContext.UserId, cancellationToken);
-        var user = await repository.FindUserAsync(id, cancellationToken);
-        if (user is null)
+
+        bool sent = await TrySendAsync(email, cancellationToken);
+        var account = await repository.GetUserAsync(id, actorContext.UserId, clock.GetUtcNow(),
+            cancellationToken);
+        string done = request.Action switch
         {
-            return Missing<UserDto>();
-        }
-        if (!user.CanBeManagedBy(actor!))
-        {
-            return UseCaseResult<UserDto>.Failure("SELF_ACTION", "Không thể thao tác tài khoản của mình.",
-                "Forbidden");
-        }
-        if (request.Action == "suspend" && !user.CanBeSuspended)
-        {
-            return UseCaseResult<UserDto>.Failure("ROLE_NOT_SUSPENDABLE",
-                "Chỉ tạm ngưng tài khoản Nông dân, Người mua B2B hoặc Người mua lẻ.", "Conflict");
-        }
-        var eligible = request.Action switch
-        {
-            "suspend" => user.Status == "Active",
-            "activate" => user.Status == "Suspended",
-            "unlock" => user.IsTemporarilyLocked(clock.GetUtcNow()),
-            _ => false
+            "suspend" => "tạm ngưng", "activate" => "kích hoạt lại", _ => "mở khóa"
         };
-        if (!eligible)
+        string message = sent
+            ? $"Tài khoản #{id} đã được {done}." // MSG-UM-08
+            : $"Tài khoản #{id} đã được cập nhật. Chưa gửi được email thông báo; hệ thống sẽ gửi lại "
+                + "theo lịch gửi lại thông báo."; // MSG-UM-09
+        return UseCaseResult<AccountActionResultDto>.Success(new AccountActionResultDto(account!, message, sent));
+    }
+
+    /// <summary>BR-UM-12: status and lock state must still be the ones shown at Step 4.</summary>
+    private static bool MatchesDisplayedVersion(User user, AccountActionRequest request)
+    {
+        static long? Seconds(DateTime? value) =>
+            value is null ? null : new DateTimeOffset(DateTime.SpecifyKind(value.Value, DateTimeKind.Utc))
+                .ToUnixTimeSeconds();
+        return user.AccountStatus == request.ExpectedStatus
+            && Seconds(user.LockedUntil) == request.ExpectedLockedUntil?.ToUnixTimeSeconds();
+    }
+
+    /// <summary>BR-UM-11: the account holder's email; a suspension includes the reason and support contact.</summary>
+    private Notification AccountEmail(User user, string action, string? reason, DateTime now)
+    {
+        string support = string.IsNullOrWhiteSpace(notificationSettings?.SupportEmail)
+            ? "bộ phận hỗ trợ AgriSustain" : notificationSettings.SupportEmail;
+        var (title, body) = action switch
         {
-            return UseCaseResult<UserDto>.Failure("STATE_CONFLICT", "Trạng thái tài khoản đã thay đổi.",
-                "Conflict");
-        }
-        var before = AccountSnapshot(user);
-        switch (request.Action)
+            "suspend" => ("Tài khoản AgriSustain của bạn đã bị tạm ngưng",
+                $"Tài khoản {user.Email} đã bị tạm ngưng và không thể đăng nhập hoặc sử dụng các chức năng "
+                    + $"của nền tảng.\nLý do: {reason}\nNếu cần hỗ trợ, vui lòng liên hệ {support}."),
+            "activate" => ("Tài khoản AgriSustain của bạn đã được kích hoạt lại",
+                $"Tài khoản {user.Email} đã được kích hoạt lại.\nLý do: {reason}\n"
+                    + "Bạn có thể đăng nhập và tiếp tục sử dụng nền tảng."),
+            _ => ("Tài khoản AgriSustain của bạn đã được mở khóa",
+                $"Khóa đăng nhập tạm thời của tài khoản {user.Email} đã được gỡ. Bạn có thể đăng nhập lại."
+                    + (reason is null ? "" : $"\nGhi chú: {reason}"))
+        };
+        return new Notification
         {
-            case "suspend": user.Suspend(request.Reason!); break;
-            case "activate": user.Activate(request.Reason!); break;
-            case "unlock": user.Unlock(); break;
+            UserId = user.UserId,
+            Title = title,
+            Content = body,
+            NotificationType = AccountEmailType,
+            IsRead = false,
+            SentAt = now,
+            DeliveryChannel = "Email",
+            // Claimed by this request, which sends it right after commit; the worker only takes
+            // over a Sending row left for more than 5 minutes, so it is never sent twice.
+            DeliveryStatus = "Sending",
+            RelatedRecordType = "User",
+            RelatedRecordId = user.UserId,
+            PayloadJson = $"account:{user.UserId}:{action}:{now.Ticks}"
+        };
+    }
+
+    /// <summary>
+    /// Sends the queued email once right away. A failure keeps the change and leaves the email
+    /// Failed for the notification retry worker (JOB-09).
+    /// </summary>
+    private async Task<bool> TrySendAsync(Notification email, CancellationToken cancellationToken)
+    {
+        if (notificationGateway is null)
+        {
+            // No sender in this host: hand the email to the worker instead of leaving it claimed.
+            email.DeliveryStatus = "Pending";
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return false;
         }
-        Audit("User", id, request.Action, before, AccountSnapshot(user), request.Reason);
+        bool sent;
+        try
+        {
+            var recipient = await repository.FindActorAsync(email.UserId, cancellationToken);
+            await notificationGateway.SendEmailAsync(recipient!.Email, email.Title, email.Content,
+                email.PayloadJson!, cancellationToken);
+            sent = true;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            sent = false;
+        }
+        email.DeliveryStatus = sent ? "Sent" : "Failed";
+        email.RetryCount = sent ? 0 : 1;
+        email.SentAt = clock.GetUtcNow().UtcDateTime;
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return await GetUserAsync(id, cancellationToken);
+        return sent;
     }
 
     public async Task<UseCaseResult<Page<CategoryDto>>> SearchCategoriesAsync(CategorySearch search,

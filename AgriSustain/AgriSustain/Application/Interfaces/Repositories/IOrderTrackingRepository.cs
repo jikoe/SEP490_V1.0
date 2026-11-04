@@ -1,3 +1,4 @@
+using AgriSustain.Domain.Entities;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Orders;
 
@@ -11,4 +12,7 @@ public interface IOrderTrackingRepository
 
     /// <summary>Marks the buyer's notifications about this order as read (UC-RC-04 postcondition).</summary>
     Task MarkOrderNotificationsReadAsync(long buyerId, long orderId, CancellationToken cancellationToken);
+
+    /// <summary>Loads the buyer's own order (tracked) with seller orders and their complaints, for Confirm Received.</summary>
+    Task<Order?> GetOrderForReceiptAsync(long buyerId, long orderId, CancellationToken cancellationToken);
 }

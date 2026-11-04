@@ -9,10 +9,35 @@ namespace AgriSustain.Infrastructure.Repositories;
 
 public sealed class AdministrationRepository(AgriSustainContext context) : IAdministrationRepository
 {
+    private static readonly string[] s_closedOrderStatuses =
+        ["Completed", "Cancelled", "Refunded", "PartiallyRefunded", "Rejected", "Expired", "Closed"];
+    private static readonly string[] s_activeContractStatuses = ["Active", "Signed", "InProgress", "Fulfilling"];
+    private static readonly string[] s_settledPayoutStatuses = ["Paid", "Cancelled", "Failed", "Rejected"];
+
+    /// <summary>Loads the KYC profiles so <see cref="User.AccountStatus"/> matches the list.</summary>
     public Task<User?> FindUserAsync(long id, CancellationToken cancellationToken)
     {
-        return context.Users.SingleOrDefaultAsync(x => x.UserId == id, cancellationToken);
+        return context.Users.Include(x => x.FarmerProfile).Include(x => x.WholesaleBuyerProfile)
+            .SingleOrDefaultAsync(x => x.UserId == id, cancellationToken);
     }
+
+    public async Task<AccountImpactDto> GetAccountImpactAsync(long userId,
+        CancellationToken cancellationToken)
+    {
+        int buyerOrders = await context.Orders.CountAsync(x => x.BuyerUserId == userId
+            && !s_closedOrderStatuses.Contains(x.OrderStatus), cancellationToken);
+        int sellerOrders = await context.SellerOrders.CountAsync(x => x.FarmerProfile.UserId == userId
+            && !s_closedOrderStatuses.Contains(x.Status), cancellationToken);
+        int contracts = await context.B2bcontracts.CountAsync(x => s_activeContractStatuses.Contains(x.Status)
+            && (x.FarmerProfile.UserId == userId || x.WholesaleBuyerProfile.UserId == userId),
+            cancellationToken);
+        decimal held = await context.FarmerPayouts.Where(x => x.FarmerProfile.UserId == userId
+                && !s_settledPayoutStatuses.Contains(x.PayoutStatus))
+            .SumAsync(x => (decimal?)x.NetAmount, cancellationToken) ?? 0;
+        return new AccountImpactDto(buyerOrders + sellerOrders, contracts, held);
+    }
+
+    public void AddNotification(Notification notification) => context.Notifications.Add(notification);
 
     public Task<User?> FindActorAsync(long id, CancellationToken cancellationToken)
     {

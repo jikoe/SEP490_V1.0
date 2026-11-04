@@ -10,11 +10,11 @@ namespace AgriSustain.Api.Controllers;
 [Route("api/moderation/reviews")]
 public sealed class ReviewModerationController(IReviewModerationService service) : ControllerBase
 {
-    /// <summary>tab = Unreviewed | Flagged | Visible | Hidden; search by product name or comment.</summary>
+    /// <summary>tab = Flagged (queue, default) | Hidden.</summary>
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] string? tab, [FromQuery] string? search,
+    public async Task<IActionResult> List([FromQuery] string? tab,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default) =>
-        ApiResults.From(await service.ListAsync(new ReviewQuery(tab, search, page, pageSize), cancellationToken),
+        ApiResults.From(await service.ListAsync(new ReviewQuery(tab, page, pageSize), cancellationToken),
             HttpContext);
 
     [HttpGet("{reviewId:long}")]

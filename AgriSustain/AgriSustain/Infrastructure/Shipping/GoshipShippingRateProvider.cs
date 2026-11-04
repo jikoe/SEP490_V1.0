@@ -41,7 +41,7 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
             return null;
         }
 
-        // Checkout is prepaid (PayOS/VietQR), so no COD amount is collected by the carrier.
+        // Checkout is prepaid (PayOS/SePay), so no COD amount is collected by the carrier.
         var rates = await client.GetRatesAsync(new GoshipRateRequest(new GoshipShipment(
             new GoshipAddress(pickup.City, pickup.District),
             new GoshipAddress(request.Recipient.ProvinceCode, request.Recipient.DistrictCode),

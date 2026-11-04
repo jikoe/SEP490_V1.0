@@ -116,6 +116,11 @@
       return `feedback.html?orderId=${encodeURIComponent(orderId)}&mode=${mode}`;
     }
 
+    function goToPayment(orderCode, amount) {
+      const cleanCode = (orderCode || '').replace(/^#/, '');
+      window.location.href = `payment.html?orderCode=${encodeURIComponent(cleanCode)}&amount=${encodeURIComponent(amount || 0)}&method=SePay`;
+    }
+
     // Every filter change is a new server query (UC-RC-04 AF Step 3).
     async function loadOrders() {
       const container = document.getElementById('orders-list-container');
@@ -180,6 +185,7 @@
                   <strong style="font-size:17px; color:#1e6546;">${Utils.formatVND(o.finalAmount)}</strong>
                 </div>
                 <button type="button" onclick="openDetail(${Number(o.orderId)})">Xem chi tiết</button>
+                ${(o.orderStatus === 'PendingPayment' || (o.paymentStatus && o.paymentStatus !== 'Paid' && o.orderStatus !== 'Cancelled')) ? `<button type="button" class="primary" onclick="goToPayment('${esc(o.orderCode)}', ${Number(o.finalAmount || 0)})" style="background:#1e6546; color:#fff;">💳 Thanh toán</button>` : ''}
                 ${canReview ? `<button type="button" class="primary" onclick="window.location.href='${feedbackUrl(o.orderId, 'review')}'">⭐ Đánh giá</button>` : ''}
               </div>
             </div>
@@ -299,17 +305,31 @@
         </section>
         ${timeline}
         ${actions.includes('SubmitComplaint') ? '' : `<p class="muted" role="note" style="font-size:12px; margin:0 0 12px;">
-          ℹ️ Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao, trong vòng 48 giờ kể từ khi giao.</p>`}
+          ℹ️ Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao hoặc Hoàn thành, trong vòng 48 giờ kể từ lúc giao hàng.</p>`}
         <div class="modal-actions" style="justify-content:space-between; flex-wrap:wrap;">
           <div style="display:flex; gap:8px;">
-            ${actions.includes('PayNow') ? `<button type="button" class="primary" onclick="notice('Thanh toán cho đơn hàng này chưa được tích hợp.'); closeDetail();">Thanh toán ngay</button>` : ''}
+            ${actions.includes('PayNow') ? `<button type="button" class="primary" onclick="goToPayment('${esc(d.orderCode)}', ${Number(d.finalAmount || d.totalAmount || 0)})">Thanh toán ngay</button>` : ''}
             ${actions.includes('Review') || actions.includes('EditReview')
               ? `<button type="button" onclick="window.location.href='${feedbackUrl(d.orderId, 'review')}'">⭐ ${reviewLabel}</button>` : ''}
+            ${actions.includes('ConfirmReceived')
+              ? `<button type="button" class="primary" onclick="confirmReceived(${Number(d.orderId)}, '${esc(d.orderCode)}')">✓ Đã nhận được hàng</button>` : ''}
             ${actions.includes('SubmitComplaint')
               ? `<button type="button" style="color:#b23b3b;" onclick="window.location.href='${feedbackUrl(d.orderId, 'complaint')}'">Gửi khiếu nại</button>` : ''}
           </div>
           <button type="button" class="primary" onclick="closeDetail()">← Quay lại danh sách</button>
         </div>`;
+    }
+
+    async function confirmReceived(orderId, orderCode) {
+      if (!confirm(`Xác nhận bạn đã nhận đủ hàng của đơn #${orderCode}?\nSau khi xác nhận, đơn sẽ hoàn thành và không thể gửi khiếu nại nữa.`)) return;
+      const res = await API.request(`/orders/${orderId}/confirm-received`, { method: 'POST' });
+      if (!res.success) {
+        notice(res.error || 'Không xác nhận được. Vui lòng thử lại.', true);
+        return;
+      }
+      closeDetail();
+      await loadOrders();
+      notice('Đã xác nhận nhận hàng. Đơn đã hoàn thành, bạn có thể đánh giá sản phẩm.');
     }
 
     function openBatch(key) {

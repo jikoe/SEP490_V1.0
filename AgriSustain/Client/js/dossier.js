@@ -6,7 +6,14 @@
 
 const Dossier = {
   async open(url) {
-    const path = String(url || '').replace(/^\/api/, '');
+    const raw = String(url || '');
+    // Only files uploaded through the app live behind /api/dossiers. Demo seed data may hold an
+    // external link (e.g. a placeholder CDN address) that the API cannot serve.
+    if (!raw.startsWith('/api/dossiers/')) {
+      Utils.showToast('Tài liệu này là dữ liệu mẫu, không có tệp thật trên máy chủ. Hãy nộp lại giấy phép để xem.', 'warning');
+      return;
+    }
+    const path = raw.replace(/^\/api/, '');
     const token = Auth.getAccessToken();
     const response = await fetch(`${CONFIG.API_BASE_URL}${path}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}

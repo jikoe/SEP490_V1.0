@@ -28,6 +28,16 @@ public sealed class RefundProcessingService(
     public const string EmailNotificationType = "RefundEmail";
     private const int MaximumPageSize = 100;
 
+    public RefundProcessingService(
+        IRefundRepository repository,
+        IActorContext actor,
+        IValidator<CompleteRefundRequest> completeValidator,
+        IValidator<RefundTransferFailedRequest> failureValidator,
+        TimeProvider timeProvider)
+        : this(repository, actor, completeValidator, failureValidator, new AgriSustain.Application.Validators.Refunds.RefundReconciliationRequestValidator(), timeProvider)
+    {
+    }
+
     private static readonly Error s_notFound = new(
         "REFUND_NOT_FOUND", "Không tìm thấy yêu cầu hoàn tiền.", "NotFound");
 

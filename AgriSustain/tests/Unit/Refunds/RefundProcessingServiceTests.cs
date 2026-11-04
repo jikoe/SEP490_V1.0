@@ -20,7 +20,7 @@ public sealed class RefundProcessingServiceTests
 
     private RefundProcessingService Service() => new(
         _store, new Actor(), new CompleteRefundRequestValidator(),
-        new RefundTransferFailedRequestValidator(), new FakeClock(T0));
+        new RefundTransferFailedRequestValidator(), new RefundReconciliationRequestValidator(), new FakeClock(T0));
 
     private static RefundTransaction Refund(decimal amount = 200_000m, decimal paid = 200_000m,
         string otherSellerStatus = "")

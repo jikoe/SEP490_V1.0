@@ -10,6 +10,11 @@ public interface IAdministrationRepository
 
     Task<User?> FindActorAsync(long id, CancellationToken cancellationToken);
 
+    /// <summary>Open orders, active contracts and unsettled payouts of the account (MSG-UM-07).</summary>
+    Task<AccountImpactDto> GetAccountImpactAsync(long userId, CancellationToken cancellationToken);
+
+    void AddNotification(Notification notification);
+
     Task<Page<UserDto>> SearchUsersAsync(UserSearch search, long actorId, DateTimeOffset now,
         CancellationToken cancellationToken);
 

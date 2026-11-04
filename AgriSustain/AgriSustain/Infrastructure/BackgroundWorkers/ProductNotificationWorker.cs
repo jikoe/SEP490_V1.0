@@ -1,3 +1,4 @@
+using AgriSustain.Application.Services;
 using System.Text.Json;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Infrastructure.Data;
@@ -28,7 +29,16 @@ public sealed class ProductNotificationWorker(IServiceScopeFactory scopes,
         var gateway = scope.ServiceProvider.GetRequiredService<INotificationGateway>();
         var settings = scope.ServiceProvider.GetRequiredService<IOptions<EmailSettings>>().Value;
         var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
+        var notices = scope.ServiceProvider.GetRequiredService<ProductNotificationService>();
         var now = clock.GetUtcNow().UtcDateTime;
+        var retryKeys = await db.Notifications.AsNoTracking().Where(n =>
+            n.NotificationType == "ProductListingReview" && n.DeliveryStatus == "Failed"
+            && n.SentAt <= now.AddMinutes(-1)).Select(n => n.PayloadJson).ToListAsync(cancellationToken);
+        foreach (var payload in retryKeys.Where(p => p != null).Distinct())
+        {
+            using var json = JsonDocument.Parse(payload!);
+            await notices.RetryFailedChannelsAsync(json.RootElement.GetProperty("EventKey").GetString()!, cancellationToken);
+        }
         var ids = await db.Notifications.AsNoTracking().Where(n =>
             n.NotificationType == "ProductListingReview" && n.DeliveryChannel == "Email"
             && ((n.DeliveryStatus == "Pending" || n.DeliveryStatus == "Failed" && n.SentAt <= now.AddMinutes(-1))
@@ -55,15 +65,12 @@ public sealed class ProductNotificationWorker(IServiceScopeFactory scopes,
                 await gateway.SendEmailAsync(notification.User.Email, notification.Title,
                     notification.Content + "\n\nXem chi tiết: " + link,
                     eventKey + ":" + notification.UserId, cancellationToken);
-                notification.DeliveryStatus = "Sent";
-                notification.SentAt = clock.GetUtcNow().UtcDateTime;
+                notices.RecordDeliveryResult(notification, true, clock.GetUtcNow().UtcDateTime);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                notification.DeliveryStatus = "Failed";
-                notification.RetryCount++;
-                notification.SentAt = clock.GetUtcNow().UtcDateTime;
+                notices.RecordDeliveryResult(notification, false, clock.GetUtcNow().UtcDateTime);
                 logger.LogWarning("Product email {Id} pending retry ({Type}).", id, ex.GetType().Name);
             }
             await db.SaveChangesAsync(cancellationToken);

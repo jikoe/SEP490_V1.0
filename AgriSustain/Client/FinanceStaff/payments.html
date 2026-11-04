@@ -3,288 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Đối soát thanh toán - Quản lý tài chính AgriSustain</title>
+  <title>Đối soát thanh toán - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/finance.css">
 </head>
-<body>
-  <div class="app-shell">
+<body data-finance-page="payments">
+  <div class="app-shell finance-shell">
     <aside id="app-sidebar" class="sidebar"></aside>
-
     <div class="workspace">
       <header id="app-header"></header>
-
-      <main>
-        <section class="finance-page" style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
-          <!-- Header matching FinanceUi.jsx -->
-          <div class="section-heading" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
-            <div>
-              <p class="eyebrow" style="color:#2e7d32; font-size:11px; text-transform:uppercase; font-weight:700;">QUẢN TRỊ TÀI CHÍNH · UC-FIN-01</p>
-              <h1 style="color:#0f3825; margin:4px 0;">Đối soát thanh toán</h1>
-              <p class="muted">Kiểm tra thanh toán đơn hàng và gói thành viên với PayOS / VietQR.</p>
-            </div>
-            <button type="button" class="btn" onclick="loadPayments()">Làm mới dữ liệu</button>
-          </div>
-
-          <div id="payments-notice" class="notice" style="display:none; margin-bottom:16px;"></div>
-
-          <!-- Filters Form matching PaymentReconciliationScreen.jsx -->
-          <form class="fin-panel fin-filters" onsubmit="handleFilter(event)" style="background:#fff; border:1px solid #dbe5de; border-radius:12px; padding:18px 24px; margin-bottom:24px; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; align-items:end;">
-            <label class="field" style="grid-column: 1 / -1; margin:0;">
-              <span>Tìm kiếm</span>
-              <input type="text" id="filter-search" maxlength="150" placeholder="Mã giao dịch, tham chiếu hoặc nghĩa vụ...">
-            </label>
-
-            <label class="field" style="margin:0;">
-              <span>Loại thanh toán</span>
-              <select id="filter-category">
-                <option value="">Tất cả</option>
-                <option value="Order">Đơn hàng</option>
-                <option value="Subscription">Gói thành viên</option>
-              </select>
-            </label>
-
-            <label class="field" style="margin:0;">
-              <span>Cổng thanh toán</span>
-              <select id="filter-provider">
-                <option value="">Tất cả</option>
-                <option value="PayOS">PayOS</option>
-                <option value="VietQR">VietQR</option>
-                <option value="VNPay">VNPay</option>
-                <option value="MoMo">MoMo</option>
-              </select>
-            </label>
-
-            <label class="field" style="margin:0;">
-              <span>Trạng thái</span>
-              <select id="filter-status">
-                <option value="">Tất cả</option>
-                <option value="Pending">Chờ xác minh</option>
-                <option value="Succeeded">Thành công</option>
-                <option value="Failed">Thất bại</option>
-                <option value="Expired">Hết hạn</option>
-              </select>
-            </label>
-
-            <label class="field" style="margin:0;">
-              <span>Từ ngày tạo</span>
-              <input type="date" id="filter-from">
-            </label>
-
-            <label class="field" style="margin:0;">
-              <span>Đến ngày tạo</span>
-              <input type="date" id="filter-to">
-            </label>
-
-            <div style="display:flex; gap:10px; margin-bottom:4px;">
-              <button class="primary" type="submit">Tìm kiếm</button>
-              <button type="button" onclick="clearFilters()">Xóa bộ lọc</button>
-            </div>
-          </form>
-
-          <!-- Table of Transactions matching PaymentTable in FinanceUi.jsx -->
-          <section class="panel" style="background:#fff; border:1px solid #dbe5de; border-radius:12px; overflow:hidden;">
-            <div style="padding:16px 20px; border-bottom:1px solid #e2ece5; display:flex; justify-content:space-between; align-items:center;">
-              <h2 style="font-size:16px; margin:0; color:#123a26;">Danh sách giao dịch · <span id="tx-total-count">0</span> kết quả</h2>
-              <span style="font-size:12px; color:#687b70;">Đơn vị: VND</span>
-            </div>
-
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Mã giao dịch</th>
-                    <th>Cổng &amp; Tham chiếu</th>
-                    <th>Loại &amp; Nghĩa vụ</th>
-                    <th>Số tiền</th>
-                    <th>Trạng thái</th>
-                    <th>Thời gian</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody id="tx-tbody">
-                  <tr>
-                    <td colspan="7" style="text-align:center; padding:24px; color:#687b70;">Đang tải danh sách giao dịch đối soát…</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div style="padding:14px 20px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2ece5; font-size:13px; color:#556b5f;">
-              <span>Hiển thị 10 bản ghi/trang</span>
-              <div id="tx-pager" style="display:flex; gap:6px;"></div>
-            </div>
-          </section>
-
-          <p class="muted" style="margin-top:16px; font-size:12px; line-height:1.5;">
-            Chọn một giao dịch để xem nghĩa vụ liên kết, bằng chứng từ cổng và lịch sử đối soát. Chỉ ghi nhận thành công khi tham chiếu, số tiền và kết quả được xác minh khớp chuẩn.
-          </p>
-        </section>
-      </main>
-
-      <footer>
-        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Finance Staff
-      </footer>
+      <main><section class="finance-page">
+        <div id="finance-heading"></div>
+        <div id="finance-filters"></div>
+        <div id="finance-notice" class="notice error" role="alert" hidden></div>
+        <div id="finance-content" aria-live="polite"><p role="status">Đang tải dữ liệu tài chính…</p></div>
+        <div id="finance-source"></div>
+      </section></main>
     </div>
   </div>
-
-  <!-- Transaction Detail Modal -->
-  <dialog id="tx-detail-dialog" style="border:none; border-radius:12px; padding:24px; max-width:600px; width:90%; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3 style="margin:0; color:#103e27;">Chi tiết đối soát giao dịch</h3>
-      <button type="button" onclick="document.getElementById('tx-detail-dialog').close()" style="background:none; border:none; font-size:20px; cursor:pointer;">&times;</button>
-    </div>
-    <div id="tx-modal-body"></div>
-  </dialog>
-
+  <dialog id="finance-dialog" aria-labelledby="finance-dialog-title"><div class="modal-heading"><h2 id="finance-dialog-title"></h2><button type="button" id="finance-close-dialog" aria-label="Đóng">×</button></div><div id="finance-dialog-content"></div></dialog>
   <script src="../js/config.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
-
-  <script>
-    let transactionsList = [];
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      await loadPayments();
-    });
-
-    async function loadPayments() {
-      const search = document.getElementById('filter-search').value.trim();
-      const category = document.getElementById('filter-category').value;
-      const provider = document.getElementById('filter-provider').value;
-      const status = document.getElementById('filter-status').value;
-      const from = document.getElementById('filter-from').value;
-      const to = document.getElementById('filter-to').value;
-
-      const tbody = document.getElementById('tx-tbody');
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:#687b70;">Đang tải danh sách giao dịch đối soát…</td></tr>';
-
-      try {
-        const query = new URLSearchParams({
-          search: search || '',
-          category: category || '',
-          provider: provider || '',
-          status: status || '',
-          from: from || '',
-          to: to || '',
-          page: 1,
-          pageSize: 10
-        }).toString();
-
-        const res = await API.request(`/finance/payments?${query}`);
-        if (res.success && res.data) {
-          const items = res.data.items || (Array.isArray(res.data) ? res.data : []);
-          transactionsList = items;
-          renderTransactions(items, res.data.total || items.length);
-        } else {
-          transactionsList = [];
-          renderTransactions([], 0);
-          if (res.error) showNotice(res.error, true);
-        }
-      } catch (err) {
-        transactionsList = [];
-        renderTransactions([], 0);
-        showNotice('Không thể kết nối đến máy chủ backend để tải đối soát giao dịch.', true);
-      }
-    }
-
-    function renderTransactions(items, total) {
-      document.getElementById('tx-total-count').textContent = total;
-      const tbody = document.getElementById('tx-tbody');
-
-      if (!items || items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:32px; color:#718276;">Không tìm thấy giao dịch phù hợp với bộ lọc.</td></tr>';
-        return;
-      }
-
-      const statusMap = {
-        Succeeded: '<span class="status-badge" style="background:#dcfce7;color:#166534;">Thành công</span>',
-        Pending: '<span class="status-badge" style="background:#fef3c7;color:#92400e;">Chờ xác minh</span>',
-        Failed: '<span class="status-badge" style="background:#fee2e2;color:#991b1b;">Thất bại</span>',
-        Expired: '<span class="status-badge" style="background:#f1f5f9;color:#475569;">Hết hạn</span>'
-      };
-
-      tbody.innerHTML = items.map(tx => `
-        <tr>
-          <td><strong>${Utils.escapeHtml(tx.paymentCode)}</strong></td>
-          <td>
-            <strong>${Utils.escapeHtml(tx.provider)}</strong>
-            <small style="display:block; color:#687b70;">${Utils.escapeHtml(tx.referenceCode || '---')}</small>
-          </td>
-          <td>
-            <span>${tx.obligationType === 'Order' ? 'Đơn hàng' : 'Gói thành viên'}</span>
-          </td>
-          <td><strong style="color:#147346;">${Utils.formatVND(tx.amount)}</strong></td>
-          <td>${statusMap[tx.status] || tx.status}</td>
-          <td><small>${Utils.formatDateTime(tx.createdAt)}</small></td>
-          <td>
-            <button type="button" class="btn" onclick="openTxDetail(${tx.id})">Chi tiết</button>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    function openTxDetail(id) {
-      const tx = transactionsList.find(x => x.id === id);
-      if (!tx) return;
-
-      const body = document.getElementById('tx-modal-body');
-      body.innerHTML = `
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; font-size:13px;">
-          <div>
-            <span style="color:#687b70; display:block;">Mã giao dịch</span>
-            <strong>${Utils.escapeHtml(tx.paymentCode)}</strong>
-          </div>
-          <div>
-            <span style="color:#687b70; display:block;">Cổng thanh toán</span>
-            <strong>${Utils.escapeHtml(tx.provider)}</strong>
-          </div>
-          <div>
-            <span style="color:#687b70; display:block;">Mã tham chiếu / Nghĩa vụ</span>
-            <strong>${Utils.escapeHtml(tx.referenceCode)} (${tx.obligationType})</strong>
-          </div>
-          <div>
-            <span style="color:#687b70; display:block;">Số tiền giao dịch</span>
-            <strong style="color:#147346; font-size:15px;">${Utils.formatVND(tx.amount)}</strong>
-          </div>
-          <div>
-            <span style="color:#687b70; display:block;">Người thanh toán</span>
-            <strong>${Utils.escapeHtml(tx.payerName || 'Khách hàng')}</strong>
-          </div>
-          <div>
-            <span style="color:#687b70; display:block;">Số điện thoại</span>
-            <strong>${Utils.escapeHtml(tx.payerPhone || '---')}</strong>
-          </div>
-          <div style="grid-column: 1 / -1;">
-            <span style="color:#687b70; display:block;">Thời gian xác minh đối soát</span>
-            <strong>${Utils.formatDateTime(tx.verifiedAt || tx.createdAt)}</strong>
-          </div>
-          <div style="grid-column: 1 / -1; background:#f4f7f5; padding:12px; border-radius:8px;">
-            <span style="color:#456352; display:block; font-weight:600;">Ghi chú đối soát:</span>
-            <p style="margin:4px 0 0; color:#223c2d;">${Utils.escapeHtml(tx.verificationNote || 'Giao dịch đã được hệ thống khớp thành công với Webhook từ cổng thanh toán.')}</p>
-          </div>
-        </div>
-      `;
-
-      document.getElementById('tx-detail-dialog').showModal();
-    }
-
-    function handleFilter(e) {
-      e.preventDefault();
-      loadPayments();
-    }
-
-    function clearFilters() {
-      document.getElementById('filter-search').value = '';
-      document.getElementById('filter-category').value = '';
-      document.getElementById('filter-provider').value = '';
-      document.getElementById('filter-status').value = '';
-      document.getElementById('filter-from').value = '';
-      document.getElementById('filter-to').value = '';
-      loadPayments();
-    }
-  </script>
+  <script type="module" src="../js/finance.js"></script>
 </body>
 </html>
