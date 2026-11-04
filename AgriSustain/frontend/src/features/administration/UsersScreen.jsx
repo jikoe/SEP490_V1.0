@@ -52,7 +52,8 @@ export default function UsersScreen({ fixture, route = listRoute, navigate }) {
     event.preventDefault(); setBusy(true); setError('');
     try {
       await request(`/users/${pending.user.id}/status-actions`, { fixture, method: 'POST',
-        body: { action: pending.action, reason, confirmed: true } });
+        body: { action: pending.action, reason, confirmed: true,
+          expectedStatus: pending.user.status, expectedLockedUntil: pending.user.lockedUntil ?? null } });
       setMessage(`${labels[pending.action]} thành công.`);
       setPending(null); setRefresh((value) => value + 1);
     } catch (failure) { setError(failure.message); }

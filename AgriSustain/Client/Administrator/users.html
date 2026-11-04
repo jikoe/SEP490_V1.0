@@ -232,23 +232,29 @@
         } else {
           usersCache = [];
           document.getElementById('user-count').textContent = `0 tài khoản`;
-          renderUsersTable([]);
+          renderLoadFailure();
           renderPager(0, 1, 10);
-          if (res.error) showAlert(res.error, 'error');
         }
       } catch (err) {
         usersCache = [];
         document.getElementById('user-count').textContent = `0 tài khoản`;
-        renderUsersTable([]);
+        renderLoadFailure();
         renderPager(0, 1, 10);
-        showAlert('Không thể kết nối đến máy chủ backend để tải danh sách tài khoản.', 'error');
       }
+    }
+
+    // MSG-UM-14: the list could not be loaded; Reload repeats only the query, never an action.
+    function renderLoadFailure() {
+      document.getElementById('users-table-body').innerHTML = `<tr><td colspan="8" class="empty">
+        Không thể tải thông tin tài khoản hiện tại. Hãy tải lại; việc tải lại không lặp lại thao tác đã hoàn tất.
+        <button type="button" class="text-button" onclick="loadUsers(currentPage)">Tải lại</button></td></tr>`;
     }
 
     function renderUsersTable(items) {
       const tbody = document.getElementById('users-table-body');
       if (!items || items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">Không tìm thấy kết quả phù hợp. Hãy điều chỉnh từ khóa hoặc bộ lọc.</td></tr>';
+        // MSG-UM-01
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">Không có tài khoản nào khớp với từ khóa hoặc bộ lọc.</td></tr>';
         return;
       }
 
@@ -369,7 +375,14 @@
       document.getElementById('user-detail-modal').close();
     }
 
-    function prepareStatus(userId, action) {
+    // MSG-UM-12 impact line for each action.
+    const actionImpact = {
+      suspend: 'Tài khoản sẽ không thể đăng nhập và mọi phiên đang mở sẽ bị chặn cho đến khi được kích hoạt lại.',
+      activate: 'Tài khoản được truy cập lại; kết quả KYC và khóa đăng nhập tạm thời (nếu còn hạn) giữ nguyên.',
+      unlock: 'Chỉ gỡ khóa đăng nhập tạm thời và đặt lại số lần đăng nhập sai.'
+    };
+
+    async function prepareStatus(userId, action) {
       const u = usersCache.find(x => x.id === userId);
       if (!u || !eligibleActions(u).includes(action)) return;
 
@@ -379,18 +392,31 @@
         activate: 'Kích hoạt lại tài khoản',
         unlock: 'Mở khóa tài khoản'
       };
+      const verbMap = { suspend: 'Tạm ngưng', activate: 'Kích hoạt lại', unlock: 'Mở khóa' };
       document.getElementById('modal-action-title').textContent = titleMap[action] || 'Thay đổi trạng thái';
-      document.getElementById('modal-action-desc').innerHTML = `Xác nhận ${titleMap[action].toLowerCase()} <strong>${Utils.escapeHtml(u.organizationName || u.name || u.fullName)}</strong>?`;
+      document.getElementById('modal-action-desc').innerHTML = `${verbMap[action]} tài khoản <strong>${Utils.escapeHtml(u.organizationName || u.name || u.fullName)}</strong>? ${actionImpact[action]}`;
 
       const warningEl = document.getElementById('modal-suspend-warning');
       const btnEl = document.getElementById('modal-action-btn');
+      warningEl.style.display = 'none';
 
       if (action === 'suspend') {
-        warningEl.style.display = 'block';
+        // MSG-UM-07: open transactions are not cancelled; they are flagged instead.
+        const impact = await API.request(`/users/${u.id}/action-impact`, { suppressErrorToast: true });
+        if (impact.success && impact.data && impact.data.hasOpenTransactions) {
+          warningEl.textContent = `Tài khoản này có ${impact.data.openOrders} đơn hàng đang mở, `
+            + `${impact.data.activeContracts} hợp đồng đang hiệu lực và `
+            + `${Number(impact.data.heldPayoutAmount).toLocaleString('vi-VN')} ₫ `
+            + 'đang chờ chi trả. Các giao dịch hiện có sẽ không bị hủy tự động; '
+            + 'chúng sẽ được đánh dấu cho Chăm sóc khách hàng và Tài chính.';
+          warningEl.style.display = 'block';
+        } else if (!impact.success) {
+          warningEl.textContent = 'Không tải được số giao dịch đang mở của tài khoản này.';
+          warningEl.style.display = 'block';
+        }
         btnEl.className = 'danger';
         btnEl.textContent = 'Xác nhận tạm ngưng';
       } else {
-        warningEl.style.display = 'none';
         btnEl.className = 'primary';
         btnEl.textContent = action === 'unlock' ? 'Xác nhận mở khóa' : 'Xác nhận kích hoạt lại';
       }
@@ -452,17 +478,32 @@
       btnEl.disabled = true;
       setActionError('');
       try {
-        const res = await API.updateUserStatus(user.id, {
-          action,
-          reason: reasonText,
-          confirmed: true
+        // The status and lock shown in the list are the version the action applies to (BR-UM-12).
+        const res = await API.request(`/users/${user.id}/status-actions`, {
+          method: 'POST',
+          suppressErrorToast: true,
+          body: {
+            action,
+            reason: reasonText,
+            confirmed: true,
+            expectedStatus: user.status,
+            expectedLockedUntil: user.lockedUntil || null
+          }
         });
 
         if (!res.success) {
-          // Stale state, ineligible action or missing record: refresh instead of retrying (MSG-UM-04/06).
-          if ([403, 404, 409].includes(res.status)) {
+          if (res.status === 409 || res.status === 404) {
+            // MSG-UM-04 / MSG-UM-06: show why, then reload the current state.
             closeActionModal();
+            showAlert(res.error || 'Tài khoản đã thay đổi. Hãy tải lại trước khi xác nhận lại.', 'error');
             await loadUsers(currentPage);
+          } else if (res.status === 400 || res.status === 403) {
+            // MSG-UM-05 (field errors), MSG-UM-03 (own account), MSG-UM-13 (no permission).
+            const fields = res.data && res.data.errors ? Object.values(res.data.errors).flat() : [];
+            setActionError(fields.length ? fields.join(' ') : res.error);
+          } else if (res.status >= 500) {
+            // MSG-UM-10
+            setActionError('Không thể cập nhật tài khoản. Chưa có thay đổi nào được lưu. Hãy tải lại trước khi thử lại.');
           } else {
             setActionError(res.error || 'Không thể thực hiện thao tác. Vui lòng thử lại.');
           }
@@ -470,8 +511,8 @@
         }
 
         closeActionModal();
-        const doneMap = { suspend: 'tạm ngưng', activate: 'kích hoạt lại', unlock: 'mở khóa' };
-        showAlert(`Tài khoản #${user.id} đã được ${doneMap[action]}.`, 'success');
+        // MSG-UM-08, or MSG-UM-09 when the email will be retried.
+        showAlert(res.data.message, res.data.emailSent ? 'success' : 'warning');
         await loadUsers(currentPage);
       } catch (err) {
         setActionError(err.message || 'Không thể thực hiện thao tác. Vui lòng thử lại.');

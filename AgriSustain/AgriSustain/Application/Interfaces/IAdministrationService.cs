@@ -9,10 +9,13 @@ public interface IAdministrationService
         CancellationToken cancellationToken);
     Task<UseCaseResult<UserDto>> GetUserAsync(long id, CancellationToken cancellationToken);
 
+    Task<UseCaseResult<AccountImpactDto>> GetAccountImpactAsync(long id,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Changes another eligible account after confirmation; audit commits atomically.
     /// </summary>
-    Task<UseCaseResult<UserDto>> ChangeAccountAsync(long id, AccountActionRequest request,
+    Task<UseCaseResult<AccountActionResultDto>> ChangeAccountAsync(long id, AccountActionRequest request,
         CancellationToken cancellationToken);
     Task<UseCaseResult<Page<CategoryDto>>> SearchCategoriesAsync(CategorySearch search,
         CancellationToken cancellationToken);

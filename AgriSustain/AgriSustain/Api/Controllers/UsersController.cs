@@ -22,6 +22,12 @@ public sealed class UsersController(IAdministrationService service) : UseCaseCon
         return Respond(await service.GetUserAsync(id, cancellationToken));
     }
 
+    [HttpGet("{id:long}/action-impact")]
+    public async Task<IActionResult> ActionImpact(long id, CancellationToken cancellationToken)
+    {
+        return Respond(await service.GetAccountImpactAsync(id, cancellationToken));
+    }
+
     [HttpPost("{id:long}/status-actions")]
     public async Task<IActionResult> Change(long id, AccountActionRequest request,
         CancellationToken cancellationToken)

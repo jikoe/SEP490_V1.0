@@ -69,6 +69,9 @@ public static class UseCaseRegistration
         services.AddSingleton(TimeProvider.System);
         services.AddHttpContextAccessor();
         services.AddScoped<IActorContext, CurrentActor>();
+        // BR-UM-11 support contact; defaults to the Gmail sender when Support__Email is not set.
+        services.AddSingleton(new AgriSustain.Application.Common.AccountNotificationSettings(
+            configuration["Support:Email"] ?? configuration["Gmail:SenderAddress"]));
         services.AddScoped<IAdministrationService, AdministrationService>();
         services.AddScoped<IKycVerificationService, KycVerificationService>();
         services.AddScoped<ICheckoutService, CheckoutService>();
