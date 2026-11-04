@@ -91,6 +91,14 @@ public sealed class CheckoutService(
         {
             return UseCaseResult<OrderDto>.Failure("VALIDATION", "Cần xác nhận bản tính giá hợp lệ.");
         }
+        // Step 11: ask Goship again before the Serializable transaction, so the external call never
+        // holds database locks. The transaction below re-checks items, prices and discounts.
+        var currentFees = await CurrentDeliveryFeesAsync(request, cancellationToken);
+        if (!currentFees.IsSuccess)
+        {
+            return UseCaseResult<OrderDto>.Failure(currentFees.Error!.Code, currentFees.Error.Message,
+                currentFees.Error.Kind);
+        }
         await using var transaction = await unitOfWork.BeginAsync(cancellationToken);
         if (!await IsRetailCustomerAsync(cancellationToken))
         {
@@ -115,7 +123,7 @@ public sealed class CheckoutService(
         }
         if (stored.ExpiresAt <= clock.GetUtcNow().UtcDateTime)
         {
-            return UseCaseResult<OrderDto>.Failure("QUOTE_EXPIRED", "Bản tính giá hết hạn.", "Conflict");
+            return QuoteExpired();
         }
         var accepted = JsonSerializer.Deserialize<CheckoutQuoteDto>(stored.AcceptedSnapshotJson)!;
         if (accepted.SellerDeliveryFees is null)
@@ -124,7 +132,7 @@ public sealed class CheckoutService(
                 "Bản báo giá cũ chưa lưu phí vận chuyển. Hãy tính lại checkout.", "Conflict");
         }
         var recalculated = await CalculateAsync(accepted.Input, cancellationToken,
-            accepted.SellerDeliveryFees);
+            currentFees.Value ?? accepted.SellerDeliveryFees);
         if (!recalculated.IsSuccess)
         {
             return UseCaseResult<OrderDto>.Failure(recalculated.Error!.Code,
@@ -169,6 +177,50 @@ public sealed class CheckoutService(
         await transaction.CommitAsync(cancellationToken);
         return UseCaseResult<OrderDto>.Success(ToOrderDto(order));
     }
+
+    /// <summary>
+    /// Current Goship fee per farm for the stored quote, or null when there is nothing to re-quote
+    /// (already placed, missing or expired quote, no access); the transaction reports those cases.
+    /// A changed fee is MSG118; no service is MSG117; an unavailable fee is MSG-CO-02.
+    /// </summary>
+    private async Task<UseCaseResult<IReadOnlyDictionary<long, decimal>?>> CurrentDeliveryFeesAsync(
+        PlaceOrderRequest request, CancellationToken cancellationToken)
+    {
+        var none = UseCaseResult<IReadOnlyDictionary<long, decimal>?>.Success(null);
+        if (!await IsRetailCustomerAsync(cancellationToken)
+            || await repository.ExistingOrderAsync(actor.UserId, request.RequestKey, request.QuoteId,
+                cancellationToken) is not null)
+        {
+            return none;
+        }
+        var stored = await repository.QuoteAsync(request.QuoteId, actor.UserId, cancellationToken);
+        if (stored is null || stored.ExpiresAt <= clock.GetUtcNow().UtcDateTime)
+        {
+            return none;
+        }
+        var accepted = JsonSerializer.Deserialize<CheckoutQuoteDto>(stored.AcceptedSnapshotJson)!;
+        if (accepted.SellerDeliveryFees is null)
+        {
+            return none;
+        }
+        var requoted = await CalculateAsync(accepted.Input, cancellationToken);
+        if (!requoted.IsSuccess)
+        {
+            return UseCaseResult<IReadOnlyDictionary<long, decimal>?>.Failure(requoted.Error!.Code,
+                requoted.Error.Message, requoted.Error.Kind);
+        }
+        var fees = requoted.Value!.SellerDeliveryFees!;
+        bool sameFees = fees.OrderBy(x => x.Key).SequenceEqual(accepted.SellerDeliveryFees.OrderBy(x => x.Key));
+        return sameFees
+            ? UseCaseResult<IReadOnlyDictionary<long, decimal>?>.Success(fees)
+            : UseCaseResult<IReadOnlyDictionary<long, decimal>?>.Failure("MSG118",
+                "Phí giao hàng của một hoặc nhiều trang trại đã thay đổi. Hãy xem lại tổng tiền mới rồi đặt hàng lại.",
+                "Conflict");
+    }
+
+    // MSG-CO-04: the screen recalculates the summary when it receives this code.
+    private static UseCaseResult<OrderDto> QuoteExpired() => UseCaseResult<OrderDto>.Failure("QUOTE_EXPIRED",
+        "Bản tóm tắt đơn hàng đã hết hạn và đã được tính lại. Vui lòng xem lại trước khi đặt hàng.", "Conflict");
 
     public async Task<UseCaseResult<OrderDto>> GetOrderAsync(long orderId,
         CancellationToken cancellationToken)
@@ -301,12 +353,12 @@ public sealed class CheckoutService(
                 if (shippingRate is null)
                 {
                     return UseCaseResult<CheckoutQuoteDto>.Failure("SHIPPING_RATE_UNAVAILABLE",
-                        "Chưa thể tính phí Goship. Vui lòng kiểm tra cấu hình kết nối, địa chỉ lấy hàng của nông trại và đơn vị tính khối lượng.");
+                        "Hiện chưa tính được phí giao hàng. Vui lòng thử lại."); // MSG-CO-02
                 }
                 if (!shippingRate.IsSupported || shippingRate.Fee is null)
                 {
                     return UseCaseResult<CheckoutQuoteDto>.Failure("MSG117",
-                        "Goship chưa có dịch vụ phù hợp để giao đến địa chỉ này.");
+                        "Địa chỉ giao hàng này chưa có dịch vụ vận chuyển. Vui lòng chọn hoặc nhập địa chỉ khác."); // MSG117
                 }
                 deliveryFee += shippingRate.Fee.Value;
                 sellerDeliveryFees[sellerLines.Key] = shippingRate.Fee.Value;

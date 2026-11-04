@@ -39,11 +39,11 @@ public sealed class CategoriesController(IAdministrationService service) : UseCa
     }
 
     // "action" is a reserved MVC route value, so the operation segment needs its own name.
-    [HttpPost("{id:long}/{operation:regex(^(activate|deactivate|delete|archive)$)}")]
+    // BR-CAT-04 has no separate archive action: delete archives a category that has been used.
+    [HttpPost("{id:long}/{operation:regex(^(activate|deactivate|delete)$)}")]
     public async Task<IActionResult> Change(long id, string operation, ConfirmationRequest request,
         CancellationToken cancellationToken)
     {
-        return Respond(await service.ChangeCategoryAsync(id, operation, request.Confirmed,
-            cancellationToken));
+        return Respond(await service.ChangeCategoryAsync(id, operation, request, cancellationToken));
     }
 }

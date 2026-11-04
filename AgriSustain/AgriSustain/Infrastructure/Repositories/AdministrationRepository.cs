@@ -102,29 +102,48 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
     public async Task<Page<CategoryDto>> SearchCategoriesAsync(CategorySearch search,
         CancellationToken cancellationToken)
     {
-        var query = context.Categories.AsNoTracking().Where(x => !context.CategorySettings
-            .Any(settings => settings.CategoryId == x.CategoryId && settings.IsArchived));
+        // BR-CAT-01: archived categories stay listed as read-only history.
+        var query = context.Categories.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(search.Keyword))
         {
             var keyword = search.Keyword.Trim();
             query = query.Where(x => x.CategoryName.Contains(keyword));
         }
-        if (search.IsActive.HasValue)
+        bool? archived = search.Status switch
         {
-            query = query.Where(x => x.IsActive == search.IsActive);
+            "Archived" => true, "Active" or "Inactive" => false, _ => search.IsActive.HasValue ? false : null
+        };
+        bool? active = search.Status switch
+        {
+            "Active" => true, "Inactive" => false, null or "" => search.IsActive, _ => null
+        };
+        if (archived.HasValue)
+        {
+            query = query.Where(x => context.CategorySettings
+                .Any(settings => settings.CategoryId == x.CategoryId && settings.IsArchived) == archived.Value);
+        }
+        if (active.HasValue)
+        {
+            query = query.Where(x => x.IsActive == active.Value);
         }
         var total = await query.CountAsync(cancellationToken);
         var items = await ProjectCategories(query.OrderBy(x => x.CategoryName).ThenBy(x => x.CategoryId)
             .Skip((search.Page - 1) * search.PageSize).Take(search.PageSize))
             .ToListAsync(cancellationToken);
-        return new Page<CategoryDto>(items, total, search.Page, search.PageSize);
+        return new Page<CategoryDto>(items.Select(WithVersion).ToList(), total, search.Page, search.PageSize);
     }
 
-    public Task<CategoryDto?> GetCategoryAsync(long id, CancellationToken cancellationToken)
+    public async Task<CategoryDto?> GetCategoryAsync(long id, CancellationToken cancellationToken)
     {
-        return ProjectCategories(context.Categories.AsNoTracking().Where(x => x.CategoryId == id))
-            .SingleOrDefaultAsync(cancellationToken);
+        var category = await ProjectCategories(context.Categories.AsNoTracking()
+            .Where(x => x.CategoryId == id)).SingleOrDefaultAsync(cancellationToken);
+        return category is null ? null : WithVersion(category);
     }
+
+    private static CategoryDto WithVersion(CategoryDto category) => category with
+    {
+        Version = Category.VersionOf(category.Name, category.Description, category.IsActive, category.IsArchived)
+    };
 
     /// <summary>Names are unique across all categories; case-insensitivity follows the CI collation.</summary>
     public Task<bool> CategoryNameExistsAsync(string name, long exceptId,
@@ -134,9 +153,10 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
             cancellationToken);
     }
 
-    public Task<bool> HasActiveProductsAsync(long categoryId, CancellationToken cancellationToken)
+    /// <summary>BR-CAT-04 active products: listings still published in the category.</summary>
+    public Task<int> CountActiveProductsAsync(long categoryId, CancellationToken cancellationToken)
     {
-        return context.Products.AnyAsync(x => x.CategoryId == categoryId && x.IsPublished,
+        return context.Products.CountAsync(x => x.CategoryId == categoryId && x.IsPublished,
             cancellationToken);
     }
 
@@ -223,6 +243,7 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
     {
         return query.Select(x => new CategoryDto(x.CategoryId, x.CategoryName, x.Description,
             x.IsActive, x.Products.Count,
-            context.CategorySettings.Any(s => s.CategoryId == x.CategoryId && s.IsArchived)));
+            context.CategorySettings.Any(s => s.CategoryId == x.CategoryId && s.IsArchived),
+            x.Products.Count(product => product.IsPublished), ""));
     }
 }

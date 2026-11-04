@@ -32,7 +32,7 @@ public interface IAdministrationRepository
 
     Task<bool> CategoryNameExistsAsync(string name, long exceptId, CancellationToken cancellationToken);
 
-    Task<bool> HasActiveProductsAsync(long categoryId, CancellationToken cancellationToken);
+    Task<int> CountActiveProductsAsync(long categoryId, CancellationToken cancellationToken);
 
     Task<bool> HasCategoryReferencesAsync(long categoryId, CancellationToken cancellationToken);
 
