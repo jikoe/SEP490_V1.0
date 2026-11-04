@@ -42,7 +42,7 @@ public sealed class AdministrationApiTests : IAsyncLifetime
     public async Task Users_SuspendBlankReason_FieldError()
     {
         var response = await _api.Admin().PostAsJsonAsync($"api/users/{_api.BuyerId}/status-actions",
-            new AccountActionRequest("suspend", "", true));
+            new AccountActionRequest("suspend", "", true, "Active"));
 
         var problem = await ApiAssert.Status(response, HttpStatusCode.BadRequest);
         ApiAssert.HasFieldError(problem, "Reason");
@@ -55,8 +55,8 @@ public sealed class AdministrationApiTests : IAsyncLifetime
     public async Task Users_StaleSecondSuspend_Conflict()
     {
         string url = $"api/users/{_api.BuyerId}/status-actions";
-        var first = await _api.Admin().PostAsJsonAsync(url, new AccountActionRequest("suspend", "Vi phạm", true));
-        var second = await _api.Admin().PostAsJsonAsync(url, new AccountActionRequest("suspend", "Vi phạm", true));
+        var first = await _api.Admin().PostAsJsonAsync(url, new AccountActionRequest("suspend", "Vi phạm", true, "Active"));
+        var second = await _api.Admin().PostAsJsonAsync(url, new AccountActionRequest("suspend", "Vi phạm", true, "Active"));
 
         await ApiAssert.Status(first, HttpStatusCode.OK);
         await ApiAssert.Problem(second, HttpStatusCode.Conflict, "STATE_CONFLICT");

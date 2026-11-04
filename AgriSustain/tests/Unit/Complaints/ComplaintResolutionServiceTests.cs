@@ -399,8 +399,6 @@ public sealed class ComplaintResolutionServiceTests
             Task.FromResult<ComplaintDetailDto?>(null);
         public Task<DisputeTicket?> GetForDecisionAsync(long id, CancellationToken ct) =>
             Task.FromResult(Ticket?.DisputeTicketId == id ? Ticket : null);
-        public Task<AgriSustain.Domain.Entities.UserBankAccount?> GetDefaultBankAccountAsync(long userId, CancellationToken ct) =>
-            Task.FromResult<AgriSustain.Domain.Entities.UserBankAccount?>(null);
         public Task<string?> GetEvidenceFileUrlAsync(long id, long evidenceId, CancellationToken ct) =>
             Task.FromResult<string?>(null);
         public Task<IReadOnlyList<long>> GetActiveUserIdsByRolesAsync(

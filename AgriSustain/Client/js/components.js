@@ -1,6 +1,6 @@
 /* ==========================================================================
    AgriSustain - Dynamic Layout Components Engine (js/components.js)
-   Renders Sidebar & Top Bar strictly matching Frontend App.jsx 1:1
+   Renders Sidebar & Top Bar
    ========================================================================== */
 
 const ROLE_CONFIGS = {

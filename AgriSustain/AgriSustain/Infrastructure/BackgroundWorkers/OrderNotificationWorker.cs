@@ -7,10 +7,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 namespace AgriSustain.Infrastructure.BackgroundWorkers;
 
-// Sends the queued order-update and refund (UC-FIN-03, MSG-RF-08/09) emails; other notifications are untouched.
+// Sends the queued order-update, refund (UC-FIN-03, MSG-RF-08/09) and account-status (UC-ADM-03,
+// BR-UM-11) emails; other notifications are untouched.
 public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
     ILogger<OrderNotificationWorker> logger) : BackgroundService
 {
+    private const string AccountEmailType = AgriSustain.Application.Services.Administration
+        .AdministrationService.AccountEmailType;
+
+    // JOB-09 retries an account email until RetryCount reaches 3, then marks it PermanentFailure.
+    private const int AccountEmailMaxAttempts = 3;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
@@ -41,7 +48,8 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
             if (eventMarker > 0) await notices.RetryFailedChannelsAsync(payload[..eventMarker], cancellationToken);
         }
         var ids = await db.Notifications.AsNoTracking().Where(n =>
-            (n.NotificationType == "FarmerOrderUpdate" || n.NotificationType == "RefundEmail")
+            (n.NotificationType == "FarmerOrderUpdate" || n.NotificationType == "RefundEmail"
+                || n.NotificationType == AccountEmailType && n.RetryCount < AccountEmailMaxAttempts)
             && n.DeliveryChannel == "Email"
             && ((n.DeliveryStatus == "Pending" || n.DeliveryStatus == "Failed" && n.SentAt <= now.AddMinutes(-1))
                 || n.DeliveryStatus == "Sending" && n.SentAt < now.AddMinutes(-5)))
@@ -68,6 +76,14 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
             catch (Exception ex)
             {
                 notices.RecordDeliveryResult(notification, false, clock.GetUtcNow().UtcDateTime);
+                if (notification.NotificationType == AccountEmailType
+                    && notification.RetryCount >= AccountEmailMaxAttempts)
+                {
+                    // JOB-09: stop after the retry limit and record the final failure.
+                    notification.DeliveryStatus = "PermanentFailure";
+                    logger.LogError("Account email {Id} failed after {Attempts} attempts.", id,
+                        notification.RetryCount);
+                }
                 logger.LogWarning("Product email {Id} pending retry ({Type}).", id, ex.GetType().Name);
             }
             await db.SaveChangesAsync(cancellationToken);

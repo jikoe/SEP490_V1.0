@@ -21,7 +21,7 @@ public sealed class BusinessRuleTests
         string action, string? reason, bool confirmed, bool expected)
     {
         var result = await new AccountActionValidator().ValidateAsync(
-            new AccountActionRequest(action, reason, confirmed));
+            new AccountActionRequest(action, reason, confirmed, "Active"));
         Assert.Equal(expected, result.IsValid);
     }
 
