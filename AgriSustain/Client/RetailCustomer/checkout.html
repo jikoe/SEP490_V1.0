@@ -16,7 +16,7 @@
       <header id="app-header"></header>
 
       <main style="padding: 24px 20px; min-height: 80vh;">
-        <!-- Dynamic Checkout Page matching CheckoutScreen.jsx 1:1 -->
+        <!-- Dynamic Checkout Page -->
         <section class="co-page" id="checkout-view">
           <div class="co-wrap">
             <div>
@@ -254,7 +254,7 @@
           </div>
         </dialog>
 
-        <!-- SUCCESS VIEW: matching CheckoutScreen.jsx lines 341-385 1:1 -->
+        <!-- SUCCESS VIEW -->
         <section class="co-page" id="order-success-view" style="display: none;">
           <div class="co-wrap">
             <h1 style="color:#103e2d; margin:4px 0 0; font-size:26px;">Đặt hàng thành công</h1>
@@ -274,7 +274,7 @@
               </dl>
               <div class="notice" id="succ-message" style="display: none; margin-bottom: 18px;"></div>
 
-              <!-- SePay Callout Box matching CheckoutScreen.jsx lines 355-372 -->
+              <!-- SePay Callout Box -->
               <div id="succ-qr-callout" style="background: #eaf5ee; border: 1px solid #c2e2cc; border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center;">
                 <p style="margin: 0 0 8px 0; font-weight: 600; color: #1e6546; font-size: 16px;">
                   Đơn hàng đang chờ thanh toán qua <span id="succ-qr-method-name">SePay</span>
@@ -325,7 +325,6 @@
   <script>
     /* ==========================================================================
         AgiSustain Checkout Client Controller
-        Replicates Frontend CheckoutScreen.jsx 1:1
        ========================================================================== */
 
     const emptyAddress = {
@@ -1103,7 +1102,7 @@
         expHint.style.display = 'none';
       }
 
-      // Errors by section matching CheckoutScreen.jsx
+      // Errors by section
       const qMsg = state.quoteError?.message || '';
       const isAddrErr = addressErrors.includes(state.quoteError?.code);
       const isShipErr = shippingErrors.includes(state.quoteError?.code);

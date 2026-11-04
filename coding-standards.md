@@ -2,7 +2,7 @@
 
 Phiên bản 1.1 — ngày 23/10/2026.
 
-Áp dụng cho backend C#/.NET và frontend React trong repository này.
+Áp dụng cho backend C#/.NET và giao diện web `AgriSustain/Client` trong repository này.
 Đối chiếu source tại commit `f9d9f36` trên nhánh `ThuongNQ` và cấu trúc package
 trong thiết kế backend của nhóm. Cây package đầy đủ bên dưới là cấu trúc chuẩn phải giữ.
 
@@ -21,7 +21,7 @@ trong thiết kế backend của nhóm. Cây package đầy đủ bên dưới l
 
 - Backend: ASP.NET Core, target `net8.0`, EF Core và SQL Server; bật nullable/implicit usings.
 - Solution chỉ có một project Web. Các tầng là thư mục/namespace trong cùng assembly.
-- Frontend: React 19, Vite 8, JavaScript/JSX, Tailwind CSS 4 và CSS riêng của feature.
+- Giao diện: HTML/CSS/JavaScript thuần trong `AgriSustain/Client`, chạy bằng Vite 5 (dev server và build).
 - Không tự đổi framework, tách project hoặc bổ sung thư viện khi không cần cho yêu cầu.
 
 ```text
@@ -57,15 +57,13 @@ AgriSustain/
       UnitOfWork/
     appsettings.json
     Program.cs
-  frontend/
-    src/
-      main.jsx
-      app/App.jsx
-      api/client.js
-      session/session.js
-      components/ui/Common.jsx
-      features/
-      styles/app.css
+  Client/
+    index.html
+    js/            config.js, utils.js, auth.js, api.js, components.js và script theo màn hình
+    messages/      thông điệp hiển thị theo nhóm chức năng
+    css/           style.css, components.css
+    <Vai trò>/     trang HTML theo actor: Guest, RetailCustomer, Farmer, Administrator, ...
+    vite.config.js
 ```
 
 Giữ đầy đủ tên và vị trí package như trên, kể cả package chưa có implementation.
@@ -122,7 +120,7 @@ appsettings.json và Program.cs nằm ở gốc project, không nằm trong Infr
 ### 3.2. Chiều phụ thuộc theo thiết kế
 
 ```text
-React SPA -- HTTPS/JSON, Bearer JWT --> Api
+Client (HTML/JS) -- HTTPS/JSON, Bearer JWT --> Api
 Api/Controllers --> Application/Interfaces, DTOs
 Application/Services --> Application/Interfaces, DTOs, Validators, Mappings, Common
 Application --> Domain/Entities
@@ -253,30 +251,19 @@ trong cây chuẩn không đồng nghĩa các tích hợp đã hoàn thành. Quy
 - Comment giải thích lý do, giới hạn hoặc quyết định khó suy ra; không nhắc lại từng dòng code.
   XML/JSDoc dùng khi contract có điều kiện/side effect cần giải thích; không thêm boilerplate vô nghĩa.
 
-## 9. Frontend React
+## 9. Giao diện Client (HTML/JavaScript thuần)
 
-- Function component/hooks; component và file JSX PascalCase, biến/hàm camelCase, hook bắt đầu `use`.
-- Dùng 2 spaces, single quotes và semicolon; JSX string attribute dùng double quotes.
-  Dùng const mặc định, let khi cần gán lại; không dùng var.
-- Feature giữ component/CSS nghiệp vụ của mình. Chỉ đưa UI dùng chung thực sự vào components/ui;
-  không gom logic feature vào App.jsx hoặc Common.jsx.
-- App.jsx đang dùng hash routing; tái sử dụng navigate/readRoute. Không tự thêm router/store/client mới.
-- Giữ controlled input, cập nhật state bất biến; key collection dùng ID ổn định.
-- Gọi API qua `src/api/client.js`: request tự thêm /api và Bearer token; truyền path như
-  `/marketplace/products`. Login dùng helper login, không triển khai đăng nhập riêng trong feature.
-- Đọc đúng response: Marketplace dùng result.data; login/moderation dùng body trực tiếp.
-  Không tạo mock/fallback thành công để che lỗi dữ liệu thật.
-- Effect tải dữ liệu dùng AbortController/cleanup; bỏ qua AbortError và kết quả bị hủy.
-  Cleanup timer/listener/subscription, hoạt động đúng khi React.StrictMode setup/cleanup lặp lại.
+- Mỗi màn hình là một trang HTML trong thư mục của actor (ví dụ `Administrator/users.html`).
+  Script dùng chung nạp theo thứ tự: config.js, utils.js, auth.js, api.js, components.js.
+- Dùng 2 spaces, single quotes và semicolon; const mặc định, let khi cần gán lại; không dùng var.
+  Hàm và biến camelCase; id phần tử HTML dạng kebab-case.
+- Gọi API qua `API.request` hoặc helper trong `js/api.js`: tự thêm Bearer token và xử lý 401.
+  Đọc `res.success`, `res.status`, `res.error`, `res.data`; không tạo dữ liệu giả để che lỗi.
+- Dữ liệu từ server đưa vào innerHTML phải qua `Utils.escapeHtml`; tiền dùng `Utils.formatVND`,
+  ngày giờ dùng `Utils.formatDate`/`Utils.formatDateTime` (giờ Việt Nam).
+- Thông điệp người dùng lấy theo mã MSG trong đặc tả; đặt chuỗi dùng lại nhiều nơi vào `messages/`.
 - Loading/error/empty/success rõ ràng; lỗi có cách xử lý/thử lại, không đổi lỗi thành danh sách rỗng.
-- Marketplace giữ keyword/filter/sort/page/pageSize trong URLSearchParams của hash route.
-  Đổi keyword/filter reset page và giữ filter khác; hỗ trợ đồng bộ Back/Forward.
-- Tìm kiếm khi gõ debounce khoảng 300 ms, xử lý composition tiếng Việt; Enter tìm ngay,
-  xóa keyword khôi phục kết quả theo filter. Request cũ không ghi đè kết quả truy vấn mới.
-- Session/token hiện chỉ ở bộ nhớ trong src/session/session.js, mất khi reload/đăng xuất.
-  Không tự thêm localStorage token/refresh token hoặc dùng demo fixture làm authentication.
-- Giữ tên thư mục role cũ có khoảng trắng khi chỉnh module đó; thư mục mới dùng PascalCase
-  không khoảng trắng, không rename module cũ hàng loạt trong task khác.
+- Ẩn nút trên giao diện chỉ hỗ trợ người dùng; backend vẫn kiểm tra quyền và trạng thái.
 
 ## 10. CSS và accessibility
 
@@ -309,21 +296,19 @@ Từ repository root:
 
 ```powershell
 dotnet build AgriSustain/AgriSustain.sln --configuration Release
-npm --prefix AgriSustain/frontend run build
+npm --prefix AgriSustain/Client run build
 ```
 
 Nếu dependencies đã restore, có thể thêm --no-restore cho dotnet build.
-Dùng npm ci trong frontend khi cần cài lại dependencies theo lockfile.
+Dùng npm ci trong AgriSustain/Client khi cần cài lại dependencies theo lockfile.
 
-- Backend profile http dùng cổng 5179; Vite dùng 127.0.0.1:5173 và proxy /api sang backend.
-  Proxy /health còn trong Vite nhưng Program.cs hiện chưa map endpoint này.
-- npm run build tạo dist; Program.cs hiện chưa cấu hình phục vụ SPA/static files.
+- Backend profile http dùng cổng 5179; Vite của Client dùng 127.0.0.1:5173 và proxy /api, /health sang backend.
+- npm run build tạo Client/dist (trang HTML kèm js/, messages/, css/).
   Không coi build là publish/deploy hoặc bằng chứng luồng UI/SQL chạy đúng.
 - Chưa có global.json, .editorconfig thực thi, lint script hoặc CI pipeline được tìm thấy
   tại lần đối chiếu này. Tài liệu không tự kích hoạt format/analyzer/quality gate.
-- Solution chưa có backend test project. Frontend có Playwright/test cũ, nhưng config còn
-  trỏ `../src/AgriSustain.Api`, /health và chế độ InMemory không khớp backend hiện tại.
-  Phải sửa cấu hình trước khi dùng suite này để xác nhận hành vi.
+- Test backend nằm trong AgriSustain/tests (Unit, Integration, Architecture). Giao diện Client
+  chưa có bộ test tự động.
 - Khi triển khai test, ưu tiên hành vi/rủi ro thật: validation, quyền tài nguyên, tiền,
   trạng thái, tồn kho/concurrency và SQL translation. EF InMemory không chứng minh SQL Server đúng.
 - Nếu task yêu cầu chưa làm test, không tự thêm/xóa test. Nêu rõ check đã chạy và phần chưa kiểm tra.

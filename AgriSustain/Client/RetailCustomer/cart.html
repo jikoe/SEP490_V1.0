@@ -15,7 +15,7 @@
       <header id="app-header"></header>
 
       <main style="padding: 24px 20px; min-height: 80vh;">
-        <!-- Commerce Container matching CartScreen.jsx 1:1 -->
+        <!-- Commerce Container -->
         <div class="commerce">
           <div class="commerce-top">
             <div>
@@ -39,7 +39,7 @@
         <p class="muted" style="margin-top: 12px;">Đang tải giỏ hàng…</p>
       </div>
 
-      <!-- Empty State matching CartScreen.jsx -->
+      <!-- Empty State -->
       <div id="cart-empty" style="display: none;">
         <section class="commerce-section" style="text-align: center; padding: 50px 20px;">
           <div class="commerce-empty">
@@ -53,7 +53,7 @@
         </section>
       </div>
 
-      <!-- Cart Grid matching CartScreen.jsx 1:1 -->
+      <!-- Cart Grid -->
       <div id="cart-content" class="commerce-grid" style="display: none;">
         <!-- Left: Cart Selection & Items by Farm -->
         <div>
@@ -75,7 +75,7 @@
           <div id="cart-groups-container"></div>
         </div>
 
-        <!-- Right: Summary Sidebar matching CartScreen.jsx 1:1 -->
+        <!-- Right: Summary Sidebar -->
         <aside class="commerce-section commerce-summary">
           <h2 style="margin-top: 0; font-size: 19px; color: #103e2d; border-bottom: 1px solid #edf1ed; padding-bottom: 12px;">Tóm tắt giỏ hàng</h2>
           <dl>
@@ -177,7 +177,7 @@
     }
 
     /**
-     * Check if item price or pricing policy changed since previous visit matching CartScreen.jsx
+     * Check if item price or pricing policy changed since previous visit
      */
     function handlePricePolicyCheck(cartData) {
       if (!cartData || !cartData.items) return;
@@ -273,7 +273,7 @@
       if (countEl) countEl.textContent = cart.selectedCount || 0;
       if (subtotalEl) subtotalEl.textContent = Utils.formatVND(cart.selectedSubtotal || 0);
 
-      // Group items by farm matching CartScreen.jsx
+      // Group items by farm
       const groups = Object.values(items.reduce((result, item) => {
         const key = item.farmerProfileId || item.farmName || 'default';
         result[key] = result[key] || { farmName: item.farmName || 'Nông trại liên kết', farmerProfileId: item.farmerProfileId, items: [] };
@@ -356,7 +356,7 @@
       }).join('');
     }
 
-    /* ---------------- MUTATIONS MATCHING CartScreen.jsx ---------------- */
+    /* ---------------- MUTATIONS ---------------- */
 
     async function handleToggleSelectAll(checked) {
       if (!cart || busy) return;
@@ -489,7 +489,7 @@
       }
     }
 
-    /* ---------------- PROCEED TO CHECKOUT MATCHING CartScreen.jsx ---------------- */
+    /* ---------------- PROCEED TO CHECKOUT ---------------- */
 
     async function handleProceedCheckout() {
       if (!cart || !cart.selectedCount) {

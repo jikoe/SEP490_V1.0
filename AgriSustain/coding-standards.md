@@ -3,8 +3,8 @@
 Phiên bản 2.0 — ngày 22/10/2026.
 
 Áp dụng cho code C#/.NET, hợp đồng API, SQL và việc tích hợp frontend của repository
-SEP490_V1.0. Frontend React cần quy ước giao diện riêng; các quy tắc bảo mật, dữ liệu
-và API trong tài liệu này áp dụng cho cả hai phía.
+SEP490_V1.0. Giao diện Client (HTML/JavaScript thuần) theo quy ước giao diện riêng; các quy tắc
+bảo mật, dữ liệu và API trong tài liệu này áp dụng cho cả hai phía.
 
 Đường dẫn trong tài liệu tính từ thư mục chứa AgriSustain.sln. Bản dùng chung nằm
 tại coding-standards.md trong thư mục đó; chỉnh sửa phải được đưa vào Git cùng code.
@@ -18,7 +18,7 @@ tại coding-standards.md trong thư mục đó; chỉnh sửa phải được �
 - SDK trong global.json: 8.0.422, rollForward=latestPatch. Không ghi phiên bản SDK
   toàn máy làm phiên bản bắt buộc của repository.
 - EF Core SQL Server; một AgriSustainContext ở Infrastructure/Data; FluentValidation
-  cho input của ba UC; JWT cho xác thực; frontend React/Vite ở frontend/.
+  cho input của ba UC; JWT cho xác thực; giao diện HTML/JavaScript thuần chạy bằng Vite ở Client/.
 - Code mới cho UC-ADM-03, UC-ADM-05, UC-RC-02 đã có. Điều này không xác nhận toàn
   bộ nghiệp vụ, schema hoặc các tích hợp đã hoàn chỉnh hay đã được kiểm thử.
 - database/Update_DB.sql là bản SQL gộp tạo/nâng schema và nạp demo theo cấu hình.
@@ -123,7 +123,7 @@ AgriSustain/
   appsettings.json
   appsettings.Development.json
   appsettings.Checkout.json
-frontend/
+Client/
 database/
 docs/
 tests/
@@ -176,7 +176,7 @@ Domain             -> Không phụ thuộc Api, Application, Infrastructure
 | `Infrastructure/Data` | AgriSustainContext, partial Fluent API mapping, phân loại lỗi persistence. SQL giao cho người dùng chạy đặt ở database/ tại cấp solution. |
 | `Infrastructure/Repositories` | Triển khai truy vấn và thao tác persistence theo hợp đồng. Không quyết định giá, quyền hoặc chuyển trạng thái đơn. |
 | `Infrastructure/UnitOfWork` | Triển khai commit và transaction, chia sẻ cùng DbContext với repositories trong một unit of work. |
-| `Infrastructure/Payments` | Adapter PayOS/SePay; gửi request, xác minh chữ ký và chuyển dữ liệu nhà cung cấp thành kiểu nội bộ. |
+| `Infrastructure/Payments` | Adapter PayOS/VietQR; gửi request, xác minh chữ ký và chuyển dữ liệu nhà cung cấp thành kiểu nội bộ. |
 | `Infrastructure/FileStorage` | Đọc/ghi/xóa file, sinh liên kết truy cập theo chính sách; không quyết định ai được duyệt hồ sơ. |
 | `Infrastructure/Email` | Adapter Gmail/API gửi mail, template và xử lý lỗi giao tiếp. |
 | `Infrastructure/Auditing` | Ghi lịch sử theo hợp đồng; phân biệt audit nghiệp vụ và log chẩn đoán. |
@@ -509,7 +509,7 @@ Việc tránh blocking và sử dụng I/O async phù hợp với
 - Checkout Quote chỉ lưu bản tính giá; Place mới revalidate và giữ kho/voucher/điểm
   trong transaction. RequestKey và unique quote index bảo vệ retry qua restart;
   sessionStorage phía frontend không thay thế cơ chế này trên server.
-- PendingPayment không phải Paid. PayOS/SePay trong input và PaymentPath trả về
+- PendingPayment không phải Paid. PayOS/VietQR trong input và PaymentPath trả về
   chỉ là contract bàn giao khi module thanh toán thực tế chưa được tích hợp.
 - Audit hành động quan trọng phải có actor, thời điểm, resource, hành động, kết quả và correlation
   phù hợp. Phân biệt actor hệ thống/webhook với người dùng; không gán giả user.
@@ -610,10 +610,9 @@ dotnet test AgriSustain.sln -c Release --no-build
 
 - SQL integration test chỉ chạy trên DB tạm có tên nhận diện riêng; kiểm tra đích
   trước khi xóa. Không dùng DB AgriSustain đang có dữ liệu làm DB test.
-- Frontend hiện dùng npm/Vite. Từ frontend/: npm ci, npm run build; npm run dev
+- Client dùng npm/Vite. Từ Client/: npm ci, npm run build; npm run dev
   phục vụ cổng 5173, proxy /api về backend 5179. Production cần reverse proxy riêng.
-- Khi cần E2E, xem contract và dữ liệu test hiện tại trước khi chạy npm run test:e2e;
-  test demo cũ không chứng minh ba UC SQL mới chạy đúng.
+- Client chưa có bộ test E2E; kiểm tra luồng giao diện bằng tay và ghi rõ phần chưa kiểm tra.
 - Báo cáo bàn giao tách: file đã sửa; build đã chạy; test đã chạy/chưa chạy; SQL mới
   chỉnh/chưa thực thi/đã thực thi trên DB nào; giới hạn chưa xác nhận.
 - Không lấy HTTP 200 tại / (Hello World), build qua hoặc worker đọc 0 đơn thành
@@ -646,7 +645,7 @@ dotnet test AgriSustain.sln -c Release --no-build
 | HTTP | UsersController, CategoriesController, CheckoutController, UseCaseControllerBase, ExceptionMiddleware |
 | Quyền | ActorContext, ActiveAccountRequirement, ActiveAccountHandler |
 | Ráp ứng dụng | Program.cs, Api/UseCaseRegistration.cs, Infrastructure/DependencyInjection.cs |
-| Frontend | api/threeUseCases.js, UsersScreen, CategoriesScreen, CheckoutScreen |
+| Client | js/api.js, Administrator/users.html, Administrator/categories.html, RetailCustomer/checkout.html |
 | Database | database/Update_DB.sql, Insert.sql, các migration SQL và README.md |
 
 Order, SellerOrder, OrderItem, RetailCheckoutQuote, RewardPointEntry, Voucher và các

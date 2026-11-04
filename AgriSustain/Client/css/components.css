@@ -1,4 +1,4 @@
-/* --- Marketplace CSS (from frontend/src/features/Marketplace/marketplace.css) --- */
+/* --- Marketplace CSS --- */
 .marketplace {
   --mkt-green: #075439;
   --mkt-dark: #08452f;
@@ -263,7 +263,7 @@
 }
 
 
-/* --- Retail Customer Checkout CSS (from frontend/src/features/RetailCustomer/checkout.css) --- */
+/* --- Retail Customer Checkout CSS --- */
 /* Checkout (UC-RC-02), layout A: one page, numbered sections, parcels per farm, sticky summary. */
 .co-page { --co-primary: #1e6546; --co-primary-hover: #164c35; --co-ink: #213b32; --co-ink-2: #3d5a4c;
   --co-muted: #52695c; --co-line: #dce6e0; --co-line-soft: #e3ebe6; --co-field: #c9d6ce;
@@ -375,7 +375,7 @@ fieldset.co-card > legend + * { clear: both; }
 }
 
 
-/* --- Order Feedback CSS (from frontend/src/features/RetailCustomer/order-feedback.css) --- */
+/* --- Order Feedback CSS --- */
 .order-feedback { --feedback-green: #09613f; --feedback-line: #e2ebe6; max-width: 1240px; margin: 0 auto; padding: 8px 0 28px; color: #284d3d; }
 .order-feedback * { box-sizing: border-box; }
 .order-feedback svg { width: 20px; height: 20px; flex-shrink: 0; vertical-align: middle; }

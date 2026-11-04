@@ -1,4 +1,4 @@
-/* --- AgriSustain Base & App Shell CSS (from frontend/src/styles/app.css) --- */
+/* --- AgriSustain Base & App Shell CSS --- */
 @import "profile.css";
 
 
@@ -693,7 +693,7 @@ button.danger:hover:not(:disabled) { background: #bd3333; }
 }
 
 
-/* --- Commerce CSS (from frontend/src/styles/commerce.css) --- */
+/* --- Commerce CSS --- */
 .commerce { max-width: 1320px; margin: 0 auto; }
 .commerce .commerce-top { display: flex; justify-content: space-between; gap: 20px; align-items: center; margin-bottom: 24px; }
 .commerce .commerce-top p { margin-bottom: 0; }
@@ -790,7 +790,7 @@ button.danger:hover:not(:disabled) { background: #bd3333; }
   overflow-wrap: break-word;
 }
 
-/* --- Customer Portal CSS (from frontend/src/styles/customer-portal.css) --- */
+/* --- Customer Portal CSS --- */
 /* ========================================================================= */
 /* AGRISUSTAIN CUSTOMER & FARMER PORTAL (STYLE MATCHING FIGMA SCR-TRC-01)   */
 /* DĂ nh riĂªng cho mĂ n hĂ¬nh cá»§a Dá»± (DuND): SCR-07, SCR-11, SCR-16            */
@@ -1383,7 +1383,7 @@ dialog::backdrop {
 
 
 
-/* --- Farmer Orders CSS (from frontend/src/features/Farmer/orders-uc06.css) --- */
+/* --- Farmer Orders CSS --- */
 /* Scoped styling for UC-FAR-06 based on D:\SEP\UI\UC-FAR-06.html */
 .farmer-orders-app {
   max-width: 1240px;
@@ -1889,7 +1889,7 @@ dialog::backdrop {
 
 
 
-/* --- Finance Staff CSS (from frontend/src/features/Finance Staff/finance.css) --- */
+/* --- Finance Staff CSS --- */
 .app-shell.finance-shell { background: #f4f7f5; color: #315448; }
 .app-shell.finance-shell .sidebar { width: 194px; padding: 28px 16px 20px; background: #123e2e; border: 0; color: #d6e8de; }
 .finance-shell .workspace { margin-left: 194px; }

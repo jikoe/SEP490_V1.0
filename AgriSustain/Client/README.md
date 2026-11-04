@@ -1,6 +1,6 @@
 # AgriSustain - Client (Giao diện Web Thuần)
 
-Thư mục `Client` là phiên bản giao diện thuần HTML/CSS/JavaScript (Vanilla JS) được xây dựng dựa trên kiến trúc và phong cách tổ chức code của **EquipmentBorrowingManagementSystem/Client**, đồng thời kế thừa chính xác 1:1 toàn bộ giao diện, luồng màn hình và chức năng từ `AgriSustain/frontend`.
+Thư mục `Client` là phiên bản giao diện thuần HTML/CSS/JavaScript (Vanilla JS) được xây dựng dựa trên kiến trúc và phong cách tổ chức code của **EquipmentBorrowingManagementSystem/Client**. Đây là giao diện web duy nhất của AgriSustain; bản React cũ (`AgriSustain/frontend`) đã được gỡ khỏi repository.
 
 ---
 
@@ -21,7 +21,7 @@ AgriSustain/Client/
 │   ├── login.html            # Màn hình Đăng nhập (Khớp 1:1 LoginScreen)
 │   ├── register.html         # Màn hình Đăng ký tài khoản & Xác thực OTP Email
 │   └── forgot-password.html  # Màn hình Quên mật khẩu & Đặt lại mật khẩu 3 bước
-├── RetailCustomer/           # Các màn hình cho Khách mua lẻ (Khớp 1:1 Frontend)
+├── RetailCustomer/           # Các màn hình cho Khách mua lẻ
 │   ├── index.html            # Sàn giao dịch Nông Sản Việt (Marketplace)
 │   ├── product-detail.html   # Chi tiết sản phẩm & Thêm vào giỏ / Mua buôn
 │   ├── cart.html             # Giỏ hàng nông sản
