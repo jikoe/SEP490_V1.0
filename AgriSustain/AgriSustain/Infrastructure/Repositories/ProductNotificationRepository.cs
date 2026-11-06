@@ -12,4 +12,14 @@ public sealed class ProductNotificationRepository(AgriSustainContext context)
             && (user.Role == "ContentModerator" || user.Role == "Content Moderator"))
             .Select(user => user.UserId).ToListAsync(cancellationToken);
     public void Add(Notification notification) => context.Notifications.Add(notification);
+
+    public async Task RequeueFailedAsync(string eventKey, DateTime failedBefore,
+        CancellationToken cancellationToken)
+    {
+        var failed = await context.Notifications.Where(n => n.NotificationType == "ProductListingReview"
+            && n.DeliveryStatus == "Failed" && n.SentAt <= failedBefore && n.PayloadJson != null
+            && n.PayloadJson.Contains(eventKey)).ToListAsync(cancellationToken);
+        foreach (var row in failed) row.DeliveryStatus = "Pending";
+        await context.SaveChangesAsync(cancellationToken);
+    }
 }

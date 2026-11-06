@@ -127,4 +127,27 @@ public sealed class VoucherRepository : IVoucherRepository
     {
         return _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task AddWithAuditAsync(Voucher voucher, Action addAudit, CancellationToken cancellationToken)
+    {
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            _context.Vouchers.Add(voucher);
+            await _context.SaveChangesAsync(cancellationToken);
+            addAudit();
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            // Nothing was kept, so the tracked rows must not be saved by a later SaveChanges.
+            foreach (var entry in _context.ChangeTracker.Entries().ToList())
+            {
+                entry.State = EntityState.Detached;
+            }
+            throw;
+        }
+    }
 }

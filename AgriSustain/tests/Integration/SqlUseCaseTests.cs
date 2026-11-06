@@ -133,6 +133,47 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.Contains("Test reason", email.Content);
     }
 
+    [Fact(DisplayName = "[UC-PS-01 BR-PV-12] A failed creation audit keeps no voucher")]
+    public async Task VoucherCreate_AuditFails_NothingKept()
+    {
+        var repository = new AgriSustain.Infrastructure.Repositories.VoucherRepository(_context);
+        var voucher = new Voucher
+        {
+            VoucherCode = "ATOMIC1", VoucherName = "Atomic", DiscountType = Voucher.TypePercentage,
+            DiscountValue = 10, MinOrderAmount = 0, UsageLimit = 10, PerCustomerLimit = 1, IsActive = true,
+            StartDate = _clock.GetUtcNow().UtcDateTime.AddDays(1), EndDate = _clock.GetUtcNow().UtcDateTime.AddDays(10)
+        };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repository.AddWithAuditAsync(voucher,
+            () => throw new InvalidOperationException("audit failed"), default));
+
+        await using var check = NewContext();
+        Assert.False(await check.Vouchers.AnyAsync(v => v.VoucherCode == "ATOMIC1"));
+    }
+
+    [Fact(DisplayName = "[UC-PS-01 BR-PV-12] Voucher and its creation audit are saved together")]
+    public async Task VoucherCreate_SavesVoucherAndAudit()
+    {
+        var repository = new AgriSustain.Infrastructure.Repositories.VoucherRepository(_context);
+        var voucher = new Voucher
+        {
+            VoucherCode = "ATOMIC2", VoucherName = "Atomic", DiscountType = Voucher.TypePercentage,
+            DiscountValue = 10, MinOrderAmount = 0, UsageLimit = 10, PerCustomerLimit = 1, IsActive = true,
+            StartDate = _clock.GetUtcNow().UtcDateTime.AddDays(1), EndDate = _clock.GetUtcNow().UtcDateTime.AddDays(10)
+        };
+
+        await repository.AddWithAuditAsync(voucher, () => repository.AddAudit(new AuditLog
+        {
+            EntityType = "Voucher", EntityId = voucher.VoucherId, Action = "CreateVoucher",
+            OccurredAt = _clock.GetUtcNow().UtcDateTime
+        }), default);
+
+        await using var check = NewContext();
+        long id = (await check.Vouchers.SingleAsync(v => v.VoucherCode == "ATOMIC2")).VoucherId;
+        Assert.True(await check.AuditLogs.AnyAsync(a => a.EntityType == "Voucher" && a.EntityId == id
+            && a.Action == "CreateVoucher"));
+    }
+
     [Fact]
     public async Task GetAccountImpact_TranslatesToSql()
     {
@@ -140,6 +181,27 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
 
         Assert.True(result.IsSuccess, result.Error?.Message);
         Assert.Equal(0m, result.Value!.HeldPayoutAmount);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03] MSG-UM-07 counts in-progress and unpaid PendingPayment orders, not completed ones")]
+    public async Task GetAccountImpact_CountsPendingPayment()
+    {
+        foreach (var (code, status) in new[] { ("IMP-1", "PendingPayment"), ("IMP-2", "Shipping"), ("IMP-3", "Completed") })
+        {
+            _context.Orders.Add(new Order
+            {
+                BuyerUserId = 2, OrderCode = code, OrderType = "Retail", OrderDate = _clock.GetUtcNow().UtcDateTime,
+                ShippingAddress = "Test address", OrderStatus = status, RecipientNameSnapshot = "Buyer",
+                RecipientPhoneSnapshot = "0912345678", CheckoutRequestKey = Guid.NewGuid().ToString("D"),
+                TotalAmount = 100_000, FinalAmount = 100_000
+            });
+        }
+        await _context.SaveChangesAsync();
+
+        var result = await Admin().GetAccountImpactAsync(2, default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(2, result.Value!.OpenOrders);
     }
 
     [Fact]
@@ -217,7 +279,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         await _context.SaveChangesAsync();
         _context.ChangeTracker.Clear();
         var update = await Admin().SaveCategoryAsync(child.CategoryId,
-            new CategoryRequest("Test child", "Updated", true, false), default);
+            new CategoryRequest("Test child", "Updated", true, false, await CategoryVersion(child.CategoryId)), default);
         Assert.True(update.IsSuccess);
         var saved = await _context.Categories.AsNoTracking()
             .SingleAsync(x => x.CategoryId == child.CategoryId);
@@ -231,7 +293,8 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         var created = await Admin().SaveCategoryAsync(null,
             new CategoryRequest("Test unused", null, true, false), default);
         Assert.True(created.IsSuccess, created.Error?.Message);
-        var result = await Admin().ChangeCategoryAsync(created.Value!.Id, "delete", true, default);
+        var result = await Admin().ChangeCategoryAsync(created.Value!.Id, "delete",
+            new ConfirmationRequest(true, created.Value.Version), default);
         Assert.True(result.IsSuccess, result.Error?.Message);
         Assert.False(await _context.Categories.AnyAsync(x => x.CategoryId == created.Value.Id));
         Assert.Contains(await _context.AuditLogs.ToListAsync(), x => x.Action == "delete");
@@ -240,8 +303,10 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     [Fact]
     public async Task DeleteCategory_ActiveProduct_IsRejected()
     {
-        var result = await Admin().ChangeCategoryAsync(1, "delete", true, default);
+        var result = await Admin().ChangeCategoryAsync(1, "delete",
+            new ConfirmationRequest(true, await CategoryVersion(1)), default);
         Assert.Equal("CATEGORY_IN_USE", result.Error?.Code);
+        Assert.Contains("còn 1 sản phẩm đang bán", result.Error!.Message);
         Assert.NotNull(await _context.Categories.FindAsync(1L));
     }
 
@@ -250,10 +315,22 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     {
         (await _context.Products.SingleAsync()).IsPublished = false;
         await _context.SaveChangesAsync();
-        Assert.True((await Admin().ChangeCategoryAsync(1, "delete", true, default)).IsSuccess);
+        var archived = await Admin().ChangeCategoryAsync(1, "delete",
+            new ConfirmationRequest(true, await CategoryVersion(1)), default);
+        Assert.Equal("archived", archived.Value?.Outcome);
         Assert.True((await _context.CategorySettings.SingleAsync()).IsArchived);
         Assert.Equal(1, (await _context.Products.SingleAsync()).CategoryId);
+
+        // BR-CAT-01: the archived category stays listed as read-only history.
+        var listed = await Admin().SearchCategoriesAsync(new CategorySearch(Status: "Archived"), default);
+        var row = Assert.Single(listed.Value!.Items);
+        Assert.True(row.IsArchived);
+        Assert.Empty((await Admin().SearchCategoriesAsync(new CategorySearch(Status: "Active"), default))
+            .Value!.Items);
     }
+
+    private async Task<string> CategoryVersion(long id) =>
+        (await Admin().GetCategoryAsync(id, default)).Value!.Version;
 
     [Fact]
     public async Task ReviewedProducts_AreOrderedByDecisionTimeAndIncludeReviewer()

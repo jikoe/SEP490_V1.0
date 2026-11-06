@@ -3,8 +3,6 @@ using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
-using AgriSustain.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace AgriSustain.Application.Services;
@@ -17,8 +15,7 @@ public sealed class OrderFulfillmentService(
     IFileStorageService storage,
     INotificationGateway? notificationGateway = null,
     OrderRefundService? refundService = null,
-    OrderNotificationService? notificationService = null,
-    AgriSustainContext? dbContext = null)
+    OrderNotificationService? notificationService = null)
 {
     public async Task<FeatureResult<PageResult<SellerOrderResponse>>> GetListAsync(long userId,
         SellerOrderQuery query, CancellationToken cancellationToken)
@@ -166,9 +163,10 @@ public sealed class OrderFulfillmentService(
                 order.Cancel(trimmedReason);
                 if (refundService is not null)
                 {
+                    // A Pending request for Finance Staff (UC-FIN-03); no money moves here.
                     await refundService.RefundSellerShareOnceAsync(order, userId, trimmedReason,
                         request.RequestKey, now, cancellationToken);
-                    refundedAmount = refundService.GetCompletedAmount(order);
+                    refundedAmount = refundService.GetPendingAmount(order);
                 }
                 else if (rules.VerifiedPayment(order) > 0)
                     return Fail("UNAVAILABLE", "Dịch vụ hoàn tiền chưa sẵn sàng. Vui lòng thử lại.");
@@ -243,7 +241,7 @@ public sealed class OrderFulfillmentService(
             {
                 "dispatch" or "start-shipping" => $"Đơn hàng {order.SellerOrderCode} đã bắt đầu giao mô phỏng. Bạn có thể theo dõi tiến độ tại Chi tiết đơn hàng.",
                 "reject" => refundedAmount > 0
-                    ? $"Đơn hàng {order.SellerOrderCode} đã bị từ chối bởi nông trại. Lý do: {request.Explanation ?? request.Reason}. Khoản tiền {refundedAmount:N0} ₫ đã được hoàn tất về tài khoản nhận tiền của Quý khách."
+                    ? $"Đơn hàng {order.SellerOrderCode} đã bị từ chối bởi nông trại. Lý do: {request.Explanation ?? request.Reason}. Khoản hoàn {refundedAmount:N0} ₫ đang chờ bộ phận Tài chính chuyển khoản; vui lòng cung cấp hoặc xác nhận tài khoản nhận tiền."
                     : $"Đơn hàng {order.SellerOrderCode} đã bị từ chối. Lý do: {request.Explanation ?? request.Reason}",
                 "confirm" => $"Đơn hàng {order.SellerOrderCode} đã được xác nhận và đang chuẩn bị.",
                 "ready" => $"Đơn hàng {order.SellerOrderCode} đã sẵn sàng giao mô phỏng.",

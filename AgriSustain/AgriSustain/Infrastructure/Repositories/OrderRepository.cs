@@ -231,7 +231,7 @@ public sealed class OrderRepository(AgriSustainContext context, FulfillmentRules
             bankName,
             bankAccount,
             bankAccountName,
-            isRefunded, OrderRefundService.CalculateRefundableAmount(context, rules, order), completed.Sum(r => r.Amount),
+            isRefunded, OrderRefundService.CalculateRefundableAmount(rules, order, SellerAllocations(order)), completed.Sum(r => r.Amount),
             context.Notifications.Local.Any(n => n.NotificationType == "FarmerOrderUpdate" && n.RelatedRecordId == order.SellerOrderId && n.DeliveryStatus != "Sent")
             || context.Notifications.AsNoTracking().Any(n => n.NotificationType == "FarmerOrderUpdate" && n.RelatedRecordId == order.SellerOrderId && n.DeliveryStatus != "Sent"));
     }
@@ -240,4 +240,38 @@ public sealed class OrderRepository(AgriSustainContext context, FulfillmentRules
             a.UserId == order.Order.BuyerUserId && a.IsDefault && a.BankCodeNavigation.IsActive, ct);
     public void SaveRefundResultAsync(RefundTransaction refund) => context.RefundTransactions.Add(refund);
     public void SaveNotificationsAsync(Notification notification) => context.Notifications.Add(notification);
+
+    private List<PaymentInvoiceAllocation> SellerAllocations(SellerOrder order)
+    {
+        var ids = order.Order.PaymentTransactions.Select(payment => payment.PaymentTransactionId).ToArray();
+        return context.PaymentInvoiceAllocations.AsNoTracking()
+            .Where(allocation => allocation.Invoice.SellerOrderId == order.SellerOrderId
+                && ids.Contains(allocation.PaymentTransactionId)).ToList();
+    }
+
+    public async Task<bool> NotificationKeyExistsAsync(string payloadKey, CancellationToken ct) =>
+        context.Notifications.Local.Any(n => n.PayloadJson == payloadKey)
+        || await context.Notifications.AnyAsync(n => n.NotificationType == "FarmerOrderUpdate"
+            && n.PayloadJson == payloadKey, ct);
+
+    public async Task RequeueFailedOrderNotificationsAsync(string keyPrefix, CancellationToken ct)
+    {
+        var failed = await context.Notifications.Where(n => n.NotificationType == "FarmerOrderUpdate"
+            && n.PayloadJson != null && n.PayloadJson.StartsWith(keyPrefix) && n.DeliveryStatus == "Failed")
+            .ToListAsync(ct);
+        foreach (var row in failed) row.DeliveryStatus = "Pending";
+        await context.SaveChangesAsync(ct);
+    }
+
+    // Tracked with their refunds: the new refund requests are added to these allocations.
+    public async Task<IReadOnlyList<PaymentInvoiceAllocation>> GetSellerAllocationsAsync(long sellerOrderId,
+        IReadOnlyCollection<long> paymentIds, CancellationToken ct) =>
+        await context.PaymentInvoiceAllocations.Include(a => a.RefundTransactions)
+            .Where(a => a.Invoice.SellerOrderId == sellerOrderId && paymentIds.Contains(a.PaymentTransactionId))
+            .OrderBy(a => a.PaymentInvoiceAllocationId).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<long>> GetActiveFinanceUserIdsAsync(CancellationToken ct) =>
+        await context.Users.AsNoTracking()
+            .Where(user => user.Status == "Active" && (user.Role == "FinanceStaff" || user.Role == "Finance Staff"))
+            .Select(user => user.UserId).ToListAsync(ct);
 }

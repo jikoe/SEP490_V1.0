@@ -15,6 +15,10 @@ public interface IAdministrationRepository
 
     void AddNotification(Notification notification);
 
+    /// <summary>Active staff users with one of the roles, for BR-UM-07 notices.</summary>
+    Task<IReadOnlyList<long>> GetActiveUserIdsByRolesAsync(IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken);
+
     Task<Page<UserDto>> SearchUsersAsync(UserSearch search, long actorId, DateTimeOffset now,
         CancellationToken cancellationToken);
 

@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using AgriSustain.Infrastructure.Data;
 using System.Text.Json;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
@@ -7,7 +5,7 @@ namespace AgriSustain.Application.Services;
 
 // Queue both channels in the listing transaction. Only the email worker performs network I/O.
 public sealed class ProductNotificationService(IProductNotificationRepository repository,
-    TimeProvider clock, AgriSustainContext? context = null)
+    TimeProvider clock)
 {
     public async Task<bool> NotifyModeratorsAsync(Product product, string eventKey,
         CancellationToken cancellationToken)
@@ -41,12 +39,6 @@ public sealed class ProductNotificationService(IProductNotificationRepository re
     }
     public async Task RetryFailedChannelsAsync(string eventKey, CancellationToken ct = default)
     {
-        if (context is null) return;
-        var cutoff = clock.GetUtcNow().UtcDateTime.AddMinutes(-1);
-        var failed = await context.Notifications.Where(n => n.NotificationType == "ProductListingReview"
-            && n.DeliveryStatus == "Failed" && n.SentAt <= cutoff && n.PayloadJson != null
-            && n.PayloadJson.Contains(eventKey)).ToListAsync(ct);
-        foreach (var row in failed) row.DeliveryStatus = "Pending";
-        await context.SaveChangesAsync(ct);
+        await repository.RequeueFailedAsync(eventKey, clock.GetUtcNow().UtcDateTime.AddMinutes(-1), ct);
     }
 }

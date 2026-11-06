@@ -203,26 +203,26 @@ public sealed class AuthOtpApiTests : IAsyncLifetime
         Assert.Null(await ChallengeAsync(OtpPurposes.PasswordReset, "ghost@gmail.com"));
     }
 
-    [CommerceSqlFact(DisplayName = "[IT UC-AUTH-07 #03] E-mail failure returns 503 and stores no code")]
-    public async Task ForgotPassword_EmailFails_ServiceUnavailable()
+    [CommerceSqlFact(DisplayName = "[IT UC-AUTH-07 #03] E-mail failure keeps the neutral answer and stores no code (GBR-04)")]
+    public async Task ForgotPassword_EmailFails_StaysNeutral()
     {
         _api.Email.Succeeds = false;
 
         var response = await Post("api/auth/forgot-password", new ForgotPasswordRequest(ApiHost.ResetEmail));
 
-        await ApiAssert.Problem(response, HttpStatusCode.ServiceUnavailable, "EMAIL_DELIVERY_FAILED");
+        await ApiAssert.Status(response, HttpStatusCode.OK);
         Assert.Null(await ChallengeAsync(OtpPurposes.PasswordReset, ApiHost.ResetEmail));
     }
 
-    [CommerceSqlFact(DisplayName = "[IT UC-AUTH-07 #04] Resend inside the cooldown is refused")]
-    public async Task ResendResetOtp_Within60s_TooManyRequests()
+    [CommerceSqlFact(DisplayName = "[IT UC-AUTH-07 #04] Resend inside the cooldown sends nothing but answers neutrally (GBR-04)")]
+    public async Task ResendResetOtp_Within60s_StaysNeutral()
     {
         await Post("api/auth/forgot-password", new ForgotPasswordRequest(ApiHost.ResetEmail));
         _api.Clock.Advance(TimeSpan.FromSeconds(30));
 
         var response = await Post("api/auth/forgot-password/resend-otp", new ForgotPasswordRequest(ApiHost.ResetEmail));
 
-        await ApiAssert.Problem(response, HttpStatusCode.TooManyRequests, "RESEND_COOLDOWN");
+        await ApiAssert.Status(response, HttpStatusCode.OK);
         Assert.Single(_api.Email.Sent);
     }
 

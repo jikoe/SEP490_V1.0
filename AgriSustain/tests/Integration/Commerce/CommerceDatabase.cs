@@ -313,7 +313,6 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<FarmerOrderService>();
         builder.Services.AddScoped<OrderRefundService>();
         builder.Services.AddScoped<OrderNotificationService>();
-        builder.Services.AddSingleton(new AgriSustain.Infrastructure.Payments.PaymentGatewayProxy(new DemoGatewayEnvironment()));
         builder.Services.AddSingleton<IValidator<ProductRequest>, ProductRequestValidator>();
         builder.Services.AddSingleton<IValidator<ProductQuery>, ProductQueryValidator>();
         builder.Services.AddSingleton<ProductRequestValidator>();

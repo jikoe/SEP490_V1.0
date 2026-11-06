@@ -12,8 +12,9 @@ namespace AgriSustain.Application.Services.Refunds;
 /// customer-confirmed account outside the platform from the company bank app, then records
 /// Succeeded with the bank transaction ID, Failed with a reason, or Needs Reconciliation when the
 /// bank has not confirmed. Cancel Transfer returns Processing to Pending; Transfer Again restarts a
-/// Failed request. Success closes the complaint and marks the seller order Refunded or Partially
-/// Refunded; every step appends one history row (audit log).
+/// Failed request. A complaint refund closes the complaint and marks the seller order Refunded or
+/// Partially Refunded; a Farmer-rejection refund leaves the seller order Cancelled. Every step
+/// appends one history row (audit log).
 /// </summary>
 public sealed class RefundProcessingService(
     IRefundRepository repository,
@@ -207,6 +208,12 @@ public sealed class RefundProcessingService(
             MarkRefunded(sellerOrder, refund, now);
             NotifyRefunded(sellerOrder, refund, now);
         }
+        else if (await repository.GetFarmerRejectedSellerOrderAsync(refund, cancellationToken) is { } rejected)
+        {
+            // Farmer-rejection source: the seller order stays Cancelled; its refund state is shown
+            // from this succeeded refund. Buyer and Farmer are told the money was sent (MSG186).
+            NotifyRefunded(rejected, refund, now);
+        }
 
         AddAudit(refund, "CompleteRefund", previous, new
         {
@@ -249,9 +256,11 @@ public sealed class RefundProcessingService(
         string previous = refund.RefundStatus;
         string reason = request.Reason.Trim();
         refund.Fail();
-        if (refund.DisputeTicket?.SellerOrder is { } sellerOrder)
+        var failedOrder = refund.DisputeTicket?.SellerOrder
+            ?? await repository.GetFarmerRejectedSellerOrderAsync(refund, cancellationToken);
+        if (failedOrder is not null)
         {
-            NotifyTransferFailed(sellerOrder.Order.BuyerUserId, refund, reason, now);
+            NotifyTransferFailed(failedOrder.Order.BuyerUserId, refund, reason, now);
         }
 
         AddAudit(refund, "RefundTransferFailed", previous, HistoryEntry(refund), reason, now);

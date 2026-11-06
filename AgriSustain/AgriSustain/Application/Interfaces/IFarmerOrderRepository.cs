@@ -26,6 +26,18 @@ public interface IFarmerOrderRepository
         throw new NotSupportedException("Refund persistence is not implemented.");
     void SaveNotificationsAsync(Notification notification) =>
         throw new NotSupportedException("Notification persistence is not implemented.");
+    /// <summary>True when a notification with this event key is queued or stored (one per channel).</summary>
+    Task<bool> NotificationKeyExistsAsync(string payloadKey, CancellationToken ct) =>
+        throw new NotSupportedException("Notification lookup is not implemented.");
+    /// <summary>Sets failed order e-mails whose key starts with the prefix back to Pending and saves.</summary>
+    Task RequeueFailedOrderNotificationsAsync(string keyPrefix, CancellationToken ct) => Task.CompletedTask;
+    /// <summary>Invoice allocations of the seller order paid by the given payments, with their refunds.</summary>
+    Task<IReadOnlyList<PaymentInvoiceAllocation>> GetSellerAllocationsAsync(long sellerOrderId,
+        IReadOnlyCollection<long> paymentIds, CancellationToken ct) =>
+        throw new NotSupportedException("Allocation loading is not implemented.");
+    /// <summary>Active Finance Staff who receive new manual refund requests.</summary>
+    Task<IReadOnlyList<long>> GetActiveFinanceUserIdsAsync(CancellationToken ct) =>
+        throw new NotSupportedException("Finance staff lookup is not implemented.");
     Task<SellerOrder?> LoadOwnedContextAsync(long actorId, long id, CancellationToken ct) => GetOwnedAsync(actorId, id, ct);
     Task SaveFulfillmentAsync(SellerOrder order, IUnitOfWork unitOfWork, CancellationToken ct) => unitOfWork.CommitAsync(ct);
 }

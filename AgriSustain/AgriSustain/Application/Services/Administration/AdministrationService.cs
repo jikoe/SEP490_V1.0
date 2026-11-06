@@ -127,6 +127,7 @@ public sealed class AdministrationService(
             // BR-UM-10: the email is enqueued in the same transaction as the change and its audit.
             email = AccountEmail(user, request.Action, reason, now.UtcDateTime);
             repository.AddNotification(email);
+            await FlagOpenTransactionsAsync(user, request.Action, now.UtcDateTime, cancellationToken);
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
@@ -143,6 +144,48 @@ public sealed class AdministrationService(
             : $"Tài khoản #{id} đã được cập nhật. Chưa gửi được email thông báo; hệ thống sẽ gửi lại "
                 + "theo lịch gửi lại thông báo."; // MSG-UM-09
         return UseCaseResult<AccountActionResultDto>.Success(new AccountActionResultDto(account!, message, sent));
+    }
+
+    private static readonly string[] s_supportAndFinanceRoles =
+        ["CustomerSupport", "Customer Support", "FinanceStaff", "Finance Staff"];
+
+    /// <summary>
+    /// BR-UM-07 / BR-UM-08: open orders, contracts and unsettled payouts are not cancelled; Customer
+    /// Support and Finance Staff are told which account changed so they review them. Payout holds
+    /// are not stored: FarmerPayout.Blockers() refuses a Suspended Farmer when Finance pays.
+    /// </summary>
+    private async Task FlagOpenTransactionsAsync(User user, string action, DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (action == "unlock" || !user.CanBeSuspended)
+        {
+            return;
+        }
+        var impact = await repository.GetAccountImpactAsync(user.UserId, cancellationToken);
+        if (!impact.HasOpenTransactions)
+        {
+            return;
+        }
+        string who = $"{user.FullName} (#{user.UserId}, {user.Role})";
+        string counts = $"{impact.OpenOrders} đơn đang mở, {impact.ActiveContracts} hợp đồng đang hiệu lực, "
+            + $"{impact.HeldPayoutAmount:N0} ₫ payout chưa chi";
+        var (title, content) = action == "suspend"
+            ? ("Tài khoản bị tạm ngưng có giao dịch đang mở",
+                $"Tài khoản {who} đã bị tạm ngưng. Hiện có {counts}. Các giao dịch này không bị hủy tự động; "
+                    + "vui lòng xem lại. Payout của nông trại không đủ điều kiện chi cho tới khi tài khoản được kích hoạt lại.")
+            : ("Tài khoản được kích hoạt lại có giao dịch đang mở",
+                $"Tài khoản {who} đã được kích hoạt lại. Hiện có {counts}. Payout chỉ được chi khi không còn lý do "
+                    + "giữ khác (khiếu nại chưa quyết định, tài khoản ngân hàng vừa thay đổi).");
+        foreach (long staffId in await repository.GetActiveUserIdsByRolesAsync(s_supportAndFinanceRoles,
+            cancellationToken))
+        {
+            repository.AddNotification(new Notification
+            {
+                UserId = staffId, Title = title, Content = content, NotificationType = "AccountStatus",
+                IsRead = false, SentAt = now, DeliveryChannel = "InApp", DeliveryStatus = "Sent",
+                RelatedRecordType = "User", RelatedRecordId = user.UserId
+            });
+        }
     }
 
     /// <summary>BR-UM-12: status and lock state must still be the ones shown at Step 4.</summary>

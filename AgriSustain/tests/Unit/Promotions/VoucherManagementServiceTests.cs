@@ -26,13 +26,13 @@ public sealed class VoucherManagementServiceTests
             T0.AddDays(startDays), T0.AddDays(endDays));
 
     private Voucher Existing(int usedCount = 0, int redemptions = 0, int reserved = 0, bool active = true,
-        int endDays = 30)
+        int endDays = 30, int startDays = 0)
     {
         var voucher = new Voucher
         {
             VoucherId = 4, VoucherCode = "SALE10", DiscountType = Voucher.TypePercentage, DiscountValue = 10,
             MaxDiscountAmount = 50_000, MinOrderAmount = 100_000, UsageLimit = 100, UsedCount = usedCount,
-            StartDate = T0.UtcDateTime, EndDate = T0.UtcDateTime.AddDays(endDays), IsActive = active
+            StartDate = T0.UtcDateTime.AddDays(startDays), EndDate = T0.UtcDateTime.AddDays(endDays), IsActive = active
         };
         _store.Vouchers.Add(voucher);
         _store.Redemptions[4] = redemptions;
@@ -81,12 +81,13 @@ public sealed class VoucherManagementServiceTests
         Assert.True(result.IsSuccess);
     }
 
-    [Fact(DisplayName = "UTC-PS01-04 A period that already ended cannot be created")]
+    [Fact(DisplayName = "UTC-PS01-04 A new voucher cannot start in the past (BR-PV-04)")]
     public async Task Create_PastPeriod_Rejected()
     {
         var result = await Service().CreateAsync(Request(startDays: -10, endDays: -1), default);
 
-        Assert.Contains("endDate", result.Error!.Fields!.Keys);
+        Assert.Contains("startDate", result.Error!.Fields!.Keys);
+        Assert.Empty(_store.Vouchers);
     }
 
     [Fact(DisplayName = "UTC-PS01-05 Voucher code is unique regardless of case")]
@@ -100,10 +101,10 @@ public sealed class VoucherManagementServiceTests
         Assert.Equal(409, result.StatusCode);
     }
 
-    [Fact(DisplayName = "UTC-PS01-06 Unused voucher can change its whole rule")]
+    [Fact(DisplayName = "UTC-PS01-06 Unused voucher that has not started can change its whole rule (BR-PV-07)")]
     public async Task Update_Unused_AllFieldsEditable()
     {
-        var voucher = Existing();
+        var voucher = Existing(startDays: 1);
 
         var result = await Service().UpdateAsync(4,
             Request(code: "SALE20", type: Voucher.TypeFixedAmount, value: 20_000, max: null), default);
@@ -132,13 +133,23 @@ public sealed class VoucherManagementServiceTests
     [Fact(DisplayName = "UTC-PS01-08 Usage limit cannot drop below used plus reserved")]
     public async Task Update_LimitBelowUsage_Rejected()
     {
-        Existing(usedCount: 3, redemptions: 5, reserved: 2);
+        Existing(startDays: 1, reserved: 2);
 
-        var tooLow = await Service().UpdateAsync(4, Request(limit: 4), default);
-        var exact = await Service().UpdateAsync(4, Request(limit: 5), default);
+        var tooLow = await Service().UpdateAsync(4, Request(limit: 1), default);
+        var exact = await Service().UpdateAsync(4, Request(limit: 2), default);
 
         Assert.Contains("usageLimit", tooLow.Error!.Fields!.Keys);
         Assert.True(exact.IsSuccess);
+    }
+
+    [Fact(DisplayName = "UTC-PS01-08b A used voucher cannot lower its total limit (BR-PV-07)")]
+    public async Task Update_UsedLowerLimit_TermsLocked()
+    {
+        Existing(usedCount: 3, redemptions: 3);
+
+        var result = await Service().UpdateAsync(4, Request(limit: 50), default);
+
+        Assert.Equal("VOUCHER_TERMS_LOCKED", result.Error!.Code);
     }
 
     [Fact(DisplayName = "UTC-PS01-09 Activate and deactivate change status; expired cannot be activated")]
@@ -152,25 +163,30 @@ public sealed class VoucherManagementServiceTests
         var expired = await Service().SetActiveAsync(4, true, null, default);
 
         Assert.Equal(Voucher.StatusActive, activated.Value!.Voucher!.Status);
-        Assert.Equal("VOUCHER_EXPIRED", expired.Error!.Code);
+        Assert.Equal("VOUCHER_CANNOT_REACTIVATE", expired.Error!.Code);   // MSG-PV-10
         Assert.False(voucher.IsActive);
     }
 
-    [Fact(DisplayName = "UTC-PS01-10 Unused voucher is deleted; used voucher is archived")]
+    [Fact(DisplayName = "UTC-PS01-10 Unused scheduled voucher is deleted; a used or Active voucher cannot be (BR-PV-09)")]
     public async Task Delete_UnusedRemoved_UsedArchived()
     {
-        var unused = Existing();
+        var unused = Existing(startDays: 1);
         var deleted = await Service().DeleteAsync(4, null, default);
         Assert.True(deleted.IsSuccess);
         Assert.DoesNotContain(unused, _store.Vouchers);
+        Assert.Equal("DeleteVoucher", _store.Audits[^1].Action);
 
-        var used = Existing(redemptions: 1);
-        var archived = await Service().DeleteAsync(4, null, default);
+        _store.Vouchers.Clear();
+        var used = Existing(startDays: 1, redemptions: 1);
+        var refusedUsed = await Service().DeleteAsync(4, null, default);
+        _store.Vouchers.Clear();
+        var active = Existing();
+        var refusedActive = await Service().DeleteAsync(4, null, default);
 
-        Assert.True(archived.IsSuccess);
-        Assert.Contains(used, _store.Vouchers);
-        Assert.False(used.IsActive);
-        Assert.Equal("ArchiveVoucher", _store.Audits[^1].Action);
+        Assert.Equal("VOUCHER_CANNOT_DELETE", refusedUsed.Error!.Code);         // MSG-PV-11
+        Assert.Equal("VOUCHER_CANNOT_DELETE", refusedActive.Error!.Code);
+        Assert.Contains(active, _store.Vouchers);
+        Assert.True(used.IsActive);
     }
 
     [Theory(DisplayName = "UTC-PS01-11 Lifecycle status follows flag, dates and usage")]

@@ -22,8 +22,9 @@ public sealed class RefundProcessingServiceTests
         _store, new Actor(), new CompleteRefundRequestValidator(),
         new RefundTransferFailedRequestValidator(), new RefundReconciliationRequestValidator(), new FakeClock(T0));
 
+    /// <summary>A complaint refund already started by Finance (Processing), with a receiving account.</summary>
     private static RefundTransaction Refund(decimal amount = 200_000m, decimal paid = 200_000m,
-        string otherSellerStatus = "")
+        string otherSellerStatus = "", string status = RefundTransaction.StatusProcessing)
     {
         var order = new Order { OrderId = 1, OrderCode = "ORD-1", BuyerUserId = BuyerId, OrderStatus = "RefundPending",
             FinalAmount = 200_000m };
@@ -47,8 +48,10 @@ public sealed class RefundProcessingServiceTests
         var refund = new RefundTransaction
         {
             RefundTransactionId = 11, RefundCode = "RF-7", Amount = amount,
-            RefundStatus = RefundTransaction.StatusPending, ProcessedByUserId = 90,
-            PaymentTransaction = payment, DisputeTicket = ticket, RequestKey = "complaint:7"
+            RefundStatus = status, ProcessedByUserId = 90,
+            PaymentTransaction = payment, DisputeTicket = ticket, RequestKey = "complaint:7",
+            ReceiverBankCode = "VCB", ReceiverAccountNumber = "0123456789", ReceiverAccountHolder = "NGUYEN VAN A",
+            ReceiverAccountProvidedAt = T0.UtcDateTime
         };
         payment.RefundTransactions.Add(refund);
         return refund;
@@ -130,7 +133,7 @@ public sealed class RefundProcessingServiceTests
         var result = await Service().CompleteAsync(11, Transfer(reference, method), default);
 
         Assert.Contains(field, result.Error!.Fields!.Keys);
-        Assert.Equal(RefundTransaction.StatusPending, refund.RefundStatus);
+        Assert.Equal(RefundTransaction.StatusProcessing, refund.RefundStatus);
     }
 
     [Fact(DisplayName = "UTC-FIN03-05 A completed refund cannot be completed again")]
@@ -154,18 +157,19 @@ public sealed class RefundProcessingServiceTests
         var result = await Service().CompleteAsync(11, Transfer(), default);
 
         Assert.Equal("TRANSFER_REFERENCE_USED", result.Error!.Code);
-        Assert.Equal(RefundTransaction.StatusPending, refund.RefundStatus);
+        Assert.Equal(RefundTransaction.StatusProcessing, refund.RefundStatus);
     }
 
-    [Fact(DisplayName = "UTC-FIN03-07 Transfer failure is logged and the refund stays Pending")]
-    public async Task TransferFailed_KeepsPending()
+    [Fact(DisplayName = "UTC-FIN03-07 A rejected transfer is Failed, logged and the customer is asked to check the account")]
+    public async Task TransferFailed_MarksFailed()
     {
         var refund = _store.Refund = Refund();
 
         var result = await Service().RecordTransferFailureAsync(11, new("Sai số tài khoản"), default);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(RefundTransaction.StatusPending, refund.RefundStatus);
+        Assert.Equal(RefundTransaction.StatusFailed, refund.RefundStatus);
+        Assert.Contains(_store.Notifications, n => n.UserId == BuyerId);
         Assert.Equal("RefundPending", refund.DisputeTicket!.SellerOrder!.Status);
         var audit = Assert.Single(_store.Audits);
         Assert.Equal("RefundTransferFailed", audit.Action);
@@ -178,6 +182,68 @@ public sealed class RefundProcessingServiceTests
         var result = await Service().CompleteAsync(99, Transfer(), default);
 
         Assert.Equal(404, result.StatusCode);
+    }
+
+    [Fact(DisplayName = "UTC-FIN03-09 Start Transfer moves Pending to Processing; no receiving account blocks it")]
+    public async Task StartTransfer_NeedsReceivingAccount()
+    {
+        var refund = _store.Refund = Refund(status: RefundTransaction.StatusPending);
+        refund.ReceiverBankCode = refund.ReceiverAccountNumber = refund.ReceiverAccountHolder = null;
+        refund.ReceiverAccountProvidedAt = null;
+
+        var blocked = await Service().StartTransferAsync(11, new(RefundTransaction.StatusPending), default);
+        refund.ReceiverBankCode = "VCB";
+        refund.ReceiverAccountNumber = "0123456789";
+        refund.ReceiverAccountHolder = "NGUYEN VAN A";
+        refund.ReceiverAccountProvidedAt = T0.UtcDateTime;
+        var started = await Service().StartTransferAsync(11, new(RefundTransaction.StatusPending), default);
+
+        Assert.Equal("REFUND_ACCOUNT_MISSING", blocked.Error?.Code);
+        Assert.True(started.IsSuccess, started.Error?.Message);
+        Assert.Equal(RefundTransaction.StatusProcessing, refund.RefundStatus);
+    }
+
+    /// <summary>A Farmer-rejection refund (UC-FAR-06): no complaint, the seller order is Cancelled.</summary>
+    private RefundTransaction FarmerRejectionRefund(string status)
+    {
+        var refund = Refund(status: status);
+        var sellerOrder = refund.DisputeTicket!.SellerOrder!;
+        sellerOrder.Status = "Cancelled";
+        sellerOrder.Order.OrderStatus = "Cancelled";
+        refund.DisputeTicket = null;
+        refund.RequestKey = "farmer-reject:3:5:0";
+        refund.RefundCode = "REF-3-5-0";
+        _store.FarmerRejected = sellerOrder;
+        return refund;
+    }
+
+    [Fact(DisplayName = "UTC-FIN03-10 Farmer-rejection refund: Start Transfer works without a complaint")]
+    public async Task StartTransfer_FarmerRejection()
+    {
+        var refund = _store.Refund = FarmerRejectionRefund(RefundTransaction.StatusPending);
+
+        var result = await Service().StartTransferAsync(11, new(RefundTransaction.StatusPending), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(RefundTransaction.StatusProcessing, refund.RefundStatus);
+    }
+
+    [Fact(DisplayName = "UTC-FIN03-11 Farmer-rejection refund succeeds, the seller order stays Cancelled and both parties are told")]
+    public async Task Complete_FarmerRejection_StaysCancelled()
+    {
+        var refund = _store.Refund = FarmerRejectionRefund(RefundTransaction.StatusProcessing);
+        var sellerOrder = _store.FarmerRejected!;
+
+        var result = await Service().CompleteAsync(11, Transfer(), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(RefundTransaction.StatusCompleted, refund.RefundStatus);
+        Assert.Equal("Cancelled", sellerOrder.Status);
+        Assert.Equal("Cancelled", sellerOrder.Order.OrderStatus);
+        Assert.Empty(sellerOrder.OrderStatusHistories);
+        Assert.Equal(PaymentTransaction.StatusRefunded, refund.PaymentTransaction.PaymentStatus);
+        Assert.Contains(_store.Notifications, n => n.UserId == BuyerId);
+        Assert.Contains(_store.Notifications, n => n.UserId == FarmerUserId);
     }
 
     private sealed class Actor : IActorContext
@@ -202,6 +268,9 @@ public sealed class RefundProcessingServiceTests
             Task.FromResult(Refund?.RefundTransactionId == id ? Refund : null);
         public Task<bool> TransferReferenceExistsAsync(string reference, CancellationToken ct) =>
             Task.FromResult(UsedReferences.Contains(reference));
+        public SellerOrder? FarmerRejected { get; set; }
+        public Task<SellerOrder?> GetFarmerRejectedSellerOrderAsync(RefundTransaction refund, CancellationToken ct) =>
+            Task.FromResult(refund.DisputeTicketId is null ? FarmerRejected : null);
         public void AddAudit(AuditLog audit) => Audits.Add(audit);
         public void AddNotification(Notification notification) => Notifications.Add(notification);
 

@@ -46,6 +46,11 @@ public sealed class ComplaintRefundSqlTests : IAsyncLifetime
         await _context.SaveChangesAsync();
         _supportId = support.UserId;
         _financeId = finance.UserId;
+        // A default receiving account, so Finance can start the transfer (UC-FIN-08, BR-RF-05).
+        _context.SupportedBanks.Add(new SupportedBank { BankCode = "VCB", ShortName = "Vietcombank", FullName = "Test bank", IsActive = true });
+        _context.UserBankAccounts.Add(new UserBankAccount { UserId = buyer.UserId, BankCode = "VCB",
+            AccountNumber = "0123456789", AccountHolder = "TEST BUYER", IsDefault = true, VerifiedAt = Now, CreatedAt = Now });
+        await _context.SaveChangesAsync();
 
         FarmerProfile Farm(User user) => new()
         {
@@ -181,6 +186,7 @@ public sealed class ComplaintRefundSqlTests : IAsyncLifetime
         Assert.Equal("Delivered", (await _context.SellerOrders.SingleAsync(x => x.SellerOrderCode == "SO-B")).Status);
         Assert.Equal("RefundPending", (await _context.Orders.SingleAsync()).OrderStatus);
 
+        await StartTransferAsync(refund.RefundTransactionId);
         var completed = await Refunds().CompleteAsync(refund.RefundTransactionId,
             new CompleteRefundRequest(RefundMethods.BankTransfer, "VCB-TEST-1", null), default);
         Assert.True(completed.IsSuccess, completed.Error?.Message);
@@ -202,12 +208,21 @@ public sealed class ComplaintRefundSqlTests : IAsyncLifetime
         var refund = await _context.RefundTransactions.SingleAsync();
         Assert.Equal(180_000m, refund.Amount);
 
-        await Refunds().CompleteAsync(refund.RefundTransactionId,
-            new CompleteRefundRequest(RefundMethods.BankTransfer, "VCB-TEST-2", null), default);
+        await StartTransferAsync(refund.RefundTransactionId);
+        Assert.True((await Refunds().CompleteAsync(refund.RefundTransactionId,
+            new CompleteRefundRequest(RefundMethods.BankTransfer, "VCB-TEST-2", null), default)).IsSuccess);
         _context.ChangeTracker.Clear();
 
         Assert.Equal("Refunded", (await _context.SellerOrders.FindAsync(_sellerOrderId))!.Status);
         Assert.Equal("PartiallyRefunded", (await _context.Orders.SingleAsync()).OrderStatus);
+    }
+
+    /// <summary>BR-RF-03: a result is recorded only for a transfer Finance has started.</summary>
+    private async Task StartTransferAsync(long refundId)
+    {
+        var started = await Refunds().StartTransferAsync(refundId, new RefundTransferRequest(RefundTransaction.StatusPending), default);
+        Assert.True(started.IsSuccess, started.Error?.Message);
+        _context.ChangeTracker.Clear();
     }
 
     private ComplaintResolutionService Complaints() => new(new ComplaintRepository(_context),

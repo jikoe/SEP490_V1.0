@@ -276,6 +276,24 @@ public sealed class RefundRepository : IRefundRepository
             .SingleOrDefaultAsync(refund => refund.RefundTransactionId == refundId, cancellationToken);
     }
 
+    public Task<SellerOrder?> GetFarmerRejectedSellerOrderAsync(
+        RefundTransaction refund,
+        CancellationToken cancellationToken)
+    {
+        string[] parts = refund.RequestKey.Split(':');
+        if (refund.DisputeTicketId is not null
+            || !refund.RequestKey.StartsWith(FarmerRejectKeyPrefix, StringComparison.Ordinal)
+            || parts.Length < 2 || !long.TryParse(parts[1], out long sellerOrderId))
+        {
+            return Task.FromResult<SellerOrder?>(null);
+        }
+
+        return _context.SellerOrders
+            .Include(sellerOrder => sellerOrder.Order)
+            .Include(sellerOrder => sellerOrder.FarmerProfile)
+            .SingleOrDefaultAsync(sellerOrder => sellerOrder.SellerOrderId == sellerOrderId, cancellationToken);
+    }
+
     public Task<bool> TransferReferenceExistsAsync(
         string transferReference,
         CancellationToken cancellationToken)

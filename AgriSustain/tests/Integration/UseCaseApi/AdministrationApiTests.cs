@@ -74,11 +74,11 @@ public sealed class AdministrationApiTests : IAsyncLifetime
             HttpStatusCode.Forbidden);
     }
 
-    [CommerceSqlFact(DisplayName = "[IT UC-ADM-05 #08] Category name of 151 characters is rejected")]
+    [CommerceSqlFact(DisplayName = "[IT UC-ADM-05 #08] Category name of 101 characters is rejected")]
     public async Task Categories_LongName_FieldError()
     {
         var response = await _api.Admin().PostAsJsonAsync("api/categories",
-            new CategoryRequest(new string('a', 151), null, true, false));
+            new CategoryRequest(new string('a', 101), null, true, false));
 
         ApiAssert.HasFieldError(await ApiAssert.Status(response, HttpStatusCode.BadRequest), "Name");
         await using var db = _api.Open();
@@ -89,7 +89,7 @@ public sealed class AdministrationApiTests : IAsyncLifetime
     public async Task Categories_UnconfirmedDeactivate_Validation()
     {
         var response = await _api.Admin().PostAsJsonAsync($"api/categories/{_api.CategoryId}/deactivate",
-            new ConfirmationRequest(false));
+            new ConfirmationRequest(false, await CategoryVersion()));
 
         await ApiAssert.Problem(response, HttpStatusCode.BadRequest, "VALIDATION");
         await using var db = _api.Open();
@@ -108,29 +108,43 @@ public sealed class AdministrationApiTests : IAsyncLifetime
     [CommerceSqlFact(DisplayName = "[IT UC-ADM-05 #11] Archived category cannot be edited")]
     public async Task Categories_Archived_Conflict()
     {
-        await ApiAssert.Status(await _api.Admin().PostAsJsonAsync($"api/categories/{_api.CategoryId}/archive",
-            new ConfirmationRequest(true)), HttpStatusCode.Conflict);   // still has an active product
+        await ApiAssert.Problem(await _api.Admin().PostAsJsonAsync($"api/categories/{_api.CategoryId}/delete",
+            new ConfirmationRequest(true, await CategoryVersion())), HttpStatusCode.Conflict, "CATEGORY_IN_USE");
         await using (var db = _api.Open())
         {
             await db.Products.ExecuteUpdateAsync(set => set.SetProperty(product => product.IsPublished, false)
                 .SetProperty(product => product.ApprovalStatus, "Rejected"));
         }
 
-        await ApiAssert.Status(await _api.Admin().PostAsJsonAsync($"api/categories/{_api.CategoryId}/archive",
-            new ConfirmationRequest(true)), HttpStatusCode.OK);
+        // The product still references the category, so delete archives it (BR-CAT-04).
+        await ApiAssert.Status(await _api.Admin().PostAsJsonAsync($"api/categories/{_api.CategoryId}/delete",
+            new ConfirmationRequest(true, await CategoryVersion())), HttpStatusCode.OK);
         var edit = await _api.Admin().PutAsJsonAsync($"api/categories/{_api.CategoryId}",
-            new CategoryRequest("Tên mới", null, false, true));
+            new CategoryRequest("Tên mới", null, false, true, await CategoryVersion()));
 
         await ApiAssert.Problem(edit, HttpStatusCode.Conflict, "ARCHIVED");
         await using var check = _api.Open();
         Assert.Equal("Test produce", (await check.Categories.SingleAsync()).CategoryName);
     }
 
+    [CommerceSqlFact(DisplayName = "[IT UC-ADM-05 #13] The removed archive operation no longer matches a route")]
+    public async Task Categories_ArchiveRoute_NotFound()
+    {
+        var response = await _api.Admin().PostAsJsonAsync($"api/categories/{_api.CategoryId}/archive",
+            new ConfirmationRequest(true, await CategoryVersion()));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    private async Task<string> CategoryVersion() =>
+        (await (await _api.Admin().GetAsync($"api/categories/{_api.CategoryId}"))
+            .Content.ReadFromJsonAsync<CategoryDto>())!.Version;
+
     [CommerceSqlFact(DisplayName = "[IT UC-ADM-05 #12] Product in a deactivated category can no longer be quoted")]
     public async Task Categories_Deactivated_BlocksCheckout()
     {
         await ApiAssert.Status(await _api.Admin().PostAsJsonAsync($"api/categories/{_api.CategoryId}/deactivate",
-            new ConfirmationRequest(true)), HttpStatusCode.OK);
+            new ConfirmationRequest(true, await CategoryVersion())), HttpStatusCode.OK);
 
         var quote = await _api.Buyer().PostAsJsonAsync("api/checkout/quotes", ApiHost.CheckoutInput());
 

@@ -25,6 +25,14 @@ public interface IRefundRepository
         string transferReference,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The cancelled seller order of a Farmer-rejection refund (RequestKey farmer-reject:{id}:...),
+    /// with its order and farm, or null for a complaint refund.
+    /// </summary>
+    Task<SellerOrder?> GetFarmerRejectedSellerOrderAsync(
+        RefundTransaction refund,
+        CancellationToken cancellationToken);
+
     void AddAudit(AuditLog audit);
 
     void AddNotification(Notification notification);

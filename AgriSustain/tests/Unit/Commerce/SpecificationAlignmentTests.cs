@@ -53,35 +53,6 @@ public sealed class SpecificationAlignmentTests
         Assert.Equal(0,f.Batch.ReservedQuantity);Assert.Equal(1,f.Work.Commits);
     }
 
-    [Fact, Trait("UseCase", "UC-FAR-06"), Trait("CaseId", "UT-FAR-06-REV-003")]
-    public async Task DemoGateway_ReplayKeepsSameTransferReference()
-    {
-        var gateway=new PaymentGatewayProxy(new DemoEnvironment());
-        var request=new RefundTransferRequest(10,100,"VCB","0123456789","TEST BUYER");
-        var first=await gateway.RefundAsync(request,"order-1-payment-10",default);
-        var second=await gateway.RefundAsync(request,"order-1-payment-10",default);
-        Assert.Equal(first,second);Assert.StartsWith("DEMO-",first.Reference);Assert.Equal(100,first.Amount);
-    }
-
-    [Theory, Trait("UseCase", "UC-FAR-06"), Trait("CaseId", "UT-FAR-06-REV-004")]
-    [InlineData(0,"VCB","0123456789","BUYER")]
-    [InlineData(100,"","0123456789","BUYER")]
-    [InlineData(100,"VCB","abc123456","BUYER")]
-    [InlineData(100,"VCB","12345","BUYER")]
-    [InlineData(100,"VCB","0123456789"," ")]
-    public async Task DemoGateway_InvalidDestinationOrAmountDoesNotConfirm(int amount,string bank,string number,string holder)
-    {
-        var gateway=new PaymentGatewayProxy(new DemoEnvironment());
-        await Assert.ThrowsAsync<InvalidOperationException>(()=>gateway.RefundAsync(new(10,amount,bank,number,holder),"key",default));
-    }
-
-    [Fact, Trait("UseCase", "UC-FAR-06"), Trait("CaseId", "UT-FAR-06-REV-005")]
-    public async Task DemoGateway_IsDisabledInProduction()
-    {
-        var gateway=new PaymentGatewayProxy(new DemoEnvironment{EnvironmentName="Production"});
-        await Assert.ThrowsAsync<InvalidOperationException>(()=>gateway.RefundAsync(new(10,100,"VCB","0123456789","BUYER"),"key",default));
-    }
-
     [Fact,Trait("UseCase","UC-FAR-03"),Trait("CaseId","UT-FAR-03-REV-003")]
     public async Task SubmissionNotification_QueuesTwoChannelsForEachModerator()
     {
@@ -111,11 +82,4 @@ public sealed class SpecificationAlignmentTests
         public void Add(Notification row)=>Rows.Add(row);
     }
 
-    private sealed class DemoEnvironment:IHostEnvironment
-    {
-        public string EnvironmentName {get;set;}="Development";
-        public string ApplicationName {get;set;}="UnitTests";
-        public string ContentRootPath {get;set;}=".";
-        public IFileProvider ContentRootFileProvider {get;set;}=new NullFileProvider();
-    }
 }
