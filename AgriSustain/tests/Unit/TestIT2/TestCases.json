@@ -1,0 +1,1526 @@
+[
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-001",
+    "method": "UT_FAR_01_001_ValidPlan",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Valid plan; kg; positive area/yield; harvest after planting and today",
+    "expected": "Plan accepted without changing the supplied product.",
+    "type": "Normal",
+    "trace": "NF4; BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF4"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-002",
+    "method": "UT_FAR_01_002_BlankName",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: seasonName=whitespace",
+    "expected": "Reject invalid plan; no accepted plan.",
+    "type": "Abnormal",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-003",
+    "method": "UT_FAR_01_003_NameTooLong",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: 201-character seasonName",
+    "expected": "Reject invalid plan; no accepted plan.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-004",
+    "method": "UT_FAR_01_004_ZeroArea",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: cultivatedArea=0",
+    "expected": "Reject invalid plan; no accepted plan.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-005",
+    "method": "UT_FAR_01_005_AreaPrecision",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: cultivatedArea=1.0001",
+    "expected": "Reject invalid plan; no accepted plan.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-006",
+    "method": "UT_FAR_01_006_ZeroYield",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: estimatedYield=0",
+    "expected": "Reject invalid plan; no accepted plan.",
+    "type": "Boundary",
+    "trace": "NF4, E1; BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF4",
+      "E1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-007",
+    "method": "UT_FAR_01_007_InvalidDate",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: new plan harvest=today",
+    "expected": "Reject invalid plan; no accepted plan.",
+    "type": "Abnormal",
+    "trace": "E1; BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "E1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-008",
+    "method": "UT_FAR_01_008_IncompatibleUnit",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: yieldUnit=lít; productUnit=kg",
+    "expected": "Reject invalid plan; no accepted plan.",
+    "type": "Abnormal",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-009",
+    "method": "UT_FAR_01_009_MaximumName",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: seasonName=200 characters",
+    "expected": "Boundary length accepted.",
+    "type": "Boundary",
+    "trace": "BR-SEAS-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-010",
+    "method": "UT_FAR_01_010_StageSequence",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Planned→Planting→Growing→Harvesting",
+    "expected": "Each next stage accepted.",
+    "type": "Normal",
+    "trace": "AF stage progression; BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-011",
+    "method": "UT_FAR_01_011_SkipStage",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Planned→Harvesting",
+    "expected": "Reject skipped stage with MSG131.",
+    "type": "Abnormal",
+    "trace": "AF2; BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "AF2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-012",
+    "method": "UT_FAR_01_012_FuturePlanting",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Planned; planting=tomorrow; next=Planting",
+    "expected": "Reject starting before planting date.",
+    "type": "Boundary",
+    "trace": "AF2; BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "AF2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-013",
+    "method": "UT_FAR_01_013_NoEditActivePlan",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Growing season; save plan",
+    "expected": "Reject plan edit with MSG131.",
+    "type": "Abnormal",
+    "trace": "BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-014",
+    "method": "UT_FAR_01_014_CompleteReconcilesYield",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Harvesting; stock-entered batch=10 kg; actualYield=10",
+    "expected": "Completion accepted; recorded yield=10.",
+    "type": "Normal",
+    "trace": "BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-015",
+    "method": "UT_FAR_01_015_MismatchYield",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: stock-entered yield=0; actualYield=1",
+    "expected": "Reject unreconciled completion.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "AF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-016",
+    "method": "UT_FAR_01_016_CancelZeroYield",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Growing; no stock; cancellation actualYield=0",
+    "expected": "Cancellation reconciliation accepted; ordinary completion with zero rejected.",
+    "type": "Boundary",
+    "trace": "BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-017",
+    "method": "UT_FAR_01_017_InsufficientCommitmentYield",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: commitment=10kg due today+10; proposed yield=9, date=today+5",
+    "expected": "Reject change that invalidates fulfillment commitment; MSG130.",
+    "type": "Abnormal",
+    "trace": "BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-018",
+    "method": "UT_FAR_01_018_LateCommitment",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: commitment=10kg due today+10; proposed yield=10, date=today+11",
+    "expected": "Reject change that invalidates fulfillment commitment; MSG130.",
+    "type": "Abnormal",
+    "trace": "BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-019",
+    "method": "UT_FAR_01_019_ConvertCommitments",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: commitment=1000g; plan=1kg by due date",
+    "expected": "Compatible units reconciled exactly.",
+    "type": "Boundary",
+    "trace": "BR-SEAS-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-020",
+    "method": "UT_FAR_01_020_MissingVariety",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: CropVariety = \" \"",
+    "expected": "Reject invalid plan and identify cropVariety.",
+    "type": "Abnormal",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-021",
+    "method": "UT_FAR_01_021_VarietyTooLong",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: CropVariety = new string('v',151)",
+    "expected": "Reject invalid plan and identify cropVariety.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-022",
+    "method": "UT_FAR_01_022_MissingUnit",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: YieldUnit = \" \"",
+    "expected": "Reject invalid plan and identify yieldUnit.",
+    "type": "Abnormal",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-023",
+    "method": "UT_FAR_01_023_NegativeArea",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: CultivatedArea = -1",
+    "expected": "Reject invalid plan and identify cultivatedArea.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-024",
+    "method": "UT_FAR_01_024_NegativeYield",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: EstimatedYield = -1",
+    "expected": "Reject invalid plan and identify estimatedYield.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-025",
+    "method": "UT_FAR_01_025_YieldPrecision",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: EstimatedYield = .0001m",
+    "expected": "Reject invalid plan and identify estimatedYield.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-026",
+    "method": "UT_FAR_01_026_MissingPlanting",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: PlantingDate = default",
+    "expected": "Reject invalid plan and identify estimatedHarvestDate.",
+    "type": "Abnormal",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-027",
+    "method": "UT_FAR_01_027_HarvestEqualsPlanting",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: PlantingDate = FarmerTestData.Today.AddDays(2), EstimatedHarvestDate = FarmerTestData.Today.AddDays(2)",
+    "expected": "Reject invalid plan and identify estimatedHarvestDate.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-028",
+    "method": "UT_FAR_01_028_PositiveMinimum",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: area=.001; estimatedYield=.001; variety150 chars",
+    "expected": "Smallest supported positive quantities and maximum variety accepted.",
+    "type": "Boundary",
+    "trace": "NF4; BR-SEAS-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-029",
+    "method": "UT_FAR_01_029_CannotReopenCompleted",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Completed→Planting",
+    "expected": "Reject reopening with MSG131.",
+    "type": "Abnormal",
+    "trace": "E2; BR-SEAS-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP.",
+    "coverage": [
+      "E2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-030",
+    "method": "UT_FAR_01_030_CannotReopenCancelled",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Cancelled→Planting",
+    "expected": "Reject reopening with MSG131.",
+    "type": "Abnormal",
+    "trace": "E2; BR-SEAS-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-031",
+    "method": "UT_FAR_01_031_CannotReopenCropFailure",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Crop Failure→Planting",
+    "expected": "Reject reopening with MSG131.",
+    "type": "Abnormal",
+    "trace": "E2; BR-SEAS-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-032",
+    "method": "UT_FAR_01_032_CompletionBeforePlanting",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: actualYield10; FarmerTestData.Today.AddDays(-31)",
+    "expected": "Reject invalid completion date.",
+    "type": "Boundary",
+    "trace": "AF3; BR-SEAS-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP.",
+    "coverage": [
+      "AF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-033",
+    "method": "UT_FAR_01_033_CompletionInFuture",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: actualYield10; FarmerTestData.Today.AddDays(1)",
+    "expected": "Reject invalid completion date.",
+    "type": "Boundary",
+    "trace": "AF3; BR-SEAS-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-01",
+    "id": "UT-FAR-01-034",
+    "method": "UT_FAR_01_034_ChangeAssociatedProduct",
+    "input": "Default plan: seasonName=Winter; productId=301 (kg); cropVariety=Tomato; area=100; planting=2026-11-01; estimatedHarvest=2026-11-12; estimatedYield=100kg. Existing season201 planted2026-10-03. Scenario/overrides: Planned season has log; proposed different product",
+    "expected": "Reject changing associated product with MSG130.",
+    "type": "Abnormal",
+    "trace": "AF1; BR-SEAS-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-001",
+    "method": "UT_FAR_02_001_Watering",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: action=Tưới nước; material=None; dosage=None; proof=False",
+    "expected": "Eligible activity accepted.",
+    "type": "Normal",
+    "trace": "NF3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-002",
+    "method": "UT_FAR_02_002_Fertilizing",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: action=Bón phân; material=NPK; dosage=1kg; proof=False",
+    "expected": "Eligible activity accepted.",
+    "type": "Normal",
+    "trace": "NF3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-003",
+    "method": "UT_FAR_02_003_PestTreatment",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: action=Phòng trừ sâu bệnh; material=Biological; dosage=10ml; proof=True",
+    "expected": "Eligible activity accepted.",
+    "type": "Normal",
+    "trace": "NF2–5; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-004",
+    "method": "UT_FAR_02_004_RejectPlanned",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: seasonStatus=Planned; routine new log",
+    "expected": "Reject with MSG133.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "AF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-005",
+    "method": "UT_FAR_02_005_RejectCompleted",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: seasonStatus=Completed; routine new log",
+    "expected": "Reject with MSG133.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "AF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-006",
+    "method": "UT_FAR_02_006_RejectCancelled",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: seasonStatus=Cancelled; routine new log",
+    "expected": "Reject with MSG133.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "AF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-007",
+    "method": "UT_FAR_02_007_RejectCropFailure",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: seasonStatus=Crop Failure; routine new log",
+    "expected": "Reject with MSG133.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "AF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-008",
+    "method": "UT_FAR_02_008_FutureDate",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: actionDate=tomorrow",
+    "expected": "Reject invalid activity; no log is accepted.",
+    "type": "Boundary",
+    "trace": "NF4, E1; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF4",
+      "E1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-009",
+    "method": "UT_FAR_02_009_BeforePlanting",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: actionDate=planting-1",
+    "expected": "Reject invalid activity; no log is accepted.",
+    "type": "Boundary",
+    "trace": "E1; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "E1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-010",
+    "method": "UT_FAR_02_010_BlankDescription",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: description=whitespace",
+    "expected": "Reject invalid activity; no log is accepted.",
+    "type": "Abnormal",
+    "trace": "E3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "E3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-011",
+    "method": "UT_FAR_02_011_BlankPerformer",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: performedBy=whitespace",
+    "expected": "Reject invalid activity; no log is accepted.",
+    "type": "Abnormal",
+    "trace": "E1/E3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-012",
+    "method": "UT_FAR_02_012_MissingDosage",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: fertilizer material supplied; missing dosage",
+    "expected": "Reject invalid activity; no log is accepted.",
+    "type": "Abnormal",
+    "trace": "E3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "E3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-013",
+    "method": "UT_FAR_02_013_MissingPestProof",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: pest treatment without proof",
+    "expected": "Reject invalid activity; no log is accepted.",
+    "type": "Abnormal",
+    "trace": "E3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "E3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-014",
+    "method": "UT_FAR_02_014_ForeignProof",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: proof owned by another farmer",
+    "expected": "Reject invalid activity; no log is accepted.",
+    "type": "Abnormal",
+    "trace": "E1/E3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-015",
+    "method": "UT_FAR_02_015_DuplicateProof",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: duplicate proof references",
+    "expected": "Reject invalid activity; no log is accepted.",
+    "type": "Abnormal",
+    "trace": "E1/E3; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-016",
+    "method": "UT_FAR_02_016_PlantingBoundary",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: executionDate=planting date",
+    "expected": "Earliest valid execution date accepted.",
+    "type": "Boundary",
+    "trace": "NF4; BR-LOG-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF4"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-017",
+    "method": "UT_FAR_02_017_CorrectionClosedSeason",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: Completed season; original log; nonblank correctionReason",
+    "expected": "Correction allowed; original text unchanged.",
+    "type": "Normal",
+    "trace": "AF2; BR-LOG-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-018",
+    "method": "UT_FAR_02_018_CorrectionOfCorrection",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: original.CorrectsLogId=1",
+    "expected": "Reject correction chain with MSG120.",
+    "type": "Abnormal",
+    "trace": "BR-LOG-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-019",
+    "method": "UT_FAR_02_019_CorrectionNeedsReason",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: original log; correctionReason=whitespace",
+    "expected": "Reject missing correction reason.",
+    "type": "Abnormal",
+    "trace": "BR-LOG-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-020",
+    "method": "UT_FAR_02_020_Supported0",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: action=Gieo trồng; valid date/performer/text",
+    "expected": "Supported activity accepted without mandatory material or proof.",
+    "type": "Normal",
+    "trace": "NF2–4; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-021",
+    "method": "UT_FAR_02_021_Supported1",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: action=Thu hoạch; valid date/performer/text",
+    "expected": "Supported activity accepted without mandatory material or proof.",
+    "type": "Normal",
+    "trace": "NF2–4; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-022",
+    "method": "UT_FAR_02_022_MissingAction",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: ActionType = \" \"",
+    "expected": "Reject invalid activity; no routine log accepted.",
+    "type": "Abnormal",
+    "trace": "E3; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP.",
+    "coverage": [
+      "E3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-023",
+    "method": "UT_FAR_02_023_UnknownAction",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: ActionType = \"INVALID\"",
+    "expected": "Reject invalid activity; no routine log accepted.",
+    "type": "Abnormal",
+    "trace": "E1/E3; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-024",
+    "method": "UT_FAR_02_024_DefaultDate",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: ActionDate = default",
+    "expected": "Reject invalid activity; no routine log accepted.",
+    "type": "Abnormal",
+    "trace": "E1; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP.",
+    "coverage": [
+      "E1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-025",
+    "method": "UT_FAR_02_025_MissingMaterial",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: ActionType = \"Bón phân\", Dosage = \"1kg\"",
+    "expected": "Reject invalid activity; no routine log accepted.",
+    "type": "Abnormal",
+    "trace": "E3; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP.",
+    "coverage": [
+      "E3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-026",
+    "method": "UT_FAR_02_026_LongDescription",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: DetailDescription = new string('x',1001)",
+    "expected": "Reject invalid activity; no routine log accepted.",
+    "type": "Boundary",
+    "trace": "E1/E3; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-027",
+    "method": "UT_FAR_02_027_LongPerformer",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: PerformedBy = new string('x',151)",
+    "expected": "Reject invalid activity; no routine log accepted.",
+    "type": "Boundary",
+    "trace": "E1/E3; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-028",
+    "method": "UT_FAR_02_028_LongDosage",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: ActionType = \"Bón phân\", InputMaterial = \"NPK\", Dosage = new string('x',151)",
+    "expected": "Reject invalid activity; no routine log accepted.",
+    "type": "Boundary",
+    "trace": "E1/E3; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-029",
+    "method": "UT_FAR_02_029_NullProof",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: EvidenceUrls = null!",
+    "expected": "Reject invalid activity; no routine log accepted.",
+    "type": "Abnormal",
+    "trace": "E1/E3; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-030",
+    "method": "UT_FAR_02_030_MaximumText",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: description1000, performer150, material255, dosage150",
+    "expected": "Exact maximum field lengths accepted.",
+    "type": "Boundary",
+    "trace": "NF4; BR-LOG-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-031",
+    "method": "UT_FAR_02_031_WrongCorrectionSeason",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: original season202; submitted season201",
+    "expected": "Reject cross-season correction with MSG120.",
+    "type": "Abnormal",
+    "trace": "AF2; BR-LOG-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-02",
+    "id": "UT-FAR-02-032",
+    "method": "UT_FAR_02_032_LongCorrectionReason",
+    "input": "Default log: season201 Growing, planted2026-10-03; date=2026-11-02; type=Tưới nước; description=Watered the field; performer=Farmer; material/dosage=null; evidence=[]. Scenario/overrides: correctionReason501 characters",
+    "expected": "Reject reason above500.",
+    "type": "Boundary",
+    "trace": "AF2; BR-LOG-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-001",
+    "method": "UT_FAR_04_001_ValidPlannedBatch",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: estimated yield=10; date=today+2; kg",
+    "expected": "Plan validation accepted; no stock created by validation.",
+    "type": "Normal",
+    "trace": "AF1; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-002",
+    "method": "UT_FAR_04_002_ValidActualHarvest",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual yield=10; harvest=today; expiry=today+5",
+    "expected": "Actual harvest validation accepted.",
+    "type": "Normal",
+    "trace": "NF2–5; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-003",
+    "method": "UT_FAR_04_003_ZeroActual",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actualYield=0",
+    "expected": "Reject invalid actual harvest.",
+    "type": "Boundary",
+    "trace": "NF4, E1; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF4",
+      "E1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-004",
+    "method": "UT_FAR_04_004_FractionPrecision",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actualYield=1.0001",
+    "expected": "Reject invalid actual harvest.",
+    "type": "Boundary",
+    "trace": "E1; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-005",
+    "method": "UT_FAR_04_005_ExpiryAtHarvest",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: expiry=harvest",
+    "expected": "Reject invalid actual harvest.",
+    "type": "Boundary",
+    "trace": "NF4, E1; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF4",
+      "E1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-006",
+    "method": "UT_FAR_04_006_FutureHarvest",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual harvest=tomorrow",
+    "expected": "Reject invalid actual harvest.",
+    "type": "Boundary",
+    "trace": "E1; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-007",
+    "method": "UT_FAR_04_007_UnitMismatch",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: unit=g; productUnit=kg",
+    "expected": "Reject invalid actual harvest.",
+    "type": "Abnormal",
+    "trace": "NF4, E1; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "NF4",
+      "E1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-008",
+    "method": "UT_FAR_04_008_BatchCodeWhitespace",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: batchCode contains space",
+    "expected": "Reject invalid actual harvest.",
+    "type": "Abnormal",
+    "trace": "E1; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-009",
+    "method": "UT_FAR_04_009_RepeatedStockIn",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: Existing stock-entered batch; record harvest again",
+    "expected": "Reject duplicate stock-in with MSG122.",
+    "type": "Abnormal",
+    "trace": "E3; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-010",
+    "method": "UT_FAR_04_010_ExactAvailableBalance",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: harvest=10; reserved fallback=4; adjustment=-6",
+    "expected": "Exact zero available accepted; extra -0.001 rejected.",
+    "type": "Boundary",
+    "trace": "AF5; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-011",
+    "method": "UT_FAR_04_011_ExpiredHoldIgnored",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: expired allocation=9; active allocation=2; stale reserved=9",
+    "expected": "Only active unexpired hold counted; held=2.",
+    "type": "Normal",
+    "trace": "BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-012",
+    "method": "UT_FAR_04_012_NoDoubleCountDispatch",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: one dispatch -3; shipment item3 for same movement",
+    "expected": "Shipped=3 rather than6; no duplicate deduction.",
+    "type": "Normal",
+    "trace": "BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-013",
+    "method": "UT_FAR_04_013_QrNeedsLog",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual batch; no farming log",
+    "expected": "Reject QR with MSG136.",
+    "type": "Abnormal",
+    "trace": "AF2; BR-HB-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-014",
+    "method": "UT_FAR_04_014_ValidQr",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual batch; one log; expiry future; Available",
+    "expected": "Eligible QR accepted.",
+    "type": "Normal",
+    "trace": "AF2; BR-HB-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-015",
+    "method": "UT_FAR_04_015_QrBlocked",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual batch with log; status=Blocked",
+    "expected": "Reject QR with MSG139.",
+    "type": "Abnormal",
+    "trace": "BR-HB-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-016",
+    "method": "UT_FAR_04_016_QrRecalled",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual batch with log; status=Recalled",
+    "expected": "Reject QR with MSG139.",
+    "type": "Abnormal",
+    "trace": "AF2; BR-HB-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls.",
+    "coverage": [
+      "AF2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-017",
+    "method": "UT_FAR_04_017_QrExpired",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual batch with log; status=Expired",
+    "expected": "Reject QR with MSG139.",
+    "type": "Abnormal",
+    "trace": "BR-HB-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-018",
+    "method": "UT_FAR_04_018_QrSuspect",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual batch with log; status=Suspect",
+    "expected": "Reject QR with MSG139.",
+    "type": "Abnormal",
+    "trace": "BR-HB-02",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-019",
+    "method": "UT_FAR_04_019_ProtectExpiry",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: commitment delivery=today+5; new expiry=today+5",
+    "expected": "Reject expiry at delivery date with MSG130.",
+    "type": "Boundary",
+    "trace": "AF4; BR-HB-01",
+    "pre": "Independent fixture; fixed clock 2026-11-02 08:00 ICT; owned Approved farm 10 / Active Farmer 101. No SQL, SMTP or payment calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-020",
+    "method": "UT_FAR_04_020_MissingCode",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: BatchCode = \" \"",
+    "expected": "Reject invalid planning fields; no stock or QR.",
+    "type": "Boundary",
+    "trace": "AF1/E1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-021",
+    "method": "UT_FAR_04_021_LongCode",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: BatchCode = new string('b',101)",
+    "expected": "Reject invalid planning fields; no stock or QR.",
+    "type": "Boundary",
+    "trace": "AF1/E1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-022",
+    "method": "UT_FAR_04_022_ZeroEstimatedYield",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: EstimatedYield = 0",
+    "expected": "Reject invalid planning fields; no stock or QR.",
+    "type": "Boundary",
+    "trace": "AF1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP.",
+    "coverage": [
+      "AF1"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-023",
+    "method": "UT_FAR_04_023_NegativeEstimatedYield",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: EstimatedYield = -1",
+    "expected": "Reject invalid planning fields; no stock or QR.",
+    "type": "Boundary",
+    "trace": "AF1/E1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-024",
+    "method": "UT_FAR_04_024_PlanBeforePlanting",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: EstimatedHarvestDate = FarmerTestData.Today.AddDays(-31)",
+    "expected": "Reject invalid planning fields; no stock or QR.",
+    "type": "Boundary",
+    "trace": "AF1/E1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-025",
+    "method": "UT_FAR_04_025_BeforePlanting",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: ActualHarvestDate = FarmerTestData.Today.AddDays(-31)",
+    "expected": "Reject invalid actual harvest; no stock-in.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-026",
+    "method": "UT_FAR_04_026_MissingActualDate",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: ActualHarvestDate = null",
+    "expected": "Reject invalid actual harvest; no stock-in.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-027",
+    "method": "UT_FAR_04_027_MissingExpiry",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: ExpirationDate = null",
+    "expected": "Reject invalid actual harvest; no stock-in.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-028",
+    "method": "UT_FAR_04_028_NegativeHarvest",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: ActualYield = -1",
+    "expected": "Reject invalid actual harvest; no stock-in.",
+    "type": "Boundary",
+    "trace": "NF4/E1; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-029",
+    "method": "UT_FAR_04_029_ProductSeasonMismatch",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: owned product302; selected season belongs product301",
+    "expected": "Reject product/season mismatch.",
+    "type": "Abnormal",
+    "trace": "NF4/E2; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-030",
+    "method": "UT_FAR_04_030_MinimumHarvestAndEarliestDate",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actualYield=.001; harvest=planting; code100 chars",
+    "expected": "Valid quantity/date/code boundaries accepted.",
+    "type": "Boundary",
+    "trace": "NF4; BR-HB-01",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-031",
+    "method": "UT_FAR_04_031_ExpiredQrDate",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: actual batch with log; expiry=today",
+    "expected": "Reject QR at expiry boundary with MSG139.",
+    "type": "Boundary",
+    "trace": "AF2; BR-HB-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP.",
+    "coverage": [
+      "AF2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-032",
+    "method": "UT_FAR_04_032_RevokedQr",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: otherwise eligible actual batch; issuedQR.IsRevoked=true",
+    "expected": "Reject revoked QR with MSG139.",
+    "type": "Abnormal",
+    "trace": "AF2/AF5; BR-HB-02",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-033",
+    "method": "UT_FAR_04_033_HarvestFromPlanned",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: seasonStatus=Planned; operation=Harvest; otherwise valid owned batch request",
+    "expected": "Reject ineligible season action with MSG131; no accepted stock/plan.",
+    "type": "Abnormal",
+    "trace": "E2; BR-HB-01",
+    "pre": "Independent owned product301/season201, fixed clock; no SQL or SMTP.",
+    "coverage": [
+      "E2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-034",
+    "method": "UT_FAR_04_034_HarvestFromClosed",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: seasonStatus=Completed; operation=Harvest; otherwise valid owned batch request",
+    "expected": "Reject ineligible season action with MSG131; no accepted stock/plan.",
+    "type": "Abnormal",
+    "trace": "E2; BR-HB-01",
+    "pre": "Independent owned product301/season201, fixed clock; no SQL or SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-04",
+    "id": "UT-FAR-04-035",
+    "method": "UT_FAR_04_035_PlanForClosedSeason",
+    "input": "Default owned product301/season201; productUnit=kg; batchCode=BATCH-01; estimate2026-11-04/10kg; actualHarvest2026-11-02/10kg; expiry2026-11-07. Existing actual fixture batch401 has10kg unless overridden. Scenario/overrides: seasonStatus=Cancelled; operation=Plan; otherwise valid owned batch request",
+    "expected": "Reject ineligible season action with MSG131; no accepted stock/plan.",
+    "type": "Abnormal",
+    "trace": "E2; BR-HB-01",
+    "pre": "Independent owned product301/season201, fixed clock; no SQL or SMTP.",
+    "coverage": [
+      "E2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-001",
+    "method": "UT_FAR_10_001_AcceptedResponse",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: valid explanation; 1 owned file; current version; fresh GUID",
+    "expected": "Answered request, append-only response, two notifications; email after commit; MSG150.",
+    "type": "Normal",
+    "trace": "NF5; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls.",
+    "coverage": [
+      "NF5"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-002",
+    "method": "UT_FAR_10_002_Explanation14",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: trimmed explanation length=14; otherwise valid",
+    "expected": "Reject with MSG183; no response or email.",
+    "type": "Boundary",
+    "trace": "AF2; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls.",
+    "coverage": [
+      "AF2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-003",
+    "method": "UT_FAR_10_003_Explanation15",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: trimmed explanation length=15; otherwise valid",
+    "expected": "Accepted trimmed explanation.",
+    "type": "Boundary",
+    "trace": "NF4; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls.",
+    "coverage": [
+      "NF4"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-004",
+    "method": "UT_FAR_10_004_Explanation2000",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: trimmed explanation length=2000; otherwise valid",
+    "expected": "Accepted trimmed explanation.",
+    "type": "Boundary",
+    "trace": "AF2; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-005",
+    "method": "UT_FAR_10_005_Explanation2001",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: trimmed explanation length=2001; otherwise valid",
+    "expected": "Reject with MSG183; no response or email.",
+    "type": "Boundary",
+    "trace": "AF2; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls.",
+    "coverage": [
+      "AF2"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-006",
+    "method": "UT_FAR_10_006_BlankExplanation",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: Explanation = \"   \"",
+    "expected": "Reject invalid/conflicting request; no append or notification.",
+    "type": "Abnormal",
+    "trace": "AF2/AF3; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-007",
+    "method": "UT_FAR_10_007_NoFiles",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: EvidenceUrls = []",
+    "expected": "Reject invalid/conflicting request; no append or notification.",
+    "type": "Abnormal",
+    "trace": "AF2/AF3; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-008",
+    "method": "UT_FAR_10_008_SixFiles",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: EvidenceUrls = Enumerable.Range(0, 6).Select(x => \"/owned/101/\" + x + \".pdf\").ToArray()",
+    "expected": "Reject invalid/conflicting request; no append or notification.",
+    "type": "Abnormal",
+    "trace": "AF2/AF3; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-009",
+    "method": "UT_FAR_10_009_DuplicateFiles",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: EvidenceUrls = [\"/owned/101/a.pdf\", \"/owned/101/a.pdf\"]",
+    "expected": "Reject invalid/conflicting request; no append or notification.",
+    "type": "Abnormal",
+    "trace": "AF2/AF3; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-010",
+    "method": "UT_FAR_10_010_ForeignFile",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: EvidenceUrls = [\"/owned/102/a.pdf\"]",
+    "expected": "Reject invalid/conflicting request; no append or notification.",
+    "type": "Abnormal",
+    "trace": "AF2/AF3; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-011",
+    "method": "UT_FAR_10_011_StaleVersion",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: Version = new string('0', 64)",
+    "expected": "Reject invalid/conflicting request; no append or notification.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls.",
+    "coverage": [
+      "AF3"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-012",
+    "method": "UT_FAR_10_012_InvalidRequestKey",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: RequestKey = \"invalid\"",
+    "expected": "Reject invalid/conflicting request; no append or notification.",
+    "type": "Abnormal",
+    "trace": "AF2/AF3; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-013",
+    "method": "UT_FAR_10_013_DeadlineExactly48",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: requestedAt=now-48h; submit exactly at deadline",
+    "expected": "Accepted at exact 48-hour boundary.",
+    "type": "Boundary",
+    "trace": "BR-CS-02",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-014",
+    "method": "UT_FAR_10_014_AfterDeadline",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: requestedAt=now-48h-1tick",
+    "expected": "Reject with MSG166; preserve unanswered request.",
+    "type": "Boundary",
+    "trace": "AF3; BR-CS-02",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-015",
+    "method": "UT_FAR_10_015_AlreadyAnswered",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: f.Request.MarkAnswered(f.Clock.Now.UtcDateTime);",
+    "expected": "Reject submission; no new response, notifications or commit.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-CS-02/07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-016",
+    "method": "UT_FAR_10_016_ClosedTicket",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: f.Repo.Ticket.TicketStatus = \"Closed\";",
+    "expected": "Reject submission; no new response, notifications or commit.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-CS-02/07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-017",
+    "method": "UT_FAR_10_017_DuplicateSubmission",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: f.Repo.Repeated = true;",
+    "expected": "Reject submission; no new response, notifications or commit.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-CS-02/07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-018",
+    "method": "UT_FAR_10_018_UnapprovedFarm",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: f.Repo.Farmer.VerificationStatus = \"Pending\";",
+    "expected": "Reject submission; no new response, notifications or commit.",
+    "type": "Abnormal",
+    "trace": "AF3; BR-CS-02/07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-019",
+    "method": "UT_FAR_10_019_NotificationFailureRetry",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: SMTP fails after successful commit; retry succeeds",
+    "expected": "Keep accepted response; MSG-FAR10-02; retry email only, never duplicate response/InApp.",
+    "type": "Abnormal",
+    "trace": "AF6; BR-CS-07",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-020",
+    "method": "UT_FAR_10_020_SaveFailure",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: transaction commit throws IOException",
+    "expected": "Failure propagates; rollback requested; no SMTP; real persistence rollback covered by Integration.",
+    "type": "Abnormal",
+    "trace": "AF5",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-021",
+    "method": "UT_FAR_10_021_ForeignComplaint",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: owned actor; complaint owned by another farm",
+    "expected": "Deny with MSG121; no response.",
+    "type": "Abnormal",
+    "trace": "BR-CS-01; AF3",
+    "pre": "Independent complaint fixture: Active Farmer101, Approved farm10, owned complaint501, unanswered request601; fixed clock. Repository, transaction, private files and SMTP doubles; no external calls."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-022",
+    "method": "UT_FAR_10_022_InactiveFarmer",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: f.Repo.Farmer.User.Status = \"Inactive\";",
+    "expected": "Reject; no committed response or notification.",
+    "type": "Abnormal",
+    "trace": "Preconditions/AF3/AF5; BR-CS-01/07",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-023",
+    "method": "UT_FAR_10_023_WrongRole",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: f.Repo.Farmer.User.Role = \"RetailCustomer\";",
+    "expected": "Reject; no committed response or notification.",
+    "type": "Abnormal",
+    "trace": "Preconditions/AF3/AF5; BR-CS-01/07",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-024",
+    "method": "UT_FAR_10_024_RequestForAnotherParty",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: f.Request.RequestedPartyUserId = 102;",
+    "expected": "Reject; no committed response or notification.",
+    "type": "Abnormal",
+    "trace": "Preconditions/AF3/AF5; BR-CS-01/07",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-025",
+    "method": "UT_FAR_10_025_NoSupportRecipient",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: f.Repo.NoSupport = true;",
+    "expected": "Reject; no committed response or notification.",
+    "type": "Abnormal",
+    "trace": "Preconditions/AF3/AF5; BR-CS-01/07",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-026",
+    "method": "UT_FAR_10_026_FiveEvidenceFiles",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: 5 distinct owned references; valid explanation",
+    "expected": "Maximum file count accepted; all5 attachments retained.",
+    "type": "Boundary",
+    "trace": "NF4; BR-CS-07",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP.",
+    "coverage": [
+      "NF4"
+    ]
+  },
+  {
+    "layer": "Unit",
+    "uc": "UC-FAR-10",
+    "id": "UT-FAR-10-027",
+    "method": "UT_FAR_10_027_MissingVersion",
+    "input": "Default actor101/complaint501/request601; open request created1h before fixed clock; explanation=The original product was packed correctly.; evidence=[/owned/101/proof.pdf]; current64-character version and fresh GUID. Scenario/overrides: Version empty; otherwise valid request",
+    "expected": "Reject malformed request with MSG183 before beginning any write.",
+    "type": "Abnormal",
+    "trace": "AF2/AF3",
+    "pre": "Independent entities; Active Farmer101, Approved owned farm10/product301/season201; fixed clock 2026-11-02. Repository, evidence and mail doubles; no SQL/SMTP."
+  }
+]
