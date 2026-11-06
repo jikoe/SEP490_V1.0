@@ -9,7 +9,8 @@ namespace AgriSustain.Application.Services.Authentication;
 
 /// <summary>
 /// UC-AUTH-08 Verify Email OTP: issues a 6-digit single-use code valid for 5 minutes, verifies it
-/// (correct, unexpired, unused, fewer than 5 failed attempts) and resends it after a 60-second cooldown.
+/// (correct, unexpired, unused, fewer than 5 failed attempts) and resends it after a 60-second cooldown,
+/// at most 5 codes per address within one hour (BR-OTP-01, BR-OTP-02).
 /// An expired or locked code stays in place so the user can request a new one without restarting
 /// the calling use case.
 /// </summary>
@@ -22,6 +23,12 @@ public sealed class EmailOtpVerifier(
     public static readonly TimeSpan OtpLifetime = TimeSpan.FromMinutes(5);
     public static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(60);
     public const int MaxFailedAttempts = 5;
+    public const int MaxSendsPerWindow = 5;
+    public static readonly TimeSpan SendWindow = TimeSpan.FromHours(1);
+
+    // MSG-OTP-03: expired, used, invalidated or locked code.
+    private const string CodeUnusableMessage =
+        "Mã xác thực này không còn dùng được. Hãy chọn \"Gửi lại mã\" để nhận mã mới.";
 
     // MSG26
     private static readonly Error s_emailDeliveryFailed = new(
@@ -36,6 +43,10 @@ public sealed class EmailOtpVerifier(
         {
             return Result<string>.FailureResult(cooldown);
         }
+        if (await HourlyLimitErrorAsync(email, cancellationToken) is { } limit)
+        {
+            return Result<string>.FailureResult(limit);
+        }
 
         return await SendNewCodeAsync(purpose, email, cancellationToken);
     }
@@ -47,24 +58,19 @@ public sealed class EmailOtpVerifier(
         if (challenge is null)
         {
             return Result<bool>.FailureResult(new Error(
-                "OTP_NOT_FOUND",
-                "Không tìm thấy mã xác thực cho email này. Vui lòng yêu cầu gửi mã mới.",
-                "NotFound"));
+                "OTP_NOT_FOUND", CodeUnusableMessage, "NotFound"));
         }
 
         if (challenge.AttemptCount >= MaxFailedAttempts)
         {
             return Result<bool>.FailureResult(new Error(
-                "MAX_ATTEMPTS_EXCEEDED",
-                "Bạn đã nhập sai mã OTP quá 5 lần. Mã hiện tại đã bị vô hiệu, "
-                    + "vui lòng bấm \"Gửi lại mã\" để nhận mã mới."));
+                "MAX_ATTEMPTS_EXCEEDED", CodeUnusableMessage));
         }
 
         if (timeProvider.GetUtcNow() > challenge.ExpiresAt)
         {
             return Result<bool>.FailureResult(new Error(
-                "OTP_EXPIRED",
-                "Mã OTP đã hết hiệu lực. Vui lòng bấm \"Gửi lại mã\" để nhận mã mới."));
+                "OTP_EXPIRED", CodeUnusableMessage));
         }
 
         if (!OtpEquals(challenge.OtpCode, otpCode))
@@ -76,7 +82,7 @@ public sealed class EmailOtpVerifier(
         if (!await store.TryRemoveAsync(challenge, cancellationToken))
         {
             return Result<bool>.FailureResult(new Error(
-                "OTP_ALREADY_USED", "Mã OTP đã được sử dụng. Vui lòng yêu cầu gửi mã mới."));
+                "OTP_ALREADY_USED", CodeUnusableMessage));
         }
 
         return Result<bool>.SuccessResult(true);
@@ -96,6 +102,10 @@ public sealed class EmailOtpVerifier(
         if (CooldownError(existing) is { } cooldown)
         {
             return Result<string>.FailureResult(cooldown);
+        }
+        if (await HourlyLimitErrorAsync(email, cancellationToken) is { } limit)
+        {
+            return Result<string>.FailureResult(limit);
         }
 
         return await SendNewCodeAsync(purpose, email, cancellationToken);
@@ -119,6 +129,7 @@ public sealed class EmailOtpVerifier(
         // Saving replaces (and so invalidates) any earlier code for the same purpose.
         await store.SaveAsync(
             new OtpChallenge(purpose, email, otp, now.Add(OtpLifetime), 0, now), cancellationToken);
+        await store.RecordSendAsync(email, now, SendWindow, cancellationToken);
         // MSG14
         return Result<string>.SuccessResult(
             $"Mã xác thực đã được gửi tới {email}. Mã có hiệu lực trong 5 phút.");
@@ -139,9 +150,24 @@ public sealed class EmailOtpVerifier(
         return Result<bool>.FailureResult(new Error(
             "INVALID_OTP",
             remaining > 0
-                ? $"Mã OTP không chính xác. Bạn còn {remaining} lần thử."
-                : "Mã OTP không chính xác. Mã hiện tại đã bị vô hiệu, "
-                    + "vui lòng bấm \"Gửi lại mã\" để nhận mã mới."));
+                ? $"Mã xác thực không chính xác. Bạn còn {remaining} lần thử." // MSG-OTP-01
+                : CodeUnusableMessage));
+    }
+
+    /// <summary>MSG-OTP-06: the address already received 5 codes in the last hour.</summary>
+    private async Task<Error?> HourlyLimitErrorAsync(string email, CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var sends = await store.RecentSendsAsync(email, now, SendWindow, cancellationToken);
+        if (sends.Count < MaxSendsPerWindow)
+        {
+            return null;
+        }
+        var wait = sends[sends.Count - MaxSendsPerWindow].Add(SendWindow) - now;
+        return new Error(
+            "OTP_SEND_LIMIT",
+            $"Email này đã yêu cầu quá nhiều mã. Vui lòng thử lại sau {Math.Max(1, Math.Ceiling(wait.TotalMinutes))} phút.",
+            "TooManyRequests");
     }
 
     private Error? CooldownError(OtpChallenge challenge)

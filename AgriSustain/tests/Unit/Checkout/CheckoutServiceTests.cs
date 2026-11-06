@@ -189,14 +189,14 @@ public sealed class CheckoutServiceTests
         Assert.Equal("POINTS_INVALID", result.Error?.Code);
     }
 
-    [Fact(DisplayName = "[UC-RC-02 #32] Points above the discount cap are clamped")]
-    public async Task Quote_PointsAboveCap_Clamped()
+    [Fact(DisplayName = "[UC-RC-02 #32] Points above the discount cap are rejected with the maximum (MSG-CO-03, BR-RP-04)")]
+    public async Task Quote_PointsAboveCap_RejectedWithMaximum()
     {
-        var quote = await QuotedAsync(Input(points: 50_000));
+        var result = await Service().QuoteAsync(Input(points: 50_000), default);
 
-        Assert.Equal(40_000, quote.Input.Points);                 // 50% of 80 000 ₫ at 1 ₫ per point
-        Assert.Equal(40_000m, quote.PointsDiscount);
-        Assert.Contains("40000 điểm", quote.Warning);
+        Assert.Equal("POINTS_INVALID", result.Error?.Code);
+        Assert.Contains("tối đa 40000 điểm", result.Error!.Message);   // 50% of 80 000 ₫ at 1 ₫ per point
+        Assert.Empty(_store.Quotes);
     }
 
     // ---------- PlaceAsync ----------
@@ -215,6 +215,63 @@ public sealed class CheckoutServiceTests
         Assert.Equal(10, Assert.Single(_store.RemovedItems).CartItemId);
         Assert.Equal("RetailCheckout", Assert.Single(_accounts.Audits).Action);
         Assert.Equal(1, _uow.Commits);
+    }
+
+    [Fact(DisplayName = "[UC-RC-02 #33b] Step 11: placing the order asks Goship for the fee again")]
+    public async Task Place_RequotesGoship()
+    {
+        var quote = await QuotedAsync();
+        int afterQuote = _shipping.Calls;
+
+        var result = await Service().PlaceAsync(Place(quote.Id), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(afterQuote + 1, _shipping.Calls);
+    }
+
+    [Fact(DisplayName = "[UC-RC-02 #33c] A Goship fee that changed since the summary is MSG118 and nothing is reserved")]
+    public async Task Place_FeeChanged_Msg118()
+    {
+        var quote = await QuotedAsync();
+        _shipping.Fee = 45_000m;
+
+        var result = await Service().PlaceAsync(Place(quote.Id), default);
+
+        Assert.Equal("MSG118", result.Error?.Code);
+        Assert.Contains("Phí giao hàng", result.Error!.Message);
+        Assert.Empty(_store.Orders);
+        Assert.Equal(0, _uow.Begins);
+        Assert.Equal(5m, _batch.AvailableQuantity);
+    }
+
+    [Theory(DisplayName = "[UC-RC-02 #33d] Goship unavailable (MSG-CO-02) or no service (MSG117) at Step 11 places no order")]
+    [InlineData(true, false, "SHIPPING_RATE_UNAVAILABLE")]
+    [InlineData(false, true, "MSG117")]
+    public async Task Place_GoshipFailsOnRequote_NoOrder(bool down, bool unsupported, string code)
+    {
+        var quote = await QuotedAsync();
+        _shipping.Down = down;
+        _shipping.Unsupported = unsupported;
+
+        var result = await Service().PlaceAsync(Place(quote.Id), default);
+
+        Assert.Equal(code, result.Error?.Code);
+        Assert.Empty(_store.Orders);
+        Assert.Equal(0, _uow.Begins);
+    }
+
+    [Fact(DisplayName = "[UC-RC-02 #33e] A repeated request for an existing order does not call Goship")]
+    public async Task Place_ExistingOrder_SkipsRequote()
+    {
+        var quote = await QuotedAsync();
+        string key = Guid.NewGuid().ToString("D");
+        _store.Existing = ExistingOrder(key, quote.Id);
+        int afterQuote = _shipping.Calls;
+
+        var result = await Service().PlaceAsync(Place(quote.Id, key), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(afterQuote, _shipping.Calls);
     }
 
     [Theory(DisplayName = "[UC-RC-02 #34/#35] Unconfirmed or malformed request key is rejected before the transaction")]
@@ -292,8 +349,9 @@ public sealed class CheckoutServiceTests
         Assert.Equal(5m, _batch.AvailableQuantity);
     }
 
+    // Step 11: a discount that changed after the summary is MSG118 (MSG116 is the Step 4 check).
     [Fact(DisplayName = "[UC-RC-02 #41] Voucher revoked after quote")]
-    public async Task Place_VoucherRevoked_Msg116()
+    public async Task Place_VoucherRevoked_Msg118()
     {
         var voucher = Voucher(endDate: T0.UtcDateTime.AddDays(1));
         _store.Vouchers.Add(voucher);
@@ -303,7 +361,7 @@ public sealed class CheckoutServiceTests
 
         var result = await Service().PlaceAsync(Place(quote.Id), default);
 
-        Assert.Equal("MSG116", result.Error?.Code);
+        Assert.Equal("MSG118", result.Error?.Code);
         Assert.Empty(_store.Orders);
     }
 
@@ -376,11 +434,17 @@ public sealed class CheckoutServiceTests
     private sealed class Shipping : IShippingRateProvider
     {
         public bool Down { get; set; }
+        public bool Unsupported { get; set; }
+        public decimal Fee { get; set; } = 40_000m;
+        public int Calls { get; private set; }
 
         public int EstimatedDeliveryDays(string deliveryMethod) => 2;
 
-        public Task<ShippingRateResult?> GetRateAsync(ShippingRateRequest request, CancellationToken ct) =>
-            Task.FromResult(Down ? null : new ShippingRateResult(true, 40_000m));
+        public Task<ShippingRateResult?> GetRateAsync(ShippingRateRequest request, CancellationToken ct)
+        {
+            Calls++;
+            return Task.FromResult(Down ? null : new ShippingRateResult(!Unsupported, Unsupported ? null : Fee));
+        }
     }
 
     private sealed class CheckoutStore : ICheckoutRepository

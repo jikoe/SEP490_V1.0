@@ -1,7 +1,5 @@
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
-using AgriSustain.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace AgriSustain.Application.Services;
@@ -13,7 +11,6 @@ namespace AgriSustain.Application.Services;
 public sealed class OrderNotificationService(
     IOrderRepository repository,
     INotificationGateway? notificationGateway = null,
-    AgriSustainContext? context = null,
     ILogger<OrderNotificationService>? logger = null)
 {
     public async Task NotifyRetailCustomerAsync(
@@ -48,9 +45,11 @@ public sealed class OrderNotificationService(
                 break;
 
             case "MSG186": // Order canceled / rejected
-                title = refundableAmount > 0 ? "Đơn hàng đã hủy và hoàn tiền" : "Đơn hàng đã hủy";
+                // refundableAmount is the Pending refund Finance Staff will transfer (UC-FIN-03);
+                // the completion notice is sent when Finance records the transfer.
+                title = refundableAmount > 0 ? "Đơn hàng đã hủy, khoản hoàn đang chờ chuyển" : "Đơn hàng đã hủy";
                 string refundNote = refundableAmount > 0
-                    ? $"Khoản tiền hoàn {refundableAmount:N0} ₫ đã được xử lý hoàn tất về tài khoản nhận tiền đã xác thực của Quý khách."
+                    ? $"Khoản hoàn {refundableAmount:N0} ₫ đang chờ bộ phận Tài chính chuyển khoản. Vui lòng đăng nhập để cung cấp hoặc xác nhận tài khoản ngân hàng nhận tiền hoàn."
                     : "Đơn hàng chưa phát sinh thanh toán nên không có khoản hoàn tiền.";
                 inAppMessage = $"Đơn hàng {orderCode} đã bị từ chối bởi nông trại. Lý do: {reason}. {refundNote}";
                 emailSubject = $"[AgriSustain] Thông báo hủy đơn hàng {orderCode}";
@@ -65,12 +64,10 @@ public sealed class OrderNotificationService(
                 break;
         }
 
-        if (context is null) { repository.Notify(buyerUserId,title,inAppMessage,order.SellerOrderId); return; }
         foreach(var channel in new[]{"InApp","Email"})
         {
             string eventKey=$"{key}:{eventCode}:{channel}";
-            if(context.Notifications.Local.Any(n=>n.PayloadJson==eventKey)
-                || await context.Notifications.AnyAsync(n=>n.NotificationType=="FarmerOrderUpdate" && n.PayloadJson==eventKey,cancellationToken)) continue;
+            if(await repository.NotificationKeyExistsAsync(eventKey,cancellationToken)) continue;
             repository.SaveNotificationsAsync(new Notification { UserId=buyerUserId,Title=channel=="Email"?emailSubject:title,
                 Content=channel=="Email"?emailBody:inAppMessage,NotificationType="FarmerOrderUpdate",DeliveryChannel=channel,
                 DeliveryStatus=channel=="InApp"?"Sent":"Pending",SentAt=DateTime.UtcNow,RelatedRecordType="SellerOrder",RelatedRecordId=order.SellerOrderId,PayloadJson=eventKey });
@@ -78,12 +75,7 @@ public sealed class OrderNotificationService(
     }
     public async Task RetryFailedChannelsAsync(string key, CancellationToken ct = default)
     {
-        if(context is null) return;
-        var prefix=key+":";
-        var failed=await context.Notifications.Where(n=>n.NotificationType=="FarmerOrderUpdate" && n.PayloadJson!=null
-            && n.PayloadJson.StartsWith(prefix) && n.DeliveryStatus=="Failed").ToListAsync(ct);
-        foreach(var row in failed) row.DeliveryStatus="Pending";
-        await context.SaveChangesAsync(ct);
+        await repository.RequeueFailedOrderNotificationsAsync(key+":",ct);
     }
     public void RecordDeliveryResult(Notification notification, bool delivered, DateTime now)
     {

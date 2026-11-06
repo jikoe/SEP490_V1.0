@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using AgriSustain.Application.DTOs.Authentication;
 using AgriSustain.Application.Interfaces.Repositories;
 using AgriSustain.Infrastructure.Data.Demo;
@@ -37,5 +38,35 @@ public sealed class InMemoryOtpChallengeStore(SqlDemoDependencies demoStore) : I
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<DateTimeOffset>> RecordSendAsync(string email, DateTimeOffset sentAt,
+        TimeSpan window, CancellationToken cancellationToken)
+    {
+        var sends = _sends.GetOrAdd(email, _ => []);
+        lock (sends)
+        {
+            sends.RemoveAll(at => at <= sentAt - window);
+            sends.Add(sentAt);
+            return Task.FromResult<IReadOnlyList<DateTimeOffset>>(sends.ToList());
+        }
+    }
+
+    public Task<IReadOnlyList<DateTimeOffset>> RecentSendsAsync(string email, DateTimeOffset now,
+        TimeSpan window, CancellationToken cancellationToken)
+    {
+        if (!_sends.TryGetValue(email, out var sends))
+        {
+            return Task.FromResult<IReadOnlyList<DateTimeOffset>>([]);
+        }
+        lock (sends)
+        {
+            return Task.FromResult<IReadOnlyList<DateTimeOffset>>(
+                sends.Where(at => at > now - window).OrderBy(at => at).ToList());
+        }
+    }
+
     private static string Key(string purpose, string email) => $"{purpose}|{email}";
+
+    // Delivered-code times per address for the BR-OTP-02 hourly limit; process-local like the codes.
+    private readonly ConcurrentDictionary<string, List<DateTimeOffset>> _sends =
+        new(StringComparer.OrdinalIgnoreCase);
 }

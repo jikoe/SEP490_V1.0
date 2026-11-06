@@ -17,4 +17,15 @@ public interface IOtpChallengeStore
     Task<bool> TryRemoveAsync(OtpChallenge challenge, CancellationToken cancellationToken);
 
     Task RemoveAsync(string purpose, string email, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// BR-OTP-02 hourly limit: records a delivered code for the address (all purposes) and
+    /// returns the send times still inside the window, oldest first, including this one.
+    /// </summary>
+    Task<IReadOnlyList<DateTimeOffset>> RecordSendAsync(string email, DateTimeOffset sentAt,
+        TimeSpan window, CancellationToken cancellationToken);
+
+    /// <summary>Send times of the address inside the window, oldest first.</summary>
+    Task<IReadOnlyList<DateTimeOffset>> RecentSendsAsync(string email, DateTimeOffset now,
+        TimeSpan window, CancellationToken cancellationToken);
 }

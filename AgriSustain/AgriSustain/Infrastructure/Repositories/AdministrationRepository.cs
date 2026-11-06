@@ -9,10 +9,11 @@ namespace AgriSustain.Infrastructure.Repositories;
 
 public sealed class AdministrationRepository(AgriSustainContext context) : IAdministrationRepository
 {
+    // MSG-UM-07: an unpaid PendingPayment checkout still counts as an open order.
     private static readonly string[] s_closedOrderStatuses =
         ["Completed", "Cancelled", "Refunded", "PartiallyRefunded", "Rejected", "Expired", "Closed"];
     private static readonly string[] s_activeContractStatuses = ["Active", "Signed", "InProgress", "Fulfilling"];
-    private static readonly string[] s_settledPayoutStatuses = ["Paid", "Cancelled", "Failed", "Rejected"];
+    private static readonly string[] s_settledPayoutStatuses = ["Paid", "Processed", "Cancelled", "Failed", "Rejected"];
 
     /// <summary>Loads the KYC profiles so <see cref="User.AccountStatus"/> matches the list.</summary>
     public Task<User?> FindUserAsync(long id, CancellationToken cancellationToken)
@@ -38,6 +39,14 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
     }
 
     public void AddNotification(Notification notification) => context.Notifications.Add(notification);
+
+    public async Task<IReadOnlyList<long>> GetActiveUserIdsByRolesAsync(IReadOnlyCollection<string> roles,
+        CancellationToken cancellationToken)
+    {
+        return await context.Users.AsNoTracking()
+            .Where(user => user.Status == "Active" && roles.Contains(user.Role))
+            .Select(user => user.UserId).ToListAsync(cancellationToken);
+    }
 
     public Task<User?> FindActorAsync(long id, CancellationToken cancellationToken)
     {

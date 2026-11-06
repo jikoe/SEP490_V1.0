@@ -97,10 +97,8 @@ public sealed class VoucherManagementService(
         // BR-PV-06: saved as Scheduled or Active according to its start time.
         var voucher = new Voucher { UsedCount = 0, IsActive = true };
         Apply(voucher, request, code);
-        repository.Add(voucher);
-        await repository.SaveChangesAsync(cancellationToken);
-        AddAudit(voucher, "CreateVoucher", null, now);
-        await repository.SaveChangesAsync(cancellationToken);
+        await repository.AddWithAuditAsync(voucher, () => AddAudit(voucher, "CreateVoucher", null, now),
+            cancellationToken);
         return await SavedAsync(voucher, cancellationToken);
     }
 

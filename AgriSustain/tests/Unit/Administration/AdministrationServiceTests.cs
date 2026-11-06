@@ -281,6 +281,40 @@ public sealed class AdministrationServiceTests
         Assert.Equal(AdministrationService.AccountEmailType, email.NotificationType);
     }
 
+    [Fact(DisplayName = "[UC-ADM-03 #42] Suspending an account with open transactions tells Support and Finance (BR-UM-07)")]
+    public async Task Suspend_OpenTransactions_FlagsSupportAndFinance()
+    {
+        _store.Users[7] = new User { UserId = 7, Role = "CustomerSupport", Status = "Active" };
+        _store.Users[8] = new User { UserId = 8, Role = "FinanceStaff", Status = "Active" };
+        _store.Users[9] = new User { UserId = 9, Role = "FinanceStaff", Status = "Suspended" };
+        _store.Impact = new AccountImpactDto(2, 1, 350_000m);
+
+        var result = await Service().ChangeAccountAsync(2, new("suspend", "Gian lận", true, "Active"), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        var flags = _store.Notifications.Where(n => n.NotificationType == "AccountStatus").ToList();
+        Assert.Equal(new long[] { 7, 8 }, flags.Select(n => n.UserId).Order());
+        Assert.All(flags, n => Assert.Contains("2 đơn đang mở, 1 hợp đồng", n.Content));
+        Assert.All(flags, n => Assert.Equal(2L, n.RelatedRecordId));
+    }
+
+    [Theory(DisplayName = "[UC-ADM-03 #43] No flag without open transactions or for Unlock")]
+    [InlineData("suspend", 0)]
+    [InlineData("unlock", 2)]
+    public async Task NoOpenTransactionsOrUnlock_NoFlag(string action, int openOrders)
+    {
+        _store.Users[7] = new User { UserId = 7, Role = "CustomerSupport", Status = "Active" };
+        if (action == "unlock") _store.Users[2].LockedUntil = T0.UtcDateTime.AddMinutes(10);
+        _store.Impact = new AccountImpactDto(openOrders, 0, 0);
+
+        var result = await Service().ChangeAccountAsync(2, action == "unlock"
+            ? new("unlock", null, true, "Active", T0.AddMinutes(10))
+            : new("suspend", "Vi phạm", true, "Active"), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.DoesNotContain(_store.Notifications, n => n.NotificationType == "AccountStatus");
+    }
+
     [Fact(DisplayName = "[UC-ADM-03 #41] Action impact for MSG-UM-07 is admin-only")]
     public async Task GetAccountImpact_ReturnsCountsForAdministrator()
     {
@@ -296,9 +330,9 @@ public sealed class AdministrationServiceTests
 
     // ---------- UC-ADM-05: CategoryValidator / search ----------
 
-    [Theory(DisplayName = "[UC-ADM-05 #04/#05] Category name length boundary 150/151")]
-    [InlineData(150, true)]
-    [InlineData(151, false)]
+    [Theory(DisplayName = "[UC-ADM-05 #04/#05] Category name length boundary 100/101")]
+    [InlineData(100, true)]
+    [InlineData(101, false)]
     public async Task CategoryName_LengthBoundary(int length, bool valid)
     {
         var result = await new CategoryValidator().ValidateAsync(
@@ -353,7 +387,7 @@ public sealed class AdministrationServiceTests
     [Fact(DisplayName = "[UC-ADM-05 #10] Update category details is audited")]
     public async Task SaveCategory_Update_Audited()
     {
-        var result = await Service().SaveCategoryAsync(9, new("Rau ăn lá", "Mô tả mới", true, false), default);
+        var result = await Service().SaveCategoryAsync(9, new("Rau ăn lá", "Mô tả mới", true, false, Version9()), default);
 
         Assert.True(result.IsSuccess, result.Error?.Message);
         Assert.Equal("Mô tả mới", _store.Categories[9].Description);
@@ -377,7 +411,7 @@ public sealed class AdministrationServiceTests
     [Fact(DisplayName = "[UC-ADM-05 #12] Status change without confirmation is rejected")]
     public async Task SaveCategory_UnconfirmedStatusChange_Rejected()
     {
-        var result = await Service().SaveCategoryAsync(9, new("Rau ăn lá", null, false, false), default);
+        var result = await Service().SaveCategoryAsync(9, new("Rau ăn lá", null, false, false, Version9()), default);
 
         Assert.Equal("VALIDATION", result.Error?.Code);
         Assert.True(_store.Categories[9].IsActive);
@@ -388,7 +422,7 @@ public sealed class AdministrationServiceTests
     {
         _store.Settings[9].Archive();
 
-        var result = await Service().SaveCategoryAsync(9, new("Tên mới", null, true, false), default);
+        var result = await Service().SaveCategoryAsync(9, new("Tên mới", null, true, false, Version9()), default);
 
         Assert.Equal("ARCHIVED", result.Error?.Code);
         Assert.Equal("Rau ăn lá", _store.Categories[9].CategoryName);
@@ -398,7 +432,7 @@ public sealed class AdministrationServiceTests
     [Fact(DisplayName = "[UC-ADM-05 #14] Missing category returns NOT_FOUND")]
     public async Task SaveCategory_Missing_NotFound()
     {
-        var result = await Service().SaveCategoryAsync(404, new("Tên", null, true, false), default);
+        var result = await Service().SaveCategoryAsync(404, new("Tên", null, true, false, "any"), default);
 
         Assert.Equal("NOT_FOUND", result.Error?.Code);
         Assert.Empty(_store.Audits);
@@ -409,9 +443,10 @@ public sealed class AdministrationServiceTests
     [Theory(DisplayName = "[UC-ADM-05 #15/#16] Unconfirmed or unsupported action is rejected before the transaction")]
     [InlineData("deactivate", false)]
     [InlineData("rename", true)]
+    [InlineData("archive", true)]
     public async Task ChangeCategory_InvalidRequest_Rejected(string action, bool confirmed)
     {
-        var result = await Service().ChangeCategoryAsync(9, action, confirmed, default);
+        var result = await Service().ChangeCategoryAsync(9, action, new ConfirmationRequest(confirmed, Version9()), default);
 
         Assert.Equal("VALIDATION", result.Error?.Code);
         Assert.Equal(0, _uow.Begins);
@@ -421,7 +456,7 @@ public sealed class AdministrationServiceTests
     [Fact(DisplayName = "[UC-ADM-05 #17] Deactivate category")]
     public async Task ChangeCategory_Deactivate()
     {
-        var result = await Service().ChangeCategoryAsync(9, "deactivate", true, default);
+        var result = await Service().ChangeCategoryAsync(9, "deactivate", new ConfirmationRequest(true, Version9()), default);
 
         Assert.True(result.IsSuccess);
         Assert.False(_store.Categories[9].IsActive);
@@ -432,7 +467,7 @@ public sealed class AdministrationServiceTests
     [Fact(DisplayName = "[UC-ADM-05 #18] Delete unused category")]
     public async Task ChangeCategory_DeleteUnused()
     {
-        var result = await Service().ChangeCategoryAsync(9, "delete", true, default);
+        var result = await Service().ChangeCategoryAsync(9, "delete", new ConfirmationRequest(true, Version9()), default);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(9, Assert.Single(_store.Deleted).CategoryId);
@@ -442,11 +477,12 @@ public sealed class AdministrationServiceTests
     [Fact(DisplayName = "[UC-ADM-05 #19] Category with active products cannot be deleted")]
     public async Task ChangeCategory_ActiveProducts_InUse()
     {
-        _store.HasActiveProducts = true;
+        _store.ActiveProducts = 3;
 
-        var result = await Service().ChangeCategoryAsync(9, "delete", true, default);
+        var result = await Service().ChangeCategoryAsync(9, "delete", new ConfirmationRequest(true, Version9()), default);
 
         Assert.Equal("CATEGORY_IN_USE", result.Error?.Code);
+        Assert.Contains("còn 3 sản phẩm đang bán", result.Error!.Message);
         Assert.Empty(_store.Deleted);
         Assert.Empty(_store.Audits);
     }
@@ -456,14 +492,72 @@ public sealed class AdministrationServiceTests
     {
         _store.HasReferences = true;
 
-        var result = await Service().ChangeCategoryAsync(9, "delete", true, default);
+        var result = await Service().ChangeCategoryAsync(9, "delete", new ConfirmationRequest(true, Version9()), default);
 
         Assert.True(result.IsSuccess);
         Assert.Empty(_store.Deleted);
         Assert.False(_store.Categories[9].IsActive);
         Assert.True(_store.Settings[9].IsArchived);
         Assert.Equal("archive", Assert.Single(_store.Audits).Action);
+        Assert.Equal("archived", result.Value!.Outcome);
     }
+
+    [Fact(DisplayName = "[UC-ADM-05 #21] Editing without the displayed version is a field error")]
+    public async Task SaveCategory_MissingVersion_Rejected()
+    {
+        var result = await Service().SaveCategoryAsync(9, new("Rau ăn lá", "Mới", true, false), default);
+
+        Assert.Contains("Version", result.Error!.Fields!.Keys);
+        Assert.Equal(0, _uow.Begins);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-05 #22] A change made by another Administrator returns MSG122")]
+    public async Task SaveCategory_StaleVersion_Conflict()
+    {
+        string shown = Version9();
+        _store.Categories[9].Description = "Admin khác vừa sửa";
+
+        var result = await Service().SaveCategoryAsync(9, new("Rau ăn lá", "Của tôi", true, false, shown), default);
+
+        Assert.Equal("CATEGORY_CHANGED", result.Error?.Code);
+        Assert.Equal("Admin khác vừa sửa", _store.Categories[9].Description);
+        Assert.Empty(_store.Audits);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-05 #23] A repeated delete confirmation is refused after archiving")]
+    public async Task ChangeCategory_RepeatedConfirmation_Conflict()
+    {
+        _store.HasReferences = true;
+        var request = new ConfirmationRequest(true, Version9());
+
+        Assert.True((await Service().ChangeCategoryAsync(9, "delete", request, default)).IsSuccess);
+        var second = await Service().ChangeCategoryAsync(9, "delete", request, default);
+
+        Assert.Equal("CATEGORY_CHANGED", second.Error?.Code);
+        Assert.Single(_store.Audits);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-05 #24] Duplicate name is reported on the name field (MSG-CAT-02)")]
+    public async Task SaveCategory_Duplicate_FieldError()
+    {
+        _store.ExistingNames.Add("Rau củ");
+
+        var result = await Service().SaveCategoryAsync(null, new("Rau củ", null, true, false), default);
+
+        Assert.Equal("Đã có danh mục tên Rau củ.", Assert.Single(result.Error!.Fields!["Name"]));
+    }
+
+    [Fact(DisplayName = "[UC-ADM-05 #25] Unknown status filter is rejected")]
+    public async Task SearchCategories_UnknownStatus_Rejected()
+    {
+        var result = await Service().SearchCategoriesAsync(new CategorySearch(Status: "Deleted"), default);
+
+        Assert.Equal("VALIDATION", result.Error?.Code);
+        Assert.Equal(0, _store.CategorySearches);
+    }
+
+    private string Version9() => Category.VersionOf(_store.Categories[9].CategoryName,
+        _store.Categories[9].Description, _store.Categories[9].IsActive, _store.Settings[9].IsArchived);
 
     private sealed record Actor(long UserId) : IActorContext;
 
@@ -524,7 +618,7 @@ public sealed class AdministrationServiceTests
         public List<Category> Deleted { get; } = [];
         public List<AuditLog> Audits { get; } = [];
         public Page<CategoryDto> CategoryPage { get; } = new([], 0, 1, 10);
-        public bool HasActiveProducts { get; set; }
+        public int ActiveProducts { get; set; }
         public bool HasReferences { get; set; }
         public int UserSearches { get; private set; }
         public int CategorySearches { get; private set; }
@@ -546,6 +640,12 @@ public sealed class AdministrationServiceTests
             Task.FromResult(Impact);
 
         public void AddNotification(Notification notification) => Notifications.Add(notification);
+
+        public Task<IReadOnlyList<long>> GetActiveUserIdsByRolesAsync(IReadOnlyCollection<string> roles,
+            CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<long>>(Users.Values
+                .Where(user => user.Status == "Active" && roles.Contains(user.Role))
+                .Select(user => user.UserId).ToList());
 
         public Task<Page<UserDto>> SearchUsersAsync(UserSearch search, long actorId, DateTimeOffset now,
             CancellationToken ct)
@@ -581,8 +681,8 @@ public sealed class AdministrationServiceTests
         public Task<bool> CategoryNameExistsAsync(string name, long exceptId, CancellationToken ct) =>
             Task.FromResult(ExistingNames.Contains(name));
 
-        public Task<bool> HasActiveProductsAsync(long categoryId, CancellationToken ct) =>
-            Task.FromResult(HasActiveProducts);
+        public Task<int> CountActiveProductsAsync(long categoryId, CancellationToken ct) =>
+            Task.FromResult(ActiveProducts);
 
         public Task<bool> HasCategoryReferencesAsync(long categoryId, CancellationToken ct) =>
             Task.FromResult(HasReferences);

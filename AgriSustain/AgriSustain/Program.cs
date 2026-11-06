@@ -152,7 +152,6 @@ builder.Services.AddScoped<RetailCartService>();
 builder.Services.AddScoped<CartPricingService>();
 builder.Services.AddScoped<FulfillmentRules>();
 builder.Services.AddScoped<OrderFulfillmentService>();
-builder.Services.AddScoped<AgriSustain.Infrastructure.Payments.PaymentGatewayProxy>();
 builder.Services.AddScoped<OrderRefundService>();
 builder.Services.AddScoped<OrderNotificationService>();
 builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.OrderNotificationWorker>();

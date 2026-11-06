@@ -68,15 +68,50 @@ public sealed class PasswordResetServiceTests
         Assert.Single(_email.Sent);
     }
 
-    [Fact(DisplayName = "UTC-AUTH07-03 E-mail delivery failure returns MSG26 (503)")]
-    public async Task RequestCode_DeliveryFailure_ServiceUnavailable()
+    [Fact(DisplayName = "UTC-AUTH07-02b The hourly send limit keeps the neutral MSG-OTP-04 (GBR-04)")]
+    public async Task RequestCode_HourlyLimit_StaysNeutral()
+    {
+        var service = Service();
+        for (int i = 0; i < EmailOtpVerifier.MaxSendsPerWindow; i++)
+        {
+            Assert.True((await service.RequestCodeAsync(new("vana@gmail.com"), default)).IsSuccess);
+            _clock.Advance(TimeSpan.FromSeconds(61));
+        }
+
+        var limited = await service.RequestCodeAsync(new("vana@gmail.com"), default);
+        var unknown = await service.RequestCodeAsync(new("ghost@gmail.com"), default);
+
+        Assert.True(limited.IsSuccess);
+        Assert.Equal(unknown.Value!.Replace("ghost", "vana"), limited.Value);
+        Assert.Equal(EmailOtpVerifier.MaxSendsPerWindow, _email.Sent.Count);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH07-03 E-mail delivery failure keeps the neutral MSG-OTP-04 and stores no code (GBR-04)")]
+    public async Task RequestCode_DeliveryFailure_StaysNeutral()
     {
         _email.Succeeds = false;
 
         var result = await Service().RequestCodeAsync(new("vana@gmail.com"), default);
+        var unknown = await Service().RequestCodeAsync(new("ghost@gmail.com"), default);
 
-        Assert.Equal(503, result.StatusCode);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(unknown.Value!.Replace("ghost", "vana"), result.Value);
         Assert.Empty(_store.OtpChallenges);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH07-03b Resend inside the 60-second cooldown keeps the neutral answer and sends nothing (GBR-04)")]
+    public async Task ResendCode_Cooldown_StaysNeutral()
+    {
+        var service = Service();
+        await service.RequestCodeAsync(new("vana@gmail.com"), default);
+        _clock.Advance(TimeSpan.FromSeconds(30));
+
+        var resent = await service.ResendCodeAsync(new("vana@gmail.com"), default);
+        var unknown = await service.ResendCodeAsync(new("ghost@gmail.com"), default);
+
+        Assert.True(resent.IsSuccess);
+        Assert.Equal(unknown.Value!.Replace("ghost", "vana"), resent.Value);
+        Assert.Single(_email.Sent);
     }
 
     [Fact(DisplayName = "UTC-AUTH07-04 Wrong or unknown code does not reveal the reset fields")]

@@ -35,4 +35,17 @@ public interface IVoucherRepository
     void AddAudit(AuditLog audit);
 
     Task SaveChangesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// BR-PV-12: saves a new voucher and its creation audit atomically. The audit needs the generated
+    /// VoucherId, so <paramref name="addAudit"/> runs after the voucher is saved, inside the same
+    /// transaction; if any step fails nothing is kept.
+    /// </summary>
+    async Task AddWithAuditAsync(Voucher voucher, Action addAudit, CancellationToken cancellationToken)
+    {
+        Add(voucher);
+        await SaveChangesAsync(cancellationToken);
+        addAudit();
+        await SaveChangesAsync(cancellationToken);
+    }
 }

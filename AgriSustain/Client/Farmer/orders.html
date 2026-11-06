@@ -268,7 +268,7 @@
                   <h3 id="rf-amount-heading" style="margin: 8px 0; color: #173b24;">Số tiền hoàn: 0 ₫</h3>
                   <span id="rf-status-pill" class="pill">—</span>
                   <p style="margin: 8px 0 0; font-size: 12px; color: #556c5e;">
-                    Số tiền được tự động hoàn vào tài khoản nhận tiền đã xác thực. Thông báo hệ thống và email được gửi sau khi hoàn tiền hoàn tất.
+                    Khi từ chối, khoản đã thanh toán được chuyển thành yêu cầu hoàn tiền cho bộ phận Tài chính. Tài chính chuyển khoản tới tài khoản nhận tiền của khách hàng; khách được thông báo khi hoàn tiền hoàn tất.
                   </p>
                 </div>
               </div>
@@ -593,7 +593,8 @@
       document.getElementById('rf-account-num').textContent = o.bankAccount || 'Chưa có thông tin';
       document.getElementById('rf-recipient-name').textContent = o.bankAccountName || o.recipientName || 'Khách hàng';
       document.getElementById('rf-amount-heading').textContent = `Số tiền hoàn: ${Utils.formatVND(o.isRefunded ? o.refundedAmount : o.refundableAmount)}`;
-      document.getElementById('rf-status-pill').textContent = o.isRefunded ? 'Đã hoàn tiền' : (o.refundableAmount > 0 ? 'Tài khoản đã xác thực' : 'Không có khoản cần hoàn');
+      document.getElementById('rf-status-pill').textContent = o.isRefunded ? 'Đã hoàn tiền'
+        : (o.refundableAmount > 0 ? 'Sẽ chuyển cho Tài chính hoàn tiền' : 'Không có khoản cần hoàn');
       document.getElementById('btn-submit-reject').disabled = actionBusy || !o.canReject;
     }
 
@@ -683,6 +684,8 @@
 
       if (!confirm(Messages.order.rejectConfirm(selectedOrder.sellerOrderCode))) return;
 
+      // The refundable amount before rejecting; afterwards it is held by the Pending refund request.
+      const refundBeforeReject = selectedOrder.refundableAmount || 0;
       const btn = document.getElementById('btn-submit-reject');
       btn.disabled = true;
       btn.textContent = 'Đang xử lý…';
@@ -694,8 +697,8 @@
         if (res.success && res.data) {
           selectedOrder = res.data;
           ordersList = ordersList.map(o => ((o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o));
-          showActionFeedback(selectedOrder.isRefunded
-            ? `Đã từ chối đơn hàng và hoàn ${Utils.formatVND(selectedOrder.refundedAmount)} vào tài khoản nhận tiền của RetailCustomer.`
+          showActionFeedback(refundBeforeReject > 0
+            ? `Đã từ chối đơn hàng. Khoản hoàn ${Utils.formatVND(refundBeforeReject)} đã được chuyển cho bộ phận Tài chính để chuyển khoản cho khách hàng.`
             : 'Đã từ chối đơn hàng. Không có khoản tiền cần hoàn.', selectedOrder);
           switchView('detail');
         } else {

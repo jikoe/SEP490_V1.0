@@ -7,6 +7,8 @@ using AgriSustain.Application.Interfaces.Repositories;
 using AgriSustain.Application.Interfaces.Services;
 using AgriSustain.Domain.Entities;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgriSustain.Application.Services.Authentication;
 
@@ -23,8 +25,11 @@ public sealed class PasswordResetService(
     IValidator<ForgotPasswordRequest> forgotPasswordValidator,
     IValidator<VerifyOtpRequest> verifyOtpValidator,
     IValidator<ResetPasswordRequest> resetPasswordValidator,
-    TimeProvider timeProvider) : IPasswordResetService
+    TimeProvider timeProvider,
+    ILogger<PasswordResetService>? logger = null) : IPasswordResetService
 {
+    private readonly ILogger _logger = logger ?? NullLogger<PasswordResetService>.Instance;
+
     public static readonly TimeSpan ResetTokenLifetime = TimeSpan.FromMinutes(10);
     private const int ResetTokenBytes = 32;
 
@@ -53,7 +58,7 @@ public sealed class PasswordResetService(
         }
 
         var issued = await otpVerifier.IssueAsync(OtpPurposes.PasswordReset, email, cancellationToken);
-        return issued.IsSuccess ? Result<string>.SuccessResult(CodeSentMessage(email)) : issued;
+        return Neutral(issued, email, "request");
     }
 
     public async Task<Result<string>> ResendCodeAsync(
@@ -68,9 +73,24 @@ public sealed class PasswordResetService(
 
         string email = NormalizeEmail(request.Email);
         var resent = await otpVerifier.ResendAsync(OtpPurposes.PasswordReset, email, cancellationToken);
-        return resent.IsSuccess || resent.Error?.Kind == "NotFound"
+        return resent.Error?.Kind == "NotFound"
             ? Result<string>.SuccessResult(CodeSentMessage(email))
-            : resent;
+            : Neutral(resent, email, "resend");
+    }
+
+    /// <summary>
+    /// GBR-04 / BR-OTP-03: cooldown, hourly limit and delivery errors only happen for registered
+    /// addresses, so answering them would reveal the account. Every outcome gets the same MSG-OTP-04
+    /// as an unknown address; failures are only logged.
+    /// </summary>
+    private Result<string> Neutral(Result<string> outcome, string email, string step)
+    {
+        if (!outcome.IsSuccess)
+        {
+            _logger.LogWarning("Password-reset OTP {Step} not sent ({Code}) for a registered account.",
+                step, outcome.Error?.Code);
+        }
+        return Result<string>.SuccessResult(CodeSentMessage(email));
     }
 
     public async Task<Result<PasswordResetGrantResponse>> VerifyCodeAsync(

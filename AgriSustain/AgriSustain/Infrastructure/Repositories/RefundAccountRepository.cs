@@ -48,10 +48,29 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
                 ReceiverBankShortName = r.ReceiverBankCodeNavigation != null ? r.ReceiverBankCodeNavigation.ShortName : null,
                 r.ReceiverAccountNumber,
                 r.ReceiverAccountHolder,
-                r.ReceiverAccountProvidedAt
+                r.ReceiverAccountProvidedAt,
+                r.RequestKey
             })
             .FirstOrDefaultAsync(cancellationToken);
         if (row is null) return null;
+
+        string? farmName = row.FarmName;
+        DateTime? approvedAt = row.ApprovedAt;
+        if (FarmerRejectedSellerOrderId(row.RequestKey) is { } sellerOrderId)
+        {
+            // UC-FAR-06 refunds have no complaint: the seller order comes from the RequestKey (F1 option a).
+            var rejected = await db.SellerOrders.AsNoTracking()
+                .Where(o => o.SellerOrderId == sellerOrderId)
+                .Select(o => new
+                {
+                    o.FarmerProfile.FarmName,
+                    RejectedAt = o.OrderStatusHistories.OrderByDescending(h => h.OccurredAt)
+                        .Select(h => (DateTime?)h.OccurredAt).FirstOrDefault()
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+            farmName ??= rejected?.FarmName;
+            approvedAt ??= rejected?.RejectedAt;
+        }
 
         var failure = await db.AuditLogs.AsNoTracking()
             .Where(a => a.EntityType == EntityType && a.EntityId == refundId && a.Action == "RefundTransferFailed")
@@ -59,8 +78,8 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
             .Select(a => new { a.Reason, a.OccurredAt })
             .FirstOrDefaultAsync(cancellationToken);
 
-        return new RefundRequestRecord(row.RefundTransactionId, userId, row.RefundCode, row.OrderCode, row.FarmName,
-            row.Amount, row.Reason, row.RefundStatus, row.ApprovedAt, row.ReceiverBankCode, row.ReceiverBankShortName,
+        return new RefundRequestRecord(row.RefundTransactionId, userId, row.RefundCode, row.OrderCode, farmName,
+            row.Amount, row.Reason, row.RefundStatus, approvedAt, row.ReceiverBankCode, row.ReceiverBankShortName,
             row.ReceiverAccountNumber, row.ReceiverAccountHolder, row.ReceiverAccountProvidedAt,
             failure?.Reason, failure?.OccurredAt);
     }
@@ -121,6 +140,16 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
         {
             return false;
         }
+    }
+
+    /// <summary>Seller order of a Farmer-rejection refund: RequestKey farmer-reject:{sellerOrderId}:{paymentId}:{allocationId}.</summary>
+    internal static long? FarmerRejectedSellerOrderId(string? requestKey)
+    {
+        const string prefix = "farmer-reject:";
+        if (requestKey is null || !requestKey.StartsWith(prefix, StringComparison.Ordinal)) return null;
+        var rest = requestKey.AsSpan(prefix.Length);
+        int end = rest.IndexOf(':');
+        return long.TryParse(end < 0 ? rest : rest[..end], out long id) ? id : null;
     }
 
     private IQueryable<RefundTransaction> Mine(long userId) =>

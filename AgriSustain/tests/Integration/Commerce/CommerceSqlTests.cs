@@ -198,7 +198,7 @@ public sealed partial class CommerceSqlTests
         await using var db = f.Open(); Assert.Empty(await db.Shipments.ToListAsync()); Assert.Empty(await db.InventoryMovements.ToListAsync());
     }
     [CommerceSqlFact, Trait("UseCase", "UC-FAR-06"), Trait("CaseId", "IT-FAR-06-R2-006")]
-    public async Task RejectPaidOrder_ReleasesStock_RecordsGatewayConfirmedRefund()
+    public async Task RejectPaidOrder_ReleasesStock_QueuesPendingRefundForFinance()
     {
         await using var f = await CommerceDatabase.Create();
         await Ok<SellerOrderResponse>(await f.Farmer().PostAsJsonAsync($"api/farmer/orders/{f.SellerId}/reject",
@@ -207,9 +207,10 @@ public sealed partial class CommerceSqlTests
         Assert.Equal("Released", (await db.OrderItemBatchAllocations.SingleAsync()).AllocationStatus);
         Assert.Equal(25, (await db.HarvestBatches.SingleAsync()).AvailableQuantity);
         Assert.Equal(0, (await db.HarvestBatches.SingleAsync()).ReservedQuantity);
+        // BR-RF-01 (revised): no money moves here; Finance transfers it manually in UC-FIN-03.
         var refund = Assert.Single(await db.RefundTransactions.ToListAsync());
-        Assert.Equal("Completed",refund.RefundStatus); Assert.Equal("BankTransfer",refund.RefundMethod);
-        Assert.StartsWith("DEMO-",refund.GatewayReference); Assert.Equal("0123456789",refund.ReceiverAccountNumber);
+        Assert.Equal("Pending",refund.RefundStatus); Assert.Null(refund.GatewayReference); Assert.Null(refund.ProcessedAt);
+        Assert.StartsWith($"farmer-reject:{f.SellerId}:",refund.RequestKey); Assert.Equal("0123456789",refund.ReceiverAccountNumber);
         Assert.Equal("TEST BUYER",refund.ReceiverAccountHolder); Assert.True(refund.Amount>0);
         Assert.True(await db.Notifications.AnyAsync(n=>n.UserId==f.BuyerId && n.DeliveryChannel=="Email" && n.DeliveryStatus=="Pending"));
         Assert.True(await db.Notifications.AnyAsync(x => x.UserId == f.BuyerId));
