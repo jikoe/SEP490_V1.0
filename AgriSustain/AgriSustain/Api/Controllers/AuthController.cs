@@ -62,7 +62,7 @@ public sealed class AuthController : ControllerBase
 
     [Authorize]
     [HttpPost("logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
     {
         var tokenId = User.FindFirstValue(JwtRegisteredClaimNames.Jti)
             ?? User.FindFirstValue(ClaimTypes.SerialNumber);
@@ -77,9 +77,10 @@ public sealed class AuthController : ControllerBase
                 statusCode: StatusCodes.Status401Unauthorized);
         }
 
-        _revokedTokenStore.Revoke(
+        await _revokedTokenStore.RevokeAsync(
             tokenId,
-            DateTimeOffset.FromUnixTimeSeconds(expirationTimestamp));
+            DateTimeOffset.FromUnixTimeSeconds(expirationTimestamp),
+            cancellationToken);
         return NoContent();
     }
 

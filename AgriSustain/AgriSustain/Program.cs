@@ -229,6 +229,7 @@ builder.Services.AddScoped<IValidator<UpdateFarmerProfileRequest>, UpdateFarmerP
 builder.Services.AddScoped<IValidator<OrderQuery>, OrderQueryValidator>();
 
 builder.Services.AddMemoryCache();
+builder.Services.AddHostedService<RevokedTokenCleanupHostedService>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -255,7 +256,7 @@ builder.Services.AddAuthentication(options =>
 
             var tokenId = context.SecurityToken.Id;
             if (!string.IsNullOrEmpty(tokenId)
-                && services.GetRequiredService<RevokedTokenStore>().IsRevoked(tokenId))
+                && await services.GetRequiredService<RevokedTokenStore>().IsRevokedAsync(tokenId, context.HttpContext.RequestAborted))
             {
                 context.Fail("This session has been terminated.");
                 return;

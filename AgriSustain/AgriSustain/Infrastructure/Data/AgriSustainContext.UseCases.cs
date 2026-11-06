@@ -6,9 +6,17 @@ namespace AgriSustain.Infrastructure.Data;
 public partial class AgriSustainContext
 {
     public DbSet<CategorySettings> CategorySettings => Set<CategorySettings>();
+    public DbSet<RevokedToken> RevokedTokens => Set<RevokedToken>();
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<RevokedToken>(entity =>
+        {
+            entity.ToTable("RevokedTokens");
+            entity.HasKey(x => x.TokenId);
+            entity.Property(x => x.TokenId).HasMaxLength(64).IsUnicode(false);
+            entity.HasIndex(x => x.ExpiresAt);
+        });
         // The deployed schema links order items to batches through allocations only.
         modelBuilder.Entity<OrderItem>().Ignore(x => x.HarvestBatch);
         modelBuilder.Entity<HarvestBatch>().Ignore(x => x.OrderItems);
