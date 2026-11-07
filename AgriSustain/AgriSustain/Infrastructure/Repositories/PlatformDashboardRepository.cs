@@ -16,6 +16,9 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
     private static readonly string[] s_cancelled = ["Cancelled", "Rejected"];
     private static readonly string[] s_complaintOpen =
         [DisputeTicket.StatusOpen, DisputeTicket.StatusUnderReview, DisputeTicket.StatusWaitingInfo];
+    // Audit actions that (re)submit a listing for review (FarmerProductService).
+    private static readonly string[] s_listingSubmissions = ["SubmitListing", "ResubmitListing", "UpdateListing"];
+    private const string KycSubmission = "SubmitForVerification";
     private static readonly string[] s_refundOpen =
     [
         RefundTransaction.StatusPending, RefundTransaction.StatusProcessing, RefundTransaction.StatusFailed,
@@ -84,35 +87,46 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
         return rows.FirstOrDefault();
     }
 
-    // KYC dossiers awaiting a Verification Officer (UC-VO-01). There is no separate submission
-    // time, so the account creation time is used, as on the KYC review list.
+    // KYC dossiers awaiting a Verification Officer (UC-VO-01). BR-DB-03: the submission time is the
+    // latest "SubmitForVerification" audit of the profile; the account creation time is only used
+    // for older data without that audit.
     private async Task<List<PendingWorkRow>> KycAsync(long? userId, CancellationToken cancellationToken)
     {
         var farmers = await db.FarmerProfiles.AsNoTracking()
             .Where(profile => s_kycPending.Contains(profile.VerificationStatus)
                 && (userId == null || profile.UserId == userId))
             .Select(profile => new PendingWorkRow("Kyc", profile.UserId,
-                "Hồ sơ nông trại · " + profile.FarmName, profile.User.FullName, profile.User.CreatedAt,
+                "Hồ sơ nông trại · " + profile.FarmName, profile.User.FullName,
+                db.AuditLogs.Where(log => log.EntityType == "FarmerProfile"
+                        && log.EntityId == profile.FarmerProfileId && log.Action == KycSubmission)
+                    .Max(log => (DateTime?)log.OccurredAt) ?? profile.User.CreatedAt,
                 profile.VerificationStatus))
             .ToListAsync(cancellationToken);
         var buyers = await db.WholesaleBuyerProfiles.AsNoTracking()
             .Where(profile => s_kycPending.Contains(profile.VerificationStatus)
                 && (userId == null || profile.UserId == userId))
             .Select(profile => new PendingWorkRow("Kyc", profile.UserId,
-                "Hồ sơ doanh nghiệp · " + profile.CompanyName, profile.User.FullName, profile.User.CreatedAt,
+                "Hồ sơ doanh nghiệp · " + profile.CompanyName, profile.User.FullName,
+                db.AuditLogs.Where(log => log.EntityType == "WholesaleBuyerProfile"
+                        && log.EntityId == profile.WholesaleBuyerProfileId && log.Action == KycSubmission)
+                    .Max(log => (DateTime?)log.OccurredAt) ?? profile.User.CreatedAt,
                 profile.VerificationStatus))
             .ToListAsync(cancellationToken);
         return [.. farmers, .. buyers];
     }
 
-    // Listings waiting for a Content Moderator (UC-CM-01).
+    // Listings waiting for a Content Moderator (UC-CM-01). BR-DB-03: submitted at the latest
+    // submit / resubmit / reviewed-update audit, so a resubmitted listing starts a new wait.
     private Task<List<PendingWorkRow>> ListingsAsync(long? productId, CancellationToken cancellationToken)
     {
         return db.Products.AsNoTracking()
             .Where(product => product.ApprovalStatus == "Pending"
                 && (productId == null || product.ProductId == productId))
             .Select(product => new PendingWorkRow("Listing", product.ProductId,
-                "Sản phẩm · " + product.ProductName, product.FarmerProfile.User.FullName, product.CreatedAt,
+                "Sản phẩm · " + product.ProductName, product.FarmerProfile.User.FullName,
+                db.AuditLogs.Where(log => log.EntityType == "Product" && log.EntityId == product.ProductId
+                        && s_listingSubmissions.Contains(log.Action))
+                    .Max(log => (DateTime?)log.OccurredAt) ?? product.CreatedAt,
                 product.ApprovalStatus))
             .ToListAsync(cancellationToken);
     }
@@ -144,7 +158,12 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
                 refund.RequestKey,
                 Buyer = refund.PaymentTransaction.Order != null
                     ? refund.PaymentTransaction.Order.BuyerUser.FullName : null,
-                DecidedAt = refund.DisputeTicket != null ? refund.DisputeTicket.DecisionAt : null
+                DecidedAt = refund.DisputeTicket != null ? refund.DisputeTicket.DecisionAt : null,
+                // Fallback when no decision / rejection time is found: when the request was created
+                // (its first refund audit), else when the original payment was made.
+                CreatedAt = db.AuditLogs.Where(log => log.EntityType == "RefundTransaction"
+                        && log.EntityId == refund.RefundTransactionId)
+                    .Min(log => (DateTime?)log.OccurredAt) ?? refund.PaymentTransaction.PaidAt
             })
             .ToListAsync(cancellationToken);
         var sellerOrderIds = refunds
@@ -162,7 +181,7 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
             DateTime? at = refund.DecidedAt
                 ?? (sellerOrderId is long id && rejectedAt.TryGetValue(id, out var rejected) ? rejected : null);
             return new PendingWorkRow("Refund", refund.RefundTransactionId, "Hoàn tiền · " + refund.RefundCode,
-                refund.Buyer ?? "—", at ?? DateTime.UtcNow, refund.RefundStatus);
+                refund.Buyer ?? "—", at ?? refund.CreatedAt ?? DateTime.UtcNow, refund.RefundStatus);
         }).ToList();
     }
 

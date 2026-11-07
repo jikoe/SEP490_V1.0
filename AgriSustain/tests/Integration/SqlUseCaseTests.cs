@@ -1,3 +1,4 @@
+using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Administration;
 using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.Interfaces;
@@ -179,6 +180,34 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.Equal(("Listing", product.ProductId, "Farmer Test"), (listing.Type, listing.ReferenceId, listing.SubmittedBy));
         Assert.NotNull(item);
         Assert.Null(await repository.PendingWorkItemAsync("Complaint", 999, default));
+    }
+
+    [Fact(DisplayName = "[UC-ADM-01 BR-DB-03] Wait time starts at the latest submission, not at creation")]
+    public async Task PendingWork_UsesLatestSubmissionTime()
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var farm = await _context.FarmerProfiles.Include(x => x.User).SingleAsync();
+        var product = await _context.Products.SingleAsync();
+        product.ApprovalStatus = "Pending";
+        product.CreatedAt = now.AddDays(-10);
+        farm.VerificationStatus = VerificationStatuses.PendingApproval;
+        farm.User.CreatedAt = now.AddDays(-30);
+        long farmerUserId = farm.UserId;
+        _context.AuditLogs.AddRange(
+            new AuditLog { PerformedByUserId = farmerUserId, EntityType = "Product", EntityId = product.ProductId,
+                Action = "SubmitListing", OccurredAt = now.AddDays(-10) },
+            new AuditLog { PerformedByUserId = farmerUserId, EntityType = "Product", EntityId = product.ProductId,
+                Action = "ResubmitListing", OccurredAt = now.AddHours(-2) },
+            new AuditLog { PerformedByUserId = farmerUserId, EntityType = "FarmerProfile", EntityId = farm.FarmerProfileId,
+                Action = "SubmitForVerification", OccurredAt = now.AddHours(-3) });
+        await _context.SaveChangesAsync();
+        var repository = new PlatformDashboardRepository(_context);
+
+        var pending = await repository.PendingWorkAsync(default);
+
+        Assert.Equal(now.AddHours(-2), pending.Single(row => row.Type == "Listing").SubmittedAt);
+        Assert.Equal(now.AddHours(-3), pending.Single(row => row.Type == "Kyc").SubmittedAt);
+        Assert.All(pending, row => Assert.False(PlatformDashboardService.ToItem(row, now).SlaWarning));
     }
 
     [Fact(DisplayName = "[UC-ADM-09] Tier queries run on SQL Server and a never-purchased tier can be removed")]
