@@ -161,6 +161,7 @@ public sealed class RefundRepository : IRefundRepository
                 && s_reservingStatuses.Contains(other.RefundStatus))
             .SumAsync(other => (decimal?)other.Amount, cancellationToken) ?? 0;
 
+        var lastFailureAt = LastAt(history, RefundProcessingActions.TransferFailed);
         bool complaint = refund.DisputeTicketId is not null;
         string refundType = !complaint ? "Cancellation"
             : sellerOrder is not null && refund.Amount >= sellerOrder.FinalAmount ? "Full" : "Partial";
@@ -200,7 +201,8 @@ public sealed class RefundRepository : IRefundRepository
             refund.ReceiverAccountHolder,
             refund.ReceiverAccountProvidedAt,
             refund.HasReceivingAccount,
-            refund.CanStartTransfer && ticket?.TicketStatus is null or DisputeTicket.StatusRefundPending,
+            refund.CanStartTransferAfter(lastFailureAt)
+                && ticket?.TicketStatus is null or DisputeTicket.StatusRefundPending,
             payment.TransactionCode,
             payment.GatewayProvider,
             payment.PaymentType,
@@ -208,8 +210,21 @@ public sealed class RefundRepository : IRefundRepository
             Math.Max(0, payment.Amount - paymentHeldByOthers),
             payment.PaymentStatus,
             payment.PaidAt,
-            history);
+            history,
+            refund.NeedsAccountFromCustomer(lastFailureAt),
+            LastAt(history, RefundProcessingActions.AccountReminder));
     }
+
+    private static DateTime? LastAt(IEnumerable<RefundAttemptDto> history, string action) =>
+        history.Where(entry => entry.Action == action).Select(entry => (DateTime?)entry.OccurredAt).Max();
+
+    public Task<DateTime?> GetLastActionAtAsync(
+        long refundId,
+        string action,
+        CancellationToken cancellationToken) =>
+        _context.AuditLogs.AsNoTracking()
+            .Where(log => log.EntityType == "RefundTransaction" && log.EntityId == refundId && log.Action == action)
+            .MaxAsync(log => (DateTime?)log.OccurredAt, cancellationToken);
 
     /// <summary>
     /// BR-RF-04 rows recorded on the complaint rather than the refund: the request created by the

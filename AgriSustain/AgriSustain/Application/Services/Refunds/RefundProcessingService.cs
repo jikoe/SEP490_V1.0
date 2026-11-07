@@ -29,6 +29,10 @@ public sealed class RefundProcessingService(
     public const string PartiallyRefundedStatus = SellerOrder.StatusPartiallyRefunded;
     public const string EmailNotificationType = "RefundEmail";
     private const int MaximumPageSize = 100;
+    public const string TransferFailedAction = RefundProcessingActions.TransferFailed;
+    public const string AccountReminderAction = RefundProcessingActions.AccountReminder;
+    /// <summary>One reminder per request every 24 hours, like the B2B payment reminder.</summary>
+    public static readonly TimeSpan AccountReminderInterval = TimeSpan.FromHours(24);
 
     public RefundProcessingService(
         IRefundRepository repository,
@@ -52,6 +56,17 @@ public sealed class RefundProcessingService(
     private static readonly Error s_noAccount = new(
         "REFUND_ACCOUNT_MISSING",
         "Yêu cầu đang chờ khách hàng cung cấp tài khoản nhận hoàn tiền. Chưa thể bắt đầu chuyển.",
+        "Conflict");
+
+    private static readonly Error s_accountNotRechecked = new(
+        "REFUND_ACCOUNT_NOT_RECHECKED",
+        "Khách hàng chưa kiểm tra lại tài khoản nhận hoàn tiền sau lần chuyển thất bại. "
+            + "Hãy nhắc khách hàng và chờ khách xác nhận trước khi chuyển lại.",
+        "Conflict");
+
+    private static readonly Error s_accountNotNeeded = new(
+        "REFUND_ACCOUNT_NOT_NEEDED",
+        "Yêu cầu này không còn chờ khách hàng cung cấp hoặc kiểm tra tài khoản nhận hoàn tiền.",
         "Conflict");
 
     private static readonly Error s_balanceExceeded = new(
@@ -116,6 +131,13 @@ public sealed class RefundProcessingService(
             return Result<RefundActionResponse>.FailureResult(s_noAccount);
         }
 
+        // UC-FIN-03 AF: Transfer Again only after the customer checked the account again.
+        if (!refund.AccountRecheckedSince(
+                await repository.GetLastActionAtAsync(refundId, TransferFailedAction, cancellationToken)))
+        {
+            return Result<RefundActionResponse>.FailureResult(s_accountNotRechecked);
+        }
+
         // Recheck both ceilings (BR-CS-04, DBR-46): the reserved totals include this refund.
         var sellerOrder = refund.DisputeTicket?.SellerOrder;
         if (refund.PaymentTransaction.ReservedRefundAmount > refund.PaymentTransaction.Amount
@@ -134,6 +156,59 @@ public sealed class RefundProcessingService(
             refund.RefundTransactionId, refund.RefundStatus,
             $"Đã bắt đầu chuyển khoản {refund.RefundCode}. Chuyển {refund.Amount:N0} ₫ với nội dung "
                 + $"{refund.RefundCode}, sau đó ghi nhận kết quả."));
+    }
+
+    public async Task<Result<RefundActionResponse>> RemindAccountAsync(
+        long refundId,
+        CancellationToken cancellationToken)
+    {
+        var refund = await repository.GetForProcessingAsync(refundId, cancellationToken);
+        if (refund is null)
+        {
+            return Result<RefundActionResponse>.FailureResult(s_notFound);
+        }
+
+        var lastFailure = await repository.GetLastActionAtAsync(refundId, TransferFailedAction, cancellationToken);
+        if (!refund.NeedsAccountFromCustomer(lastFailure))
+        {
+            return Result<RefundActionResponse>.FailureResult(s_accountNotNeeded);
+        }
+
+        var now = Now();
+        var lastReminder = await repository.GetLastActionAtAsync(refundId, AccountReminderAction, cancellationToken);
+        if (lastReminder is { } sent && now - sent < AccountReminderInterval)
+        {
+            return Result<RefundActionResponse>.FailureResult(new Error(
+                "REFUND_REMINDER_TOO_SOON",
+                $"Đã nhắc khách hàng lúc {sent.AddHours(7):dd/MM/yyyy HH:mm}. Mỗi yêu cầu chỉ được nhắc "
+                    + "tối đa 1 lần trong 24 giờ.",
+                "Conflict"));
+        }
+
+        var order = refund.DisputeTicket?.SellerOrder
+            ?? await repository.GetFarmerRejectedSellerOrderAsync(refund, cancellationToken);
+        if (order?.Order is null)
+        {
+            return Result<RefundActionResponse>.FailureResult(new Error(
+                "REFUND_CUSTOMER_UNKNOWN", "Không xác định được khách hàng của yêu cầu hoàn tiền này.", "Conflict"));
+        }
+
+        long buyerId = order.Order.BuyerUserId;
+        string orderCode = order.Order.OrderCode;
+        // MSG-RF-07, sent again as a reminder.
+        AddInApp(buyerId, refund, "Cần tài khoản nhận hoàn tiền",
+            $"Khoản hoàn {refund.Amount:N0} ₫ cho đơn {orderCode} ({refund.RefundCode}) đang chờ chuyển. "
+                + "Vui lòng cung cấp hoặc xác nhận tài khoản ngân hàng nhận tiền hoàn.", now);
+        AddEmail(buyerId, refund, "account-reminder",
+            $"Khoản hoàn tiền cho đơn {orderCode} đang chờ chuyển",
+            $"AgriSustain sẽ hoàn {refund.Amount:N0} ₫. Lý do: {refund.Reason}. Vui lòng đăng nhập để cung cấp "
+                + "hoặc xác nhận tài khoản ngân hàng nhận tiền hoàn.", now);
+        AddAudit(refund, AccountReminderAction, refund.RefundStatus, HistoryEntry(refund), null, now);
+        await repository.SaveChangesAsync(cancellationToken);
+
+        return Result<RefundActionResponse>.SuccessResult(new RefundActionResponse(
+            refund.RefundTransactionId, refund.RefundStatus,
+            "Đã nhắc khách hàng cung cấp hoặc kiểm tra tài khoản nhận hoàn tiền qua thông báo và email."));
     }
 
     public async Task<Result<RefundActionResponse>> CancelTransferAsync(
@@ -270,7 +345,7 @@ public sealed class RefundProcessingService(
             NotifyTransferFailed(failedOrder.Order.BuyerUserId, refund, reason, now);
         }
 
-        AddAudit(refund, "RefundTransferFailed", previous, HistoryEntry(refund), reason, now);
+        AddAudit(refund, TransferFailedAction, previous, HistoryEntry(refund), reason, now);
         await repository.SaveChangesAsync(cancellationToken);
 
         return Result<RefundActionResponse>.SuccessResult(new RefundActionResponse(
