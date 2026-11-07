@@ -206,6 +206,24 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.Empty((await repository.SearchAsync(new SubscriptionTierSearch(), now, default)).Items);
     }
 
+    [Fact(DisplayName = "[UC-PS-01 BR-PV-01] A code of a deleted voucher is never reused")]
+    public async Task VoucherCode_OfDeletedVoucher_StaysTaken()
+    {
+        var repository = new AgriSustain.Infrastructure.Repositories.VoucherRepository(_context);
+        long staffId = await _context.Users.Select(u => u.UserId).FirstAsync();
+        _context.AuditLogs.Add(new AuditLog
+        {
+            PerformedByUserId = staffId, EntityType = "Voucher", EntityId = 987654, Action = "DeleteVoucher",
+            OldValue = "{\"VoucherCode\":\"GONE2026\",\"VoucherName\":\"Old\"}",
+            OccurredAt = _clock.GetUtcNow().UtcDateTime
+        });
+        await _context.SaveChangesAsync();
+
+        Assert.True(await repository.CodeExistsAsync("GONE2026", null, default));
+        Assert.False(await repository.CodeExistsAsync("GONE20", null, default));     // no partial match
+        Assert.False(await repository.CodeExistsAsync("GONE2026", 987654, default)); // the voucher's own history
+    }
+
     [Fact(DisplayName = "[UC-PS-01 BR-PV-12] A failed creation audit keeps no voucher")]
     public async Task VoucherCreate_AuditFails_NothingKept()
     {
