@@ -15,7 +15,8 @@ public sealed class OrderFulfillmentService(
     IFileStorageService storage,
     INotificationGateway? notificationGateway = null,
     OrderRefundService? refundService = null,
-    OrderNotificationService? notificationService = null)
+    OrderNotificationService? notificationService = null,
+    IOrderFeeService? fees = null)
 {
     public async Task<FeatureResult<PageResult<SellerOrderResponse>>> GetListAsync(long userId,
         SellerOrderQuery query, CancellationToken cancellationToken)
@@ -161,6 +162,11 @@ public sealed class OrderFulfillmentService(
                 var trimmedReason = (request.Explanation ?? request.Reason)?.Trim() ?? "Farmer rejected order before dispatch";
                 ReleaseUndispatchedGoods(order, now);
                 order.Cancel(trimmedReason);
+                // BR-FEE-08: the rejected seller order carries no platform fee.
+                if (fees is not null)
+                {
+                    await fees.ReverseCancelledAsync(order.SellerOrderId, cancellationToken);
+                }
                 if (refundService is not null)
                 {
                     // A Pending request for Finance Staff (UC-FIN-03); no money moves here.

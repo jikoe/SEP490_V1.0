@@ -80,13 +80,28 @@ public sealed class VoucherRepository : IVoucherRepository
             cancellationToken);
     }
 
-    public Task<bool> CodeExistsAsync(
+    /// <summary>
+    /// BR-PV-01: a code is never reused, so it counts as taken while another voucher has it and also
+    /// when it appears in any voucher's audit history (a deleted voucher, or a code changed before use).
+    /// </summary>
+    public async Task<bool> CodeExistsAsync(
         string voucherCode,
         long? exceptVoucherId,
         CancellationToken cancellationToken)
     {
-        return _context.Vouchers.AsNoTracking().AnyAsync(
+        if (await _context.Vouchers.AsNoTracking().AnyAsync(
             voucher => voucher.VoucherCode == voucherCode && voucher.VoucherId != exceptVoucherId,
+            cancellationToken))
+        {
+            return true;
+        }
+
+        // Audit snapshots are JSON written by VoucherManagementService ("VoucherCode":"CODE").
+        string marker = $"\"VoucherCode\":\"{voucherCode}\"";
+        return await _context.AuditLogs.AsNoTracking().AnyAsync(
+            log => log.EntityType == "Voucher" && log.EntityId != exceptVoucherId
+                && ((log.OldValue != null && log.OldValue.Contains(marker))
+                    || (log.NewValue != null && log.NewValue.Contains(marker))),
             cancellationToken);
     }
 

@@ -33,6 +33,12 @@ public interface IRefundRepository
         RefundTransaction refund,
         CancellationToken cancellationToken);
 
+    /// <summary>Time of the latest history row with this action for the refund, or null.</summary>
+    Task<DateTime?> GetLastActionAtAsync(
+        long refundId,
+        string action,
+        CancellationToken cancellationToken);
+
     void AddAudit(AuditLog audit);
 
     void AddNotification(Notification notification);

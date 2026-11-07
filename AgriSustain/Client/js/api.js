@@ -515,6 +515,13 @@ const API = {
     });
   },
 
+  /** UC-FIN-03 AF: remind the customer to provide or check the refund account (max once per 24h). */
+  async remindRefundAccount(refundId) {
+    return this.request(`/finance/refunds/${refundId}/remind-account`, {
+      method: 'POST', body: {}, suppressErrorToast: true
+    });
+  },
+
   async cancelRefundTransfer(refundId, expectedStatus) {
     return this.request(`/finance/refunds/${refundId}/cancel-transfer`, {
       method: 'POST', body: { expectedStatus }, suppressErrorToast: true

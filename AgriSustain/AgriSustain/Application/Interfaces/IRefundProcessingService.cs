@@ -20,6 +20,14 @@ public interface IRefundProcessingService
         RefundTransferRequest request,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// UC-FIN-03 AF (Step 3): reminds the customer in-app and by email (MSG-RF-07) to provide or
+    /// check the receiving account (UC-FIN-08); at most once every 24 hours per request.
+    /// </summary>
+    Task<Result<RefundActionResponse>> RemindAccountAsync(
+        long refundId,
+        CancellationToken cancellationToken);
+
     Task<Result<RefundActionResponse>> CancelTransferAsync(
         long refundId,
         RefundTransferRequest request,

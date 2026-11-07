@@ -93,6 +93,14 @@ public sealed class ComplaintResolutionServiceTests
         Assert.Contains(_store.Notifications, n => n.UserId == FinanceId);
         Assert.Contains(_store.Notifications, n => n.UserId == BuyerId);
         Assert.Contains(_store.Notifications, n => n.UserId == FarmerUserId);
+        // UC-CS-01 Step 9: every party is notified in-app and by email (Gmail Notification Service).
+        foreach (long userId in new[] { FinanceId, BuyerId, FarmerUserId })
+        {
+            Assert.Contains(_store.Notifications, n => n.UserId == userId && n.DeliveryChannel == "InApp");
+            Assert.Contains(_store.Notifications, n => n.UserId == userId && n.DeliveryChannel == "Email"
+                && n.NotificationType == ComplaintResolutionService.EmailNotificationType
+                && n.DeliveryStatus == "Pending");
+        }
         Assert.Equal("ResolveComplaint", Assert.Single(_store.Audits).Action);
         Assert.Equal(1, _store.Saves);
     }
@@ -258,7 +266,9 @@ public sealed class ComplaintResolutionServiceTests
         Assert.Equal(FarmerUserId, request.RequestedPartyUserId);
         Assert.Equal(T0.UtcDateTime.AddHours(48), request.DueAt);
         Assert.Equal(DisputeTicket.EvidenceRequestPending, request.RequestStatus);
-        Assert.Equal(FarmerUserId, Assert.Single(_store.Notifications).UserId);
+        // MSG182 is sent in-app and by email.
+        Assert.All(_store.Notifications, n => Assert.Equal(FarmerUserId, n.UserId));
+        Assert.Equal(["Email", "InApp"], _store.Notifications.Select(n => n.DeliveryChannel).Order().ToArray());
     }
 
     [Fact(DisplayName = "UTC-CS01-10 A second open request to the same party is refused")]
@@ -371,7 +381,8 @@ public sealed class ComplaintResolutionServiceTests
         Assert.Equal(0, resolved);
         Assert.Equal(DisputeTicket.StatusWaitingInfo, ticket.TicketStatus);
         Assert.Equal(DisputeTicket.EvidenceRequestExpired, ticket.DisputeEvidenceRequests.Single().RequestStatus);
-        Assert.Equal(SupportId, Assert.Single(_store.Notifications).UserId);
+        Assert.All(_store.Notifications, n => Assert.Equal(SupportId, n.UserId));
+        Assert.Equal(["Email", "InApp"], _store.Notifications.Select(n => n.DeliveryChannel).Order().ToArray());
     }
 
     private sealed class Actor : IActorContext

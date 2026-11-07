@@ -86,6 +86,41 @@ public sealed class SePayWebhookSqlTests
         Assert.Equal(new DateTime(2026, 11, 2, 6, 45, 10), payment.PaidAt);
     }
 
+    [CommerceSqlFact, Trait("UseCase", "UC-PS-01")]
+    public async Task PaidOrder_AppliesHeldVoucherUse_AndCountsIt()
+    {
+        var (f, code) = await Arrange();
+        await using var _ = f;
+        string voucherCode = $"PAY{Guid.NewGuid():N}"[..12].ToUpperInvariant();
+        await f.Edit(async db =>
+        {
+            var order = await db.Orders.SingleAsync(x => x.OrderCode == code);
+            var voucher = new Voucher
+            {
+                VoucherCode = voucherCode, VoucherName = "Paid use", DiscountType = Voucher.TypeFixedAmount,
+                DiscountValue = 10_000, MinOrderAmount = 0, UsageLimit = 1, PerCustomerLimit = 1, UsedCount = 0,
+                IsActive = true, StartDate = DateTime.UtcNow.AddDays(-1), EndDate = DateTime.UtcNow.AddDays(1)
+            };
+            voucher.VoucherRedemptions.Add(new VoucherRedemption
+            {
+                OrderId = order.OrderId, DiscountSnapshot = 10_000, Status = VoucherRedemptionStatus.Reserved,
+                ReservedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddMinutes(15)
+            });
+            db.Vouchers.Add(voucher);
+        });
+
+        await AssertAcknowledged(await Send(f.Client, Webhook(code, 175700, 92710)));
+        await AssertAcknowledged(await Send(f.Client, Webhook(code, 175700, 92710)));   // SePay retry
+
+        await using var db = f.Open();
+        var saved = await db.Vouchers.Include(x => x.VoucherRedemptions).SingleAsync(x => x.VoucherCode == voucherCode);
+        var use = Assert.Single(saved.VoucherRedemptions);
+        Assert.Equal(VoucherRedemptionStatus.Applied, use.Status);
+        Assert.NotNull(use.AppliedAt);
+        Assert.Equal(1, saved.UsedCount);                                   // counted once despite the retry
+        Assert.Equal(Voucher.StatusExhausted, saved.LifecycleStatus(DateTime.UtcNow));
+    }
+
     [CommerceSqlFact, Trait("UseCase", "UC-RC-03")]
     public async Task UnderpaidTransfer_IsRecordedForReconciliation_AndOrderStaysPending()
     {

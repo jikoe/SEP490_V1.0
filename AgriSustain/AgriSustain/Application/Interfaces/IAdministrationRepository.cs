@@ -40,6 +40,13 @@ public interface IAdministrationRepository
 
     Task<bool> HasCategoryReferencesAsync(long categoryId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// BR-CAT-05: archiving a category ends its category-specific fee policies from the archive date;
+    /// orders already placed keep their fee lines.
+    /// </summary>
+    Task EndCategoryFeePoliciesAsync(long categoryId, DateOnly archiveDate, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
     void AddCategory(Category category, CategorySettings settings);
 
     void DeleteCategory(Category category, CategorySettings settings);

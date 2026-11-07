@@ -4,7 +4,8 @@ using AgriSustain.Domain.Entities;
 namespace AgriSustain.Application.Services.Checkout;
 
 public sealed class ReservationExpiryService(ICheckoutRepository repository,
-    IAdministrationRepository audit, IUseCaseUnitOfWork unitOfWork, TimeProvider clock)
+    IAdministrationRepository audit, IUseCaseUnitOfWork unitOfWork, TimeProvider clock,
+    IOrderFeeService? fees = null)
 {
     public async Task<int> ExpireAsync(CancellationToken cancellationToken)
     {
@@ -40,6 +41,11 @@ public sealed class ReservationExpiryService(ICheckoutRepository repository,
                     Reason = "Payment reservation expired"
                 });
                 seller.Status = "Cancelled";
+                // BR-FEE-08: a cancelled seller order carries no fee.
+                if (fees is not null)
+                {
+                    await fees.ReverseCancelledAsync(seller.SellerOrderId, cancellationToken);
+                }
             }
             foreach (var redemption in order.VoucherRedemptions.Where(x => x.Status == "Reserved"))
             {

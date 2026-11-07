@@ -69,6 +69,34 @@ public sealed class GoshipShippingTests
         Assert.Null(handler.Request);
     }
 
+    [Fact(DisplayName = "[UC-RC-02 Step 5] The farm's pickup address from its profile is sent to Goship")]
+    public async Task GetRate_UsesFarmerProfilePickup()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, Rates);
+
+        // Farmer 99 has no configured fallback; the profile address alone is enough.
+        var result = await Provider(handler).GetRateAsync(Request("Standard") with
+        {
+            FarmerProfileId = 99, Pickup = new ShippingPickup("100000", "100100")
+        }, default);
+
+        Assert.Equal(new ShippingRateResult(true, 19540), result);
+        using var body = JsonDocument.Parse(handler.Body!);
+        var from = body.RootElement.GetProperty("shipment").GetProperty("address_from");
+        Assert.Equal(("100000", "100100"), (from.GetProperty("city").GetString(), from.GetProperty("district").GetString()));
+    }
+
+    [Fact(DisplayName = "[UC-RC-02 Step 5] The profile address takes priority over the configured fallback")]
+    public async Task GetRate_ProfilePickupOverridesConfiguration()
+    {
+        var handler = new StubHandler(HttpStatusCode.OK, Rates);
+
+        await Provider(handler).GetRateAsync(Request("Standard") with { Pickup = new ShippingPickup("100000", "100100") }, default);
+
+        using var body = JsonDocument.Parse(handler.Body!);
+        Assert.Equal("100100", body.RootElement.GetProperty("shipment").GetProperty("address_from").GetProperty("district").GetString());
+    }
+
     [Fact]
     public async Task Normalize_ChecksHierarchyAndUsesGoshipNames()
     {

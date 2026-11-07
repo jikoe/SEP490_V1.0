@@ -203,6 +203,65 @@ public sealed class RefundProcessingServiceTests
         Assert.Equal(RefundTransaction.StatusProcessing, refund.RefundStatus);
     }
 
+    private void FailedAt(DateTime failedAt) => _store.Audits.Add(new AuditLog
+    {
+        EntityType = "RefundTransaction", EntityId = 11, Action = "RefundTransferFailed", OccurredAt = failedAt
+    });
+
+    [Fact(DisplayName = "UTC-FIN03-14 Transfer Again is blocked until the customer re-checks the account after a failure")]
+    public async Task TransferAgain_NeedsAccountRecheck()
+    {
+        var refund = _store.Refund = Refund(status: RefundTransaction.StatusFailed);
+        FailedAt(T0.UtcDateTime);                                   // failure recorded after the account was given
+
+        var blocked = await Service().StartTransferAsync(11, new(RefundTransaction.StatusFailed), default);
+        refund.ReceiverAccountProvidedAt = T0.UtcDateTime.AddMinutes(5);   // customer confirmed again (UC-FIN-08)
+        var started = await Service().StartTransferAsync(11, new(RefundTransaction.StatusFailed), default);
+
+        Assert.Equal("REFUND_ACCOUNT_NOT_RECHECKED", blocked.Error?.Code);
+        Assert.True(started.IsSuccess, started.Error?.Message);
+        Assert.Equal(RefundTransaction.StatusProcessing, refund.RefundStatus);
+    }
+
+    [Fact(DisplayName = "UTC-FIN03-15 Remind sends MSG-RF-07 in-app and by email, at most once every 24 hours")]
+    public async Task RemindAccount_OncePer24Hours()
+    {
+        var refund = _store.Refund = Refund(status: RefundTransaction.StatusPending);
+        refund.ReceiverBankCode = refund.ReceiverAccountNumber = refund.ReceiverAccountHolder = null;
+        refund.ReceiverAccountProvidedAt = null;
+
+        var first = await Service().RemindAccountAsync(11, default);
+        var second = await Service().RemindAccountAsync(11, default);
+
+        Assert.True(first.IsSuccess, first.Error?.Message);
+        Assert.Equal("REFUND_REMINDER_TOO_SOON", second.Error?.Code);
+        Assert.All(_store.Notifications, n => Assert.Equal(BuyerId, n.UserId));
+        Assert.Equal(["Email", "InApp"], _store.Notifications.Select(n => n.DeliveryChannel).Order().ToArray());
+        Assert.Equal("RemindRefundAccount", Assert.Single(_store.Audits).Action);
+    }
+
+    [Fact(DisplayName = "UTC-FIN03-16 Remind is refused when the request already has a checked account")]
+    public async Task RemindAccount_NotNeeded()
+    {
+        _store.Refund = Refund(status: RefundTransaction.StatusPending);
+
+        var result = await Service().RemindAccountAsync(11, default);
+
+        Assert.Equal("REFUND_ACCOUNT_NOT_NEEDED", result.Error?.Code);
+        Assert.Empty(_store.Notifications);
+    }
+
+    [Fact(DisplayName = "UTC-FIN03-17 A failed request whose account was not re-checked can be reminded")]
+    public async Task RemindAccount_AfterFailure()
+    {
+        _store.Refund = Refund(status: RefundTransaction.StatusFailed);
+        FailedAt(T0.UtcDateTime);
+
+        var result = await Service().RemindAccountAsync(11, default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+    }
+
     /// <summary>A Farmer-rejection refund (UC-FAR-06): no complaint, the seller order is Cancelled.</summary>
     private RefundTransaction FarmerRejectionRefund(string status)
     {
@@ -271,6 +330,9 @@ public sealed class RefundProcessingServiceTests
         public SellerOrder? FarmerRejected { get; set; }
         public Task<SellerOrder?> GetFarmerRejectedSellerOrderAsync(RefundTransaction refund, CancellationToken ct) =>
             Task.FromResult(refund.DisputeTicketId is null ? FarmerRejected : null);
+        public Task<DateTime?> GetLastActionAtAsync(long refundId, string action, CancellationToken ct) =>
+            Task.FromResult(Audits.Where(a => a.EntityId == refundId && a.Action == action)
+                .Select(a => (DateTime?)a.OccurredAt).Max());
         public void AddAudit(AuditLog audit) => Audits.Add(audit);
         public void AddNotification(Notification notification) => Notifications.Add(notification);
 

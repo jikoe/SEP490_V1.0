@@ -176,10 +176,45 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         return await context.Products.AnyAsync(x => x.CategoryId == categoryId, cancellationToken)
             || await context.Categories.AnyAsync(x => x.ParentCategoryId == categoryId,
                 cancellationToken)
+            || await context.FeePolicyCategories.AnyAsync(x => x.CategoryId == categoryId, cancellationToken)
             || await context.CommissionPolicies.AnyAsync(x => x.CategoryId == categoryId,
                 cancellationToken)
             || await context.RegionalPriceBenchmarks.AnyAsync(x => x.CategoryId == categoryId,
                 cancellationToken);
+    }
+
+    public async Task EndCategoryFeePoliciesAsync(long categoryId, DateOnly archiveDate,
+        CancellationToken cancellationToken)
+    {
+        var policies = await context.FeePolicies.Include(policy => policy.Categories)
+            .Where(policy => !policy.AppliesToAllCategories
+                && policy.Categories.Any(category => category.CategoryId == categoryId))
+            .ToListAsync(cancellationToken);
+        foreach (var policy in policies)
+        {
+            var link = policy.Categories.Single(category => category.CategoryId == categoryId);
+            bool onlyCategory = policy.Categories.Count == 1;
+            if (policy.ApprovalStatus == FeePolicy.ApprovalApproved && policy.EffectiveFrom <= archiveDate)
+            {
+                if (onlyCategory)
+                {
+                    // Applied history stays; the policy simply stops after the archive date.
+                    if (policy.EffectiveTo is null || policy.EffectiveTo > archiveDate)
+                    {
+                        policy.EffectiveTo = archiveDate;
+                    }
+                    continue;
+                }
+            }
+            else if (onlyCategory)
+            {
+                // Not yet in force: it has nothing left to apply to.
+                policy.ApprovalStatus = FeePolicy.ApprovalRejected;
+                policy.ReviewNote = "Danh mục duy nhất của chính sách đã được lưu trữ.";
+                continue;
+            }
+            context.FeePolicyCategories.Remove(link);
+        }
     }
 
     public void AddCategory(Category category, CategorySettings settings)

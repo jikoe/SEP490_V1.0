@@ -7,6 +7,10 @@ public partial class AgriSustainContext
 {
     public DbSet<CategorySettings> CategorySettings => Set<CategorySettings>();
     public DbSet<RevokedToken> RevokedTokens => Set<RevokedToken>();
+    public DbSet<FeeType> FeeTypes => Set<FeeType>();
+    public DbSet<FeePolicy> FeePolicies => Set<FeePolicy>();
+    public DbSet<FeePolicyCategory> FeePolicyCategories => Set<FeePolicyCategory>();
+    public DbSet<OrderItemFee> OrderItemFees => Set<OrderItemFee>();
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
@@ -60,5 +64,88 @@ public partial class AgriSustainContext
         modelBuilder.Entity<RefundTransaction>().Property(x => x.RefundMethod)
             .HasMaxLength(50)
             .IsUnicode(false);
+        ConfigurePlatformFees(modelBuilder);
+        // UC-RC-02 Step 5: Goship pickup address of the farm (Database/20261107_farmer_pickup_address.sql).
+        modelBuilder.Entity<FarmerProfile>(entity =>
+        {
+            entity.Property(x => x.PickupProvinceCode).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.PickupDistrictCode).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.PickupWardCode).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.PickupAddressText).HasMaxLength(300);
+            entity.Ignore(x => x.HasPickupAddress);
+        });
+    }
+
+    // UC-FIN-05 tables (Database/Update_FIN05_PlatformFees.sql).
+    private static void ConfigurePlatformFees(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<FeeType>(entity =>
+        {
+            entity.ToTable("FeeType");
+            entity.HasKey(x => x.FeeTypeId);
+            entity.HasIndex(x => x.FeeCode, "UQ_FeeType_FeeCode").IsUnique();
+            entity.Property(x => x.FeeCode).HasMaxLength(30).IsUnicode(false);
+            entity.Property(x => x.FeeName).HasMaxLength(100);
+            entity.Property(x => x.Description).HasMaxLength(500);
+            entity.Property(x => x.FeeGroup).HasMaxLength(30).IsUnicode(false);
+            entity.Property(x => x.RefundMode).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.Status).HasMaxLength(20).IsUnicode(false);
+        });
+        modelBuilder.Entity<FeePolicy>(entity =>
+        {
+            entity.ToTable("FeePolicy");
+            entity.HasKey(x => x.FeePolicyId);
+            entity.HasIndex(x => x.PolicyCode, "UQ_FeePolicy_PolicyCode").IsUnique();
+            entity.HasIndex(x => x.RequestKey, "UQ_FeePolicy_RequestKey").IsUnique();
+            entity.HasIndex(x => new { x.FeeTypeId, x.OrderType, x.ApprovalStatus }, "IX_FeePolicy_Lookup");
+            entity.Property(x => x.PolicyCode).HasMaxLength(40).IsUnicode(false);
+            entity.Property(x => x.Method).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.CalculationBase).HasMaxLength(30).IsUnicode(false);
+            entity.Property(x => x.Rate).HasColumnType("decimal(7, 4)");
+            entity.Property(x => x.FixedAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(x => x.MinAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(x => x.MaxAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(x => x.OrderType).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.ApprovalStatus).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.Reason).HasMaxLength(500);
+            entity.Property(x => x.ReviewNote).HasMaxLength(500);
+            entity.Property(x => x.RequestKey).HasMaxLength(100).IsUnicode(false);
+            entity.Property(x => x.RowVersion).IsRowVersion();
+            entity.HasOne(x => x.FeeType).WithMany(x => x.Policies).HasForeignKey(x => x.FeeTypeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<FeePolicyCategory>(entity =>
+        {
+            entity.ToTable("FeePolicyCategory");
+            entity.HasKey(x => new { x.FeePolicyId, x.CategoryId });
+            entity.HasOne(x => x.FeePolicy).WithMany(x => x.Categories).HasForeignKey(x => x.FeePolicyId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Category>().WithMany().HasForeignKey(x => x.CategoryId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+        modelBuilder.Entity<OrderItemFee>(entity =>
+        {
+            entity.ToTable("OrderItemFee");
+            entity.HasKey(x => x.OrderItemFeeId);
+            entity.HasIndex(x => x.OrderItemId, "IX_OrderItemFee_OrderItem");
+            entity.Property(x => x.FeeCode).HasMaxLength(30).IsUnicode(false);
+            entity.Property(x => x.FeeGroup).HasMaxLength(30).IsUnicode(false);
+            entity.Property(x => x.RefundMode).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.RateSnapshot).HasColumnType("decimal(7, 4)");
+            entity.Property(x => x.BaseAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(x => x.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(x => x.ReversedAmount).HasColumnType("decimal(18, 2)");
+            entity.Ignore(x => x.NetAmount);
+            entity.HasOne(x => x.OrderItem).WithMany(x => x.Fees).HasForeignKey(x => x.OrderItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<FeeType>().WithMany().HasForeignKey(x => x.FeeTypeId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne<FeePolicy>().WithMany().HasForeignKey(x => x.FeePolicyId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
     }
 }

@@ -163,6 +163,7 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
         "RefundAccountProvided" => "Cung cấp tài khoản nhận tiền",
         "RefundAccountChanged" => "Đổi tài khoản nhận tiền",
         "RefundTransferFailed" => "Chuyển khoản thất bại",
+        "RemindRefundAccount" => "Nhắc cung cấp tài khoản nhận tiền",
         "CompleteRefund" => "Đã chuyển khoản hoàn tiền",
         _ => action
     };

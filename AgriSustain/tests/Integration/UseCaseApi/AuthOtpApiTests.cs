@@ -274,6 +274,22 @@ public sealed class AuthOtpApiTests : IAsyncLifetime
         await ApiAssert.Status(oldLogin, HttpStatusCode.Unauthorized);
     }
 
+    [CommerceSqlFact(DisplayName = "[IT UC-ADM-03 MSG-UM-11] Signing in to a suspended account shows the support address")]
+    public async Task Login_Suspended_ShowsSupportEmail()
+    {
+        await using (var db = _api.Open())
+        {
+            var user = await db.Users.SingleAsync(candidate => candidate.UserId == _api.ResetUserId);
+            user.Status = "Suspended";
+            await db.SaveChangesAsync();
+        }
+
+        var response = await Post("api/auth/login", new { identifier = ApiHost.ResetEmail, password = ApiHost.ResetPassword });
+
+        var body = await ApiAssert.Status(response, HttpStatusCode.Forbidden);
+        Assert.Contains("support@agrisustain.test", body.GetProperty("detail").GetString());
+    }
+
     [CommerceSqlFact(DisplayName = "[IT UC-AUTH-07 #08] Reset token cannot be used twice")]
     public async Task ResetPassword_TokenReused_Unauthorized()
     {

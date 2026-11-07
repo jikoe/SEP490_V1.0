@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gói thuê bao B2B - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .tier-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+    .tier-form-grid .wide { grid-column: 1 / -1; }
+    .check-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+    .benefits { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .field-error { color: #9c4c37; font-size: 12px; display: block; min-height: 0; margin-top: -6px; margin-bottom: 8px; }
+    @media (max-width: 640px) { .tier-form-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <section>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">UC-ADM-09</p>
+              <h1>Gói thuê bao B2B</h1>
+              <p class="muted">Quản lý các gói người mua sỉ có thể mua hoặc gia hạn. Thay đổi chỉ áp dụng cho lượt mua và gia hạn mới; thuê bao hiện tại giữ điều kiện đã mua.</p>
+            </div>
+            <button class="primary" type="button" onclick="openTierModal()">+ Thêm gói</button>
+          </div>
+
+          <div id="alert-notice" class="notice" style="display:none; margin-bottom:16px;"></div>
+
+          <form class="panel search-panel" onsubmit="handleSearch(event)">
+            <label class="field">
+              <span>Tên gói</span>
+              <input type="text" id="search-keyword" maxlength="100" placeholder="Nhập tên gói">
+            </label>
+            <label class="field">
+              <span>Trạng thái</span>
+              <select id="filter-status">
+                <option value="">Tất cả</option>
+                <option value="Active">Đang bán</option>
+                <option value="Inactive">Ngừng bán</option>
+              </select>
+            </label>
+            <button class="primary" type="submit">Tìm kiếm</button>
+          </form>
+
+          <div class="panel record-panel">
+            <div class="record-heading">
+              <h2>Danh sách gói</h2>
+              <span id="tier-count" class="count">0 gói</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tên gói</th>
+                    <th>Giá</th>
+                    <th>Thời hạn</th>
+                    <th>Quyền lợi</th>
+                    <th>Giới hạn giao dịch</th>
+                    <th>Thuê bao hiện tại</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="tier-tbody">
+                  <tr><td colspan="8" class="empty">Đang tải…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="tier-pager" class="pager" style="display:flex; justify-content:center; align-items:center; gap:8px; padding:16px 0;"></div>
+            <p class="muted" style="padding:0 16px 14px;">Gói đã từng có người mua chỉ có thể ngừng bán, kể cả khi hiện không còn thuê bao nào.</p>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Administrator
+      </footer>
+    </div>
+  </div>
+
+  <dialog id="tier-modal">
+    <div class="modal-heading">
+      <h2 id="tier-modal-title">Thêm gói thuê bao</h2>
+      <button type="button" onclick="closeTierModal()">&times;</button>
+    </div>
+    <form onsubmit="handleTierSave(event)" style="margin-top:16px;" novalidate>
+      <input type="hidden" id="tier-id">
+      <div class="tier-form-grid">
+        <label class="field wide">
+          <span>Tên gói *</span>
+          <input type="text" id="tier-name" maxlength="100" placeholder="Ví dụ: Gói Doanh nghiệp 90 ngày">
+        </label>
+        <small class="field-error wide" id="err-Name"></small>
+
+        <label class="field wide">
+          <span>Mô tả</span>
+          <textarea id="tier-description" maxlength="500" placeholder="Không bắt buộc, tối đa 500 ký tự"></textarea>
+        </label>
+        <small class="field-error wide" id="err-Description"></small>
+
+        <label class="field">
+          <span>Thời hạn (ngày) *</span>
+          <input type="number" id="tier-duration" min="1" step="1">
+        </label>
+        <label class="field">
+          <span>Giá (₫) *</span>
+          <input type="number" id="tier-price" min="0" step="1000">
+        </label>
+        <small class="field-error" id="err-DurationDays"></small>
+        <small class="field-error" id="err-Price"></small>
+
+        <div class="wide">
+          <span style="font-size:12px; color:#687b70;">Quyền lợi</span>
+          <label class="check-row"><input type="checkbox" id="tier-contact"> Liên hệ trực tiếp với nông trại</label>
+          <label class="check-row"><input type="checkbox" id="tier-template"> Tải mẫu hợp đồng bao tiêu</label>
+        </div>
+
+        <label class="field">
+          <span>Giới hạn giao dịch</span>
+          <input type="number" id="tier-limit" min="1" step="1" placeholder="Để trống = không giới hạn">
+        </label>
+        <label class="field">
+          <span>Trạng thái *</span>
+          <select id="tier-active">
+            <option value="true">Đang bán</option>
+            <option value="false">Ngừng bán</option>
+          </select>
+        </label>
+        <small class="field-error wide" id="err-TransactionLimit"></small>
+      </div>
+
+      <div id="tier-form-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
+
+      <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <button type="button" id="tier-delete-btn" class="danger-link" style="display:none;" onclick="prepareConfirm(currentEditId(), 'delete')">Xóa gói</button>
+        <span style="display:flex; gap:10px; margin-left:auto;">
+          <button type="button" onclick="closeTierModal()">Hủy</button>
+          <button type="submit" id="tier-save-btn" class="primary">Lưu gói</button>
+        </span>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-modal">
+    <div class="modal-heading">
+      <h2 id="confirm-title">Xác nhận</h2>
+      <button type="button" onclick="closeConfirmModal()">&times;</button>
+    </div>
+    <div style="margin-top:16px;">
+      <p id="confirm-msg"></p>
+      <div id="confirm-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
+      <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" onclick="closeConfirmModal()">Hủy</button>
+        <button type="button" id="confirm-btn" class="primary" onclick="executeConfirm()">Xác nhận</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    const pageSize = 10;
+    let currentPage = 1;
+    let tiers = [];
+    let pendingConfirm = null;
+    // Set when the edit form changes the status, so the save carries the MSG-ST-03 confirmation.
+    let saveAfterConfirm = null;
+
+    document.addEventListener('DOMContentLoaded', () => loadTiers(1));
+
+    async function loadTiers(page = 1) {
+      currentPage = page;
+      const tbody = document.getElementById('tier-tbody');
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">Đang tải…</td></tr>';
+      const query = API.toQueryString({
+        keyword: document.getElementById('search-keyword').value.trim() || undefined,
+        status: document.getElementById('filter-status').value || undefined,
+        page, pageSize
+      });
+      const res = await API.request(`/admin/subscription-tiers?${query}`, { suppressErrorToast: true });
+      if (!res.success) {
+        tiers = [];
+        tbody.innerHTML = `<tr><td colspan="8" class="empty">${Utils.escapeHtml(res.error || 'Không thể tải danh sách gói.')}</td></tr>`;
+        renderPager(0, 1);
+        return;
+      }
+      tiers = res.data.items || [];
+      document.getElementById('tier-count').textContent = `${res.data.total} gói`;
+      renderTable();
+      renderPager(res.data.total, page);
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('tier-tbody');
+      if (tiers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">Không có gói thuê bao nào phù hợp với điều kiện tìm kiếm.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = tiers.map(t => `
+        <tr>
+          <td><button class="text-button name-link" type="button" onclick="openTierModal(${t.id})">${Utils.escapeHtml(t.name)}</button></td>
+          <td class="num">${Utils.formatVND(t.price)}</td>
+          <td class="num">${t.durationDays} ngày</td>
+          <td><div class="benefits">
+            <span>${t.unlocksFarmerDirectContact ? '✓' : '–'} Liên hệ nông trại</span>
+            <span>${t.canDownloadContractTemplate ? '✓' : '–'} Mẫu hợp đồng</span>
+          </div></td>
+          <td class="num">${t.transactionLimit == null ? 'Không giới hạn' : t.transactionLimit}</td>
+          <td class="num">${t.activeSubscriptions}${t.purchased && t.activeSubscriptions === 0 ? ' <small class="muted">(đã từng bán)</small>' : ''}</td>
+          <td>${t.isActive ? '<span class="badge Active">Đang bán</span>' : '<span class="badge Suspended">Ngừng bán</span>'}</td>
+          <td><div class="actions">
+            <button type="button" onclick="openTierModal(${t.id})">Sửa</button>
+            <button type="button" onclick="prepareConfirm(${t.id}, '${t.isActive ? 'deactivate' : 'activate'}')">${t.isActive ? 'Ngừng bán' : 'Mở bán'}</button>
+            <button type="button" class="danger-link" onclick="prepareConfirm(${t.id}, 'delete')">Xóa</button>
+          </div></td>
+        </tr>`).join('');
+    }
+
+    function renderPager(total, page) {
+      const el = document.getElementById('tier-pager');
+      const pages = Math.ceil(total / pageSize) || 1;
+      if (pages <= 1) { el.innerHTML = ''; return; }
+      let html = `<button type="button" ${page <= 1 ? 'disabled' : ''} onclick="loadTiers(${page - 1})">‹ Trang trước</button>`;
+      for (let i = 1; i <= pages; i++) html += `<button type="button" class="${i === page ? 'primary' : ''}" onclick="loadTiers(${i})">${i}</button>`;
+      html += `<button type="button" ${page >= pages ? 'disabled' : ''} onclick="loadTiers(${page + 1})">Trang sau ›</button>`;
+      el.innerHTML = html;
+    }
+
+    function handleSearch(e) { e.preventDefault(); loadTiers(1); }
+
+    function currentEditId() { return Number(document.getElementById('tier-id').value) || null; }
+
+    function openTierModal(id = null) {
+      const t = id ? tiers.find(x => x.id === id) : null;
+      document.getElementById('tier-id').value = t ? t.id : '';
+      document.getElementById('tier-name').value = t ? t.name : '';
+      document.getElementById('tier-description').value = t ? (t.description || '') : '';
+      document.getElementById('tier-duration').value = t ? t.durationDays : 30;
+      document.getElementById('tier-price').value = t ? t.price : '';
+      document.getElementById('tier-contact').checked = t ? t.unlocksFarmerDirectContact : false;
+      document.getElementById('tier-template').checked = t ? t.canDownloadContractTemplate : false;
+      document.getElementById('tier-limit').value = t && t.transactionLimit != null ? t.transactionLimit : '';
+      document.getElementById('tier-active').value = t ? String(t.isActive) : 'true';
+      document.getElementById('tier-modal-title').textContent = t ? `Sửa gói ${t.name}` : 'Thêm gói thuê bao';
+      document.getElementById('tier-delete-btn').style.display = t ? '' : 'none';
+      clearErrors();
+      document.getElementById('tier-modal').showModal();
+    }
+
+    function closeTierModal() { document.getElementById('tier-modal').close(); }
+
+    function readForm() {
+      const limit = document.getElementById('tier-limit').value.trim();
+      return {
+        name: document.getElementById('tier-name').value.trim(),
+        description: document.getElementById('tier-description').value.trim() || null,
+        durationDays: Number(document.getElementById('tier-duration').value),
+        price: Number(document.getElementById('tier-price').value),
+        unlocksFarmerDirectContact: document.getElementById('tier-contact').checked,
+        canDownloadContractTemplate: document.getElementById('tier-template').checked,
+        transactionLimit: limit === '' ? null : Number(limit),
+        isActive: document.getElementById('tier-active').value === 'true'
+      };
+    }
+
+    async function handleTierSave(e) {
+      e.preventDefault();
+      const id = currentEditId();
+      const original = id ? tiers.find(x => x.id === id) : null;
+      const body = readForm();
+      if (document.getElementById('tier-price').value.trim() === '') {
+        showFieldErrors({ Price: ['Trường Giá là bắt buộc.'] });
+        return;
+      }
+      if (original && original.isActive !== body.isActive) {
+        // MSG-ST-03 before an edit that changes the status.
+        saveAfterConfirm = { id, body: { ...body, confirmed: true, version: original.version } };
+        showConfirm(original, body.isActive ? 'activate' : 'deactivate', true);
+        return;
+      }
+      await save(id, { ...body, confirmed: false, version: original ? original.version : null });
+    }
+
+    async function save(id, body) {
+      const btn = document.getElementById('tier-save-btn');
+      btn.disabled = true;
+      clearErrors();
+      try {
+        const res = await API.request(id ? `/admin/subscription-tiers/${id}` : '/admin/subscription-tiers', {
+          method: id ? 'PUT' : 'POST', body, suppressErrorToast: true
+        });
+        if (!res.success) {
+          if (res.status === 409 || res.status === 404) {
+            // MSG122: someone changed or removed the tier; reload instead of retrying.
+            closeTierModal();
+            showAlert(res.error, 'error');
+            await loadTiers(currentPage);
+          } else if (res.status >= 500) {
+            setBox('tier-form-error', 'Không thể lưu gói. Hãy tải lại để kiểm tra thông tin mới nhất trước khi thử lại.');
+          } else if (res.data && res.data.errors) {
+            showFieldErrors(res.data.errors);
+          } else {
+            setBox('tier-form-error', res.error || 'Không thể lưu gói.');
+          }
+          return false;
+        }
+        closeTierModal();
+        showAlert(res.data.message, 'success');   // MSG-ST-01
+        await loadTiers(currentPage);
+        return true;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function prepareConfirm(id, action) {
+      const t = tiers.find(x => x.id === id);
+      if (!t) return;
+      saveAfterConfirm = null;
+      showConfirm(t, action, false);
+    }
+
+    function showConfirm(t, action, fromForm) {
+      pendingConfirm = { t, action, fromForm };
+      const title = { activate: 'Mở bán gói', deactivate: 'Ngừng bán gói', delete: 'Xóa gói' }[action];
+      document.getElementById('confirm-title').textContent = title;
+      // MSG-ST-03 / MSG-ST-04
+      document.getElementById('confirm-msg').textContent = action === 'delete'
+        ? `Xóa gói ${t.name}? Thao tác này không thể hoàn tác.`
+        : `${action === 'activate' ? 'Mở bán' : 'Ngừng bán'} gói ${t.name}? ${t.activeSubscriptions} thuê bao hiện tại giữ nguyên điều kiện đã mua cho tới khi hết hạn.`;
+      document.getElementById('confirm-btn').className = action === 'delete' ? 'danger' : 'primary';
+      setBox('confirm-error', '');
+      document.getElementById('confirm-modal').showModal();
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirm-modal').close();
+      pendingConfirm = null;
+      saveAfterConfirm = null;
+    }
+
+    async function executeConfirm() {
+      if (!pendingConfirm) return;
+      const btn = document.getElementById('confirm-btn');
+      btn.disabled = true;
+      try {
+        if (saveAfterConfirm) {
+          const { id, body } = saveAfterConfirm;
+          document.getElementById('confirm-modal').close();
+          pendingConfirm = null;
+          saveAfterConfirm = null;
+          await save(id, body);
+          return;
+        }
+        const { t, action } = pendingConfirm;
+        const path = action === 'delete' ? 'delete' : action;
+        const res = await API.request(`/admin/subscription-tiers/${t.id}/${path}`, {
+          method: 'POST', body: { confirmed: true, version: t.version }, suppressErrorToast: true
+        });
+        if (!res.success) {
+          if (res.code === 'TIER_PURCHASED') {
+            // MSG-ST-05 stays in the dialog so the Administrator can deactivate instead.
+            setBox('confirm-error', res.error);
+          } else if (res.status === 409 || res.status === 404) {
+            closeConfirmModal();
+            if (document.getElementById('tier-modal').open) closeTierModal();
+            showAlert(res.error, 'error');
+            await loadTiers(currentPage);
+          } else {
+            setBox('confirm-error', res.error || 'Thao tác không thành công.');
+          }
+          return;
+        }
+        closeConfirmModal();
+        if (document.getElementById('tier-modal').open) closeTierModal();
+        showAlert(res.data.message, 'success');
+        await loadTiers(currentPage);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function showFieldErrors(errors) {
+      let shown = false;
+      for (const [key, messages] of Object.entries(errors)) {
+        const el = document.getElementById(`err-${key}`);
+        if (el) { el.textContent = [].concat(messages)[0]; shown = true; }
+      }
+      if (!shown) setBox('tier-form-error', Object.values(errors).flat()[0] || 'Vui lòng kiểm tra dữ liệu.');
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('.field-error').forEach(el => { el.textContent = ''; });
+      setBox('tier-form-error', '');
+    }
+
+    function setBox(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.style.display = msg ? 'block' : 'none';
+    }
+
+    function showAlert(msg, type = 'success') {
+      const el = document.getElementById('alert-notice');
+      el.className = `notice ${type === 'error' ? 'error' : ''}`;
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 4000);
+      Utils.showToast(msg, type);
+    }
+  </script>
+</body>
+</html>

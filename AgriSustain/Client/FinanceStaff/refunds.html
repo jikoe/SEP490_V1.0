@@ -288,9 +288,9 @@
         case 'Pending':
           html = (r.hasReceivingAccount
             ? notice('ok', 'Đã có tài khoản nhận', 'Kiểm tra tên chủ tài khoản trước khi chuyển. Bắt đầu chuyển chưa làm thay đổi tiền.')
-            : notice('idle', 'Chờ tài khoản khách hàng', 'Khách hàng chưa cung cấp tài khoản nhận hoàn tiền nên chưa thể bắt đầu chuyển.'))
+            : notice('idle', 'Chờ tài khoản khách hàng', 'Khách hàng chưa cung cấp tài khoản nhận hoàn tiền nên chưa thể bắt đầu chuyển.' + reminderNote(r)))
             + `<div class="rf-buttons"><button type="button" class="rf-btn primary" id="btn-start" onclick="startTransfer()"
-                ${r.canStartTransfer ? '' : 'disabled'}>(16) Bắt đầu chuyển</button>${back}</div>`;
+                ${r.canStartTransfer ? '' : 'disabled'}>(16) Bắt đầu chuyển</button>${remindButton(r)}${back}</div>`;
           break;
         case 'Processing':
           html = notice('warn', 'Đang chuyển · chờ ghi kết quả',
@@ -305,9 +305,11 @@
           break;
         case 'Failed':
           html = notice('bad', 'Chuyển khoản thất bại',
-              `Lý do: ${esc(lastReason('RefundTransferFailed') || '—')}. Đã gửi thông báo và email để người mua kiểm tra lại tài khoản; khi tài khoản được cập nhật thì chuyển lại.`)
+              `Lý do: ${esc(lastReason('RefundTransferFailed') || '—')}. ${r.needsCustomerAccount
+                ? 'Đã gửi thông báo và email để người mua kiểm tra lại tài khoản. Chỉ chuyển lại được sau khi người mua xác nhận hoặc đổi tài khoản.' + reminderNote(r)
+                : 'Người mua đã kiểm tra lại tài khoản, có thể chuyển lại.'}`)
             + `<div class="rf-buttons"><button type="button" class="rf-btn primary" id="btn-start" onclick="startTransfer()"
-                ${r.canStartTransfer ? '' : 'disabled'}>Chuyển lại</button>${back}</div>`;
+                ${r.canStartTransfer ? '' : 'disabled'}>Chuyển lại</button>${remindButton(r)}${back}</div>`;
           break;
         default: {
           const complaint = r.sourceType === 'Complaint';
@@ -330,7 +332,8 @@
     const historyLabels = {
       RequestCreated: 'Tạo yêu cầu', AccountProvided: 'Ghi nhận tài khoản nhận', StartTransfer: 'Bắt đầu chuyển',
       TransferAgain: 'Chuyển lại', CancelTransfer: 'Huỷ chuyển', CompleteRefund: 'Ghi nhận thành công',
-      RefundTransferFailed: 'Ghi nhận thất bại', NeedsReconciliation: 'Chuyển sang cần đối soát'
+      RefundTransferFailed: 'Ghi nhận thất bại', NeedsReconciliation: 'Chuyển sang cần đối soát',
+      RemindRefundAccount: 'Nhắc khách cung cấp tài khoản'
     };
 
     function renderHistory() {
@@ -395,6 +398,29 @@
       const el = document.getElementById(id);
       el.textContent = text || '';
       el.hidden = !text;
+    }
+
+    // UC-FIN-03 AF (Step 3): remind the customer (UC-FIN-08), at most once every 24 hours.
+    function remindButton(r) {
+      return r.needsCustomerAccount
+        ? '<button type="button" class="rf-btn" id="btn-remind" onclick="remindAccount()">Nhắc khách hàng</button>'
+        : '';
+    }
+
+    function reminderNote(r) {
+      return r.lastAccountReminderAt ? ` Lần nhắc gần nhất: ${vnDateTime(r.lastAccountReminderAt)}.` : '';
+    }
+
+    async function remindAccount() {
+      const button = document.getElementById('btn-remind');
+      if (button) button.disabled = true;
+      const res = await API.remindRefundAccount(refund.refundId);
+      if (!res.success) {
+        if (button) button.disabled = false;
+        return handleFailure(res);
+      }
+      Utils.showToast(res.data.message, 'success');
+      await openRefund(refund.refundId);
     }
 
     async function startTransfer() {

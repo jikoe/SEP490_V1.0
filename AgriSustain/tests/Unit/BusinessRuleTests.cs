@@ -123,7 +123,7 @@ public sealed class BusinessRuleTests
     public async Task ValidateCheckout_Phone_EnforcesVietnameseMobileFormat(string phone, bool expected)
     {
         var input = new CheckoutRequest(new CheckoutAddress("Recipient", phone, "TEST",
-            "Province", "D", "District", "W", "Ward", "Test address"), "Standard", "PayOS", null, 0, null);
+            "Province", "D", "District", "W", "Ward", "Test address"), "Standard", "SePay", null, 0, null);
         Assert.Equal(expected, (await new CheckoutValidator().ValidateAsync(input)).IsValid);
     }
 

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phí nền tảng - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .fee-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+    .fee-filters .field { margin: 0; min-width: 150px; }
+    .fee-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 12px 0; font-size: 13px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+    .form-grid .wide { grid-column: 1 / -1; }
+    .field-error { color: #9c4c37; font-size: 12px; display: block; margin: -6px 0 8px; }
+    .check-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }
+    #in-cats { max-height: 160px; overflow: auto; border: 1px solid #dce6e0; border-radius: 8px; padding: 8px; margin-bottom: 10px; }
+    .preview { border: 1px dashed #b9cbbf; border-radius: 10px; padding: 12px; margin-top: 8px; }
+    .pv-line { display: flex; gap: 8px; margin-bottom: 6px; }
+    .pv-line select { flex: 1; min-width: 0; } .pv-line input { width: 140px; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    dialog.wide-dialog { width: min(920px, 96vw); }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell finance-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+    <div class="workspace">
+      <header id="app-header"></header>
+      <main>
+        <section>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">UC-FIN-05</p>
+              <h1>Phí nền tảng</h1>
+              <p class="muted">Các khoản trừ vào tiền của nông trại: hoa hồng sàn, phí xử lý thanh toán, phí dịch vụ và thuế khấu trừ thay. Mức phí mới chỉ áp dụng cho đơn đặt sau khi được Quản trị viên duyệt và tới ngày hiệu lực.</p>
+            </div>
+            <button class="primary" type="button" onclick="PlatformFees.openForm('create')">+ Thêm loại phí</button>
+          </div>
+
+          <form id="fee-filters" class="panel search-panel fee-filters">
+            <label class="field"><span>Tìm kiếm</span><input id="f-keyword" maxlength="100" placeholder="Mã hoặc tên phí"></label>
+            <label class="field"><span>Nhóm phí</span>
+              <select id="f-group"><option value="">Tất cả</option><option value="PlatformCommission">Hoa hồng sàn</option><option value="PaymentProcessing">Phí xử lý thanh toán</option><option value="Service">Phí dịch vụ</option><option value="TaxWithholding">Thuế khấu trừ thay</option><option value="Other">Khác</option></select></label>
+            <label class="field"><span>Loại đơn</span>
+              <select id="f-order-type"><option value="">Tất cả</option><option value="Retail">Bán lẻ</option><option value="Wholesale">Bán sỉ</option><option value="Contract">Hợp đồng</option></select></label>
+            <label class="field"><span>Danh mục</span><select id="f-category"></select></label>
+            <label class="field"><span>Trạng thái chính sách</span>
+              <select id="f-state"><option value="">Tất cả</option><option value="Active">Đang áp dụng</option><option value="Scheduled">Sắp áp dụng</option><option value="PendingApproval">Chờ duyệt</option><option value="Draft">Nháp</option><option value="Rejected">Bị từ chối</option><option value="Expired">Hết hiệu lực</option></select></label>
+            <button class="primary" type="submit">Lọc</button>
+          </form>
+
+          <div class="panel record-panel">
+            <div class="record-heading"><h2>Danh sách phí</h2><span id="fee-count" class="count">--</span></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Phí</th><th>Nhóm</th><th>Mức đang / sắp áp dụng</th><th>Khi hoàn tiền</th><th>Chờ duyệt</th><th></th></tr></thead>
+                <tbody id="fee-tbody"><tr><td colspan="6" class="empty">Đang tải…</td></tr></tbody>
+              </table>
+            </div>
+            <div id="fee-pager" class="pager" style="display:flex; justify-content:center; gap:10px; padding:14px 0;"></div>
+          </div>
+        </section>
+      </main>
+      <footer>Nền tảng AgriSustain · Phân quyền Finance Staff</footer>
+    </div>
+  </div>
+
+  <dialog id="detail-modal" class="wide-dialog">
+    <div class="modal-heading"><h2 id="detail-title">Phí</h2><button type="button" onclick="document.getElementById('detail-modal').close()">&times;</button></div>
+    <div id="detail-body"></div>
+    <div id="detail-actions" class="modal-actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;"></div>
+  </dialog>
+
+  <dialog id="form-modal" class="wide-dialog">
+    <div class="modal-heading"><h2 id="form-title">Thêm loại phí</h2><button type="button" onclick="document.getElementById('form-modal').close()">&times;</button></div>
+    <form onsubmit="event.preventDefault(); PlatformFees.saveForm(true);" novalidate style="margin-top:12px;">
+      <div id="form-type" class="form-grid">
+        <label class="field"><span>Mã phí *</span><input id="in-code" maxlength="30" placeholder="VD: PLATFORM_COMMISSION"></label>
+        <label class="field"><span>Tên phí *</span><input id="in-name" maxlength="100"></label>
+        <small class="field-error" id="err-FeeCode"></small><small class="field-error" id="err-FeeName"></small>
+        <label class="field"><span>Nhóm phí *</span>
+          <select id="in-group" onchange="PlatformFees.syncForm()"><option value="PlatformCommission">Hoa hồng sàn</option><option value="PaymentProcessing">Phí xử lý thanh toán</option><option value="Service">Phí dịch vụ</option><option value="TaxWithholding">Thuế khấu trừ thay (bắt buộc)</option><option value="Other">Khác</option></select></label>
+        <label class="field"><span>Khi đơn bị hủy / hoàn tiền *</span>
+          <select id="in-refund"><option value="Proportional">Hoàn theo tỷ lệ tiền hoàn</option><option value="Full">Hoàn toàn bộ phí</option><option value="NonRefundable">Không hoàn</option></select></label>
+        <small class="field-error" id="err-FeeGroup"></small><small class="field-error" id="err-RefundMode"></small>
+        <label class="field wide"><span>Mô tả</span><textarea id="in-desc" maxlength="500"></textarea></label>
+        <small class="field-error wide" id="err-Description"></small>
+      </div>
+
+      <div id="form-policy" class="form-grid">
+        <label class="field"><span>Cách tính *</span>
+          <select id="in-method" onchange="PlatformFees.syncForm()"><option value="Percentage">Theo phần trăm</option><option value="FixedPerOrder">Số tiền cố định mỗi đơn trang trại</option><option value="FixedPerItem">Số tiền cố định mỗi sản phẩm</option></select></label>
+        <label class="field"><span>Cơ sở tính *</span>
+          <select id="in-base"><option value="ItemSubtotal">Tiền hàng sau giảm giá của người bán</option><option value="SellerOrderTotal">Tổng đơn trang trại (gồm phí giao)</option></select></label>
+        <small class="field-error" id="err-Method"></small><small class="field-error" id="err-CalculationBase"></small>
+        <label class="field" id="row-rate"><span>Tỷ lệ (%) *</span><input id="in-rate" type="number" min="0.0001" max="100" step="0.01"></label>
+        <label class="field" id="row-fixed"><span>Số tiền (₫) *</span><input id="in-fixed" type="number" min="1" step="1000"></label>
+        <label class="field"><span>Loại đơn *</span>
+          <select id="in-order-type"><option value="Retail">Bán lẻ</option><option value="Wholesale">Bán sỉ</option><option value="Contract">Hợp đồng</option></select></label>
+        <small class="field-error" id="err-Rate"></small><small class="field-error" id="err-FixedAmount"></small>
+        <label class="field"><span>Tối thiểu mỗi đơn (₫)</span><input id="in-min" type="number" min="0" step="1000"></label>
+        <label class="field"><span>Tối đa mỗi đơn (₫)</span><input id="in-max" type="number" min="0" step="1000"></label>
+        <small class="field-error wide" id="err-MinAmount"></small>
+        <div class="wide" id="row-scope">
+          <label class="check-row"><input type="checkbox" id="in-all" checked onchange="PlatformFees.syncForm()"> Áp dụng cho tất cả danh mục</label>
+          <div id="in-cats"></div>
+          <small class="field-error" id="err-CategoryIds"></small>
+        </div>
+        <label class="field"><span>Hiệu lực từ *</span><input id="in-from" type="date"></label>
+        <label class="field"><span>Hiệu lực đến</span><input id="in-to" type="date"></label>
+        <small class="field-error" id="err-EffectiveFrom"></small><small class="field-error" id="err-EffectiveTo"></small>
+        <label class="field wide"><span>Lý do thay đổi *</span><textarea id="in-reason" maxlength="500"></textarea></label>
+        <small class="field-error wide" id="err-Reason"></small>
+
+        <div class="wide preview">
+          <strong>Xem trước trên một đơn mẫu</strong>
+          <div id="preview-lines" style="margin-top:8px;"></div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <button type="button" onclick="PlatformFees.addPreviewLine()">+ Thêm sản phẩm mẫu</button>
+            <label>Phí giao <input id="pv-delivery" type="number" min="0" step="1000" value="30000" style="width:120px;"></label>
+            <button type="button" onclick="PlatformFees.preview()">Tính thử</button>
+          </div>
+          <div id="preview-box" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <div id="form-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
+      <div class="modal-actions" style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
+        <button type="button" onclick="document.getElementById('form-modal').close()">Hủy</button>
+        <button type="button" onclick="PlatformFees.saveForm(false)">Lưu nháp</button>
+        <button type="submit" class="primary">Lưu và gửi duyệt</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-modal">
+    <div class="modal-heading"><h2>Xác nhận</h2><button type="button" onclick="document.getElementById('confirm-modal').close()">&times;</button></div>
+    <p id="confirm-msg" style="margin-top:12px;"></p>
+    <label class="field" id="confirm-note-row"><span>Lý do / ghi chú</span><textarea id="confirm-note" maxlength="500"></textarea></label>
+    <div id="confirm-error" class="notice error" style="display:none;" role="alert"></div>
+    <div class="modal-actions" style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+      <button type="button" onclick="document.getElementById('confirm-modal').close()">Hủy</button>
+      <button type="button" class="primary" onclick="PlatformFees.confirmOk()">Xác nhận</button>
+    </div>
+  </dialog>
+
+  <dialog id="end-modal">
+    <div class="modal-heading"><h2 id="end-title">Kết thúc chính sách</h2><button type="button" onclick="document.getElementById('end-modal').close()">&times;</button></div>
+    <p class="muted" style="margin-top:10px;">Việc kết thúc cần Quản trị viên duyệt. Phí bắt buộc và mức "tất cả danh mục" phải có chính sách thay thế trước.</p>
+    <label class="field"><span>Áp dụng đến hết ngày *</span><input id="end-date" type="date"></label>
+    <label class="field"><span>Lý do *</span><textarea id="end-reason" maxlength="500"></textarea></label>
+    <div id="end-error" class="notice error" style="display:none;" role="alert"></div>
+    <div class="modal-actions" style="margin-top:14px; display:flex; justify-content:flex-end; gap:10px;">
+      <button type="button" onclick="document.getElementById('end-modal').close()">Hủy</button>
+      <button type="button" class="primary" onclick="PlatformFees.endOk()">Gửi duyệt</button>
+    </div>
+  </dialog>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../js/platform-fees.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      PlatformFees.init('finance');
+      PlatformFees.addPreviewLine();
+      PlatformFees.addPreviewLine();
+    });
+  </script>
+</body>
+</html>

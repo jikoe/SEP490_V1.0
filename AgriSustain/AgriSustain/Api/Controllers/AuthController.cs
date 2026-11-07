@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Auth;
 using AgriSustain.Application.DTOs.Authentication;
 using AgriSustain.Application.Interfaces;
@@ -18,13 +19,16 @@ public sealed class AuthController : ControllerBase
     private readonly IAuthenticationService _registrationService;
     private readonly IPasswordResetService _passwordResetService;
     private readonly RevokedTokenStore _revokedTokenStore;
+    private readonly string? _supportEmail;
 
     public AuthController(
         IAuthService authService,
         IAuthenticationService registrationService,
         IPasswordResetService passwordResetService,
-        RevokedTokenStore revokedTokenStore)
+        RevokedTokenStore revokedTokenStore,
+        AccountNotificationSettings? notificationSettings = null)
     {
+        _supportEmail = notificationSettings?.SupportEmail;
         _authService = authService;
         _registrationService = registrationService;
         _passwordResetService = passwordResetService;
@@ -54,7 +58,7 @@ public sealed class AuthController : ControllerBase
                 statusCode: StatusCodes.Status423Locked),
             LoginResultStatus.AccountSuspended => Problem(
                 title: "Tài khoản đã bị tạm ngưng",
-                detail: "Tài khoản đã bị Admin tạm ngưng. Vui lòng liên hệ bộ phận hỗ trợ để biết thêm thông tin.",
+                detail: SuspendedMessage(_supportEmail),
                 statusCode: StatusCodes.Status403Forbidden),
             _ => throw new InvalidOperationException("Kết quả đăng nhập không hợp lệ.")
         };
@@ -134,4 +138,9 @@ public sealed class AuthController : ControllerBase
         var result = await _authService.ChangePasswordAsync(request, cancellationToken);
         return result.IsSuccess ? new JsonResult(result.Value) : ApiResults.From(result, HttpContext);
     }
+
+    /// <summary>MSG-UM-11: a suspended account is told the support address to contact.</summary>
+    public static string SuspendedMessage(string? supportEmail) => string.IsNullOrWhiteSpace(supportEmail)
+        ? "Tài khoản của bạn đã bị tạm ngưng. Vui lòng liên hệ bộ phận hỗ trợ."
+        : $"Tài khoản của bạn đã bị tạm ngưng. Vui lòng liên hệ bộ phận hỗ trợ qua {supportEmail.Trim()}.";
 }

@@ -66,14 +66,31 @@ public sealed class BankTransferReconciler(AgriSustainContext db, ILogger<BankTr
                 ? null : transfer.ProviderReference.Trim()
         });
 
+        IReadOnlyList<long> appliedVouchers = [];
         if (outcome == BankTransferOutcome.Success)
         {
             ConfirmOrder(order!, transfer, now);
+            appliedVouchers = await ApplyVoucherUsesAsync(order!, now, cancellationToken);
         }
 
         try
         {
+            // The payment, the applied voucher uses and the UsedCount increments commit together.
+            await using var transaction = appliedVouchers.Count > 0
+                ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
             await db.SaveChangesAsync(cancellationToken);
+            foreach (var voucher in appliedVouchers.GroupBy(id => id))
+            {
+                int uses = voucher.Count();
+                // Atomic increment, so two orders paid at the same time cannot lose a use.
+                await db.Vouchers.Where(v => v.VoucherId == voucher.Key)
+                    .ExecuteUpdateAsync(set => set.SetProperty(v => v.UsedCount, v => v.UsedCount + uses),
+                        cancellationToken);
+            }
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
         }
         catch (DbUpdateException)
         {
@@ -88,6 +105,25 @@ public sealed class BankTransferReconciler(AgriSustainContext db, ILogger<BankTr
         logger.LogInformation("{Gateway} transfer {Code}: order={OrderCode}, amount={Amount}, outcome={Outcome}",
             transfer.Gateway, code, order?.OrderCode, transfer.Amount, outcome);
         return new(outcome, code, order, transfer.Amount);
+    }
+
+    /// <summary>
+    /// UC-PS-01 / BR-PV-06: once the order is paid, its held platform-voucher use becomes Applied and
+    /// counts in the voucher's used count (used / total, Exhausted). Returns the voucher of each use.
+    /// </summary>
+    private async Task<IReadOnlyList<long>> ApplyVoucherUsesAsync(Order order, DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var held = await db.VoucherRedemptions
+            .Where(r => r.OrderId == order.OrderId && r.Status == VoucherRedemptionStatus.Reserved)
+            .ToListAsync(cancellationToken);
+        foreach (var redemption in held)
+        {
+            redemption.Status = VoucherRedemptionStatus.Applied;
+            redemption.AppliedAt = now;
+        }
+
+        return held.Select(r => r.VoucherId).ToList();
     }
 
     private void ConfirmOrder(Order order, BankTransfer transfer, DateTime now)
