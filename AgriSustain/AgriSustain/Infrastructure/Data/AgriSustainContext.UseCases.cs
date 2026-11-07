@@ -57,6 +57,15 @@ public partial class AgriSustainContext
             .HasMaxLength(50)
             .IsUnicode(false);
         ConfigurePlatformFees(modelBuilder);
+        // UC-RC-02 Step 5: Goship pickup address of the farm (Database/20261107_farmer_pickup_address.sql).
+        modelBuilder.Entity<FarmerProfile>(entity =>
+        {
+            entity.Property(x => x.PickupProvinceCode).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.PickupDistrictCode).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.PickupWardCode).HasMaxLength(20).IsUnicode(false);
+            entity.Property(x => x.PickupAddressText).HasMaxLength(300);
+            entity.Ignore(x => x.HasPickupAddress);
+        });
     }
 
     // UC-FIN-05 tables (Database/Update_FIN05_PlatformFees.sql).

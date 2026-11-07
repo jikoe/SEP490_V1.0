@@ -350,12 +350,17 @@ public sealed class CheckoutService(
         }
         else
         {
+            // UC-RC-02 Step 5: each farm's pickup address comes from its Farmer profile.
+            var pickups = items.Select(item => item.Product.FarmerProfile).DistinctBy(farm => farm.FarmerProfileId)
+                .ToDictionary(farm => farm.FarmerProfileId, farm => farm.HasPickupAddress
+                    ? new ShippingPickup(farm.PickupProvinceCode!, farm.PickupDistrictCode!) : null);
             foreach (var sellerLines in sellerGroups)
             {
                 var shippingRate = await shippingRates.GetRateAsync(new ShippingRateRequest(
                     sellerLines.Key, input.Address,
                     sellerLines.Select(line => new ShippingPackageLine(line.Unit, line.Quantity)).ToList(),
-                    sellerLines.Sum(line => line.Subtotal), input.DeliveryMethod), cancellationToken);
+                    sellerLines.Sum(line => line.Subtotal), input.DeliveryMethod,
+                    pickups.GetValueOrDefault(sellerLines.Key)), cancellationToken);
                 if (shippingRate is null)
                 {
                     return UseCaseResult<CheckoutQuoteDto>.Failure("SHIPPING_RATE_UNAVAILABLE",

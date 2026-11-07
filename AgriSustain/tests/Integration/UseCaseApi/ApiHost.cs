@@ -120,7 +120,7 @@ internal sealed class ApiHost : IAsyncDisposable
 
     public static CheckoutRequest CheckoutInput(string phone = "0912345678", string? voucher = null, int points = 0) =>
         new(new CheckoutAddress("Test Customer", phone, "100000", "Hà Nội", "100300", "Quận Hai Bà Trưng",
-            "19", "Phường Quỳnh Lôi", "Test delivery address"), "Standard", "PayOS", voucher, points, null);
+            "19", "Phường Quỳnh Lôi", "Test delivery address"), "Standard", "SePay", voucher, points, null);
 
     public async Task<CheckoutQuoteDto> QuoteAsync(CheckoutRequest? input = null)
     {

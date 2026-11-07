@@ -647,7 +647,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
 
     private static CheckoutRequest Input() => new(new CheckoutAddress("Test Customer",
         "0912345678", "100000", "Hà Nội", "100300", "Quận Hai Bà Trưng", "19",
-        "Phường Quỳnh Lôi", "Test delivery address"), "Standard", "PayOS", null, 0, null);
+        "Phường Quỳnh Lôi", "Test delivery address"), "Standard", "SePay", null, 0, null);
 
     private static PlaceOrderRequest Placement(CheckoutQuoteDto quote)
     {

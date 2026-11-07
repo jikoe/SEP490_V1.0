@@ -30,7 +30,7 @@ public static class UseCaseRegistration
                     && options.EstimatedFreshExpressDeliveryDays >= 1
                     && options.ParcelLength > 0 && options.ParcelWidth > 0
                     && options.ParcelHeight > 0
-                    && options.PickupLocations.Count > 0
+                    // Pickup addresses come from Farmer profiles; configured ones are an optional fallback.
                     && options.PickupLocations.Values.All(pickup =>
                         !string.IsNullOrWhiteSpace(pickup.City)
                         && !string.IsNullOrWhiteSpace(pickup.District))),

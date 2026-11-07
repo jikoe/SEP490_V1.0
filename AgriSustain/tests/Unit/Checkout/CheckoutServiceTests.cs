@@ -58,7 +58,7 @@ public sealed class CheckoutServiceTests
 
     private static CheckoutRequest Input(string phone = "0901234567", string? voucher = null, int points = 0) =>
         new(new CheckoutAddress("Test buyer", phone, "79", "TP HCM", "760", "Quận 1", "26734", "Bến Nghé",
-            "123 Test street"), "Standard", "PayOS", voucher, points, null);
+            "123 Test street"), "Standard", "SePay", voucher, points, null);
 
     private static PlaceOrderRequest Place(Guid quoteId, string? key = null, bool confirmed = true) =>
         new(quoteId, key ?? Guid.NewGuid().ToString("D"), confirmed);
@@ -386,7 +386,7 @@ public sealed class CheckoutServiceTests
     private static Order ExistingOrder(string key, Guid quoteId) => new()
     {
         OrderId = 55, OrderCode = "RC-EXISTING", OrderStatus = "PendingPayment", FinalAmount = 120_000m,
-        CheckoutRequestKey = key, RetailQuoteId = quoteId, PaymentMethod = "PayOS",
+        CheckoutRequestKey = key, RetailQuoteId = quoteId, PaymentMethod = "SePay",
         ReservationExpiresAt = T0.UtcDateTime.AddMinutes(15)
     };
 

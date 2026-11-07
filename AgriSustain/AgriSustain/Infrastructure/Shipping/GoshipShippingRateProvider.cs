@@ -34,14 +34,20 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
             return null;
         }
 
-        // The pickup address is read from Goship__PickupLocations__{FarmerProfileId} in configuration,
-        // because FarmerProfile stores no Goship city/district codes.
-        _options.PickupLocations.TryGetValue(
-            request.FarmerProfileId.ToString(CultureInfo.InvariantCulture), out var pickup);
-        if (pickup is null || string.IsNullOrWhiteSpace(pickup.City)
-            || string.IsNullOrWhiteSpace(pickup.District))
+        // UC-RC-02 Step 5: the pickup address is the farm's Goship address saved in its Farmer profile.
+        // Goship__PickupLocations__{FarmerProfileId} is only a fallback for farms that have not saved one yet.
+        string? pickupCity = request.Pickup?.ProvinceCode;
+        string? pickupDistrict = request.Pickup?.DistrictCode;
+        if ((string.IsNullOrWhiteSpace(pickupCity) || string.IsNullOrWhiteSpace(pickupDistrict))
+            && _options.PickupLocations.TryGetValue(
+                request.FarmerProfileId.ToString(CultureInfo.InvariantCulture), out var configured))
         {
-            _logger.LogWarning("No Goship pickup location is configured for farmer profile {FarmerProfileId}.",
+            pickupCity = configured.City;
+            pickupDistrict = configured.District;
+        }
+        if (string.IsNullOrWhiteSpace(pickupCity) || string.IsNullOrWhiteSpace(pickupDistrict))
+        {
+            _logger.LogWarning("Farmer profile {FarmerProfileId} has no Goship pickup address.",
                 request.FarmerProfileId);
             return null;
         }
@@ -59,9 +65,9 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
             return null;
         }
 
-        // Checkout is prepaid (PayOS/SePay), so no COD amount is collected by the carrier.
+        // Checkout is prepaid (SePay), so no COD amount is collected by the carrier.
         var rates = await client.GetRatesAsync(new GoshipRateRequest(new GoshipShipment(
-            new GoshipAddress(pickup.City, pickup.District),
+            new GoshipAddress(pickupCity, pickupDistrict),
             new GoshipAddress(request.Recipient.ProvinceCode, request.Recipient.DistrictCode),
             new GoshipParcel(0, decimal.ToInt64(decimal.Ceiling(request.DeclaredValue)),
                 _options.ParcelWidth, _options.ParcelHeight, _options.ParcelLength,
