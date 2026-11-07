@@ -129,10 +129,10 @@ public sealed class ComplaintResolutionService(
         string instructions = request.Instructions.Trim();
         var evidenceRequest = ticket.RequestInformation(
             partyUserId, instructions, actor.UserId, now, EvidenceResponseWindow);
-        repository.AddNotification(Notice(partyUserId, "Yêu cầu bổ sung thông tin khiếu nại",
+        AddNotice(partyUserId, "Yêu cầu bổ sung thông tin khiếu nại",
             $"Khiếu nại #{ticket.DisputeTicketId} của đơn {sellerOrder.SellerOrderCode} cần bổ sung "
                 + $"thông tin trong 48 giờ (hạn {evidenceRequest.DueAt:dd/MM/yyyy HH:mm} UTC): {instructions}",
-            ticket.DisputeTicketId));
+            ticket.DisputeTicketId);
         AddAudit(ticket, "RequestComplaintInformation", previousStatus,
             new { ticket.TicketStatus, request.Party, evidenceRequest.DueAt }, instructions,
             actor.UserId, now);
@@ -291,8 +291,8 @@ public sealed class ComplaintResolutionService(
         var supportUsers = await repository.GetActiveUserIdsByRolesAsync(s_supportRoles, cancellationToken);
         foreach (long userId in supportUsers)
         {
-            repository.AddNotification(Notice(userId, "Khiếu nại cần xử lý thủ công", content,
-                ticket.DisputeTicketId));
+            AddNotice(userId, "Khiếu nại cần xử lý thủ công", content,
+                ticket.DisputeTicketId);
         }
     }
 
@@ -445,10 +445,10 @@ public sealed class ComplaintResolutionService(
         var financeUsers = await repository.GetActiveUserIdsByRolesAsync(s_financeRoles, cancellationToken);
         foreach (long userId in financeUsers)
         {
-            repository.AddNotification(Notice(userId, "Yêu cầu hoàn tiền mới",
+            AddNotice(userId, "Yêu cầu hoàn tiền mới",
                 $"Yêu cầu {refund.RefundCode} hoàn {refund.Amount:N0} ₫ cho đơn "
                     + $"{sellerOrder.SellerOrderCode} đang chờ xử lý.",
-                refund.DisputeTicket?.DisputeTicketId ?? 0));
+                refund.DisputeTicket?.DisputeTicketId ?? 0);
         }
     }
 
@@ -478,9 +478,9 @@ public sealed class ComplaintResolutionService(
         foreach (long userId in new[] { sellerOrder.Order.BuyerUserId, sellerOrder.FarmerProfile.UserId }
             .Distinct())
         {
-            repository.AddNotification(Notice(userId, "Kết quả xử lý khiếu nại",
+            AddNotice(userId, "Kết quả xử lý khiếu nại",
                 $"Khiếu nại #{ticket.DisputeTicketId} của đơn {sellerOrder.SellerOrderCode}: {content}",
-                ticket.DisputeTicketId));
+                ticket.DisputeTicketId);
         }
     }
 
@@ -494,18 +494,32 @@ public sealed class ComplaintResolutionService(
             _ => $"khiếu nại bị từ chối. Lý do: {reason}"
         };
 
-    private Notification Notice(long userId, string title, string content, long ticketId) => new()
+    /// <summary>Email copy of a complaint notice, sent by the Gmail Notification Service worker.</summary>
+    public const string EmailNotificationType = "ComplaintEmail";
+
+    /// <summary>
+    /// UC-CS-01 Step 9 / alternative flows: parties, Customer Support and Finance Staff are notified
+    /// in-app and by email through the Gmail Notification Service.
+    /// </summary>
+    private void AddNotice(long userId, string title, string content, long ticketId)
+    {
+        repository.AddNotification(Notice(userId, title, content, ticketId, "InApp"));
+        repository.AddNotification(Notice(userId, title, content, ticketId, "Email"));
+    }
+
+    private Notification Notice(long userId, string title, string content, long ticketId, string channel) => new()
     {
         UserId = userId,
         Title = title,
         Content = content,
-        NotificationType = "Complaint",
+        NotificationType = channel == "Email" ? EmailNotificationType : "Complaint",
         IsRead = false,
         SentAt = Now(),
-        DeliveryChannel = "InApp",
-        DeliveryStatus = "Sent",
+        DeliveryChannel = channel,
+        DeliveryStatus = channel == "Email" ? "Pending" : "Sent",
         RelatedRecordType = "DisputeTicket",
-        RelatedRecordId = ticketId
+        RelatedRecordId = ticketId,
+        PayloadJson = channel == "Email" ? $"complaint:{ticketId}:{Guid.NewGuid():N}" : null
     };
 
     private void AddAudit(DisputeTicket ticket, string action, string previousStatus, object newValue,

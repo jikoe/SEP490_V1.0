@@ -158,9 +158,14 @@ public sealed class SupportFinancePromotionApiTests : IAsyncLifetime
         Assert.Equal(("VCB", "0071000222222", "BUYER TWO"),
             (refund.ReceiverBankCode, refund.ReceiverAccountNumber, refund.ReceiverAccountHolder));
         Assert.Equal(ApiHost.T0.UtcDateTime, refund.ReceiverAccountProvidedAt);
-        var email = await db.Notifications.SingleAsync(notice => notice.DeliveryChannel == "Email");
+        var email = await db.Notifications.SingleAsync(notice => notice.DeliveryChannel == "Email"
+            && notice.NotificationType == "RefundEmail");
         Assert.Equal((_api.OtherBuyerId, "RefundEmail", "Pending"), (email.UserId, email.NotificationType, email.DeliveryStatus));
         Assert.Contains("180.000", email.Content.Replace(",", "."));
+        // UC-CS-01 Step 9: the decision result is also emailed to the buyer and the farmer.
+        var decisionEmails = await db.Notifications.Where(notice => notice.NotificationType == "ComplaintEmail")
+            .Select(notice => notice.UserId).ToListAsync();
+        Assert.Contains(_api.OtherBuyerId, decisionEmails);
     }
 
     [CommerceSqlFact(DisplayName = "[IT UC-CS-01 #13] The complaint list shows the open evidence deadline")]
