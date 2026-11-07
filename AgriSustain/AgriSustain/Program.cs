@@ -47,6 +47,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 
 // Existing team auth services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
@@ -216,6 +217,8 @@ builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.IRefundAccou
 builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.IRefundAccountService,
     AgriSustain.Application.Services.Refunds.RefundAccountService>();
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
+builder.Services.AddScoped<ISupplierCapacityRepository, SupplierCapacityRepository>();
+builder.Services.AddScoped<ISupplierCapacityService, AgriSustain.Application.Services.B2B.SupplierCapacityService>();
 
 // DuND Validators
 builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();

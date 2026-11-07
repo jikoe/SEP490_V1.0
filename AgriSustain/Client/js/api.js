@@ -74,6 +74,24 @@ const API = {
       // 401 means "session expired" only when a token was sent. A failed login (wrong
       // password) also returns 401 and must show the server message instead.
       if (response.status === 401 && token) {
+        if (!options._retry && !url.includes('/auth/refresh') && !url.includes('/auth/logout')) {
+          const refreshToken = Auth.getRefreshToken();
+          if (refreshToken) {
+            try {
+              const refreshRes = await this.post('/auth/refresh', { refreshToken }, { _retry: true, suppressErrorToast: true });
+              if (refreshRes && (refreshRes.success || refreshRes.accessToken || refreshRes.data?.accessToken)) {
+                const payload = refreshRes.data || refreshRes;
+                const newAccess = payload.accessToken || payload.token;
+                const newRefresh = payload.refreshToken;
+                Auth.setTokens(newAccess, newRefresh);
+                return await this.request(endpoint, { ...options, _retry: true });
+              }
+            } catch (refreshErr) {
+              console.warn('Silent token refresh failed:', refreshErr);
+            }
+          }
+        }
+
         Auth.clearAuth();
         if (!options.suppressErrorToast) {
           const msg = (typeof window !== 'undefined' && window.Messages?.common?.sessionExpired)
@@ -168,7 +186,12 @@ const API = {
 
   async logout() {
     try {
-      await this.request('/auth/logout', { method: 'POST', suppressErrorToast: true });
+      const refreshToken = Auth.getRefreshToken();
+      await this.request('/auth/logout', {
+        method: 'POST',
+        body: refreshToken ? { refreshToken } : null,
+        suppressErrorToast: true
+      });
     } finally {
       Auth.clearAuth();
       window.location.href = `${Utils.getRootPath()}Guest/login.html`;
@@ -682,6 +705,34 @@ const API = {
       method: 'POST',
       body: formData
     });
+  },
+
+  /* ---------------- B2B SUPPLIER CAPACITY MODULE ---------------- */
+  async getSupplierCapacityProfile(farmerProfileId) {
+    return this.request(`/b2b/suppliers/${farmerProfileId}/capacity-profile`);
+  },
+
+  async getSupplierCapacityProfileByUserId(userId) {
+    return this.request(`/b2b/suppliers/by-user/${userId}/capacity-profile`);
+  },
+
+  async getSupplierDirectory(params = {}) {
+    const query = this.toQueryString(params);
+    return this.request(`/b2b/suppliers/directory${query ? `?${query}` : ''}`);
+  },
+
+  async getSupplierCertificateDossier(certificateId) {
+    return this.request(`/b2b/suppliers/certificates/${certificateId}/dossier`);
+  },
+
+  async getSupplierSeasonLogs(cropSeasonId) {
+    return this.request(`/b2b/suppliers/seasons/${cropSeasonId}/logs`);
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.API = API;
+  window.Api = API;
+}
+
 

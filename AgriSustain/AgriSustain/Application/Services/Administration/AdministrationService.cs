@@ -119,7 +119,10 @@ public sealed class AdministrationService(
             var before = AccountSnapshot(user);
             switch (request.Action)
             {
-                case "suspend": user.Suspend(reason!); break;
+                case "suspend":
+                    user.Suspend(reason!);
+                    await repository.RevokeRefreshTokensForUserAsync(id, now, cancellationToken);
+                    break;
                 case "activate": user.Activate(reason!); break;
                 case "unlock": user.Unlock(); break;
             }

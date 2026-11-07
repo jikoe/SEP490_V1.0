@@ -19,6 +19,7 @@ public sealed class AuthController : ControllerBase
     private readonly IAuthenticationService _registrationService;
     private readonly IPasswordResetService _passwordResetService;
     private readonly RevokedTokenStore _revokedTokenStore;
+    private readonly IRefreshTokenService _refreshTokenService;
     private readonly string? _supportEmail;
 
     public AuthController(
@@ -26,6 +27,7 @@ public sealed class AuthController : ControllerBase
         IAuthenticationService registrationService,
         IPasswordResetService passwordResetService,
         RevokedTokenStore revokedTokenStore,
+        IRefreshTokenService refreshTokenService,
         AccountNotificationSettings? notificationSettings = null)
     {
         _supportEmail = notificationSettings?.SupportEmail;
@@ -33,6 +35,7 @@ public sealed class AuthController : ControllerBase
         _registrationService = registrationService;
         _passwordResetService = passwordResetService;
         _revokedTokenStore = revokedTokenStore;
+        _refreshTokenService = refreshTokenService;
     }
 
     [AllowAnonymous]
@@ -64,9 +67,33 @@ public sealed class AuthController : ControllerBase
         };
     }
 
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request?.RefreshToken))
+        {
+            return Problem(
+                title: "Yêu cầu không hợp lệ",
+                detail: "RefreshToken không được để trống.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var result = await _refreshTokenService.RotateRefreshTokenAsync(request.RefreshToken, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return Problem(
+                title: "Làm mới phiên thất bại",
+                detail: result.Error?.Message ?? "Không thể làm mới phiên đăng nhập.",
+                statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        return Ok(result.Value);
+    }
+
     [Authorize]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+    public async Task<IActionResult> Logout([FromBody] LogoutRequestDto? request, CancellationToken cancellationToken)
     {
         var tokenId = User.FindFirstValue(JwtRegisteredClaimNames.Jti)
             ?? User.FindFirstValue(ClaimTypes.SerialNumber);
@@ -85,6 +112,16 @@ public sealed class AuthController : ControllerBase
             tokenId,
             DateTimeOffset.FromUnixTimeSeconds(expirationTimestamp),
             cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(request?.RefreshToken))
+        {
+            await _refreshTokenService.RevokeRefreshTokenAsync(request.RefreshToken, cancellationToken);
+        }
+        else if (long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+        {
+            await _refreshTokenService.RevokeAllForUserAsync(userId, cancellationToken);
+        }
+
         return NoContent();
     }
 
