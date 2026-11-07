@@ -13,7 +13,8 @@ export const statuses = {
 };
 export const metrics = [
   ['Gmv', 'GMV', 'Đã loại đơn hủy và khoản hoàn tiền hoàn tất'],
-  ['Commission', 'Doanh thu hoa hồng', 'Hoa hồng của các kỳ quyết toán đã chi trả'],
+  ['PlatformFees', 'Doanh thu phí nền tảng', 'Phí trừ vào tiền của nông trại, sau khi đảo phí của đơn hủy/hoàn'],
+  ['TaxWithheld', 'Thuế đã khấu trừ thay', 'Thu hộ cơ quan thuế, không tính là doanh thu của sàn'],
   ['Subscriptions', 'Doanh thu gói thành viên', 'Khoản thu gói B2B đã xác minh'],
   ['Refunds', 'Hoàn tiền đã xác minh', 'Chỉ tính giao dịch hoàn tiền thành công'],
   ['PendingPayouts', 'Chờ thanh toán nông hộ', 'Tách riêng khoản đang chờ / đang xử lý'],

@@ -89,7 +89,9 @@ public sealed record RefundDetailDto(
     decimal PaymentRefundableAmount,
     string PaymentStatus,
     DateTime? PaidAt,
-    IReadOnlyList<RefundAttemptDto> History);
+    IReadOnlyList<RefundAttemptDto> History,
+    bool NeedsCustomerAccount = false,
+    DateTime? LastAccountReminderAt = null);
 
 /// <summary>
 /// Start Transfer (from Pending) or Transfer Again (from Failed), and Cancel Transfer.
@@ -114,6 +116,13 @@ public sealed record RefundActionResponse(
     long RefundId,
     string RefundStatus,
     string Message);
+
+/// <summary>BR-RF-04 history actions used by UC-FIN-03.</summary>
+public static class RefundProcessingActions
+{
+    public const string TransferFailed = "RefundTransferFailed";
+    public const string AccountReminder = "RemindRefundAccount";
+}
 
 public static class RefundMethods
 {

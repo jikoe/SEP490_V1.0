@@ -283,6 +283,17 @@
                     >
                   </label>
 
+                  <!-- UC-RC-02 Step 5: Goship pickup address used to quote delivery fees for this farm -->
+                  <div class="field farmer-field-mb-16">
+                    <span>Địa chỉ lấy hàng (dùng để tính phí giao Goship) *</span>
+                    <div class="farmer-form-grid-2" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+                      <select id="pickup-province" aria-label="Tỉnh/thành lấy hàng"><option value="">Tỉnh/thành</option></select>
+                      <select id="pickup-district" aria-label="Quận/huyện lấy hàng"><option value="">Quận/huyện</option></select>
+                      <select id="pickup-ward" aria-label="Phường/xã lấy hàng"><option value="">Phường/xã</option></select>
+                    </div>
+                    <small id="pickup-current" class="muted"></small>
+                  </div>
+
                   <div class="farmer-form-grid-2">
                     <label class="field">
                       <span>Diện tích canh tác (ha)</span>
@@ -406,6 +417,36 @@
       Rejected: '<span class="status-badge kyc-badge-rejected">Bị từ chối</span>'
     };
 
+    // UC-RC-02 Step 5: pickup address options come from the same Goship catalog as checkout.
+    function fillOptions(id, items, placeholder, value) {
+      const el = document.getElementById(id);
+      el.innerHTML = `<option value="">${placeholder}</option>`
+        + (items || []).map(x => `<option value="${Utils.escapeHtml(x.code)}">${Utils.escapeHtml(x.name)}</option>`).join('');
+      el.value = value || '';
+    }
+
+    async function loadPickupDistricts(province, value) {
+      const res = province ? await API.request(`/profile/address/provinces/${encodeURIComponent(province)}/districts`, { suppressErrorToast: true }) : null;
+      fillOptions('pickup-district', res && res.success ? res.data : [], 'Quận/huyện', value);
+    }
+
+    async function loadPickupWards(district, value) {
+      const res = district ? await API.request(`/profile/address/districts/${encodeURIComponent(district)}/wards`, { suppressErrorToast: true }) : null;
+      fillOptions('pickup-ward', res && res.success ? res.data : [], 'Phường/xã', value);
+    }
+
+    async function fillPickup(profile) {
+      const res = await API.request('/profile/address/provinces', { suppressErrorToast: true });
+      fillOptions('pickup-province', res && res.success ? res.data : [], 'Tỉnh/thành', profile.pickupProvinceCode);
+      await loadPickupDistricts(profile.pickupProvinceCode, profile.pickupDistrictCode);
+      await loadPickupWards(profile.pickupDistrictCode, profile.pickupWardCode);
+      document.getElementById('pickup-current').textContent = profile.pickupAddressText
+        ? `Đang dùng: ${profile.pickupAddressText}`
+        : 'Chưa có địa chỉ lấy hàng: khách chưa đặt được hàng của nông trại vì không tính được phí giao.';
+      document.getElementById('pickup-province').onchange = async e => { await loadPickupDistricts(e.target.value, ''); await loadPickupWards('', ''); };
+      document.getElementById('pickup-district').onchange = e => loadPickupWards(e.target.value, '');
+    }
+
     async function loadProfile() {
       try {
         const res = await API.getProfile();
@@ -436,6 +477,10 @@
         businessLicenseNumber: fp.businessLicenseNumber || '',
         gpsCoordinates: fp.gpsCoordinates || fp.gpscoordinates || '',
         farmAddress: fp.address || '',
+        pickupProvinceCode: fp.pickupProvinceCode || '',
+        pickupDistrictCode: fp.pickupDistrictCode || '',
+        pickupWardCode: fp.pickupWardCode || '',
+        pickupAddressText: fp.pickupAddressText || '',
         cultivatedArea: fp.cultivatedArea ?? '',
         productionModel: fp.productionModel || '',
         shortDescription: fp.shortDescription || '',
@@ -496,6 +541,7 @@
       document.getElementById('farm-license').value = currentProfile.businessLicenseNumber;
       document.getElementById('farm-gps').value = currentProfile.gpsCoordinates;
       document.getElementById('farm-address').value = currentProfile.farmAddress;
+      fillPickup(currentProfile);
       document.getElementById('farm-area').value = currentProfile.cultivatedArea;
       document.getElementById('farm-model').value = currentProfile.productionModel;
       document.getElementById('farm-desc').value = currentProfile.shortDescription;
@@ -640,8 +686,15 @@
         businessLicenseNumber: document.getElementById('farm-license').value.trim(),
         address: document.getElementById('farm-address').value.trim(),
         provinceCode: null,
-        gpsCoordinates: document.getElementById('farm-gps').value.trim()
+        gpsCoordinates: document.getElementById('farm-gps').value.trim(),
+        pickupProvinceCode: document.getElementById('pickup-province').value || null,
+        pickupDistrictCode: document.getElementById('pickup-district').value || null,
+        pickupWardCode: document.getElementById('pickup-ward').value || null
       };
+      if (!payload.pickupProvinceCode || !payload.pickupDistrictCode) {
+        showNotice('Hãy chọn tỉnh/thành và quận/huyện lấy hàng để khách đặt hàng được tính phí giao.', true);
+        return;
+      }
 
       const btn = document.getElementById('btn-save-profile');
       btn.disabled = true;

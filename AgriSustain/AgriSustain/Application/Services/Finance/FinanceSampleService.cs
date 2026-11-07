@@ -246,7 +246,8 @@ public sealed class FinanceSampleService(
             "Gmv" => payments.Where(row => row.Category == "Order" && !row.CancelledOrder)
                 .Select(row => new FinanceRecord(row.Id, row.Obligation, null,
                     row.Amount, "Confirmed", row.RequestedAt, null)),
-            "Commission" => [new(101, "PAYOUT-001", "Hoa hồng đã quyết toán", 82000, "Paid", at, null)],
+            "PlatformFees" => [new(101, "RC-SAMPLE-1", "Phí nền tảng của đơn mẫu", 82000, "Delivered", at, null)],
+            "TaxWithheld" => [new(105, "RC-SAMPLE-1", "Thuế khấu trừ thay của đơn mẫu", 13500, "Delivered", at, null)],
             "Refunds" => [new(102, "REFUND-001", "ORD-2026-0099", 100000, "Succeeded", at, null)],
             "PendingPayouts" => [new(103, "PAYOUT-002", "Nông trại đang chờ chi trả", 1925000, "Pending", at, null)],
             _ => [new(104, "PAYOUT-001", "Đợt chi trả hoàn tất", 918000, "Paid", at, null)]

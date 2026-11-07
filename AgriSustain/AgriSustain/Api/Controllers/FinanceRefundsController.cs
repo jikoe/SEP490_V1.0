@@ -39,6 +39,15 @@ public sealed class FinanceRefundsController : ControllerBase
             await _refundService.StartTransferAsync(refundId, request, cancellationToken),
             HttpContext);
 
+    /// <summary>UC-FIN-03 AF (Step 3): remind the customer to provide or check the account (UC-FIN-08).</summary>
+    [HttpPost("{refundId:long}/remind-account")]
+    public async Task<IActionResult> RemindAccount(
+        long refundId,
+        CancellationToken cancellationToken) =>
+        ApiResults.From(
+            await _refundService.RemindAccountAsync(refundId, cancellationToken),
+            HttpContext);
+
     [HttpPost("{refundId:long}/cancel-transfer")]
     public async Task<IActionResult> CancelTransfer(
         long refundId,

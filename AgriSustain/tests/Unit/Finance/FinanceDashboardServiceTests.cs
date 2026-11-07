@@ -24,17 +24,17 @@ public sealed class FinanceDashboardServiceTests : IDisposable
 
     // ---------- UC-FIN-01: FinanceService.DashboardAsync ----------
 
-    [Fact(DisplayName = "[UC-FIN-01 #001] Return six metrics and pending transaction total")]
+    [Fact(DisplayName = "[UC-FIN-01 #001] Return seven metrics (fee revenue and withheld tax apart) and pending transaction total")]
     public async Task DashboardAsync_Dashboard_ReturnsMetricsAndPendingTotal()
     {
         var result = await Service().DashboardAsync(new(), default);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(6, result.Value!.Metrics.Count);
+        Assert.Equal(7, result.Value!.Metrics.Count);
         Assert.Equal(1000000m, result.Value.Metrics["Gmv"]);
         Assert.Equal(7, result.Value.TransactionsToProcess);
         Assert.Empty(result.Value.Unavailable);
-        Assert.Equal(6, _store.MetricCalls.Count);
+        Assert.Equal(7, _store.MetricCalls.Count);
     }
 
     [Fact(DisplayName = "[UC-FIN-01 #002] Return 403 before querying metrics")]
@@ -97,16 +97,16 @@ public sealed class FinanceDashboardServiceTests : IDisposable
 
     // ---------- UC-FIN-01: FinanceService.DashboardAsync ----------
 
-    [Fact(DisplayName = "[UC-FIN-01 #008] Mark only Commission unavailable without displaying a false zero")]
+    [Fact(DisplayName = "[UC-FIN-01 #008] Mark only PlatformFees unavailable without displaying a false zero")]
     public async Task DashboardAsync_PartialFailure_MarksMetricUnavailable()
     {
-        _store.FailedMetric = "Commission";
+        _store.FailedMetric = "PlatformFees";
         var result = await Service().DashboardAsync(new(), default);
 
         Assert.True(result.IsSuccess);
-        Assert.Null(result.Value!.Metrics["Commission"]);
+        Assert.Null(result.Value!.Metrics["PlatformFees"]);
         Assert.Equal(1000000m, result.Value.Metrics["Gmv"]);
-        Assert.Equal("Commission", Assert.Single(result.Value.Unavailable));
+        Assert.Equal("PlatformFees", Assert.Single(result.Value.Unavailable));
     }
 
     [Fact(DisplayName = "[UC-FIN-01 #009] Keep metrics and mark transaction count unavailable")]

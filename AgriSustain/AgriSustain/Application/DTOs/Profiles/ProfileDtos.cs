@@ -43,7 +43,11 @@ public sealed record FarmerProfileDto(
     DateTimeOffset? ApprovedAt,
     string? RejectReason,
     string? ProductionModel = null,
-    string? ShortDescription = null);
+    string? ShortDescription = null,
+    string? PickupProvinceCode = null,
+    string? PickupDistrictCode = null,
+    string? PickupWardCode = null,
+    string? PickupAddressText = null);
 
 public sealed record UpdateConsumerProfileRequest(
     string FullName,
@@ -74,7 +78,11 @@ public sealed record UpdateFarmerProfileRequest(
     string? GPSCoordinates,
     string? BusinessLicenseNumber,
     string? ProductionModel = null,
-    string? ShortDescription = null);
+    string? ShortDescription = null,
+    string? PickupProvinceCode = null,
+    string? PickupDistrictCode = null,
+    string? PickupWardCode = null,
+    string? PickupAddressText = null);
 
 public sealed record SubmitKycRequest(
     string? Notes);

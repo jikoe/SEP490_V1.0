@@ -355,7 +355,6 @@
     ];
     const payments = [
       { value: 'SePay', title: 'Chuyển khoản QR (SePay)', desc: 'Quét mã Napas 247 xác nhận tự động' },
-      { value: 'PayOS', title: 'Cổng PayOS', desc: 'Chuyển khoản qua cổng PayOS' },
     ];
 
     /** Compares place names without administrative prefixes matching Frontend */
@@ -1315,7 +1314,7 @@
         ? new Date(q.expectedDeliveryAt).toLocaleDateString('vi-VN')
         : '—';
 
-      document.getElementById('succ-payment').textContent = o.paymentMethod || 'PayOS';
+      document.getElementById('succ-payment').textContent = o.paymentMethod || 'SePay';
       document.getElementById('succ-expires').textContent = localTime(o.reservationExpiresAt);
       document.getElementById('succ-total').textContent = Utils.formatVND(o.total || 0);
 

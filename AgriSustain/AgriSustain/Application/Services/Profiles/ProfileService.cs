@@ -141,6 +141,30 @@ public sealed class ProfileService(
             return Result<UserProfileResponse>.FailureResult(error);
         }
 
+        // UC-RC-02 Step 5: the farm's pickup address uses the same Goship catalog as checkout.
+        if (!string.IsNullOrWhiteSpace(request.PickupProvinceCode) || !string.IsNullOrWhiteSpace(request.PickupDistrictCode))
+        {
+            var pickup = string.IsNullOrWhiteSpace(request.PickupProvinceCode) || string.IsNullOrWhiteSpace(request.PickupDistrictCode)
+                ? null
+                : await addressCatalog.NormalizeAsync(new CheckoutAddress(request.FullName, request.PhoneNumber,
+                    request.PickupProvinceCode, "", request.PickupDistrictCode, "", request.PickupWardCode ?? "", "",
+                    request.Address), cancellationToken);
+            if (pickup == null)
+            {
+                return Result<UserProfileResponse>.FailureResult(new Error("PICKUP_ADDRESS_INVALID",
+                    "Địa chỉ lấy hàng không hợp lệ. Vui lòng chọn lại tỉnh/thành, quận/huyện và phường/xã.",
+                    Fields: new Dictionary<string, string[]>
+                    {
+                        ["PickupDistrictCode"] = ["Hãy chọn tỉnh/thành và quận/huyện lấy hàng."]
+                    }));
+            }
+            request = request with
+            {
+                PickupAddressText = string.Join(", ", new[] { pickup.Ward, pickup.District, pickup.Province }
+                    .Where(part => !string.IsNullOrWhiteSpace(part)))
+            };
+        }
+
         return await unitOfWork.ExecuteAsync(async uow =>
         {
             if (await FarmerOnlyErrorAsync(uow, userId, cancellationToken) is { } roleError)

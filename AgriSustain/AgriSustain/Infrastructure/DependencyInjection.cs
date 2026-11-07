@@ -15,6 +15,9 @@ public static class DependencyInjection
         services.AddDbContext<AgriSustainContext>(options =>
             options.UseSqlServer(connectionString));
         services.AddScoped<IAdministrationRepository, AdministrationRepository>();
+        services.AddScoped<IPlatformDashboardRepository, PlatformDashboardRepository>();
+        services.AddScoped<ISubscriptionTierRepository, SubscriptionTierRepository>();
+        services.AddScoped<IFeeRepository, FeeRepository>();
         services.AddScoped<ICheckoutRepository, CheckoutRepository>();
         services.AddScoped<IKycVerificationRepository, KycVerificationRepository>();
         services.AddScoped<IUseCaseUnitOfWork, SqlUnitOfWork>();

@@ -158,9 +158,14 @@ public sealed class SupportFinancePromotionApiTests : IAsyncLifetime
         Assert.Equal(("VCB", "0071000222222", "BUYER TWO"),
             (refund.ReceiverBankCode, refund.ReceiverAccountNumber, refund.ReceiverAccountHolder));
         Assert.Equal(ApiHost.T0.UtcDateTime, refund.ReceiverAccountProvidedAt);
-        var email = await db.Notifications.SingleAsync(notice => notice.DeliveryChannel == "Email");
+        var email = await db.Notifications.SingleAsync(notice => notice.DeliveryChannel == "Email"
+            && notice.NotificationType == "RefundEmail");
         Assert.Equal((_api.OtherBuyerId, "RefundEmail", "Pending"), (email.UserId, email.NotificationType, email.DeliveryStatus));
         Assert.Contains("180.000", email.Content.Replace(",", "."));
+        // UC-CS-01 Step 9: the decision result is also emailed to the buyer and the farmer.
+        var decisionEmails = await db.Notifications.Where(notice => notice.NotificationType == "ComplaintEmail")
+            .Select(notice => notice.UserId).ToListAsync();
+        Assert.Contains(_api.OtherBuyerId, decisionEmails);
     }
 
     [CommerceSqlFact(DisplayName = "[IT UC-CS-01 #13] The complaint list shows the open evidence deadline")]
@@ -348,6 +353,22 @@ public sealed class SupportFinancePromotionApiTests : IAsyncLifetime
         await ApiAssert.Status(await _api.Finance().PostAsJsonAsync($"{url}/transfer-failed",
             new RefundTransferFailedRequest("Sai số tài khoản")), HttpStatusCode.OK);
 
+        // The customer has not checked the account yet: Transfer Again is refused, Finance can remind.
+        await ApiAssert.Problem(await _api.Finance().PostAsJsonAsync($"{url}/start-transfer",
+            new RefundTransferRequest(RefundTransaction.StatusFailed)), HttpStatusCode.Conflict, "REFUND_ACCOUNT_NOT_RECHECKED");
+        await ApiAssert.Status(await _api.Finance().PostAsJsonAsync($"{url}/remind-account", new { }), HttpStatusCode.OK);
+        await ApiAssert.Problem(await _api.Finance().PostAsJsonAsync($"{url}/remind-account", new { }),
+            HttpStatusCode.Conflict, "REFUND_REMINDER_TOO_SOON");
+        // The customer confirms the account again in UC-FIN-08 (this test host does not register that
+        // use case, so its saved result is written directly: a newer ReceiverAccountProvidedAt).
+        _api.Clock.Advance(TimeSpan.FromMinutes(5));
+        await using (var setup = _api.Open())
+        {
+            var failed = await setup.RefundTransactions.SingleAsync();
+            failed.ReceiverAccountProvidedAt = _api.Clock.GetUtcNow().UtcDateTime;
+            await setup.SaveChangesAsync();
+        }
+
         await ApiAssert.Status(await _api.Finance().PostAsJsonAsync($"{url}/start-transfer",
             new RefundTransferRequest(RefundTransaction.StatusFailed)), HttpStatusCode.OK);
 
@@ -355,7 +376,7 @@ public sealed class SupportFinancePromotionApiTests : IAsyncLifetime
         Assert.Equal(RefundTransaction.StatusProcessing, (await db.RefundTransactions.SingleAsync()).RefundStatus);
         var actions = await db.AuditLogs.Where(log => log.EntityType == "RefundTransaction")
             .OrderBy(log => log.AuditLogId).Select(log => log.Action).ToListAsync();
-        Assert.Equal(["StartTransfer", "RefundTransferFailed", "TransferAgain"], actions);
+        Assert.Equal(["StartTransfer", "RefundTransferFailed", "RemindRefundAccount", "TransferAgain"], actions);
     }
 
     [CommerceSqlFact(DisplayName = "[IT UC-FIN-03 #13] A request changed by another user is refused (MSG-RF-04)")]

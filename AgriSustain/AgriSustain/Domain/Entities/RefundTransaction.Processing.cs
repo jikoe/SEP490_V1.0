@@ -31,6 +31,27 @@ public partial class RefundTransaction
     /// <summary>Start Transfer from Pending, or Transfer Again from Failed, once an account is known.</summary>
     public bool CanStartTransfer => (RefundStatus is StatusPending or StatusFailed) && HasReceivingAccount;
 
+    /// <summary>
+    /// UC-FIN-03 AF (Step 3): after a failed transfer, Transfer Again is allowed only once the
+    /// RetailCustomer has checked the account again (UC-FIN-08), i.e. confirmed or changed it after
+    /// the last recorded failure. lastFailureAt is the time of the latest "RefundTransferFailed" row.
+    /// </summary>
+    public bool AccountRecheckedSince(DateTime? lastFailureAt) =>
+        RefundStatus != StatusFailed || lastFailureAt is null
+            || ReceiverAccountProvidedAt is { } provided && provided > lastFailureAt;
+
+    /// <summary>Start Transfer / Transfer Again including the account re-check after a failure.</summary>
+    public bool CanStartTransferAfter(DateTime? lastFailureAt) =>
+        CanStartTransfer && AccountRecheckedSince(lastFailureAt);
+
+    /// <summary>
+    /// UC-FIN-03 AF (Step 3): the customer still has to provide the account (Awaiting customer account)
+    /// or check it after a failed transfer, so Finance can remind them (UC-FIN-08).
+    /// </summary>
+    public bool NeedsAccountFromCustomer(DateTime? lastFailureAt) =>
+        RefundStatus is StatusPending or StatusFailed
+        && (!HasReceivingAccount || !AccountRecheckedSince(lastFailureAt));
+
     /// <summary>A transfer was started and its bank result is not recorded yet.</summary>
     public bool AwaitsTransferResult => RefundStatus is StatusProcessing or StatusNeedsReconciliation;
 

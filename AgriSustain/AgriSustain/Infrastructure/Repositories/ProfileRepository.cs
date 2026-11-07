@@ -50,7 +50,11 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
             user.FarmerProfile.ApprovedAt,
             user.FarmerProfile.RejectReason,
             user.FarmerProfile.ProductionModel,
-            user.FarmerProfile.ShortDescription);
+            user.FarmerProfile.ShortDescription,
+            user.FarmerProfile.PickupProvinceCode,
+            user.FarmerProfile.PickupDistrictCode,
+            user.FarmerProfile.PickupWardCode,
+            user.FarmerProfile.PickupAddressText);
 
         long rewardPoints = await db.RewardPointEntries
             .Where(entry => entry.UserId == userId)
@@ -176,6 +180,14 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
         farm.CultivatedArea = request.CultivatedArea;
         farm.ProductionModel = Clean(request.ProductionModel);
         farm.ShortDescription = Clean(request.ShortDescription);
+        // The service has already checked the codes against the Goship catalog (UC-RC-02 Step 5).
+        if (!string.IsNullOrWhiteSpace(request.PickupProvinceCode) && !string.IsNullOrWhiteSpace(request.PickupDistrictCode))
+        {
+            farm.PickupProvinceCode = request.PickupProvinceCode;
+            farm.PickupDistrictCode = request.PickupDistrictCode;
+            farm.PickupWardCode = Clean(request.PickupWardCode);
+            farm.PickupAddressText = Clean(request.PickupAddressText);
+        }
 
         // SRS UC-AUTH-03 AF "Changing Verified Identity / KYC Fields".
         if (kycFieldChanged && farm.VerificationStatus == VerificationStatuses.Approved)

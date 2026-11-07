@@ -49,6 +49,7 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
         }
         var ids = await db.Notifications.AsNoTracking().Where(n =>
             (n.NotificationType == "FarmerOrderUpdate" || n.NotificationType == "RefundEmail"
+                || n.NotificationType == "ComplaintEmail"
                 || n.NotificationType == AccountEmailType && n.RetryCount < AccountEmailMaxAttempts)
             && n.DeliveryChannel == "Email"
             && ((n.DeliveryStatus == "Pending" || n.DeliveryStatus == "Failed" && n.SentAt <= now.AddMinutes(-1))

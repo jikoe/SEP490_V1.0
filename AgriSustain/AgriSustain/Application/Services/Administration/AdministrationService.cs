@@ -412,6 +412,8 @@ public sealed class AdministrationService(
                 // BR-CAT-04: a used category is archived permanently instead of deleted.
                 category.SetAvailability(false);
                 settings.Archive();
+                await repository.EndCategoryFeePoliciesAsync(id,
+                    DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime.AddHours(7)), cancellationToken);
                 outcome = "archived";
                 message = $"Danh mục {name} đã được sử dụng nên đã được lưu trữ; danh mục này chỉ còn xem được.";
             }

@@ -5,7 +5,7 @@ namespace AgriSustain.Application.Validators;
 public static class FinanceQueryValidator
 {
     public static readonly string[] Metrics =
-        ["Gmv", "Commission", "Subscriptions", "Refunds", "PendingPayouts", "CompletedPayouts"];
+        ["Gmv", "PlatformFees", "TaxWithheld", "Subscriptions", "Refunds", "PendingPayouts", "CompletedPayouts"];
 
     public static FinancePeriod? Period(FinancePeriodQuery query, DateTime now)
     {
