@@ -170,6 +170,7 @@ internal sealed class ApiHost : IAsyncDisposable
             ["ConnectionStrings:MyCnn"] = _connection,
             ["Goship:BaseUrl"] = "http://127.0.0.1/",
             ["Goship:Enabled"] = "false",
+            ["Support:Email"] = "support@agrisustain.test",
             ["Checkout:QuoteMinutes"] = "5",
             ["Checkout:ReservationMinutes"] = "15",
             ["Checkout:PointValueVnd"] = "1",
