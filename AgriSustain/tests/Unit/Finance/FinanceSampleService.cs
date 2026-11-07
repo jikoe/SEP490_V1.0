@@ -6,9 +6,9 @@ using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Validators;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace AgriSustain.Application.Services.Finance;
+namespace AgriSustain.UnitTests.Finance;
 
-public sealed class FinanceSampleService(
+internal sealed class FinanceSampleService(
     IFinanceRepository repository, ICurrentActor actor, IMemoryCache cache, TimeProvider clock)
     : IFinanceService
 {

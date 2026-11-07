@@ -14,8 +14,9 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
         db.Users.AnyAsync(user => user.UserId == userId && user.Status == "Active"
             && user.IsEmailVerified && (user.Role == "FinanceStaff" || user.Role == "Finance Staff"), ct);
 
-    public async Task<decimal> MetricAsync(string metric, FinancePeriod period, CancellationToken ct) =>
-        await Sources(metric, period).SumAsync(row => (decimal?)row.Amount, ct) ?? 0;
+    public async Task<decimal?> MetricAsync(string metric, FinancePeriod period, CancellationToken ct) =>
+        metric is "PlatformFees" or "TaxWithheld" ? null
+            : await Sources(metric, period).SumAsync(row => (decimal?)row.Amount, ct) ?? 0;
 
     public async Task<PagedResponse<FinanceRecord>> RecordsAsync(
         string metric, FinancePeriod period, int page, int pageSize, CancellationToken ct)
@@ -103,20 +104,14 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
         var completed = payouts.Where(payout => FinancePaymentRules.PaidPayouts.Contains(payout.PayoutStatus)
                 && payout.BankTransferRef != null && payout.ProcessedAt >= period.From
                 && payout.ProcessedAt < period.Until);
-        var commissions = db.PayoutItems.GroupBy(item => item.FarmerPayoutId)
-            .Select(group => new { PayoutId = group.Key, Amount = group.Sum(item => item.CommissionAmount) });
-        return (from payout in completed
-                join commission in commissions on payout.FarmerPayoutId equals commission.PayoutId into matches
-                from commission in matches.DefaultIfEmpty()
-                select new { Payout = payout, Commission = (decimal?)commission.Amount ?? 0 })
-            .Select(row => new FinanceRecord
+        return completed.Select(payout => new FinanceRecord
             {
-                Id = row.Payout.FarmerPayoutId,
-                Reference = row.Payout.PayoutCode,
-                RelatedReference = row.Payout.FarmerProfile.FarmName,
-                Amount = metric == "Commission" ? row.Commission : row.Payout.NetAmount,
-                Status = row.Payout.PayoutStatus,
-                At = row.Payout.ProcessedAt
+                Id = payout.FarmerPayoutId,
+                Reference = payout.PayoutCode,
+                RelatedReference = payout.FarmerProfile.FarmName,
+                Amount = payout.NetAmount,
+                Status = payout.PayoutStatus,
+                At = payout.ProcessedAt
             });
     }
 
@@ -188,7 +183,8 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
             RequestedAt = row.Payment.RequestedAt,
             PaidAt = row.Payment.PaidAt,
             Status = row.Payment.PaymentStatus,
-            NeedsReview = row.Latest != null && row.Latest.NewValue != null
+            NeedsReview = FinancePaymentRules.ReviewStatuses.Contains(row.Payment.PaymentStatus)
+                || row.Latest != null && row.Latest.NewValue != null
                 && row.Latest.NewValue.Contains("\"RequiresReview\":true"),
             Note = row.Latest == null ? null : row.Latest.Reason,
             CancelledOrder = row.Payment.Order != null && row.Payment.Order.OrderStatus == "Cancelled"

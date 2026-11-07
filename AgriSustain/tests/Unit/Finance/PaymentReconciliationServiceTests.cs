@@ -32,7 +32,7 @@ public sealed class PaymentReconciliationServiceTests : IDisposable
     [Fact(DisplayName = "[UC-FIN-02 #001] Forward all validated search filters to repository")]
     public async Task SearchAsync_SearchCriteria_ForwardsValidatedFilters()
     {
-        var query = new FinancePaymentQuery(Provider: "PayOS", Status: "Pending", Page: 2);
+        var query = new FinancePaymentQuery(Provider: "SePay", Status: "AmountMismatch", Page: 2);
         var response = await Service().SearchAsync(query, default);
 
         Assert.True(response.IsSuccess);
@@ -91,6 +91,27 @@ public sealed class PaymentReconciliationServiceTests : IDisposable
         var response = await Service().DetailAsync(99, default);
 
         Assert.Equal(404, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "[UC-FIN-02 #025] Compare the saved SePay credit with the linked order amount")]
+    public async Task DetailAsync_SepayUnderpayment_UsesStoredReceiptAndFlagsReview()
+    {
+        var payment = FinanceStore.OrderPayment();
+        payment.GatewayProvider = "SePay";
+        payment.TransactionCode = "SEPAY-12";
+        payment.PaymentPurpose = "RetailOrderPayment";
+        payment.PaymentStatus = "AmountMismatch";
+        payment.Amount = 90000;
+        payment.WebhookPayload = """{"id":12,"transferType":"in","transferAmount":90000,"referenceCode":"BANK-123"}""";
+        _store.Payment = payment;
+
+        var result = await Service().DetailAsync(1, default);
+
+        Assert.True(result.Value!.Payment.NeedsReview);
+        Assert.Equal(100000m, result.Value.ExpectedAmount);
+        Assert.Equal(90000m, result.Value.LastReceipt!.Amount);
+        Assert.Equal("BANK-123", result.Value.LastReceipt.Reference);
+        Assert.Equal(100000m, result.Value.Obligation!.Unpaid);
     }
 
     // ---------- UC-FIN-02: FinanceService.ReconcileAsync ----------
@@ -318,11 +339,11 @@ public sealed class PaymentReconciliationServiceTests : IDisposable
         public FakeClock Clock { get; } = new(T0);
         public MemoryCache Cache { get; } = new(new MemoryCacheOptions());
         public Task<bool> CanAccessAsync(long userId, CancellationToken ct) => Task.FromResult(Allowed);
-        public Task<decimal> MetricAsync(string metric, FinancePeriod period, CancellationToken ct)
+        public Task<decimal?> MetricAsync(string metric, FinancePeriod period, CancellationToken ct)
         {
             MetricCalls.Add(metric);
             if (metric == FailedMetric) throw MetricError ?? new IOException("Metric unavailable");
-            return Task.FromResult(metric == "Gmv" ? 1000000m : 10000m);
+            return Task.FromResult<decimal?>(metric == "Gmv" ? 1000000m : 10000m);
         }
         public Task<PagedResponse<FinanceRecord>> RecordsAsync(string metric, FinancePeriod period, int page, int pageSize, CancellationToken ct) =>
             Task.FromResult(new PagedResponse<FinanceRecord>([new(1, "UT-RECORD", null, 10000, "Paid", period.From, null)], 1, page, pageSize));

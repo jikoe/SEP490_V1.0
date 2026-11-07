@@ -51,7 +51,7 @@ public sealed record FinancePaymentDetail(
     FinancePaymentRow Payment, string Method, DateTime? ReconciledAt, DateTime? ExpiresAt,
     FinanceObligation? Obligation, GatewayReceipt? LastReceipt,
     IReadOnlyList<ReconciliationHistory> History, string Version,
-    bool CanReconcile, string? UnavailableReason);
+    bool CanReconcile, string? UnavailableReason, decimal? ExpectedAmount = null);
 
 public sealed record ReconcilePaymentRequest(string Version, string RequestKey);
 

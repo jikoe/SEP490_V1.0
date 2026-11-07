@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Finance;
 using AgriSustain.Application.Interfaces;
@@ -40,6 +41,9 @@ public sealed class FinanceService(
             {
                 logger.LogError(exception, "Finance metric unavailable: {Metric}", metric);
                 metrics[metric] = null;
+            }
+            if (metrics[metric] == null)
+            {
                 unavailable.Add(metric);
             }
         }
@@ -70,6 +74,11 @@ public sealed class FinanceService(
             || !FinanceQueryValidator.IsPageValid(query.Page, query.PageSize))
         {
             return Invalid<PagedResponse<FinanceRecord>>("Kỳ báo cáo hoặc bộ lọc không hợp lệ.");
+        }
+        if (query.Metric is "PlatformFees" or "TaxWithheld")
+        {
+            return Fail<PagedResponse<FinanceRecord>>(new("FEE_DATA_UNAVAILABLE",
+                "Chưa có nguồn dữ liệu phí và thuế để xem chứng từ.", "ServiceUnavailable"));
         }
         return Result<PagedResponse<FinanceRecord>>.SuccessResult(await repository.RecordsAsync(
             query.Metric, period, query.Page, query.PageSize, ct));
@@ -122,8 +131,9 @@ public sealed class FinanceService(
         {
             return Fail<ReconcilePaymentResponse>(detail.Error!);
         }
-        return Invalid<ReconcilePaymentResponse>(
-            "Đối soát trực tiếp đang chờ tích hợp cổng thanh toán. Vui lòng dùng dữ liệu mẫu để thử thao tác.");
+        return Fail<ReconcilePaymentResponse>(new("GATEWAY_LOOKUP_UNAVAILABLE",
+            "Chưa thể truy vấn trực tiếp cổng thanh toán. Bạn có thể xem kết quả cổng đã ghi nhận.",
+            "ServiceUnavailable"));
     }
 
     private FinancePaymentDetail BuildDetail(
@@ -148,27 +158,65 @@ public sealed class FinanceService(
         var latest = history.FirstOrDefault();
         var evidence = payment.PaymentGatewayEvents.OrderByDescending(entry => entry.ReceivedAt)
             .ThenByDescending(entry => entry.PaymentGatewayEventId).FirstOrDefault();
+        var bankTransfer = ReadBankTransfer(payment);
         var receipt = history.FirstOrDefault(entry => entry.Receipt != null)?.Receipt
-            ?? (evidence == null ? null : new GatewayReceipt(evidence.GatewayProvider,
+            ?? (evidence == null ? bankTransfer : new GatewayReceipt(evidence.GatewayProvider,
                 evidence.ProviderTransactionReference, evidence.ProviderEventId, evidence.Amount,
                 evidence.EventStatus, payment.PaidAt, evidence.ReceivedAt, evidence.PayloadHash));
+        bool needsReview = FinancePaymentRules.ReviewStatuses.Contains(payment.PaymentStatus)
+            || latest?.Outcome is "Mismatch" or "LatePayment" or "VerificationFailed" or "NeedsReview";
         var row = new FinancePaymentRow(payment.PaymentTransactionId, payment.TransactionCode,
             payment.ProviderTransactionReference, obligation?.Category ?? "Other",
             obligation?.Reference ?? "Chưa có nghĩa vụ liên kết", payment.GatewayProvider,
-            payment.Amount, payment.RequestedAt, payment.PaidAt, payment.PaymentStatus,
-            latest?.Outcome is "Mismatch" or "LatePayment" or "VerificationFailed" or "NeedsReview",
+            payment.Amount, payment.RequestedAt, payment.PaidAt, payment.PaymentStatus, needsReview,
             latest?.Message, payment.Order?.OrderStatus == "Cancelled");
         return new(row, payment.PaymentType, payment.ReconciledAt, payment.ExpiresAt,
             obligation, receipt, history,
             FinancePaymentRules.Version(payment, invoices),
-            unavailable == null && !FinancePaymentRules.IsCaptured(payment), unavailable);
+            unavailable == null && !FinancePaymentRules.IsCaptured(payment), unavailable,
+            bankTransfer != null ? payment.Order?.FinalAmount : payment.Amount);
     }
 
-    private string? UnavailableReason(PaymentTransaction payment) =>
+    private static string UnavailableReason(PaymentTransaction payment) =>
         !FinancePaymentRules.IsSupported(payment) ? "Giao dịch không thuộc thanh toán đơn hàng hoặc gói thành viên."
+        : FinancePaymentRules.IsCaptured(payment) ? "Khoản thu đã được ghi nhận."
         : string.IsNullOrWhiteSpace(payment.ProviderTransactionReference)
             ? "Giao dịch chưa có tham chiếu của cổng thanh toán."
-            : "Đối soát trực tiếp đang chờ tích hợp cổng thanh toán.";
+            : "Chưa thể truy vấn trực tiếp cổng thanh toán. Kết quả đã ghi nhận được hiển thị ở trên.";
+
+    private static GatewayReceipt? ReadBankTransfer(PaymentTransaction payment)
+    {
+        if (payment.GatewayProvider != "SePay" || string.IsNullOrWhiteSpace(payment.WebhookPayload))
+        {
+            return null;
+        }
+
+        try
+        {
+            var payload = JsonSerializer.Deserialize<BankTransferEvidence>(payment.WebhookPayload);
+            if (payload?.Id is not long id || payload.Amount <= 0
+                || !string.Equals(payload.TransferType, "in", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(payment.TransactionCode, FormattableString.Invariant($"SEPAY-{id}"),
+                    StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            return new GatewayReceipt(payment.GatewayProvider, payload.Reference?.Trim() ?? "",
+                payment.TransactionCode, payload.Amount, "FundsReceived", payment.PaidAt,
+                payment.RequestedAt, "");
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private sealed record BankTransferEvidence(
+        [property: JsonPropertyName("id")] long? Id,
+        [property: JsonPropertyName("transferType")] string? TransferType,
+        [property: JsonPropertyName("transferAmount")] decimal Amount,
+        [property: JsonPropertyName("referenceCode")] string? Reference);
 
     private static ReconciliationAudit? ReadAudit(AuditLog audit)
     {

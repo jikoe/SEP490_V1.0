@@ -7,7 +7,7 @@ namespace AgriSustain.Application.Interfaces;
 public interface IFinanceRepository
 {
     Task<bool> CanAccessAsync(long userId, CancellationToken cancellationToken);
-    Task<decimal> MetricAsync(string metric, FinancePeriod period, CancellationToken ct);
+    Task<decimal?> MetricAsync(string metric, FinancePeriod period, CancellationToken ct);
     Task<PagedResponse<FinanceRecord>> RecordsAsync(
         string metric, FinancePeriod period, int page, int pageSize, CancellationToken ct);
     Task<PagedResponse<FinancePaymentRow>> SearchAsync(FinancePaymentQuery query, CancellationToken ct);

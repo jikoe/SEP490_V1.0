@@ -9,15 +9,17 @@ public static class FinancePaymentRules
     public static readonly string[] Captured =
         ["Succeeded", "Success", "Paid", "Completed", "PartiallyRefunded", "Refunded"];
     public static readonly string[] Refunded = ["Succeeded", "Success", "Completed"];
-    public static readonly string[] PaidPayouts = ["Paid", "Succeeded", "Completed"];
-    public static readonly string[] PendingPayouts = ["Pending", "Approved", "Processing"];
+    public static readonly string[] PaidPayouts = ["Paid", "Succeeded", "Completed", "Processed"];
+    public static readonly string[] PendingPayouts =
+        ["Pending", "Approved", "Prepared", "Processing", "NeedsReconciliation", "Needs Reconciliation"];
+    public static readonly string[] ReviewStatuses = ["AmountMismatch", "Unmatched"];
     public const string AuditAction = "ReconcilePayment";
 
     public static bool IsCaptured(PaymentTransaction payment) =>
         Captured.Contains(payment.PaymentStatus) && payment.PaidAt != null;
 
     public static bool IsSupported(PaymentTransaction payment) =>
-        payment.PaymentPurpose is "OrderPayment" or "SubscriptionPayment"
+        payment.PaymentPurpose is "OrderPayment" or "RetailOrderPayment" or "SubscriptionPayment"
         && (payment.OrderId != null) != (payment.B2bsubscriptionId != null)
         && payment.ContractMilestoneId == null && payment.B2bcontractId == null;
 

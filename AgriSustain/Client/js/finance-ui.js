@@ -10,16 +10,20 @@ export const statuses = {
   Preparing: 'Đang chuẩn bị', PendingConfirmation: 'Chờ xác nhận', Draft: 'Bản nháp',
   Requested: 'Khởi tạo yêu cầu', Mismatch: 'Có sai lệch', LatePayment: 'Thanh toán sau khi hủy',
   NeedsReview: 'Cần kiểm tra', VerificationFailed: 'Chưa xác minh được', AlreadyApplied: 'Đã ghi nhận',
+  AmountMismatch: 'Sai lệch số tiền', Unmatched: 'Chưa khớp đơn hàng', FundsReceived: 'Đã nhận tiền',
+  Prepared: 'Đã chuẩn bị', Processed: 'Đã chi trả',
+  NeedsReconciliation: 'Chờ đối soát', 'Needs Reconciliation': 'Chờ đối soát',
 };
 export const metrics = [
   ['Gmv', 'GMV', 'Đã loại đơn hủy và khoản hoàn tiền hoàn tất'],
-  ['Commission', 'Doanh thu hoa hồng', 'Hoa hồng của các kỳ quyết toán đã chi trả'],
+  ['PlatformFees', 'Doanh thu phí nền tảng', 'Doanh thu theo nhóm phí sau khi trừ phần đã đảo'],
+  ['TaxWithheld', 'Thuế đã khấu trừ', 'Thuế thu hộ, tách riêng khỏi doanh thu nền tảng'],
   ['Subscriptions', 'Doanh thu gói thành viên', 'Khoản thu gói B2B đã xác minh'],
   ['Refunds', 'Hoàn tiền đã xác minh', 'Chỉ tính giao dịch hoàn tiền thành công'],
   ['PendingPayouts', 'Chờ thanh toán nông hộ', 'Tách riêng khoản đang chờ / đang xử lý'],
 ];
 export function status(value, label) {
-  const kind = ['Succeeded', 'Success', 'Paid', 'Completed', 'Active'].includes(value) ? 'success'
+  const kind = ['Succeeded', 'Success', 'Paid', 'Completed', 'Active', 'Processed', 'FundsReceived'].includes(value) ? 'success'
     : ['Failed', 'Cancelled', 'Expired'].includes(value) ? 'danger' : 'pending';
   return `<span class="fin-status ${kind}">${esc(label || statuses[value] || 'Cần kiểm tra')}</span>`;
 }
@@ -41,7 +45,7 @@ export function paymentTable(items, compact = false) {
     <td><strong>${esc(row.code)}</strong><small>${esc(compact ? row.obligation : row.reference || 'Chưa có tham chiếu')}</small></td>
     ${!compact ? `<td>${row.category === 'Order' ? 'Đơn hàng' : 'Gói thành viên'}<small>${esc(row.obligation)}</small></td>` : ''}
     <td>${esc(row.provider)}</td><td class="amount">${money(row.amount)}</td>
-    ${!compact ? `<td>${esc(localTime(row.requestedAt))}<small>${row.paidAt ? `Đã trả: ${esc(localTime(row.paidAt))}` : 'Chưa xác minh thời gian trả'}</small></td>` : ''}
+    ${!compact ? `<td>${esc(localTime(row.requestedAt))}<small>${row.paidAt ? `${row.status === 'AmountMismatch' || row.status === 'Unmatched' ? 'Cổng ghi nhận' : 'Đã trả'}: ${esc(localTime(row.paidAt))}` : 'Chưa xác minh thời gian trả'}</small></td>` : ''}
     <td>${status(row.status)}${row.needsReview ? `<small class="fin-discrepancy">${esc(cleanMessage(row.note) || 'Có sai lệch cần kiểm tra')}</small>` : ''}${row.cancelledOrder ? '<small>Đơn hàng đã hủy</small>' : ''}</td>
     <td><a class="fin-view" href="${esc(paymentUrl(row.id))}">Xem chi tiết</a></td></tr>`).join('')}</tbody></table></div>`;
 }

@@ -24,17 +24,19 @@ public sealed class FinanceDashboardServiceTests : IDisposable
 
     // ---------- UC-FIN-01: FinanceService.DashboardAsync ----------
 
-    [Fact(DisplayName = "[UC-FIN-01 #001] Return six metrics and pending transaction total")]
+    [Fact(DisplayName = "[UC-FIN-01 #001] Return database metrics and flag missing fee data")]
     public async Task DashboardAsync_Dashboard_ReturnsMetricsAndPendingTotal()
     {
         var result = await Service().DashboardAsync(new(), default);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(6, result.Value!.Metrics.Count);
+        Assert.Equal(7, result.Value!.Metrics.Count);
         Assert.Equal(1000000m, result.Value.Metrics["Gmv"]);
         Assert.Equal(7, result.Value.TransactionsToProcess);
-        Assert.Empty(result.Value.Unavailable);
-        Assert.Equal(6, _store.MetricCalls.Count);
+        Assert.Null(result.Value.Metrics["PlatformFees"]);
+        Assert.Null(result.Value.Metrics["TaxWithheld"]);
+        Assert.Equal(new[] { "PlatformFees", "TaxWithheld" }, result.Value.Unavailable);
+        Assert.Equal(7, _store.MetricCalls.Count);
     }
 
     [Fact(DisplayName = "[UC-FIN-01 #002] Return 403 before querying metrics")]
@@ -97,16 +99,16 @@ public sealed class FinanceDashboardServiceTests : IDisposable
 
     // ---------- UC-FIN-01: FinanceService.DashboardAsync ----------
 
-    [Fact(DisplayName = "[UC-FIN-01 #008] Mark only Commission unavailable without displaying a false zero")]
+    [Fact(DisplayName = "[UC-FIN-01 #008] Mark a failed metric unavailable while preserving loaded amounts")]
     public async Task DashboardAsync_PartialFailure_MarksMetricUnavailable()
     {
-        _store.FailedMetric = "Commission";
+        _store.FailedMetric = "Refunds";
         var result = await Service().DashboardAsync(new(), default);
 
         Assert.True(result.IsSuccess);
-        Assert.Null(result.Value!.Metrics["Commission"]);
+        Assert.Null(result.Value!.Metrics["Refunds"]);
         Assert.Equal(1000000m, result.Value.Metrics["Gmv"]);
-        Assert.Equal("Commission", Assert.Single(result.Value.Unavailable));
+        Assert.Contains("Refunds", result.Value.Unavailable);
     }
 
     [Fact(DisplayName = "[UC-FIN-01 #009] Keep metrics and mark transaction count unavailable")]
@@ -193,11 +195,16 @@ public sealed class FinanceDashboardServiceTests : IDisposable
         public FakeClock Clock { get; } = new(T0);
         public MemoryCache Cache { get; } = new(new MemoryCacheOptions());
         public Task<bool> CanAccessAsync(long userId, CancellationToken ct) => Task.FromResult(Allowed);
-        public Task<decimal> MetricAsync(string metric, FinancePeriod period, CancellationToken ct)
+        public Task<decimal?> MetricAsync(string metric, FinancePeriod period, CancellationToken ct)
         {
             MetricCalls.Add(metric);
             if (metric == FailedMetric) throw MetricError ?? new IOException("Metric unavailable");
-            return Task.FromResult(metric == "Gmv" ? 1000000m : 10000m);
+            return Task.FromResult<decimal?>(metric switch
+            {
+                "PlatformFees" or "TaxWithheld" => null,
+                "Gmv" => 1000000m,
+                _ => 10000m
+            });
         }
         public Task<PagedResponse<FinanceRecord>> RecordsAsync(string metric, FinancePeriod period, int page, int pageSize, CancellationToken ct) =>
             Task.FromResult(new PagedResponse<FinanceRecord>([new(1, "UT-RECORD", null, 10000, "Paid", period.From, null)], 1, page, pageSize));
