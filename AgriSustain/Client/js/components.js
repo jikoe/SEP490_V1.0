@@ -16,6 +16,8 @@ const ROLE_CONFIGS = {
       { key: 'admin-dash', label: 'Tổng quan hệ thống', icon: '📊', path: 'Administrator/dashboard.html' },
       { key: 'users', label: 'Quản lý người dùng', icon: '♙', path: 'Administrator/users.html' },
       { key: 'categories', label: 'Danh mục sản phẩm', icon: '▦', path: 'Administrator/categories.html' },
+      { key: 'subscription-tiers', label: 'Gói thuê bao B2B', icon: '◇', path: 'Administrator/subscription-tiers.html' },
+      { key: 'fee-approvals', label: 'Duyệt phí nền tảng', icon: '%', path: 'Administrator/fee-approvals.html' },
     ],
   },
   content_moderator: {
@@ -132,6 +134,7 @@ const ROLE_CONFIGS = {
       { key: 'finance-dash', label: 'Tổng quan', icon: '▦', path: 'FinanceStaff/dashboard.html' },
       { key: 'finance-payments', label: 'Đối soát thanh toán', icon: '⇄', path: 'FinanceStaff/payments.html' },
       { key: 'finance-refunds', label: 'Xử lý hoàn tiền', icon: '🔄', path: 'FinanceStaff/refunds.html' },
+      { key: 'finance-fees', label: 'Phí nền tảng', icon: '%', path: 'FinanceStaff/fees.html' },
     ],
   },
   payment_gateway: {

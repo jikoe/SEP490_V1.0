@@ -73,6 +73,10 @@ public static class UseCaseRegistration
         services.AddSingleton(new AgriSustain.Application.Common.AccountNotificationSettings(
             configuration["Support:Email"] ?? configuration["Gmail:SenderAddress"]));
         services.AddScoped<IAdministrationService, AdministrationService>();
+        services.AddScoped<IPlatformDashboardService, PlatformDashboardService>();
+        services.AddScoped<ISubscriptionTierService, SubscriptionTierService>();
+        services.AddScoped<IPlatformFeeService, AgriSustain.Application.Services.Finance.PlatformFeeService>();
+        services.AddScoped<IOrderFeeService, AgriSustain.Application.Services.Finance.OrderFeeService>();
         services.AddScoped<IKycVerificationService, KycVerificationService>();
         services.AddScoped<ICheckoutService, CheckoutService>();
         services.AddScoped<ReservationExpiryService>();

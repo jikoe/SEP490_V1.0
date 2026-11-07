@@ -3,6 +3,7 @@ using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Services.Administration;
 using AgriSustain.Application.Services.Checkout;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using AgriSustain.Infrastructure.Repositories;
@@ -131,6 +132,78 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.Equal((2L, "Email", "Pending", 0), (email.UserId, email.DeliveryChannel, email.DeliveryStatus,
             email.RetryCount));
         Assert.Contains("Test reason", email.Content);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-01] Dashboard queries run on SQL Server: orders, new users and pending work")]
+    public async Task PlatformDashboard_TranslatesToSql()
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var farm = await _context.FarmerProfiles.SingleAsync();
+        var product = await _context.Products.SingleAsync();
+        product.ApprovalStatus = "Pending";
+        var order = new Order
+        {
+            BuyerUserId = 2, OrderCode = "ADM01-1", OrderType = "Retail", OrderDate = now.AddHours(-2),
+            ShippingAddress = "Test address", OrderStatus = "Delivered", RecipientNameSnapshot = "Buyer",
+            RecipientPhoneSnapshot = "0912345678", CheckoutRequestKey = Guid.NewGuid().ToString("D"),
+            TotalAmount = 100_000, FinalAmount = 100_000
+        };
+        var delivered = new SellerOrder { FarmerProfileId = farm.FarmerProfileId, SellerOrderCode = "SO-ADM01-1",
+            Status = "Delivered", Subtotal = 60_000, FinalAmount = 60_000, DeliveredAt = now.AddHours(-1) };
+        delivered.OrderStatusHistories.Add(new OrderStatusHistory { OldStatus = "Shipping", NewStatus = "Delivered",
+            OccurredAt = now.AddHours(-1) });
+        var cancelled = new SellerOrder { FarmerProfileId = farm.FarmerProfileId, SellerOrderCode = "SO-ADM01-2",
+            Status = "Cancelled", Subtotal = 40_000, FinalAmount = 40_000 };
+        order.SellerOrders.Add(delivered);
+        // One seller order per farm per order (UQ_SellerOrder_Order_Farmer), so the cancelled one has its own order.
+        var second = new Order
+        {
+            BuyerUserId = 2, OrderCode = "ADM01-2", OrderType = "Retail", OrderDate = now.AddHours(-2),
+            ShippingAddress = "Test address", OrderStatus = "Cancelled", RecipientNameSnapshot = "Buyer",
+            RecipientPhoneSnapshot = "0912345678", CheckoutRequestKey = Guid.NewGuid().ToString("D"),
+            TotalAmount = 40_000, FinalAmount = 40_000
+        };
+        second.SellerOrders.Add(cancelled);
+        _context.Orders.AddRange(order, second);
+        await _context.SaveChangesAsync();
+        var repository = new PlatformDashboardRepository(_context);
+
+        var stats = await repository.OrderStatsAsync(now.AddDays(-1), now.AddDays(1), default);
+        var users = await repository.NewUsersAsync(now.AddDays(-1), now.AddDays(1), default);
+        var pending = await repository.PendingWorkAsync(default);
+        var item = await repository.PendingWorkItemAsync("Listing", product.ProductId, default);
+
+        Assert.Equal(new OrderStatsDto(2, 1, 1, 100m, 1, 50m), stats);
+        Assert.Equal(new NewUsersDto(1, 1, 0), users);
+        var listing = Assert.Single(pending);
+        Assert.Equal(("Listing", product.ProductId, "Farmer Test"), (listing.Type, listing.ReferenceId, listing.SubmittedBy));
+        Assert.NotNull(item);
+        Assert.Null(await repository.PendingWorkItemAsync("Complaint", 999, default));
+    }
+
+    [Fact(DisplayName = "[UC-ADM-09] Tier queries run on SQL Server and a never-purchased tier can be removed")]
+    public async Task SubscriptionTiers_TranslateToSql()
+    {
+        var repository = new SubscriptionTierRepository(_context);
+        var tier = new B2bsubscriptionPackage();
+        tier.Apply("Gói Doanh nghiệp", "Mô tả", 90, 1_500_000, true, false, 50, true);
+        repository.Add(tier);
+        await _context.SaveChangesAsync();
+        var now = _clock.GetUtcNow().UtcDateTime;
+
+        var page = await repository.SearchAsync(new SubscriptionTierSearch("doanh", "Active"), now, default);
+        bool duplicate = await repository.NameExistsAsync("GÓI DOANH NGHIỆP", 0, default);
+        bool purchased = await repository.HasSubscriptionsAsync(tier.PackageId, default);
+        int active = await repository.CountActiveSubscriptionsAsync(tier.PackageId, now, default);
+
+        var row = Assert.Single(page.Items);
+        Assert.Equal((tier.PackageId, 0, false, tier.Version()), (row.Id, row.ActiveSubscriptions, row.Purchased, row.Version));
+        Assert.True(duplicate);
+        Assert.False(purchased);
+        Assert.Equal(0, active);
+        repository.Remove(tier);
+        await _context.SaveChangesAsync();
+        Assert.Empty((await repository.SearchAsync(new SubscriptionTierSearch(), now, default)).Items);
     }
 
     [Fact(DisplayName = "[UC-PS-01 BR-PV-12] A failed creation audit keeps no voucher")]
@@ -490,6 +563,50 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.Equal("Released", (await _context.VoucherRedemptions.SingleAsync()).Status);
     }
 
+    [Fact(DisplayName = "[UC-FIN-05 BR-FEE-05/08] Placing an order records seller fee lines; expiry reverses them")]
+    public async Task PlatformFees_RecordedAtCheckout_ReversedOnExpiry()
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(now.AddHours(7));
+        long categoryId = (await _context.Categories.SingleAsync()).CategoryId;
+        var commission = new FeeType { FeeCode = "PLATFORM_COMMISSION", FeeName = "Hoa hồng", FeeGroup = FeeType.GroupPlatformCommission,
+            RefundMode = FeeType.RefundProportional, Status = FeeType.StatusActive, CreatedAt = now };
+        commission.Policies.Add(new FeePolicy { PolicyCode = "COM-ALL", Method = FeePolicy.MethodPercentage,
+            CalculationBase = FeePolicy.BaseItemSubtotal, Rate = 5, OrderType = "Retail", EffectiveFrom = today.AddDays(-10),
+            ApprovalStatus = FeePolicy.ApprovalApproved, Reason = "test", CreatedByUserId = 1, CreatedAt = now, RequestKey = "fee-1" });
+        var specific = new FeePolicy { PolicyCode = "COM-CAT", Method = FeePolicy.MethodPercentage,
+            CalculationBase = FeePolicy.BaseItemSubtotal, Rate = 10, OrderType = "Retail", AppliesToAllCategories = false,
+            EffectiveFrom = today.AddDays(-1), ApprovalStatus = FeePolicy.ApprovalApproved, Reason = "test",
+            CreatedByUserId = 1, CreatedAt = now, RequestKey = "fee-2" };
+        specific.Categories.Add(new FeePolicyCategory { CategoryId = categoryId });
+        commission.Policies.Add(specific);
+        var tax = new FeeType { FeeCode = "TAX_VAT", FeeName = "Thuế GTGT", FeeGroup = FeeType.GroupTaxWithholding,
+            RefundMode = FeeType.RefundProportional, IsMandatory = true, Status = FeeType.StatusActive, CreatedAt = now };
+        tax.Policies.Add(new FeePolicy { PolicyCode = "VAT-ALL", Method = FeePolicy.MethodPercentage,
+            CalculationBase = FeePolicy.BaseItemSubtotal, Rate = 1, OrderType = "Retail", EffectiveFrom = today,
+            ApprovalStatus = FeePolicy.ApprovalApproved, Reason = "test", CreatedByUserId = 1, CreatedAt = now, RequestKey = "fee-3" });
+        _context.FeeTypes.AddRange(commission, tax);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var quote = await Checkout(withFees: true).QuoteAsync(Input(), default);
+        Assert.True((await Checkout(withFees: true).PlaceAsync(Placement(quote.Value!), default)).IsSuccess);
+        _context.ChangeTracker.Clear();
+
+        // 2 kg × 10 000 ₫: the category rate (10%) overrides the all-categories rate; VAT 1%.
+        var fees = await _context.OrderItemFees.OrderBy(fee => fee.FeeCode).ToListAsync();
+        Assert.Equal(new[] { ("PLATFORM_COMMISSION", 2000m), ("TAX_VAT", 200m) }, fees.Select(fee => (fee.FeeCode, fee.Amount)));
+        // BR-FEE-09: the buyer pays only goods and delivery (2 × 10 000 + 10 000 ₫); fees come out of the Farmer's share.
+        Assert.Equal(30_000m, (await _context.Orders.SingleAsync()).FinalAmount);
+
+        _clock.Advance(TimeSpan.FromMinutes(16));
+        var expiry = new ReservationExpiryService(new CheckoutRepository(_context), new AdministrationRepository(_context),
+            new SqlUnitOfWork(_context), _clock, new OrderFeeService(new FeeRepository(_context)));
+        Assert.Equal(1, await expiry.ExpireAsync(default));
+        _context.ChangeTracker.Clear();
+        Assert.All(await _context.OrderItemFees.ToListAsync(), fee => Assert.Equal(fee.Amount, fee.ReversedAmount));
+    }
+
     [Fact]
     public async Task Place_InsufficientStock_RejectsWithoutCreatingOrder()
     {
@@ -513,7 +630,7 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
     private AdministrationService Admin() => new(new AdministrationRepository(_context),
         new SqlUnitOfWork(_context), new TestActor(1), _clock);
 
-    private CheckoutService Checkout(AgriSustainContext? context = null, long userId = 2)
+    private CheckoutService Checkout(AgriSustainContext? context = null, long userId = 2, bool withFees = false)
     {
         var database = context ?? _context;
         var policy = new CheckoutPolicy
@@ -524,7 +641,8 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         };
         return new CheckoutService(new CheckoutRepository(database),
             new AdministrationRepository(database), new SqlUnitOfWork(database), new TestActor(userId),
-            _clock, policy, new TestAddressCatalog(), new PolicyShippingRateProvider(policy));
+            _clock, policy, new TestAddressCatalog(), new PolicyShippingRateProvider(policy),
+            withFees ? new OrderFeeService(new FeeRepository(database)) : null);
     }
 
     private static CheckoutRequest Input() => new(new CheckoutAddress("Test Customer",

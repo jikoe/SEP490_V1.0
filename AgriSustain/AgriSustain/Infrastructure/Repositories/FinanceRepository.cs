@@ -100,6 +100,31 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
                     At = payout.EligibleAt ?? payout.ApprovedAt
                 });
         }
+        if (metric is "PlatformFees" or "TaxWithheld")
+        {
+            // UC-FIN-05: fee lines of seller orders placed in the period, net of reversals (BR-FEE-08).
+            // Withheld tax is collected for the tax authority and is shown apart from fee revenue (BR-FEE-11).
+            bool tax = metric == "TaxWithheld";
+            return db.OrderItemFees.AsNoTracking()
+                .Where(fee => (fee.FeeGroup == FeeType.GroupTaxWithholding) == tax
+                    && fee.OrderItem.SellerOrder.Order.OrderDate >= period.From
+                    && fee.OrderItem.SellerOrder.Order.OrderDate < period.Until)
+                .GroupBy(fee => new
+                {
+                    fee.OrderItem.SellerOrderId, fee.OrderItem.SellerOrder.SellerOrderCode,
+                    fee.OrderItem.SellerOrder.Status, fee.OrderItem.SellerOrder.Order.OrderDate
+                })
+                .Select(group => new FinanceRecord
+                {
+                    Id = group.Key.SellerOrderId,
+                    Reference = group.Key.SellerOrderCode,
+                    RelatedReference = null,
+                    Amount = group.Sum(fee => fee.Amount - fee.ReversedAmount),
+                    Status = group.Key.Status,
+                    At = group.Key.OrderDate
+                })
+                .Where(row => row.Amount > 0);
+        }
         var completed = payouts.Where(payout => FinancePaymentRules.PaidPayouts.Contains(payout.PayoutStatus)
                 && payout.BankTransferRef != null && payout.ProcessedAt >= period.From
                 && payout.ProcessedAt < period.Until);
@@ -114,7 +139,7 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
                 Id = row.Payout.FarmerPayoutId,
                 Reference = row.Payout.PayoutCode,
                 RelatedReference = row.Payout.FarmerProfile.FarmName,
-                Amount = metric == "Commission" ? row.Commission : row.Payout.NetAmount,
+                Amount = row.Payout.NetAmount,
                 Status = row.Payout.PayoutStatus,
                 At = row.Payout.ProcessedAt
             });

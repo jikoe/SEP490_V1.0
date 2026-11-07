@@ -22,7 +22,8 @@ public sealed class RefundProcessingService(
     IValidator<CompleteRefundRequest> completeValidator,
     IValidator<RefundTransferFailedRequest> failureValidator,
     IValidator<RefundReconciliationRequest> reconciliationValidator,
-    TimeProvider timeProvider) : IRefundProcessingService
+    TimeProvider timeProvider,
+    IOrderFeeService? fees = null) : IRefundProcessingService
 {
     public const string RefundedStatus = SellerOrder.StatusRefunded;
     public const string PartiallyRefundedStatus = SellerOrder.StatusPartiallyRefunded;
@@ -207,6 +208,12 @@ public sealed class RefundProcessingService(
         {
             MarkRefunded(sellerOrder, refund, now);
             NotifyRefunded(sellerOrder, refund, now);
+            // BR-FEE-08: reverse the refunded share of the seller order's fees by refund mode.
+            if (fees is not null)
+            {
+                await fees.ReverseRefundAsync(sellerOrder.SellerOrderId, sellerOrder.CompletedRefundAmount,
+                    sellerOrder.FinalAmount, cancellationToken);
+            }
         }
         else if (await repository.GetFarmerRejectedSellerOrderAsync(refund, cancellationToken) is { } rejected)
         {

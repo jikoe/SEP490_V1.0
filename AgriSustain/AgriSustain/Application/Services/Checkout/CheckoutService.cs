@@ -17,7 +17,8 @@ public sealed class CheckoutService(
     TimeProvider clock,
     CheckoutPolicy policy,
     IAddressCatalog addressCatalog,
-    IShippingRateProvider shippingRates) : ICheckoutService
+    IShippingRateProvider shippingRates,
+    IOrderFeeService? fees = null) : ICheckoutService
 {
     public async Task<UseCaseResult<CheckoutContextDto>> GetContextAsync(
         CancellationToken cancellationToken)
@@ -155,6 +156,11 @@ public sealed class CheckoutService(
             {
                 AddOrderLine(seller, line, batches, order, request.RequestKey);
             }
+        }
+        // BR-FEE-05: seller fee lines are recorded with the order; the buyer pays nothing extra (BR-FEE-09).
+        if (fees is not null)
+        {
+            await fees.ApplyAsync(order, clock.GetUtcNow().UtcDateTime, cancellationToken);
         }
         AddVoucherReservation(order, current);
         if (current.Input.Points > 0)
