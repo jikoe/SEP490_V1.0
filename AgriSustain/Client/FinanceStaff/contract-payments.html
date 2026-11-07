@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thanh toán hợp đồng B2B - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .cp-page { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+    .cp-sub { color: #6b7f72; margin: 4px 0 16px; }
+    .cp-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .cp-bar input { border: 1px solid #d4dfd7; border-radius: 7px; padding: 9px 10px; min-width: 280px; }
+    .cp-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+    .cp-tabs button.on { background: #1e6546; color: #fff; border-color: #1e6546; }
+    .cp-legend { font-size: 12px; color: #536f5d; margin: 0 0 12px; }
+    .cp-panel { background: #fff; border: 1px solid #e0e7e0; border-radius: 12px; overflow: auto; }
+    table.cp { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.cp th { text-align: left; background: #f3f7f3; color: #536f5d; font-weight: 600; padding: 10px; white-space: nowrap; }
+    table.cp td { padding: 10px; border-top: 1px solid #edf1ed; vertical-align: top; }
+    table.cp tr.overdue td { background: #fff4f2; }
+    table.cp td.num { text-align: right; white-space: nowrap; }
+    .pill { display: inline-block; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .pill.OnTrack, .pill.Pending { background: #e8f1e9; color: #225d3e; }
+    .pill.DueSoon, .pill.PartiallyPaid { background: #fff4d6; color: #8a6100; }
+    .pill.Overdue { background: #fdecea; color: #b0291b; }
+    .pill.Completed, .pill.Paid { background: #e3eefc; color: #1d4e89; }
+    .cp-empty { padding: 30px; text-align: center; color: #536f5d; }
+    .cp-pager { display: flex; gap: 6px; justify-content: center; margin: 14px 0; align-items: center; }
+    .cp-pager button.current { background: #1e6546; color: #fff; border-color: #1e6546; }
+    .cp-detail { margin-top: 18px; display: none; }
+    .cp-detail.open { display: block; }
+    .cp-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: start; margin-bottom: 10px; }
+    .cp-head h2 { margin: 0; color: #18593e; }
+    .cp-stats { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; }
+    .cp-stats b { font-size: 15px; }
+    .cp-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .cp-actions button { padding: 5px 9px; font-size: 12px; }
+    .cp-readonly { background: #f4f4f4; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 10px; }
+    .cp-modal { position: fixed; inset: 0; background: rgba(20, 40, 30, .45); display: none; align-items: center;
+      justify-content: center; z-index: 50; padding: 16px; }
+    .cp-modal.open { display: flex; }
+    .cp-box { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; padding: 22px; display: grid; gap: 10px; }
+    .cp-box h3 { margin: 0; color: #18593e; }
+    .cp-box label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; color: #3c5a4a; }
+    .cp-box input, .cp-box textarea { border: 1px solid #d4dfd7; border-radius: 7px; padding: 9px 10px; font-weight: 400; }
+    .cp-box .err { color: #c0392b; font-size: 12px; font-weight: 500; }
+    .cp-box .hint { font-size: 12px; color: #6b7f72; font-weight: 400; }
+    @media (max-width: 640px) { .cp-page { padding: 16px; } .cp-bar input { min-width: 0; width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+    <div class="workspace">
+      <header id="app-header"></header>
+      <main>
+        <div class="cp-page">
+          <p class="eyebrow">TÀI CHÍNH B2B</p>
+          <h1 style="margin:0;">Theo dõi thanh toán hợp đồng B2B</h1>
+          <p class="cp-sub">Đặt cọc và các đợt thanh toán của hợp đồng bao tiêu đang chờ cọc hoặc đang hiệu lực.</p>
+
+          <form id="cp-search" class="cp-bar" novalidate>
+            <input id="cp-q" type="search" placeholder="Mã hợp đồng, bên mua hoặc nông trại..." maxlength="100">
+            <button type="submit" class="primary">Tìm kiếm</button>
+            <div class="cp-tabs" id="cp-tabs"></div>
+          </form>
+          <p class="cp-legend">Đúng hạn: không có đợt chưa trả đến hạn trong 3 ngày · Sắp đến hạn: có đợt đến hạn trong 3 ngày ·
+            Quá hạn: có đợt đã quá hạn · Hoàn tất: mọi đợt đã thanh toán.</p>
+
+          <div class="cp-panel">
+            <table class="cp">
+              <thead><tr>
+                <th>Mã hợp đồng</th><th>Bên mua</th><th>Nông trại</th><th class="num">Giá trị</th>
+                <th class="num">Đã nhận</th><th class="num">Còn phải thu</th><th>Hạn kế tiếp</th><th>Trạng thái</th>
+              </tr></thead>
+              <tbody id="cp-rows"></tbody>
+            </table>
+          </div>
+          <div id="cp-pager" class="cp-pager"></div>
+
+          <section id="cp-detail" class="cp-detail">
+            <div class="cp-head">
+              <div>
+                <h2 id="cp-d-title"></h2>
+                <p class="cp-sub" id="cp-d-parties" style="margin:4px 0 0;"></p>
+              </div>
+              <div class="cp-stats" id="cp-d-stats"></div>
+            </div>
+            <div id="cp-d-readonly" class="cp-readonly" hidden>Hợp đồng đã chấm dứt hoặc tạm dừng; lịch thanh toán chỉ được xem.</div>
+            <div class="cp-panel">
+              <table class="cp">
+                <thead><tr>
+                  <th>Đợt</th><th>Hạn</th><th class="num">Phải trả</th><th class="num">Đã nhận</th><th>Ngày nhận</th>
+                  <th>Nội dung CK / Mã GD</th><th>Trạng thái</th><th>Thao tác</th>
+                </tr></thead>
+                <tbody id="cp-lines"></tbody>
+              </table>
+            </div>
+            <h3 style="font-size:15px; margin:18px 0 8px;">Lịch sử thanh toán</h3>
+            <div class="cp-panel">
+              <table class="cp">
+                <thead><tr><th>Thời gian</th><th>Nội dung</th><th class="num">Số tiền</th><th>Mã GD</th><th>Người thực hiện</th></tr></thead>
+                <tbody id="cp-history"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+      <footer>Nền tảng AgriSustain · UC-FIN-06 Theo dõi thanh toán hợp đồng B2B</footer>
+    </div>
+  </div>
+
+  <!-- Confirm Received (Step 5-7, AF2) -->
+  <div id="cp-confirm" class="cp-modal" role="dialog" aria-modal="true" aria-labelledby="cp-confirm-title">
+    <form class="cp-box" id="cp-confirm-form" novalidate>
+      <h3 id="cp-confirm-title">Xác nhận đã nhận tiền</h3>
+      <p class="hint" id="cp-confirm-line"></p>
+      <label>Số tiền nhận (đ)
+        <input id="cp-amount" type="number" min="1" step="1" inputmode="numeric">
+        <small class="err" data-error="amount"></small>
+      </label>
+      <label>Mã giao dịch trên sao kê
+        <input id="cp-ref" type="text" maxlength="100">
+        <small class="err" data-error="reference"></small>
+      </label>
+      <label>Ghi chú
+        <textarea id="cp-note" rows="2" maxlength="500"></textarea>
+      </label>
+      <p class="hint">Đối chiếu số tiền và mã giao dịch với sao kê tài khoản nền tảng trước khi xác nhận. Số tiền nhỏ hơn số phải trả sẽ ghi nhận là Thanh toán một phần.</p>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" data-close>Hủy</button>
+        <button type="submit" class="primary">Xác nhận</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Mark Overdue (AF3) -->
+  <div id="cp-overdue" class="cp-modal" role="dialog" aria-modal="true" aria-labelledby="cp-overdue-title">
+    <form class="cp-box" id="cp-overdue-form" novalidate>
+      <h3 id="cp-overdue-title">Đánh dấu quá hạn</h3>
+      <p class="hint" id="cp-overdue-line"></p>
+      <label>Ghi chú *
+        <textarea id="cp-overdue-note" rows="3" maxlength="500"></textarea>
+        <small class="err" data-error="note"></small>
+      </label>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" data-close>Hủy</button>
+        <button type="submit" class="primary">Đánh dấu quá hạn</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const money = v => `${Number(v || 0).toLocaleString('vi-VN')} đ`;
+    const dOnly = v => v ? v.split('-').reverse().join('/') : '—';
+    const dTime = v => v ? new Date(/Z|[+-]\d\d:\d\d$/.test(v) ? v : v + 'Z').toLocaleString('vi-VN') : '—';
+    const STATUS = { OnTrack: 'Đúng hạn', DueSoon: 'Sắp đến hạn', Overdue: 'Quá hạn', Completed: 'Hoàn tất',
+      Pending: 'Chờ thanh toán', PartiallyPaid: 'Thanh toán một phần', Paid: 'Đã thanh toán' };
+    const TABS = [['', 'Tất cả'], ['Overdue', 'Quá hạn'], ['DueSoon', 'Sắp đến hạn'], ['OnTrack', 'Đúng hạn'], ['Completed', 'Hoàn tất']];
+    let query = { search: '', status: '', page: 1 };
+    let counts = {};
+    let current = null, activeLine = null;
+
+    function pill(s) { return `<span class="pill ${esc(s)}">${esc(STATUS[s] || s)}</span>`; }
+
+    function renderTabs() {
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+      $('cp-tabs').innerHTML = TABS.map(([k, label]) =>
+        `<button type="button" data-status="${k}" class="${query.status === k ? 'on' : ''}">${label} (${k ? (counts[k] || 0) : total})</button>`).join('');
+    }
+
+    async function loadList() {
+      const q = new URLSearchParams();
+      if (query.search) q.set('search', query.search);
+      if (query.status) q.set('status', query.status);
+      q.set('page', query.page);
+      const res = await API.request(`/finance/contract-payments?${q}`, { suppressErrorToast: true });
+      if (!res.success) {
+        $('cp-rows').innerHTML = `<tr><td colspan="8" class="cp-empty">${esc(res.error)}</td></tr>`;
+        return;
+      }
+      const d = res.data;
+      counts = d.counts || {};
+      renderTabs();
+      if (!d.items.length) {
+        // AF1: MSG01, the search criteria stay in the box.
+        $('cp-rows').innerHTML = `<tr><td colspan="8" class="cp-empty">${esc(d.message || 'Không có kết quả tìm kiếm.')}</td></tr>`;
+        $('cp-pager').innerHTML = '';
+        return;
+      }
+      $('cp-rows').innerHTML = d.items.map(c => `
+        <tr class="${c.paymentStatus === 'Overdue' ? 'overdue' : ''}" data-id="${c.contractId}" style="cursor:pointer;">
+          <td><a href="#" data-id="${c.contractId}"><b>${esc(c.contractNumber)}</b></a></td>
+          <td>${esc(c.buyerName)}</td><td>${esc(c.farmName)}</td>
+          <td class="num">${money(c.contractValue)}</td><td class="num">${money(c.received)}</td>
+          <td class="num">${money(c.outstanding)}</td><td>${dOnly(c.nextDueDate)}</td><td>${pill(c.paymentStatus)}</td>
+        </tr>`).join('');
+      const pages = Math.ceil(d.total / d.pageSize);
+      $('cp-pager').innerHTML = pages <= 1 ? '' : Array.from({ length: pages }, (_, i) =>
+        `<button type="button" data-page="${i + 1}" class="${i + 1 === d.page ? 'current' : ''}">${i + 1}</button>`).join('')
+        + `<span style="font-size:12px; color:#536f5d; margin-left:8px;">${(d.page - 1) * d.pageSize + 1}–${(d.page - 1) * d.pageSize + d.items.length} / ${d.total}</span>`;
+    }
+
+    function renderDetail(s) {
+      current = s;
+      $('cp-detail').classList.add('open');
+      $('cp-d-title').innerHTML = `Hợp đồng ${esc(s.contractNumber)} ${pill(s.paymentStatus)}`;
+      $('cp-d-parties').textContent = `Bên mua: ${s.buyerName} · Nông trại: ${s.farmName} · Trạng thái hợp đồng: ${s.contractStatus}`;
+      $('cp-d-stats').innerHTML = `<span>Giá trị<br><b>${money(s.contractValue)}</b></span>
+        <span>Đã nhận<br><b>${money(s.received)}</b></span><span>Còn phải thu<br><b>${money(s.outstanding)}</b></span>`;
+      $('cp-d-readonly').hidden = !s.readOnly;
+      $('cp-lines').innerHTML = s.lines.length ? s.lines.map(l => `
+        <tr class="${l.status === 'Overdue' ? 'overdue' : ''}">
+          <td><b>${esc(l.title)}</b><br><small>${esc(l.type)}</small></td>
+          <td>${dOnly(l.dueDate)}</td><td class="num">${money(l.amount)}</td><td class="num">${money(l.received)}</td>
+          <td>${dTime(l.receivedAt)}</td>
+          <td><code>${esc(l.paymentReference)}</code>${l.lastReference ? `<br><small>${esc(l.lastReference)}</small>` : ''}</td>
+          <td>${pill(l.status)}</td>
+          <td><div class="cp-actions">
+            ${l.canConfirm ? `<button type="button" data-act="confirm" data-line="${l.lineId}">Xác nhận đã nhận</button>` : ''}
+            ${l.canRemind ? `<button type="button" data-act="remind" data-line="${l.lineId}">Gửi nhắc</button>` : ''}
+            ${l.canMarkOverdue ? `<button type="button" data-act="overdue" data-line="${l.lineId}">Đánh dấu quá hạn</button>` : ''}
+          </div></td>
+        </tr>`).join('') : '<tr><td colspan="8" class="cp-empty">Hợp đồng chưa có lịch thanh toán.</td></tr>';
+      $('cp-history').innerHTML = s.history.length ? s.history.map(h => `
+        <tr><td>${dTime(h.at)}</td><td>${esc(h.description)}</td><td class="num">${h.amount != null ? money(h.amount) : ''}</td>
+          <td>${esc(h.reference || '')}</td><td>${esc(h.by || '')}</td></tr>`).join('')
+        : '<tr><td colspan="5" class="cp-empty">Chưa có giao dịch.</td></tr>';
+    }
+
+    async function openContract(id) {
+      const res = await API.request(`/finance/contract-payments/${id}`, { suppressErrorToast: true });
+      if (!res.success) { Utils.showToast(res.error, 'error'); return; }
+      renderDetail(res.data);
+      $('cp-detail').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function lineById(id) { return current.lines.find(l => String(l.lineId) === String(id)); }
+
+    function clearErrors(form) { form.querySelectorAll('[data-error]').forEach(e => { e.textContent = ''; }); }
+    function showErrors(form, res) {
+      const errors = res.data && res.data.errors;
+      let shown = false;
+      if (errors) Object.entries(errors).forEach(([k, v]) => {
+        const el = form.querySelector(`[data-error="${k}"]`);
+        if (el) { el.textContent = v[0]; shown = true; }
+      });
+      if (!shown) Utils.showToast(res.error, 'error');
+    }
+
+    async function afterAction(res, modal, form) {
+      if (!res.success) { showErrors(form, res); return; }
+      if (modal) modal.classList.remove('open');
+      Utils.showToast(res.data.message, 'success');
+      renderDetail(res.data.schedule);
+      loadList();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      $('cp-search').addEventListener('submit', e => { e.preventDefault(); query.search = $('cp-q').value.trim(); query.page = 1; loadList(); });
+      $('cp-tabs').addEventListener('click', e => {
+        const b = e.target.closest('button[data-status]');
+        if (b) { query.status = b.dataset.status; query.page = 1; loadList(); }
+      });
+      $('cp-pager').addEventListener('click', e => {
+        const b = e.target.closest('button[data-page]');
+        if (b) { query.page = Number(b.dataset.page); loadList(); }
+      });
+      $('cp-rows').addEventListener('click', e => {
+        const row = e.target.closest('[data-id]');
+        if (row) { e.preventDefault(); openContract(row.dataset.id); }
+      });
+      $('cp-lines').addEventListener('click', async e => {
+        const b = e.target.closest('button[data-act]');
+        if (!b) return;
+        activeLine = lineById(b.dataset.line);
+        if (b.dataset.act === 'confirm') {
+          clearErrors($('cp-confirm-form'));
+          $('cp-confirm-line').textContent = `${activeLine.title} · còn phải thu ${money(activeLine.outstanding)} · nội dung CK ${activeLine.paymentReference}`;
+          $('cp-amount').value = Math.round(activeLine.outstanding);
+          $('cp-ref').value = ''; $('cp-note').value = '';
+          $('cp-confirm').classList.add('open');
+        } else if (b.dataset.act === 'overdue') {
+          clearErrors($('cp-overdue-form'));
+          $('cp-overdue-line').textContent = `${activeLine.title} · hạn ${dOnly(activeLine.dueDate)} · còn ${money(activeLine.outstanding)}`;
+          $('cp-overdue-note').value = '';
+          $('cp-overdue').classList.add('open');
+        } else if (b.dataset.act === 'remind') {
+          b.disabled = true;
+          const res = await API.request(`/finance/contract-payments/lines/${activeLine.lineId}/remind`, { method: 'POST', suppressErrorToast: true });
+          b.disabled = false;
+          if (!res.success) { Utils.showToast(res.error, 'error'); return; }
+          afterAction(res, null, null);
+        }
+      });
+      $('cp-confirm-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        clearErrors(e.target);
+        const amount = Number($('cp-amount').value);
+        const reference = $('cp-ref').value.trim();
+        let bad = false;
+        if (!(amount > 0)) { e.target.querySelector('[data-error="amount"]').textContent = 'Số tiền nhận phải lớn hơn 0.'; bad = true; }
+        else if (amount > activeLine.outstanding) {
+          e.target.querySelector('[data-error="amount"]').textContent = 'Số tiền nhận lớn hơn số còn phải thu của đợt này. Khoản thanh toán được chuyển sang đối soát (UC-FIN-02).'; bad = true;
+        }
+        if (!reference) { e.target.querySelector('[data-error="reference"]').textContent = 'Vui lòng nhập mã giao dịch trên sao kê.'; bad = true; }
+        if (bad) return;
+        const res = await API.request(`/finance/contract-payments/lines/${activeLine.lineId}/confirm`, {
+          method: 'POST', body: { amount, reference, note: $('cp-note').value.trim() || null }, suppressErrorToast: true });
+        afterAction(res, $('cp-confirm'), e.target);
+      });
+      $('cp-overdue-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        clearErrors(e.target);
+        const note = $('cp-overdue-note').value.trim();
+        if (!note) { e.target.querySelector('[data-error="note"]').textContent = 'Vui lòng nhập ghi chú (tối đa 500 ký tự).'; return; }
+        const res = await API.request(`/finance/contract-payments/lines/${activeLine.lineId}/overdue`, {
+          method: 'POST', body: { note }, suppressErrorToast: true });
+        afterAction(res, $('cp-overdue'), e.target);
+      });
+      document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('.cp-modal').classList.remove('open')));
+      renderTabs();
+      loadList();
+    });
+  })();
+  </script>
+</body>
+</html>

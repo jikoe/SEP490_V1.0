@@ -63,6 +63,8 @@ const ROLE_CONFIGS = {
     navItems: [
       { key: 'wholesale-dash', label: 'Tổng quan mua buôn', icon: '📊', path: 'WholesaleBuyer/dashboard.html' },
       { key: 'marketplace', label: 'Khám phá nông sản', icon: '✦', path: 'RetailCustomer/index.html' },
+      { key: 'wholesale-suppliers', label: 'Tìm nông trại cung ứng', icon: '🔎', path: 'WholesaleBuyer/suppliers.html' },
+      { key: 'wholesale-membership', label: 'Gói hội viên B2B', icon: '⭐', path: 'WholesaleBuyer/membership.html' },
       { key: 'wholesale-profile', label: 'Hồ sơ & Tài khoản', icon: '👤', path: 'WholesaleBuyer/profile.html' },
       { key: 'wholesale-refunds', label: 'Hoàn tiền', icon: '↩', path: 'RetailCustomer/refunds.html' },
     ],
@@ -134,6 +136,7 @@ const ROLE_CONFIGS = {
       { key: 'finance-dash', label: 'Tổng quan', icon: '▦', path: 'FinanceStaff/dashboard.html' },
       { key: 'finance-payments', label: 'Đối soát thanh toán', icon: '⇄', path: 'FinanceStaff/payments.html' },
       { key: 'finance-refunds', label: 'Xử lý hoàn tiền', icon: '🔄', path: 'FinanceStaff/refunds.html' },
+      { key: 'finance-contracts', label: 'Thanh toán hợp đồng B2B', icon: '📑', path: 'FinanceStaff/contract-payments.html' },
       { key: 'finance-fees', label: 'Phí nền tảng', icon: '%', path: 'FinanceStaff/fees.html' },
     ],
   },

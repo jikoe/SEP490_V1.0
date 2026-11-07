@@ -212,6 +212,34 @@ builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.IRefundAccou
     AgriSustain.Infrastructure.Repositories.RefundAccountRepository>();
 builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.IRefundAccountService,
     AgriSustain.Application.Services.Refunds.RefundAccountService>();
+// DuND ITE3: UC-WB-01 Search Suppliers
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.ISupplierDirectoryRepository,
+    AgriSustain.Infrastructure.Repositories.SupplierDirectoryRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.ISupplierDirectoryService,
+    AgriSustain.Application.Services.B2B.SupplierDirectoryService>();
+// DuND ITE3: UC-WB-08 Manage Buyer Subscription
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.IBuyerSubscriptionRepository,
+    AgriSustain.Infrastructure.Repositories.BuyerSubscriptionRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.BuyerSubscriptionService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.IBuyerSubscriptionService>(services =>
+    services.GetRequiredService<AgriSustain.Application.Services.B2B.BuyerSubscriptionService>());
+builder.Services.AddSingleton<IPaymentQrProvider, AgriSustain.Infrastructure.Payments.SePayQrProvider>();
+// DuND ITE3: UC-FIN-06 Track B2B Contract Payments
+builder.Services.AddScoped<AgriSustain.Application.Services.Finance.IContractPaymentRepository,
+    AgriSustain.Infrastructure.Repositories.ContractPaymentRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Finance.ContractPaymentService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Finance.IContractPaymentService>(services =>
+    services.GetRequiredService<AgriSustain.Application.Services.Finance.ContractPaymentService>());
+// SePay credits carrying "SUB..." (subscription) or "CTP..." (contract line) references.
+builder.Services.AddScoped<IBankTransferHandler>(services =>
+    services.GetRequiredService<AgriSustain.Application.Services.B2B.BuyerSubscriptionService>());
+builder.Services.AddScoped<IBankTransferHandler>(services =>
+    services.GetRequiredService<AgriSustain.Application.Services.Finance.ContractPaymentService>());
+if (builder.Configuration.GetValue("B2B:EnableReminderWorkers", true))
+{
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.SubscriptionReminderWorker>();
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.ContractPaymentOverdueWorker>();
+}
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 
 // DuND Validators
