@@ -25,6 +25,11 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
         ? _options.EstimatedStandardDeliveryDays
         : _options.EstimatedFreshExpressDeliveryDays;
 
+    public bool HasPickupAddress(long farmerProfileId, ShippingPickup? pickup) =>
+        pickup is not null
+        || _options.PickupLocations.TryGetValue(farmerProfileId.ToString(CultureInfo.InvariantCulture), out var configured)
+            && !string.IsNullOrWhiteSpace(configured.City) && !string.IsNullOrWhiteSpace(configured.District);
+
     public async Task<ShippingRateResult?> GetRateAsync(ShippingRateRequest request,
         CancellationToken cancellationToken)
     {

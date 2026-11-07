@@ -291,6 +291,7 @@
                       <select id="pickup-district" aria-label="Quận/huyện lấy hàng"><option value="">Quận/huyện</option></select>
                       <select id="pickup-ward" aria-label="Phường/xã lấy hàng"><option value="">Phường/xã</option></select>
                     </div>
+                    <small id="pickup-error" class="err"></small>
                     <small id="pickup-current" class="muted"></small>
                   </div>
 
@@ -691,8 +692,12 @@
         pickupDistrictCode: document.getElementById('pickup-district').value || null,
         pickupWardCode: document.getElementById('pickup-ward').value || null
       };
+      // UC-AUTH-03 Step 3: MSG02 when province/district is missing, shown in red under the dropdowns.
+      const pickupError = document.getElementById('pickup-error');
+      pickupError.textContent = '';
       if (!payload.pickupProvinceCode || !payload.pickupDistrictCode) {
-        showNotice('Hãy chọn tỉnh/thành và quận/huyện lấy hàng để khách đặt hàng được tính phí giao.', true);
+        pickupError.textContent = 'Trường này là bắt buộc. Hãy chọn tỉnh/thành và quận/huyện lấy hàng.';
+        pickupError.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
 
@@ -728,6 +733,11 @@
           showNotice(noticeMsg);
           Utils.showToast(noticeMsg, 'success');
         } else {
+          // MSG-CO-01 (invalid pickup address) or MSG02 from the server, shown beside Pickup Address.
+          const fields = (res.data && res.data.errors) || {};
+          const pickupMsg = ['pickupAddress', 'pickupProvinceCode', 'pickupDistrictCode', 'PickupProvinceCode', 'PickupDistrictCode']
+            .map((key) => fields[key]).find(Boolean);
+          if (pickupMsg) pickupError.textContent = Array.isArray(pickupMsg) ? pickupMsg[0] : pickupMsg;
           showNotice(res.error || 'Cập nhật hồ sơ thất bại.', true);
         }
       } catch (err) {
