@@ -157,12 +157,13 @@ public sealed class CheckoutService(
                 AddOrderLine(seller, line, batches, order, request.RequestKey);
             }
         }
+        AddVoucherReservation(order, current);
         // BR-FEE-05: seller fee lines are recorded with the order; the buyer pays nothing extra (BR-FEE-09).
+        // After the voucher reservation, so a farm voucher lowers that seller's fee base (BR-FEE-06).
         if (fees is not null)
         {
             await fees.ApplyAsync(order, clock.GetUtcNow().UtcDateTime, cancellationToken);
         }
-        AddVoucherReservation(order, current);
         if (current.Input.Points > 0)
         {
             repository.AddRewardEntry(new RewardPointEntry

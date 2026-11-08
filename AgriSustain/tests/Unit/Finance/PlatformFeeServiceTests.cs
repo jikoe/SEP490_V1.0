@@ -205,6 +205,64 @@ public sealed class PlatformFeeServiceTests
         Assert.True(Assert.Single(result.Value.Fees).FromDraft);
     }
 
+    [Theory(DisplayName = "UTC-FIN05-14 A fixed per-order fee cannot target categories; a fixed per-item fee can (BR-FEE-03, AF6)")]
+    [InlineData(FeePolicy.MethodFixedPerOrder, false)]
+    [InlineData(FeePolicy.MethodFixedPerItem, true)]
+    public async Task Create_FixedPerOrderCategoryScope(string method, bool accepted)
+    {
+        var result = await Service().CreateAsync(Create("SERVICE_FEE", FeeType.GroupService,
+            Input(all: false, categories: [7], method: method, fixedAmount: 3_000)), default);
+
+        Assert.Equal(accepted, result.IsSuccess);
+        if (!accepted)
+        {
+            Assert.Equal("Phí cố định mỗi đơn trang trại áp dụng cho tất cả danh mục.",
+                result.Error!.Fields!["CategoryIds"][0]);
+            Assert.Empty(_store.Types);
+        }
+    }
+
+    /// <summary>One seller order of 100 000 ₫ (60 000 + 40 000) under an active 10 % commission.</summary>
+    private Order CommissionOrder(decimal farmVoucher, decimal platformVoucher)
+    {
+        var type = new FeeType { FeeTypeId = 900, FeeCode = "PLATFORM_COMMISSION", FeeName = "Hoa hồng",
+            FeeGroup = FeeType.GroupPlatformCommission, RefundMode = FeeType.RefundProportional, Status = FeeType.StatusActive };
+        type.Policies.Add(new FeePolicy { FeePolicyId = 901, FeeTypeId = 900, FeeType = type, PolicyCode = "COM-10",
+            Method = FeePolicy.MethodPercentage, CalculationBase = FeePolicy.BaseItemSubtotal, Rate = 10, OrderType = "Retail",
+            EffectiveFrom = Today.AddDays(-10), ApprovalStatus = FeePolicy.ApprovalApproved, Reason = "test", RequestKey = "k" });
+        _store.Types.Add(type);
+        var seller = new SellerOrder { Subtotal = 100_000, DeliveryFee = 20_000, DiscountShare = farmVoucher + platformVoucher };
+        seller.OrderItems.Add(new OrderItem { ProductId = 1, SubTotal = 60_000 });
+        seller.OrderItems.Add(new OrderItem { ProductId = 2, SubTotal = 40_000 });
+        var order = new Order { OrderType = "Retail" };
+        order.SellerOrders.Add(seller);
+        if (farmVoucher > 0)
+        {
+            order.VoucherRedemptions.Add(new VoucherRedemption { DiscountSnapshot = farmVoucher, SellerOrder = seller });
+        }
+        if (platformVoucher > 0)
+        {
+            order.VoucherRedemptions.Add(new VoucherRedemption { DiscountSnapshot = platformVoucher });
+        }
+        return order;
+    }
+
+    [Theory(DisplayName = "UTC-FIN05-15 Commission is charged after the farm's own voucher, not after a platform voucher (BR-FEE-06, BR-PV-11)")]
+    [InlineData(20_000, 0, 48_000, 32_000, 4_800, 3_200)]   // farm voucher 20 000 ₫ lowers the base to 80 000 ₫
+    [InlineData(0, 20_000, 60_000, 40_000, 6_000, 4_000)]   // platform voucher: base stays 100 000 ₫
+    [InlineData(0, 0, 60_000, 40_000, 6_000, 4_000)]
+    public async Task OrderFees_BaseAfterSellerDiscountOnly(decimal farmVoucher, decimal platformVoucher,
+        decimal base1, decimal base2, decimal fee1, decimal fee2)
+    {
+        var order = CommissionOrder(farmVoucher, platformVoucher);
+
+        await new OrderFeeService(_store).ApplyAsync(order, T0.UtcDateTime, default);
+
+        var items = order.SellerOrders.Single().OrderItems.ToList();
+        Assert.Equal((base1, fee1), (Assert.Single(items[0].Fees).BaseAmount, items[0].Fees.Single().Amount));
+        Assert.Equal((base2, fee2), (Assert.Single(items[1].Fees).BaseAmount, items[1].Fees.Single().Amount));
+    }
+
     private sealed record Actor(long UserId) : IActorContext;
 
     private sealed class Work(FeeStore store) : IUseCaseUnitOfWork

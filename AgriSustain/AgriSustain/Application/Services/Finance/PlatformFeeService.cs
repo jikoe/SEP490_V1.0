@@ -645,6 +645,11 @@ public sealed class PlatformFeeService(
             {
                 fields["CategoryIds"] = ["Chỉ phí hoa hồng và phí dịch vụ được áp dụng riêng theo danh mục."];
             }
+            else if (input.Method == FeePolicy.MethodFixedPerOrder)
+            {
+                // BR-FEE-03 / AF6: a fixed per-order fee applies to all categories.
+                fields["CategoryIds"] = ["Phí cố định mỗi đơn trang trại áp dụng cho tất cả danh mục."];
+            }
             else if (categoryIds.Count == 0)
             {
                 fields["CategoryIds"] = ["Hãy chọn ít nhất một danh mục."];
