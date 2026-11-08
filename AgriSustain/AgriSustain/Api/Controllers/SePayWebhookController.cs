@@ -1,3 +1,4 @@
+using AgriSustain.Application.Services;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -20,7 +21,8 @@ public sealed class SePayWebhookController(
     BankTransferReconciler reconciler,
     IEnumerable<IBankTransferHandler> transferHandlers,
     IConfiguration configuration,
-    ILogger<SePayWebhookController> logger) : ControllerBase
+    ILogger<SePayWebhookController> logger,
+    FinanceFarmerPayoutService? payoutService = null) : ControllerBase
 {
     private const string Gateway = "SePay";
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
@@ -61,6 +63,16 @@ public sealed class SePayWebhookController(
             return BadRequest(new { success = false, message = "Invalid payload" });
         }
 
+        if (string.Equals(payload.TransferType, "out", StringComparison.OrdinalIgnoreCase))
+        {
+            // Outgoing payouts require a configured key even when legacy checkout uses development fallback.
+            if (payoutService == null || !payoutService.AuthenticateWebhook(
+                Request.Headers.Authorization.ToString(), Request.Headers["x-api-key"].ToString())) return Unauthorized();
+            var transfer = PayoutWebhookReader.Read(payload);
+            if (transfer == null) return BadRequest(new { success = false });
+            await payoutService.RecordOutgoingAsync(transfer, cancellationToken);
+            return Ok(new { success = true });
+        }
         if (!string.Equals(payload.TransferType, "in", StringComparison.OrdinalIgnoreCase))
         {
             return Ok(new { success = true });
@@ -185,4 +197,3 @@ public sealed class SePayWebhookPayload
     [JsonPropertyName("referenceCode")]
     public string? ReferenceCode { get; set; }
 }
-

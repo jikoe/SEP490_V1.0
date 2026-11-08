@@ -140,6 +140,8 @@ const Messages = {
   cart: activeCart,
   checkout: activeCheckout,
   order: activeOrder,
+  payout: typeof FinancePayoutMessages !== 'undefined' ? FinancePayoutMessages : {},
+  business: typeof FarmerBusinessMessages !== 'undefined' ? FarmerBusinessMessages : {},
   farmerComplaint: typeof FarmerComplaintMessages !== 'undefined' ? FarmerComplaintMessages : {},
   farm: typeof FarmMessages !== 'undefined' ? FarmMessages : {},
   displayMessage
