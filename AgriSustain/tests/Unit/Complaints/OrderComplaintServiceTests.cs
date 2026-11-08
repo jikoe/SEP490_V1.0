@@ -24,6 +24,46 @@ public sealed class OrderComplaintServiceTests
     }
     private static ComplaintSubmission Request(params long[] ids) => new(ids, "Damaged", "  Packaging was damaged.  ");
     private static FeedbackFile Photo(long length = 100) => new("evidence.png", length, Stream.Null);
+    private static FeedbackFile Video(long length = 100) => new("unboxing.MP4", length, Stream.Null);
+    private static FeedbackFile[] RequiredEvidence() => [Photo(), Video()];
+
+    [Fact]
+    public async Task ComplainAsync_ImageAndVideo_SavesBothAsEvidence()
+    {
+        var result = await Service().ComplainAsync(20, 1, Request(11),
+            RequiredEvidence(), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Collection(Assert.Single(_store.Tickets).DisputeEvidences,
+            image => Assert.EndsWith(".png", image.FileUrl),
+            video => Assert.EndsWith(".mp4", video.FileUrl));
+    }
+
+    [Fact]
+    public async Task ComplainAsync_TwoVideos_RejectsBeforeSaving()
+    {
+        var result = await Service().ComplainAsync(20, 1, Request(11), [Photo(), Video(), Video()], default);
+
+        Assert.Equal("INVALID_EVIDENCE", result.Error?.Code);
+        Assert.Empty(_store.SavedFiles);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task ComplainAsync_MissingRequiredEvidence_RejectsBeforeSaving(bool hasImage, bool hasVideo)
+    {
+        var files = new List<FeedbackFile>();
+        if (hasImage) files.Add(Photo());
+        if (hasVideo) files.Add(Video());
+
+        var result = await Service().ComplainAsync(20, 1, Request(11), files, default);
+
+        Assert.Equal("INVALID_EVIDENCE", result.Error?.Code);
+        Assert.Empty(_store.SavedFiles);
+        Assert.Empty(_store.Tickets);
+    }
 
     // ---------- UC-RC-06: OrderFeedbackService.ComplainAsync ----------
 
@@ -31,7 +71,7 @@ public sealed class OrderComplaintServiceTests
     public async Task ComplainAsync_SingleProduct_CreatesOpenTicket()
     {
         Eligible();
-        var result = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var result = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.True(result.IsSuccess);
         var ticket = Assert.Single(_store.Tickets);
@@ -49,7 +89,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.AddItem(12, 1);
-        var response = await Service().ComplainAsync(20, 1, Request(12, 11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(12, 11), RequiredEvidence(), default);
 
         Assert.True(response.IsSuccess);
         var text = Assert.Single(_store.Tickets).Description!;
@@ -65,14 +105,15 @@ public sealed class OrderComplaintServiceTests
         Eligible();
         _store.AddItem(12, 2);
         _store.Deliver();
-        var result = await Service().ComplainAsync(20, 1, Request(11, 12), [Photo()], default);
+        var result = await Service().ComplainAsync(20, 1, Request(11, 12), RequiredEvidence(), default);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value!.Ids.Count);
         Assert.Equal(2, _store.Tickets.Count);
         Assert.Equal(1, _store.Saves);
         Assert.Equal(1, _store.Commits);
-        Assert.All(_store.Tickets, t => Assert.Equal(_store.SavedFiles.Single(), Assert.Single(t.DisputeEvidences).FileUrl));
+        Assert.All(_store.Tickets, t => Assert.Equal(_store.SavedFiles,
+            t.DisputeEvidences.Select(evidence => evidence.FileUrl)));
         Assert.Empty(_store.DeletedFiles);
     }
 
@@ -80,7 +121,7 @@ public sealed class OrderComplaintServiceTests
     public async Task ComplainAsync_EmptySelection_RejectsEmptySelection()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(), RequiredEvidence(), default);
 
         Assert.Equal("INVALID_COMPLAINT", response.Error!.Code);
         Assert.Equal(0, _store.Saves);
@@ -90,7 +131,7 @@ public sealed class OrderComplaintServiceTests
     public async Task ComplainAsync_DuplicateIds_RejectsDuplicateIds()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(11, 11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11, 11), RequiredEvidence(), default);
 
         Assert.False(response.IsSuccess);
     }
@@ -99,7 +140,7 @@ public sealed class OrderComplaintServiceTests
     public async Task ComplainAsync_WrongBuyer_RejectsAnotherBuyer()
     {
         Eligible();
-        var response = await Service().ComplainAsync(21, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(21, 1, Request(11), RequiredEvidence(), default);
 
         Assert.Equal("COMPLAINT_NOT_ELIGIBLE", response.Error!.Code);
         Assert.Empty(_store.Tickets);
@@ -109,7 +150,7 @@ public sealed class OrderComplaintServiceTests
     public async Task ComplainAsync_UnknownSelectedItem_RejectsEntireSelection()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(11, 99), [Photo()], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11, 99), RequiredEvidence(), default);
 
         Assert.False(response.IsSuccess);
         Assert.Empty(_store.Tickets);
@@ -124,7 +165,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.Item.SellerOrder.DeliveredAt = _store.Clock.Now.UtcDateTime.AddHours(-48);
-        var response = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.True(response.IsSuccess);
     }
@@ -134,7 +175,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.Item.SellerOrder.DeliveredAt = _store.Clock.Now.UtcDateTime.AddHours(-48).AddTicks(-1);
-        var response = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.False(response.IsSuccess);
     }
@@ -144,7 +185,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.Item.SellerOrder.DeliveredAt = _store.Clock.Now.UtcDateTime.AddTicks(1);
-        var response = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.False(response.IsSuccess);
     }
@@ -152,7 +193,7 @@ public sealed class OrderComplaintServiceTests
     [Fact(DisplayName = "[UC-RC-06 #011] Accept completed order within 48 hours after delivery")]
     public async Task CanComplain_CompletedOrder_AcceptsWithinDeliveryWindow()
     {
-        var response = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.True(response.IsSuccess);
         Assert.Equal("Open", Assert.Single(_store.Tickets).TicketStatus);
@@ -167,7 +208,7 @@ public sealed class OrderComplaintServiceTests
         Eligible();
         _store.Item.SellerOrder.DeliveredAt = null;
         _store.Item.SellerOrder.OrderStatusHistories.Add(new() { NewStatus = "Delivered", OccurredAt = _store.Clock.Now.UtcDateTime.AddHours(-1) });
-        var response = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.True(response.IsSuccess);
     }
@@ -179,7 +220,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.Item.SellerOrder.DisputeTickets.Add(new() { TicketStatus = "Open", Description = OrderFeedbackRules.DescribeComplaint([_store.Item], "Damaged") });
-        var response = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.False(response.IsSuccess);
     }
@@ -190,7 +231,7 @@ public sealed class OrderComplaintServiceTests
         Eligible();
         var other = _store.AddItem(12, 1);
         _store.Item.SellerOrder.DisputeTickets.Add(new() { TicketStatus = "Reviewing", Description = OrderFeedbackRules.DescribeComplaint([other], "Text mentions #11 but not metadata") });
-        var response = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.True(response.IsSuccess);
     }
@@ -200,7 +241,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.Item.SellerOrder.DisputeTickets.Add(new() { TicketStatus = "Open", Description = "Legacy text" });
-        var response = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.False(response.IsSuccess);
     }
@@ -211,7 +252,7 @@ public sealed class OrderComplaintServiceTests
     public async Task ComplainAsync_MaximumDescription_AcceptsMaximumLength()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(11) with { Description = new string('a', 500) }, [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11) with { Description = new string('a', 500) }, RequiredEvidence(), default);
 
         Assert.True(response.IsSuccess);
     }
@@ -220,7 +261,7 @@ public sealed class OrderComplaintServiceTests
     public async Task ComplainAsync_OverlongDescription_RejectsOverlongDescription()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(11) with { Description = new string('a', 501) }, [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11) with { Description = new string('a', 501) }, RequiredEvidence(), default);
 
         Assert.False(response.IsSuccess);
     }
@@ -229,7 +270,7 @@ public sealed class OrderComplaintServiceTests
     public async Task ComplainAsync_InvalidReason_RejectsUnknownReason()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(11) with { Reason = "Unknown" }, [], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11) with { Reason = "Unknown" }, RequiredEvidence(), default);
 
         Assert.False(response.IsSuccess);
     }
@@ -240,7 +281,8 @@ public sealed class OrderComplaintServiceTests
     public async Task AreFilesValid_MaximumEvidence_AcceptsAttachmentLimits()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(11), Enumerable.Range(1, 5).Select(_ => Photo(5 * 1024 * 1024)).ToArray(), default);
+        var response = await Service().ComplainAsync(20, 1, Request(11),
+            [.. Enumerable.Repeat(Photo(5 * 1024 * 1024), 4), Video(20 * 1024 * 1024)], default);
 
         Assert.True(response.IsSuccess);
         Assert.Equal(5, _store.SavedFiles.Count);
@@ -250,7 +292,8 @@ public sealed class OrderComplaintServiceTests
     public async Task AreFilesValid_TooManyImages_RejectsBeforeUpload()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(11), Enumerable.Range(1, 6).Select(_ => Photo()).ToArray(), default);
+        var response = await Service().ComplainAsync(20, 1, Request(11),
+            [.. Enumerable.Repeat(Photo(), 5), Video()], default);
 
         Assert.Equal("INVALID_EVIDENCE", response.Error!.Code);
         Assert.Empty(_store.SavedFiles);
@@ -260,7 +303,8 @@ public sealed class OrderComplaintServiceTests
     public async Task AreFilesValid_OversizedImage_RejectsOversizedFile()
     {
         Eligible();
-        var response = await Service().ComplainAsync(20, 1, Request(11), [Photo(5 * 1024 * 1024 + 1)], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11),
+            [Photo(5 * 1024 * 1024 + 1), Video()], default);
 
         Assert.False(response.IsSuccess);
     }
@@ -272,7 +316,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.UploadFailureAt = 2;
-        var response = await Service().ComplainAsync(20, 1, Request(11), [Photo(), Photo()], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.Equal("INVALID_EVIDENCE", response.Error!.Code);
         Assert.Equal(_store.SavedFiles, _store.DeletedFiles);
@@ -284,7 +328,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.SaveError = new IOException("offline");
-        var response = await Service().ComplainAsync(20, 1, Request(11), [Photo()], default);
+        var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.Equal("COMPLAINT_SAVE_FAILED", response.Error!.Code);
         Assert.Equal(_store.SavedFiles, _store.DeletedFiles);
@@ -297,7 +341,7 @@ public sealed class OrderComplaintServiceTests
     {
         Eligible();
         _store.SaveError = new OperationCanceledException();
-        await Assert.ThrowsAsync<OperationCanceledException>(() => Service().ComplainAsync(20, 1, Request(11), [Photo()], default));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default));
 
         Assert.Equal(_store.SavedFiles, _store.DeletedFiles);
         Assert.Equal(0, _store.Commits);
@@ -311,7 +355,7 @@ public sealed class OrderComplaintServiceTests
         _store.Item.SellerOrder.DeliveredAt = T0.UtcDateTime.AddHours(-48).AddTicks(-1);
         _store.Item.SellerOrder.ReceivedAt = T0.UtcDateTime;
 
-        var result = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var result = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.Equal("COMPLAINT_NOT_ELIGIBLE", result.Error?.Code);
         Assert.Empty(_store.Tickets);
@@ -323,7 +367,7 @@ public sealed class OrderComplaintServiceTests
     {
         _store.Item.SellerOrder.DeliveredAt = null;
 
-        var result = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var result = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.Equal("COMPLAINT_NOT_ELIGIBLE", result.Error?.Code);
         Assert.Empty(_store.Tickets);
@@ -338,7 +382,7 @@ public sealed class OrderComplaintServiceTests
             Description = OrderFeedbackRules.DescribeComplaint([_store.Item], "Damaged")
         });
 
-        var result = await Service().ComplainAsync(20, 1, Request(11), [], default);
+        var result = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.Equal("COMPLAINT_NOT_ELIGIBLE", result.Error?.Code);
         Assert.Empty(_store.Tickets);
@@ -347,7 +391,7 @@ public sealed class OrderComplaintServiceTests
     [Fact(DisplayName = "[UC-RC-06 #028] Completed orders remain restricted to their buyer")]
     public async Task ComplainAsync_CompletedOwnedByAnotherBuyer_RejectsAccess()
     {
-        var result = await Service().ComplainAsync(21, 1, Request(11), [], default);
+        var result = await Service().ComplainAsync(21, 1, Request(11), RequiredEvidence(), default);
 
         Assert.Equal("COMPLAINT_NOT_ELIGIBLE", result.Error?.Code);
         Assert.Empty(_store.Tickets);
@@ -358,7 +402,7 @@ public sealed class OrderComplaintServiceTests
     {
         _store.AddItem(12, 2);
 
-        var result = await Service().ComplainAsync(20, 1, Request(11, 12), [], default);
+        var result = await Service().ComplainAsync(20, 1, Request(11, 12), RequiredEvidence(), default);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value!.Ids.Count);
@@ -492,7 +536,8 @@ public sealed class OrderComplaintServiceTests
         public Task<string> SaveAsync(long userId, FeedbackFile file, CancellationToken ct)
         {
             if (UploadFailureAt == SavedFiles.Count + 1) throw new InvalidDataException("Invalid image signature.");
-            var url = $"/api/orders/feedback-files/{userId}/{SavedFiles.Count + 1}.png";
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var url = $"/api/orders/feedback-files/{userId}/{SavedFiles.Count + 1}{extension}";
             SavedFiles.Add(url);
             return Task.FromResult(url);
         }

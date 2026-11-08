@@ -95,6 +95,7 @@ internal sealed class CommerceDatabase : IAsyncDisposable
     public readonly TestClock Clock = new();
     public readonly FailNextSave Failure = new();
     public readonly TestErrorLog Errors = new();
+    public readonly CommerceNotificationGateway NotificationGateway = new();
     private readonly string filesRoot = Path.Combine(AppContext.BaseDirectory, Prefix + Guid.NewGuid().ToString("N"));
     public long FarmerId, BuyerId, OtherBuyerId, ProductId, BatchId, SellerId, CartItemId, CategoryId;
     public WebApplication Host = null!;
@@ -313,6 +314,9 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<FarmerOrderService>();
         builder.Services.AddScoped<OrderRefundService>();
         builder.Services.AddScoped<OrderNotificationService>();
+        builder.Services.AddSingleton<INotificationGateway>(NotificationGateway);
+        builder.Services.Configure<AgriSustain.Infrastructure.Email.EmailSettings>(options =>
+            options.FrontendBaseUrl = "https://agrisustain.example.test");
         builder.Services.AddSingleton<IValidator<ProductRequest>, ProductRequestValidator>();
         builder.Services.AddSingleton<IValidator<ProductQuery>, ProductQueryValidator>();
         builder.Services.AddSingleton<ProductRequestValidator>();
@@ -323,8 +327,20 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<FulfillmentRules>();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentActor, CurrentActor>();
+        builder.Services.AddScoped<IActorContext, CurrentActor>();
+        builder.Services.AddScoped<IOfftakeRepository, OfftakeRepository>();
+        builder.Services.AddScoped<IOfftakeService, OfftakeService>();
+        builder.Services.AddScoped<IUseCaseUnitOfWork, SqlUnitOfWork>();
+        builder.Services.AddSingleton<IPersistenceErrorClassifier, PersistenceErrorClassifier>();
+        builder.Services.AddSingleton(new AgriSustain.Application.Common.AccountNotificationSettings(null));
         builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => { });
-        builder.Services.AddAuthorization();
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("WholesaleBuyer",
+                policy => policy.RequireAuthenticatedUser().RequireRole("WholesaleBuyer"));
+            options.AddPolicy("FarmerOfftake",
+                policy => policy.RequireAuthenticatedUser().RequireRole("Farmer"));
+        });
         builder.Services.AddControllers().AddApplicationPart(typeof(FarmerProductController).Assembly);
         Host = builder.Build();
         Host.UseMiddleware<FeatureExceptionMiddleware>();
@@ -374,6 +390,20 @@ internal sealed class CommerceDatabase : IAsyncDisposable
             throw new InvalidOperationException("Refusing to delete a non-test database.");
         await using var db = Open();
         await db.Database.EnsureDeletedAsync();
+    }
+}
+
+internal sealed class CommerceNotificationGateway : INotificationGateway
+{
+    public readonly System.Collections.Concurrent.ConcurrentQueue<(string Recipient, string Body,
+        string EventKey)> Attempts = new();
+
+    public Task SendEmailAsync(string recipient, string subject, string content, string eventKey,
+        CancellationToken cancellationToken)
+    {
+        Attempts.Enqueue((recipient, content, eventKey));
+        return Attempts.Count == 1 ? Task.FromException(new IOException("Test email failure"))
+            : Task.CompletedTask;
     }
 }
 

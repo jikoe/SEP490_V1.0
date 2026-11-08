@@ -216,6 +216,7 @@ internal sealed class ApiHost : IAsyncDisposable
         services.AddScoped<ComplaintResolutionService>();
         services.AddScoped<IComplaintResolutionService>(sp => sp.GetRequiredService<ComplaintResolutionService>());
         services.AddScoped<IComplaintEvidenceTimeoutProcessor>(sp => sp.GetRequiredService<ComplaintResolutionService>());
+        services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
         services.AddScoped<IRefundRepository, RefundRepository>();
         services.AddScoped<IRefundProcessingService, RefundProcessingService>();
         services.AddScoped<IVoucherRepository, VoucherRepository>();

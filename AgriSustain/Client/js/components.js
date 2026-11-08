@@ -63,6 +63,7 @@ const ROLE_CONFIGS = {
     navItems: [
       { key: 'wholesale-dash', label: 'Tổng quan mua buôn', icon: '📊', path: 'WholesaleBuyer/dashboard.html' },
       { key: 'supplier-capacity', label: 'Hồ sơ năng lực NCC', icon: '🏭', path: 'WholesaleBuyer/supplier-capacity.html' },
+      { key: 'wholesale-contracts', label: 'Hợp đồng Offtake', icon: '▤', path: 'WholesaleBuyer/contracts.html' },
       { key: 'marketplace', label: 'Khám phá nông sản', icon: '✦', path: 'RetailCustomer/index.html' },
       { key: 'wholesale-suppliers', label: 'Tìm nông trại cung ứng', icon: '🔎', path: 'WholesaleBuyer/suppliers.html' },
       { key: 'wholesale-membership', label: 'Gói hội viên B2B', icon: '⭐', path: 'WholesaleBuyer/membership.html' },
@@ -232,7 +233,9 @@ const Components = {
 
     const navButtons = config.navItems.map(item => {
       const fullLink = `${root}${item.path}`;
-      const isSelected = currentPath.endsWith(item.path.split('/').pop().toLowerCase()) || (item.path.includes('dashboard.html') && currentPath.includes('kyc.html'));
+      const isSelected = currentPath.endsWith(item.path.split('/').pop().toLowerCase())
+        || (item.path.includes('dashboard.html') && currentPath.includes('kyc.html'))
+        || (item.key === 'wholesale-contracts' && currentPath.endsWith('/offtake-proposal.html'));
 
       return `
         <button type="button" class="${isSelected ? 'selected' : ''}" onclick="window.location.href='${fullLink}'">
