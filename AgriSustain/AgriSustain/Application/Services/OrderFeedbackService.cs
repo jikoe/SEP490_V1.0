@@ -128,7 +128,7 @@ public sealed class OrderFeedbackService(
         if (!OrderFeedbackValidator.AreFilesValid(files))
         {
             return ComplaintFailure("INVALID_EVIDENCE",
-                "Chỉ được đính kèm tối đa 5 ảnh, mỗi ảnh không quá 5 MB.");
+                OrderFeedbackValidator.EvidenceLimitsMessage);
         }
 
         var saved = new List<string>();

@@ -15,6 +15,8 @@ let selectedId;
 let files = [];
 let busy = false;
 let previews = [];
+const isVideo = file => /\.mp4$/i.test(file.name);
+const hasRequiredEvidence = () => files.some(isVideo) && files.some(file => !isVideo(file));
 
 function title(value) {
   document.title = `${value} - AgriSustain`;
@@ -47,7 +49,7 @@ function sidebar(item) {
   return `<aside class="feedback-sidebar">${section(complaint ? 'Thông tin đơn hàng' : 'Lưu ý khi đánh giá', complaint ? order : tips)}
     ${section(complaint ? 'Thông tin người nhận' : 'Đơn hàng của bạn', complaint ? receiver : mini, complaint ? 'user' : 'cart')}
     ${complaint ? section('Hỗ trợ nhanh', '<p class="feedback-muted">Cần trợ giúp? Hãy liên hệ và cung cấp mã đơn hàng.</p><a class="feedback-support" href="mailto:support@agrisustain.vn">Liên hệ hỗ trợ</a>', 'user') : ''}
-    <div class="feedback-assurance">${icon('shield')}<p>${complaint ? 'Vui lòng gửi yêu cầu trong vòng 48 giờ sau khi giao và giữ lại ảnh thực tế để hỗ trợ quá trình xử lý.'
+    <div class="feedback-assurance">${icon('shield')}<p>${complaint ? 'Vui lòng gửi yêu cầu trong vòng 48 giờ sau khi giao và đính kèm cả ảnh lẫn video thực tế.'
       : 'Đánh giá của bạn giúp người mua lựa chọn tốt hơn và góp phần xây dựng cộng đồng nông sản minh bạch.'}</p></div></aside>`;
 }
 function actions(label) {
@@ -78,8 +80,8 @@ function render() {
     <div class="feedback-total"><span>Tổng tiền đơn hàng</span><strong>${money(context.total)}</strong></div>` : '';
   const complaintForm = complaint ? section('Thông tin khiếu nại', `<fieldset class="feedback-reasons"><legend>Lý do khiếu nại <span>*</span></legend><div>${reasons.map(([code, label]) => `<label><input type="radio" name="reason" value="${code}" required>${label}</label>`).join('')}</div></fieldset>
     <label class="feedback-field">Mô tả chi tiết vấn đề <span>*</span><textarea name="description" required maxlength="500" rows="5" placeholder="Vui lòng mô tả rõ vấn đề bạn gặp phải: bao bì, chất lượng hoặc số lượng…"></textarea></label>
-    <p class="feedback-counter"><span id="feedback-length">0</span>/500 ký tự</p><section class="feedback-attachments" aria-label="Ảnh đính kèm"><div class="feedback-upload-copy">${icon('grid')}<div><strong>Thêm ảnh thực tế</strong><span>Không bắt buộc · JPG, PNG · Tối đa 5 ảnh, mỗi ảnh 5 MB</span></div></div>
-    <div id="feedback-previews" class="feedback-previews"></div><button class="feedback-upload-button" id="feedback-add-photo" type="button">＋ Thêm ảnh</button><input type="file" id="feedback-files" accept="image/jpeg,image/png" multiple hidden></section>${actions('Gửi khiếu nại')}`) : '';
+    <p class="feedback-counter"><span id="feedback-length">0</span>/500 ký tự</p><section class="feedback-attachments" aria-label="Ảnh và video đính kèm"><div class="feedback-upload-copy">${icon('grid')}<div><strong>Ảnh và video bắt buộc</strong><span id="feedback-evidence-hint">Chọn từ 1 đến 4 ảnh JPG/PNG (tối đa 5 MB mỗi ảnh) và 1 video MP4 (tối đa 20 MB).</span></div></div>
+    <div id="feedback-previews" class="feedback-previews"></div><button class="feedback-upload-button" id="feedback-add-file" type="button" aria-describedby="feedback-evidence-hint">＋ Thêm ảnh và video</button><input type="file" id="feedback-files" accept=".jpg,.jpeg,.png,.mp4" multiple hidden></section>${actions('Gửi khiếu nại')}`) : '';
   content.innerHTML = `<div class="feedback-layout"><form id="feedback-form" class="feedback-main"><fieldset id="feedback-fields">${section(complaint ? `Đơn hàng #${esc(context.orderCode)}` : 'Thông tin sản phẩm', products + review, complaint ? 'card' : 'leaf')}${complaintForm}</fieldset></form>${sidebar(item)}</div>`;
   const form = document.getElementById('feedback-form');
   bindImageFallback(content);
@@ -98,13 +100,16 @@ function render() {
     boxes.forEach(box => { box.checked = !selected; });
     updateSelection();
   });
-  document.getElementById('feedback-add-photo')?.addEventListener('click', () => document.getElementById('feedback-files').click());
+  document.getElementById('feedback-add-file')?.addEventListener('click', () => document.getElementById('feedback-files').click());
   document.getElementById('feedback-files')?.addEventListener('change', event => {
     const added = [...event.target.files];
     event.target.value = '';
-    if (files.length + added.length > 5 || added.some(file => !/\.(jpe?g|png)$/i.test(file.name)
-      || !['image/jpeg', 'image/png'].includes(file.type) || file.size <= 0 || file.size > 5 * 1024 * 1024)) {
-      showNotice(notice, 'Vui lòng chọn tối đa 5 ảnh JPG hoặc PNG, mỗi ảnh không quá 5 MB.');
+    const selection = [...files, ...added];
+    const videoCount = selection.filter(isVideo).length;
+    if (selection.length - videoCount > 4 || videoCount > 1
+      || added.some(file => !/\.(jpe?g|png|mp4)$/i.test(file.name)
+        || file.size <= 0 || file.size > (isVideo(file) ? 20 : 5) * 1024 * 1024)) {
+      showNotice(notice, 'Vui lòng chọn tối đa 4 ảnh JPG/PNG, mỗi ảnh không quá 5 MB, và 1 video MP4 không quá 20 MB.');
       return;
     }
     files.push(...added);
@@ -128,7 +133,7 @@ function updateSelection() {
   const count = boxes.filter(box => box.checked).length;
   document.getElementById('feedback-selection-count').textContent = `Đã chọn ${count} / ${boxes.length} sản phẩm`;
   document.getElementById('feedback-select-all').textContent = count === boxes.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả';
-  document.getElementById('feedback-submit').disabled = !count;
+  document.getElementById('feedback-submit').disabled = !count || !hasRequiredEvidence();
 }
 function clearPreviews() { previews.forEach(url => URL.revokeObjectURL(url)); previews = []; }
 function renderPreviews() {
@@ -137,12 +142,17 @@ function renderPreviews() {
   container.innerHTML = files.map((file, index) => {
     const url = URL.createObjectURL(file);
     previews.push(url);
-    return `<div class="feedback-preview"><img src="${url}" alt="${esc(file.name)}"><button type="button" data-remove="${index}" aria-label="Xóa ảnh ${index + 1}">×</button></div>`;
+    const name = esc(file.name);
+    const media = isVideo(file)
+      ? `<video src="${url}" controls playsinline preload="metadata" aria-label="${name}"></video>`
+      : `<img src="${url}" alt="${name}">`;
+    return `<div class="feedback-preview">${media}<button type="button" data-remove="${index}" aria-label="Xóa tệp ${name}">×</button></div>`;
   }).join('');
   container.querySelectorAll('[data-remove]').forEach(button => button.addEventListener('click', () => {
     files.splice(Number(button.dataset.remove), 1);
     renderPreviews();
   }));
+  updateSelection();
 }
 async function submit(event) {
   event.preventDefault();
@@ -155,7 +165,13 @@ async function submit(event) {
     return;
   }
   body.set(complaint ? 'description' : 'comment', text);
-  if (complaint) files.forEach(file => body.append('files', file));
+  if (complaint) {
+    if (!hasRequiredEvidence()) {
+      showNotice(notice, 'Vui lòng đính kèm ít nhất một ảnh JPG/PNG và một video MP4.');
+      return;
+    }
+    files.forEach(file => body.append('files', file));
+  }
   const item = selectedItem();
   busy = true;
   document.getElementById('feedback-fields').disabled = true;

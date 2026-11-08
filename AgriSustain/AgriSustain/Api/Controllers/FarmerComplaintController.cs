@@ -2,6 +2,7 @@ using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Complaints;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Services.Complaints;
+using AgriSustain.Application.Validators;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -60,8 +61,9 @@ public sealed class FarmerComplaintController(
         }
         Response.Headers["X-Content-Type-Options"] = "nosniff";
         Response.Headers.CacheControl = "private, no-store";
-        string type = Path.GetExtension(path) switch { ".pdf" => "application/pdf", ".png" => "image/png", _ => "image/jpeg" };
-        return PhysicalFile(path, type);
+        string type = OrderFeedbackValidator.EvidenceContentType(path) ?? "application/pdf";
+        return PhysicalFile(path, type,
+            enableRangeProcessing: type == OrderFeedbackValidator.VideoContentType);
     }
 }
 
