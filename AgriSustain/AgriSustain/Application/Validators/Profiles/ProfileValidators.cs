@@ -76,6 +76,12 @@ public sealed class UpdateFarmerProfileValidator : AbstractValidator<UpdateFarme
         RuleFor(x => x.ShortDescription)
             .MaximumLength(300).WithMessage("Mô tả ngắn không quá 300 ký tự.");
 
+        // UC-AUTH-03 Step 3: the Goship pickup address is mandatory (UC-RC-02 Step 5). MSG02.
+        RuleFor(x => x.PickupProvinceCode)
+            .Must(v => !string.IsNullOrWhiteSpace(v)).WithMessage("Vui lòng chọn tỉnh/thành lấy hàng.");
+        RuleFor(x => x.PickupDistrictCode)
+            .Must(v => !string.IsNullOrWhiteSpace(v)).WithMessage("Vui lòng chọn quận/huyện lấy hàng.");
+
         RuleFor(x => x.CultivatedArea)
             .GreaterThan(0).When(x => x.CultivatedArea.HasValue)
             .WithMessage("Diện tích canh tác phải là số dương (> 0).");

@@ -48,7 +48,8 @@ public sealed class ProfileServiceTests
     private static UpdateFarmerProfileRequest FarmerRequest(
         decimal? area = 2.5m, string phone = "0987654321", string license = "BL-999", string? gps = null) =>
         new("Tran B", phone, "Nong Trai Xanh", "Tran B", "Thôn 4, Đà Lạt", null, "Đà Lạt", "Cá nhân",
-            area, gps, license);
+            area, gps, license)
+        { PickupProvinceCode = "100000", PickupDistrictCode = "100100", PickupWardCode = "1001001" };
 
     // ---------- GetCurrentProfileAsync ----------
 
@@ -258,6 +259,38 @@ public sealed class ProfileServiceTests
             FarmerRequest() with { ShortDescription = new string('m', length) }, default);
 
         Assert.Equal(ok, result.IsSuccess);
+    }
+
+    [Theory(DisplayName = "UTC-AUTH03-B17 Pickup province and district are required (MSG02)")]
+    [InlineData(null, "100100")]
+    [InlineData("100000", null)]
+    [InlineData("", "")]
+    public async Task UTC_B17_PickupAddressRequired(string? province, string? district)
+    {
+        var result = await Service(Farmer).UpdateFarmerProfileAsync(
+            FarmerRequest() with { PickupProvinceCode = province, PickupDistrictCode = district }, default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Null(_uow.ProfileRepo.LastFarmerUpdate);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH03-B18 Pickup address not in the Goship catalogue is rejected (MSG-CO-01)")]
+    public async Task UTC_B18_PickupAddressNotInCatalog()
+    {
+        var result = await Service(Farmer).UpdateFarmerProfileAsync(
+            FarmerRequest() with { PickupDistrictCode = "999999" }, default);
+
+        Assert.Equal("PICKUP_ADDRESS_INVALID", result.Error!.Code);
+        Assert.Null(_uow.ProfileRepo.LastFarmerUpdate);
+    }
+
+    [Fact(DisplayName = "UTC-AUTH03-B19 Valid pickup address is saved with its catalogue names")]
+    public async Task UTC_B19_PickupAddressSaved()
+    {
+        var result = await Service(Farmer).UpdateFarmerProfileAsync(FarmerRequest(), default);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Dịch Vọng, Cầu Giấy, Hà Nội", _uow.ProfileRepo.LastFarmerUpdate!.PickupAddressText);
     }
 
     [Fact(DisplayName = "UTC-AUTH03-B16 Gender and birth date are passed to storage")]
