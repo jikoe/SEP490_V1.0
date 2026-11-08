@@ -135,6 +135,87 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.Contains("Test reason", email.Content);
     }
 
+    [Fact(DisplayName = "[UC-ADM-05 #27] The deactivate confirmation counts the published products (MSG-CAT-03)")]
+    public async Task CategoryImpact_CountsPublishedProducts_WithoutChangingAnything()
+    {
+        var category = await _context.Categories.SingleAsync();
+        long farmId = await _context.FarmerProfiles.Select(x => x.FarmerProfileId).SingleAsync();
+        _context.Products.AddRange(
+            CategoryProduct(category.CategoryId, farmId, "Published 2", "Approved", true),
+            CategoryProduct(category.CategoryId, farmId, "Published 3", "Approved", true),
+            CategoryProduct(category.CategoryId, farmId, "Hidden", "Approved", false));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var shown = await Admin().GetCategoryAsync(category.CategoryId, default);
+
+        Assert.Equal((3, 4), (shown.Value!.ActiveProductCount, shown.Value.ProductCount));
+        Assert.True((await _context.Categories.AsNoTracking().SingleAsync()).IsActive);
+        Assert.Empty(await _context.AuditLogs.ToListAsync());
+    }
+
+    [Theory(DisplayName = "[UC-ADM-05 #28] Delete counts a published product whatever its moderation; an unpublished one only archives")]
+    [InlineData("Pending", true, "CATEGORY_IN_USE", null)]
+    [InlineData("Approved", false, null, "archived")]
+    public async Task DeleteCategory_PublishedOrHistoricalProduct(string approval, bool published,
+        string? error, string? outcome)
+    {
+        long farmId = await _context.FarmerProfiles.Select(x => x.FarmerProfileId).SingleAsync();
+        var category = new Category { CategoryName = "Delete probe", IsActive = true };
+        _context.Categories.Add(category);
+        await _context.SaveChangesAsync();
+        _context.Products.Add(CategoryProduct(category.CategoryId, farmId, "Probe product", approval, published));
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = await Admin().ChangeCategoryAsync(category.CategoryId, "delete",
+            new ConfirmationRequest(true, Category.VersionOf("Delete probe", null, true, false)), default);
+
+        Assert.Equal(error, result.Error?.Code);
+        Assert.Equal(outcome, result.Value?.Outcome);
+        var stored = await _context.Categories.AsNoTracking().SingleAsync(x => x.CategoryId == category.CategoryId);
+        Assert.Equal(error is not null, stored.IsActive);
+        Assert.Equal(error is null ? 1 : 0, await _context.AuditLogs.CountAsync());
+    }
+
+    private Product CategoryProduct(long categoryId, long farmId, string name, string approval, bool published) => new()
+    {
+        CategoryId = categoryId, FarmerProfileId = farmId, ProductName = name, Unit = "kg",
+        BaseRetailPrice = 10000, WholesaleMinQuantity = 10, WholesalePrice = 8000, ApprovalStatus = approval,
+        IsPublished = published, CreatedAt = _clock.GetUtcNow().UtcDateTime
+    };
+
+    [Fact(DisplayName = "[IT UC-ADM-03 #17] A failed commit leaves no partial action (BR-UM-10, MSG-UM-10)")]
+    public async Task ChangeAccount_AuditInsertFails_RollsBackStatusAuditAndEmail()
+    {
+        await using var failing = NewContext(new FailOnAuditInsert());
+        var admin = new AdministrationService(new AdministrationRepository(failing),
+            new SqlUnitOfWork(failing), new TestActor(1), _clock);
+
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(() => admin.ChangeAccountAsync(2,
+            new AccountActionRequest("suspend", "Test reason", true, "Active"), default));
+
+        Assert.Equal("Active", (await _context.Users.AsNoTracking().SingleAsync(x => x.UserId == 2)).Status);
+        Assert.Empty(await _context.AuditLogs.AsNoTracking().ToListAsync());
+        Assert.Empty(await _context.Notifications.AsNoTracking().ToListAsync());
+    }
+
+    /// <summary>Fails the save that carries the account audit row, like a database error at Step 9.</summary>
+    private sealed class FailOnAuditInsert : Microsoft.EntityFrameworkCore.Diagnostics.SaveChangesInterceptor
+    {
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int>> SavingChangesAsync(
+            Microsoft.EntityFrameworkCore.Diagnostics.DbContextEventData eventData,
+            Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<AuditLog>().Any(x => x.State == EntityState.Added))
+            {
+                throw new InvalidOperationException("Simulated database failure on the audit insert.");
+            }
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+    }
+
     [Fact(DisplayName = "[UC-ADM-01] Dashboard queries run on SQL Server: orders, new users and pending work")]
     public async Task PlatformDashboard_TranslatesToSql()
     {
@@ -531,6 +612,48 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.Single(await _context.CartItems.ToListAsync());
     }
 
+    [Fact(DisplayName = "[IT UC-RC-02 #09] Points above the discount cap are rejected with the maximum allowed (MSG-CO-03)")]
+    public async Task Quote_PointsAboveDiscountCap_RejectedWithMaximum()
+    {
+        _context.RewardPointEntries.Add(new RewardPointEntry { UserId = 2, EntryType = "Earn", Points = 20000,
+            RequestKey = "test-earn-cap", OccurredAt = _clock.GetUtcNow().UtcDateTime });
+        await _context.SaveChangesAsync();
+
+        // Subtotal 20 000 ₫, cap 50 % → at most 10 000 points although the balance is 21 000.
+        var result = await Checkout().QuoteAsync(Input() with { Points = 15000 }, default);
+
+        Assert.Equal("POINTS_INVALID", result.Error?.Code);
+        Assert.Contains("tối đa 10000 điểm", result.Error!.Message);
+        Assert.Empty(await _context.RetailCheckoutQuotes.ToListAsync());
+    }
+
+    [Fact(DisplayName = "[IT UC-RC-02 #10] Points above the balance are rejected (POINTS_INVALID)")]
+    public async Task Quote_PointsAboveBalance_Rejected()
+    {
+        var result = await Checkout().QuoteAsync(Input() with { Points = 1500 }, default);
+
+        Assert.Equal("POINTS_INVALID", result.Error?.Code);
+        Assert.Contains("tối đa 1000 điểm", result.Error!.Message);
+        Assert.Empty(await _context.RetailCheckoutQuotes.ToListAsync());
+    }
+
+    [Fact(DisplayName = "[IT UC-RC-02 #11] A voucher deactivated after the quote stops placement with MSG118")]
+    public async Task Place_VoucherDeactivatedAfterQuote_Msg118WithoutOrder()
+    {
+        var quote = await Checkout().QuoteAsync(Input() with { VoucherCode = "TEST10" }, default);
+        Assert.True(quote.IsSuccess, quote.Error?.Message);
+        (await _context.Vouchers.SingleAsync(x => x.VoucherCode == "TEST10")).IsActive = false;
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var result = await Checkout().PlaceAsync(Placement(quote.Value!), default);
+
+        Assert.Equal("MSG118", result.Error?.Code);
+        Assert.Empty(await _context.Orders.ToListAsync());
+        Assert.Empty(await _context.VoucherRedemptions.ToListAsync());
+        Assert.Single(await _context.CartItems.ToListAsync());
+    }
+
     [Fact]
     public async Task Place_ValidQuote_CommitsStockCartVoucherAndPointHoldAtomically()
     {
@@ -665,13 +788,13 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.Empty(await _context.Orders.ToListAsync());
     }
 
-    private AgriSustainContext NewContext()
+    private AgriSustainContext NewContext(params Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor[] interceptors)
     {
         var server = Environment.GetEnvironmentVariable("AGRISUSTAIN_TEST_SQL_SERVER")
             ?? "(localdb)\\MSSQLLocalDB";
         return new AgriSustainContext(new DbContextOptionsBuilder<AgriSustainContext>()
             .UseSqlServer($"Server={server};Database={_databaseName};Integrated Security=True;"
-                + "TrustServerCertificate=True;Connect Timeout=30").Options);
+                + "TrustServerCertificate=True;Connect Timeout=30").AddInterceptors(interceptors).Options);
     }
 
     private AdministrationService Admin() => new(new AdministrationRepository(_context),

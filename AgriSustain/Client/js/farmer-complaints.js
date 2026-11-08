@@ -126,10 +126,17 @@ document.addEventListener("DOMContentLoaded", () => {
     closePreview();
     previewUrl = URL.createObjectURL(blob);
     const pdf = blob.type === "application/pdf" || /\.pdf$/i.test(name);
-    const node = document.createElement(pdf ? "iframe" : "img");
+    const video = blob.type === "video/mp4";
+    const node = document.createElement(video ? "video" : pdf ? "iframe" : "img");
     node.src = previewUrl;
     node.title = name;
-    if (!pdf) node.alt = name;
+    if (video) {
+      node.controls = true;
+      node.playsInline = true;
+      node.setAttribute("aria-label", name);
+    } else if (!pdf) {
+      node.alt = name;
+    }
     $("#previewContent").append(node);
     $("#preview").showModal();
   }

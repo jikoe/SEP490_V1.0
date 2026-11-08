@@ -1,5 +1,6 @@
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Validators;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,6 +13,10 @@ public sealed class OrderFeedbackController(
     IOrderFeedbackService service, ICurrentActor actor, IOrderFeedbackStorage storage)
     : ControllerBase
 {
+    private const int MaximumComplaintBytes = OrderFeedbackValidator.MaximumVideoBytes
+        + (OrderFeedbackValidator.MaximumAttachments - 1) * OrderFeedbackValidator.MaximumImageBytes
+        + 1024 * 1024;
+
     [HttpGet("{orderId:long}/feedback")]
     public async Task<IActionResult> ContextAsync(
         long orderId, CancellationToken cancellationToken) =>
@@ -45,8 +50,8 @@ public sealed class OrderFeedbackController(
     }
 
     [HttpPost("{orderId:long}/complaints")]
-    [RequestSizeLimit(27 * 1024 * 1024)]
-    [RequestFormLimits(MultipartBodyLengthLimit = 27 * 1024 * 1024)]
+    [RequestSizeLimit(MaximumComplaintBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = OrderFeedbackValidator.MaximumVideoBytes)]
     public Task<IActionResult> ComplainAsync(long orderId, [FromForm] ComplaintForm form,
         CancellationToken cancellationToken) =>
         WithFilesAsync(form.Files, async files => ApiResults.From(await service.ComplainAsync(
@@ -61,16 +66,18 @@ public sealed class OrderFeedbackController(
             return NotFound();
         }
         var download = storage.OpenEvidence(owner, key);
-        return download == null ? NotFound() : File(download.Content, download.ContentType);
+        Response.Headers.CacheControl = "private, no-store";
+        return download == null ? NotFound() : File(download.Content, download.ContentType,
+            enableRangeProcessing: download.ContentType == OrderFeedbackValidator.VideoContentType);
     }
 
     private async Task<IActionResult> WithFilesAsync(
         List<IFormFile> uploads, Func<IReadOnlyList<FeedbackFile>, Task<IActionResult>> action)
     {
-        if (uploads.Count > 5
-            || uploads.Any(file => file.Length is <= 0 or > 5 * 1024 * 1024))
+        if (uploads.Count > OrderFeedbackValidator.MaximumAttachments
+            || uploads.Any(file => !OrderFeedbackValidator.IsFileValid(file.FileName, file.Length)))
         {
-            return Problem("Chỉ được đính kèm tối đa 5 ảnh, mỗi ảnh không quá 5 MB.",
+            return Problem(OrderFeedbackValidator.EvidenceLimitsMessage,
                 statusCode: 400);
         }
         var files = new List<FeedbackFile>();

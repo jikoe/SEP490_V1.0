@@ -51,6 +51,7 @@
 .feedback-previews { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .feedback-preview { position: relative; }
 .feedback-preview img { display: block; width: 58px; height: 58px; object-fit: cover; border: 1px solid #c7dcd0; border-radius: 6px; }
+.feedback-preview video { display: block; width: 180px; max-width: 100%; border-radius: 6px; }
 .order-feedback .feedback-preview button { position: absolute; right: -5px; top: -6px; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; color: #475e50; border-radius: 50%; background: white; }
 .order-feedback .feedback-upload-button { min-height: 38px; border-color: #8fc5ab; background: white; color: #368262; font-size: 12px; }
 .feedback-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }

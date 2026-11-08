@@ -328,6 +328,59 @@ public sealed class AdministrationServiceTests
         Assert.Equal(350_000m, impact.Value.HeldPayoutAmount);
     }
 
+    [Fact(DisplayName = "[UC-ADM-03 #48] A reason of only spaces is blank (MSG-UM-05) and nothing starts")]
+    public async Task ChangeAccount_WhitespaceReason_IsRejectedBeforeTransaction()
+    {
+        var result = await Service().ChangeAccountAsync(2, new("suspend", "   ", true, "Active"), default);
+
+        Assert.Equal("VALIDATION", result.Error?.Code);
+        Assert.Contains("Reason", result.Error!.Fields!.Keys);
+        Assert.Equal(0, _uow.Begins);
+        Assert.Empty(_store.Audits);
+        Assert.Equal("Active", _store.Users[2].Status);
+    }
+
+    [Theory(DisplayName = "[UC-ADM-03 #49] Optional Unlock reason keeps the 500/501 limit")]
+    [InlineData(500, true)]
+    [InlineData(501, false)]
+    public async Task AccountAction_UnlockReasonLengthBoundary(int length, bool valid)
+    {
+        var result = await new AccountActionValidator().ValidateAsync(
+            new AccountActionRequest("unlock", new string('a', length), true, "Active"));
+
+        Assert.Equal(valid, result.IsValid);
+        Assert.Equal(!valid, result.Errors.Any(error => error.PropertyName == "Reason"));
+    }
+
+    [Theory(DisplayName = "[UC-ADM-03 #50] Administrator cannot unlock or reactivate their own account")]
+    [InlineData("unlock", null)]
+    [InlineData("activate", "x")]
+    public async Task ChangeAccount_OwnAccount_IsSelfAction(string action, string? reason)
+    {
+        var result = await Service().ChangeAccountAsync(1, new(action, reason, true, "Active"), default);
+
+        Assert.Equal("SELF_ACTION", result.Error?.Code);
+        Assert.Empty(_store.Audits);
+        Assert.Equal(0, _uow.Commits);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-03 #51] A KYC-Rejected Farmer has no account action")]
+    public async Task ChangeAccount_RejectedFarmer_HasNoAction()
+    {
+        _store.Users[4] = new User
+        {
+            UserId = 4, Role = "Farmer", Status = "Active",
+            FarmerProfile = new FarmerProfile { VerificationStatus = "Rejected" }
+        };
+
+        var result = await Service().ChangeAccountAsync(4, new("suspend", "Review", true, "Rejected"), default);
+
+        Assert.Equal("ACTION_NOT_ALLOWED", result.Error?.Code);
+        Assert.Equal("Active", _store.Users[4].Status);
+        Assert.Empty(_store.Audits);
+        Assert.Equal(0, _uow.Commits);
+    }
+
     // ---------- UC-ADM-05: CategoryValidator / search ----------
 
     [Theory(DisplayName = "[UC-ADM-05 #04/#05] Category name length boundary 100/101")]
@@ -554,6 +607,20 @@ public sealed class AdministrationServiceTests
 
         Assert.Equal("VALIDATION", result.Error?.Code);
         Assert.Equal(0, _store.CategorySearches);
+    }
+
+    [Fact(DisplayName = "[UC-ADM-05 #26] Activate an inactive category (MSG-CAT-01)")]
+    public async Task ChangeCategory_Activate_Inactive()
+    {
+        _store.Categories[9].IsActive = false;
+
+        var result = await Service().ChangeCategoryAsync(9, "activate", new ConfirmationRequest(true, Version9()), default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        Assert.Equal(("activated", "Đã kích hoạt danh mục Rau ăn lá."), (result.Value!.Outcome, result.Value.Message));
+        Assert.True(_store.Categories[9].IsActive);
+        Assert.Equal("activate", Assert.Single(_store.Audits).Action);
+        Assert.Equal(1, _uow.Commits);
     }
 
     private string Version9() => Category.VersionOf(_store.Categories[9].CategoryName,

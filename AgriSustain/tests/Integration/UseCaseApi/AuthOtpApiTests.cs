@@ -332,4 +332,42 @@ public sealed class AuthOtpApiTests : IAsyncLifetime
 
         await ApiAssert.Problem(response, HttpStatusCode.Unauthorized, "RESET_SESSION_INVALID");
     }
+
+    [CommerceSqlFact(DisplayName = "[IT-AUTH08-10] A sixth code within one hour is refused (MSG-OTP-06)")]
+    public async Task ResendOtp_SixthSendWithinHour_Limited()
+    {
+        await ApiAssert.Status(await Post("api/auth/register", Registration()), HttpStatusCode.OK);
+        for (int send = 2; send <= 5; send++)
+        {
+            _api.Clock.Advance(TimeSpan.FromSeconds(60));
+            await ApiAssert.Status(await Post("api/auth/resend-otp", new ResendOtpRequest(NewEmail)), HttpStatusCode.OK);
+        }
+        var before = await ChallengeAsync(OtpPurposes.Registration, NewEmail);
+        _api.Clock.Advance(TimeSpan.FromSeconds(60));
+
+        var sixth = await Post("api/auth/resend-otp", new ResendOtpRequest(NewEmail));
+
+        await ApiAssert.Problem(sixth, HttpStatusCode.TooManyRequests, "OTP_SEND_LIMIT");
+        Assert.Equal(5, _api.Email.Sent.Count);
+        Assert.Equal(before, await ChallengeAsync(OtpPurposes.Registration, NewEmail));
+    }
+
+    [CommerceSqlFact(DisplayName = "[IT-AUTH08-11] Register e-mails one 6-digit code to the address; the code never reaches the logs")]
+    public async Task Register_EmailCarriesCode_NotLogged()
+    {
+        _api.Otp.Next("482913");
+        await ApiAssert.Status(await Post("api/auth/register", Registration()), HttpStatusCode.OK);
+
+        var sent = Assert.Single(_api.Email.Sent);
+        Assert.Equal((NewEmail, OtpPurposes.Registration), (sent.Email, sent.Purpose));
+        Assert.Matches("^[0-9]{6}$", sent.Otp);
+        Assert.DoesNotContain(_api.Logs.Lines, line => line.Contains("482913"));
+
+        // Real Gmail adapter with an unreachable SMTP host: the failure is logged without the code.
+        await using var gmail = await ApiHost.StartAsync(unreachableGmail: true);
+        gmail.Otp.Next("731264");
+        await gmail.Anonymous().PostAsJsonAsync("api/auth/register", Registration());
+        Assert.Contains(gmail.Logs.Lines, line => line.Contains("could not deliver"));
+        Assert.DoesNotContain(gmail.Logs.Lines, line => line.Contains("731264"));
+    }
 }
