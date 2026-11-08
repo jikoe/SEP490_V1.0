@@ -1,0 +1,18 @@
+#notification-list article {
+  border: 1px solid #d8e3dd;
+  border-radius: 10px;
+  padding: 18px;
+  background: #fff;
+  margin-bottom: 12px;
+}
+#notification-list article.unread {
+  border-left: 4px solid #26724a;
+}
+#notification-list p {
+  white-space: pre-wrap;
+}
+.notification-paging {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}

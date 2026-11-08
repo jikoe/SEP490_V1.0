@@ -326,6 +326,30 @@ builder.Services.AddAuthentication(options =>
 });
 builder.Services.AddAuthorization();
 
+// UC-FAR-08 / UC-FAR-09: farmer contract coordination and read-only financial projections.
+builder.Services.AddScoped<IFarmerOfftakeContractRepository, FarmerOfftakeContractRepository>();
+builder.Services.AddScoped<FarmerOfftakeContractService>();
+builder.Services.AddScoped<OfftakeContractRules>();
+builder.Services.AddScoped<IFarmerRevenueRepository, FarmerRevenueRepository>();
+builder.Services.AddScoped<FarmerRevenueService>();
+builder.Services.AddScoped<RevenueAggregationRules>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmerBusinessInputFilter>();
+if (builder.Configuration.GetValue("OfftakeContracts:EnableNotificationWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.OfftakeContractNotificationWorker>();
+
+// UC-FIN-04: manual bank QR with verified SePay source-debit reconciliation.
+builder.Services.AddScoped<IFinanceFarmerPayoutRepository, FinanceFarmerPayoutRepository>();
+builder.Services.AddScoped<FinanceFarmerPayoutService>();
+builder.Services.AddScoped<FarmerPayoutRules>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.FinancePayoutInputFilter>();
+builder.Services.AddHttpClient<IPayoutGateway, AgriSustain.Infrastructure.Payments.SePayPayoutGateway>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+if (builder.Configuration.GetValue("Payouts:EnableNotificationWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.FarmerPayoutNotificationWorker>();
+
+if (builder.Configuration.GetValue("Payouts:EnableReconciliationWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.FarmerPayoutReconciliationWorker>();
+
 var app = builder.Build();
 
 app.UseCors("FrontendDevelopment");
