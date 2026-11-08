@@ -24,9 +24,19 @@ public sealed class OrderFeeService(IFeeRepository repository) : IOrderFeeServic
         foreach (var seller in order.SellerOrders)
         {
             var items = seller.OrderItems.ToList();
+            // BR-FEE-06 / BR-PV-11: the base is each item's subtotal after the seller's own discount (a farm
+            // voucher, recorded on this seller order); platform vouchers and reward points do not reduce it.
+            decimal sellerDiscount = Math.Min(seller.Subtotal, order.VoucherRedemptions
+                .Where(use => ReferenceEquals(use.SellerOrder, seller)
+                    || use.SellerOrderId is long id && id != 0 && id == seller.SellerOrderId)
+                .Sum(use => use.DiscountSnapshot));
+            var discounts = sellerDiscount > 0
+                ? FeeCalculator.Allocate(sellerDiscount, items.Select(item => item.SubTotal).ToList())
+                : items.Select(_ => 0m).ToList();
             var inputs = items.Select((item, index) => new FeeItemInput(index,
-                categories.TryGetValue(item.ProductId, out var category) ? category : null, item.SubTotal)).ToList();
-            decimal sellerTotal = seller.Subtotal + seller.DeliveryFee;
+                categories.TryGetValue(item.ProductId, out var category) ? category : null,
+                Math.Max(0, item.SubTotal - discounts[index]))).ToList();
+            decimal sellerTotal = seller.Subtotal - sellerDiscount + seller.DeliveryFee;
             foreach (var line in FeeCalculator.Calculate(inputs, sellerTotal, policies))
             {
                 if (line.Amount <= 0)
