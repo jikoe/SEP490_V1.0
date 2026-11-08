@@ -146,7 +146,7 @@ builder.Services.AddScoped<FarmerProductService>();
 builder.Services.AddScoped<ProductListingRules>();
 builder.Services.AddScoped<ProductNotificationService>();
 builder.Services.AddScoped<IProductNotificationRepository, ProductNotificationRepository>();
-// Review links only; NotificationGateway uses the shared GmailOptions registered below.
+// Email links and Gmail transport are configured separately.
 builder.Services.Configure<AgriSustain.Infrastructure.Email.EmailSettings>(
     builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<INotificationGateway, AgriSustain.Infrastructure.Email.NotificationGateway>();

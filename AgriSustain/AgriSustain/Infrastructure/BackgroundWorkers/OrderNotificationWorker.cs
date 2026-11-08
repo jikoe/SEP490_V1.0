@@ -7,8 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 namespace AgriSustain.Infrastructure.BackgroundWorkers;
 
-// Sends the queued order-update, refund (UC-FIN-03, MSG-RF-08/09) and account-status (UC-ADM-03,
-// BR-UM-11) emails; other notifications are untouched.
+// JOB-09 delivers queued order, refund, account-status and Offtake proposal emails.
 public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
     ILogger<OrderNotificationWorker> logger) : BackgroundService
 {
@@ -25,7 +24,7 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
         {
             try { await DispatchAsync(stoppingToken); }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
-            catch (Exception ex) { logger.LogWarning("Product email queue unavailable ({Type}).", ex.GetType().Name); }
+            catch (Exception ex) { logger.LogWarning("Email queue unavailable ({Type}).", ex.GetType().Name); }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
@@ -50,6 +49,7 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
         var ids = await db.Notifications.AsNoTracking().Where(n =>
             (n.NotificationType == "FarmerOrderUpdate" || n.NotificationType == "RefundEmail"
                 || n.NotificationType == "ComplaintEmail"
+                || n.NotificationType == OfftakeService.ProposalNotificationType
                 || n.NotificationType == AccountEmailType && n.RetryCount < AccountEmailMaxAttempts)
             && n.DeliveryChannel == "Email"
             && ((n.DeliveryStatus == "Pending" || n.DeliveryStatus == "Failed" && n.SentAt <= now.AddMinutes(-1))
@@ -69,8 +69,18 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
                 .SingleAsync(n => n.NotificationId == id, cancellationToken);
             try
             {
-                await gateway.SendEmailAsync(notification.User.Email,notification.Title,notification.Content,
-                    notification.PayloadJson ?? $"order-notice:{id}",cancellationToken);
+                var content = notification.Content;
+                var eventKey = notification.PayloadJson ?? $"order-notice:{id}";
+                if (notification.NotificationType == OfftakeService.ProposalNotificationType
+                    && notification.RelatedRecordId is long contractId)
+                {
+                    var link = settings.FrontendBaseUrl.TrimEnd('/')
+                        + OfftakeService.ProposalReviewPath(contractId);
+                    content += "\n\nXem đề xuất: " + link;
+                    eventKey = $"offtake-proposal-notice:{id}";
+                }
+                await gateway.SendEmailAsync(notification.User.Email, notification.Title, content,
+                    eventKey, cancellationToken);
                 notices.RecordDeliveryResult(notification, true, clock.GetUtcNow().UtcDateTime);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
@@ -85,7 +95,7 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
                     logger.LogError("Account email {Id} failed after {Attempts} attempts.", id,
                         notification.RetryCount);
                 }
-                logger.LogWarning("Product email {Id} pending retry ({Type}).", id, ex.GetType().Name);
+                logger.LogWarning("Email {Id} failed ({Type}).", id, ex.GetType().Name);
             }
             await db.SaveChangesAsync(cancellationToken);
             db.ChangeTracker.Clear();
