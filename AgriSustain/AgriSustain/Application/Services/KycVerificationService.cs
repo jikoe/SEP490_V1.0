@@ -137,9 +137,18 @@ public sealed class KycVerificationService(
 
             foreach (var certificate in user.FarmerProfile.FarmCertificates)
             {
-                certificate.VerificationStatus = targetStatus;
-                certificate.ReviewedByUserId = officer.UserId;
-                certificate.ReviewedAt = now;
+                // Chỉ duyệt các chứng chỉ đang chờ thẩm định (Pending / PendingReview).
+                // Không ghi đè lên các chứng chỉ đã được Verified hoặc đã bị thu hồi/từ chối từ trước.
+                if (certificate.VerificationStatus is "Pending" or "PendingReview" or null)
+                {
+                    certificate.VerificationStatus = action == "approve" ? "Verified" : "Rejected";
+                    certificate.ReviewedByUserId = officer.UserId;
+                    certificate.ReviewedAt = now;
+                    if (action == "reject")
+                    {
+                        certificate.RevocationReason = reason;
+                    }
+                }
             }
         }
         else if (user.WholesaleBuyerProfile is not null)
@@ -232,6 +241,132 @@ public sealed class KycVerificationService(
             targetStatus,
             effectiveAccountStatus,
             resultMessage,
+            now,
+            officer.FullName,
+            reason));
+    }
+
+    public async Task<UseCaseResult<CertificateReviewResultDto>> ReviewCertificateAsync(
+        long certificateId,
+        CertificateReviewDecisionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var officer = await GetAuthorizedOfficerAsync(cancellationToken);
+        if (officer is null)
+        {
+            return Denied<CertificateReviewResultDto>();
+        }
+
+        var action = request.Action?.Trim().ToLowerInvariant();
+        if (action is not ("approve" or "verify" or "reject" or "revoke"))
+        {
+            return UseCaseResult<CertificateReviewResultDto>.Failure(
+                "INVALID_ACTION",
+                "Thao tác thẩm định chứng chỉ không hợp lệ. Chỉ chấp nhận approve, reject hoặc revoke.");
+        }
+
+        var reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
+        if (action is "reject" or "revoke")
+        {
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                return UseCaseResult<CertificateReviewResultDto>.Failure(
+                    "REASON_REQUIRED",
+                    action == "revoke"
+                        ? "Vui lòng nhập lý do thu hồi chứng chỉ."
+                        : "Vui lòng nhập lý do từ chối chứng chỉ.");
+            }
+
+            if (reason.Length > 500)
+            {
+                return UseCaseResult<CertificateReviewResultDto>.Failure(
+                    "REASON_TOO_LONG",
+                    "Lý do không được vượt quá 500 ký tự.");
+            }
+        }
+
+        var certificate = await repository.FindCertificateAsync(certificateId, cancellationToken);
+        if (certificate is null)
+        {
+            return UseCaseResult<CertificateReviewResultDto>.Failure(
+                "NOT_FOUND",
+                "Không tìm thấy chứng chỉ chất lượng nông trại.",
+                "NotFound");
+        }
+
+        var now = clock.GetUtcNow().UtcDateTime;
+        string newStatus = action switch
+        {
+            "approve" or "verify" => "Verified",
+            "revoke" => "Revoked",
+            _ => "Rejected"
+        };
+
+        certificate.VerificationStatus = newStatus;
+        certificate.ReviewedByUserId = officer.UserId;
+        certificate.ReviewedAt = now;
+        if (action is "reject" or "revoke")
+        {
+            certificate.RevocationReason = reason;
+        }
+
+        repository.AddAudit(new AuditLog
+        {
+            PerformedByUserId = officer.UserId,
+            EntityType = "FarmCertificate",
+            EntityId = certificate.FarmCertificateId,
+            Action = action == "revoke" ? "RevokeFarmCertificate"
+                : action is "approve" or "verify" ? "ApproveFarmCertificate"
+                : "RejectFarmCertificate",
+            Reason = reason,
+            OccurredAt = now
+        });
+
+        // Notify farmer
+        if (certificate.FarmerProfile?.UserId is { } farmerUserId)
+        {
+            string notifTitle = newStatus switch
+            {
+                "Verified" => "Chứng chỉ nông trại của bạn đã được xác minh",
+                "Revoked" => "Chứng chỉ nông trại của bạn đã bị thu hồi",
+                _ => "Chứng chỉ nông trại của bạn bị từ chối"
+            };
+            string notifContent = newStatus switch
+            {
+                "Verified" => $"Chứng chỉ {certificate.CertificateType} (Số: {certificate.CertificateNumber}) của bạn đã được xác minh thành công và kích hoạt huy hiệu trên sàn.",
+                "Revoked" => $"Chứng chỉ {certificate.CertificateType} (Số: {certificate.CertificateNumber}) của bạn đã bị thu hồi. Lý do: {reason}",
+                _ => $"Chứng chỉ {certificate.CertificateType} (Số: {certificate.CertificateNumber}) của bạn đã bị từ chối thẩm định. Lý do: {reason}"
+            };
+
+            repository.AddNotification(new Notification
+            {
+                UserId = farmerUserId,
+                NotificationType = "CertificateReview",
+                Title = notifTitle,
+                Content = notifContent,
+                SentAt = now,
+                DeliveryChannel = "InApp",
+                IsRead = false,
+                DeliveryStatus = "Sent",
+                RetryCount = 0,
+                RelatedRecordType = "FarmCertificate",
+                RelatedRecordId = certificate.FarmCertificateId
+            });
+        }
+
+        await repository.SaveChangesAsync(cancellationToken);
+
+        string message = newStatus switch
+        {
+            "Verified" => "Phê duyệt chứng chỉ thành công. Trạng thái đã được cập nhật thành Đã xác minh (Verified).",
+            "Revoked" => "Thu hồi chứng chỉ thành công.",
+            _ => "Từ chối chứng chỉ thành công."
+        };
+
+        return UseCaseResult<CertificateReviewResultDto>.Success(new CertificateReviewResultDto(
+            certificate.FarmCertificateId,
+            newStatus,
+            message,
             now,
             officer.FullName,
             reason));

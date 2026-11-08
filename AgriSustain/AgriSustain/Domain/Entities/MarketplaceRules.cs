@@ -17,7 +17,7 @@ public static class MarketplaceRules
         && (batch.ExpirationDate == null || batch.ExpirationDate >= today);
 
     public static Expression<Func<FarmCertificate, bool>> ValidCertificate(DateOnly today) =>
-        certificate => certificate.VerificationStatus == "Verified"
+        certificate => (certificate.VerificationStatus == "Verified" || certificate.VerificationStatus == "Approved")
             && certificate.IssueDate <= today
             && (certificate.ExpiryDate == null || certificate.ExpiryDate >= today);
 

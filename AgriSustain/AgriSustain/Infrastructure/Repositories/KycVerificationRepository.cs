@@ -322,6 +322,14 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
             .SingleOrDefaultAsync(u => u.UserId == userId, cancellationToken);
     }
 
+    public Task<FarmCertificate?> FindCertificateAsync(long certificateId, CancellationToken cancellationToken)
+    {
+        return context.FarmCertificates
+            .Include(c => c.FarmerProfile)
+                .ThenInclude(f => f.User)
+            .SingleOrDefaultAsync(c => c.FarmCertificateId == certificateId, cancellationToken);
+    }
+
     public void AddAudit(AuditLog audit)
     {
         context.AuditLogs.Add(audit);

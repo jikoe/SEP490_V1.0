@@ -29,6 +29,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using AgriSustain.Api;
 using AgriSustain.Infrastructure.Auth;
 
@@ -44,6 +47,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 
 // Existing team auth services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
@@ -241,6 +245,8 @@ if (builder.Configuration.GetValue("B2B:EnableReminderWorkers", true))
     builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.ContractPaymentOverdueWorker>();
 }
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
+builder.Services.AddScoped<ISupplierCapacityRepository, SupplierCapacityRepository>();
+builder.Services.AddScoped<ISupplierCapacityService, AgriSustain.Application.Services.B2B.SupplierCapacityService>();
 
 // DuND Validators
 builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
@@ -252,6 +258,9 @@ builder.Services.AddScoped<IValidator<ChangePasswordRequest>, ChangePasswordRequ
 builder.Services.AddScoped<IValidator<UpdateConsumerProfileRequest>, UpdateConsumerProfileValidator>();
 builder.Services.AddScoped<IValidator<UpdateFarmerProfileRequest>, UpdateFarmerProfileValidator>();
 builder.Services.AddScoped<IValidator<OrderQuery>, OrderQueryValidator>();
+
+builder.Services.AddMemoryCache();
+builder.Services.AddHostedService<RevokedTokenCleanupHostedService>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -272,18 +281,47 @@ builder.Services.AddAuthentication(options =>
     };
     options.Events = new JwtBearerEvents
     {
-        OnTokenValidated = context =>
+        OnTokenValidated = async context =>
         {
+            var services = context.HttpContext.RequestServices;
+
             var tokenId = context.SecurityToken.Id;
             if (!string.IsNullOrEmpty(tokenId)
-                && context.HttpContext.RequestServices
-                    .GetRequiredService<RevokedTokenStore>()
-                    .IsRevoked(tokenId))
+                && await services.GetRequiredService<RevokedTokenStore>().IsRevokedAsync(tokenId, context.HttpContext.RequestAborted))
             {
                 context.Fail("This session has been terminated.");
+                return;
             }
 
-            return Task.CompletedTask;
+            var principal = context.Principal;
+            var userIdStr = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var role = principal?.FindFirstValue(ClaimTypes.Role);
+
+            if (!long.TryParse(userIdStr, out var userId))
+            {
+                context.Fail("Invalid user token identity.");
+                return;
+            }
+
+            var cache = services.GetRequiredService<IMemoryCache>();
+            var cacheKey = $"user-auth-status:{userId}:{role}";
+
+            bool isUserValid = await cache.GetOrCreateAsync(cacheKey, async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(10);
+                var db = services.GetRequiredService<AgriSustainContext>();
+                return await db.Users.AsNoTracking().AnyAsync(u =>
+                    u.UserId == userId &&
+                    u.Status == "Active" &&
+                    u.IsEmailVerified &&
+                    u.Role == role,
+                    context.HttpContext.RequestAborted);
+            });
+
+            if (!isUserValid)
+            {
+                context.Fail("Tài khoản không còn đủ điều kiện truy cập hoặc đã bị tạm ngưng.");
+            }
         }
     };
 });
@@ -331,7 +369,6 @@ app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/users")
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<ActiveFeatureAccountMiddleware>();
 app.MapControllers();
 
 app.Run();

@@ -17,5 +17,10 @@ public interface IKycVerificationService
         long userId,
         KycReviewDecisionRequest request,
         CancellationToken cancellationToken);
+
+    Task<UseCaseResult<CertificateReviewResultDto>> ReviewCertificateAsync(
+        long certificateId,
+        CertificateReviewDecisionRequest request,
+        CancellationToken cancellationToken);
 }
 

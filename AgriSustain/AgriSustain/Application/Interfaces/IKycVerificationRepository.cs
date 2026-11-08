@@ -20,6 +20,10 @@ public interface IKycVerificationRepository
         long userId,
         CancellationToken cancellationToken);
 
+    Task<FarmCertificate?> FindCertificateAsync(
+        long certificateId,
+        CancellationToken cancellationToken);
+
     void AddAudit(AuditLog audit);
 
     void AddNotification(Notification notification);

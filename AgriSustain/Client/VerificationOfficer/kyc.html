@@ -260,6 +260,7 @@
                       <th>Ngày hết hạn</th>
                       <th>Trạng thái</th>
                       <th>Tệp đính kèm / Hình ảnh</th>
+                      <th>Thao tác xét duyệt</th>
                     </tr>
                   </thead>
                   <tbody id="detail-docs-tbody"></tbody>
@@ -411,6 +412,40 @@
     </form>
   </dialog>
 
+  <!-- Modal Xác nhận Quyết định Chứng chỉ riêng lẻ -->
+  <dialog id="modal-cert-decision">
+    <div class="modal-heading">
+      <h2 id="modal-cert-title">Xét duyệt chứng nhận</h2>
+      <button type="button" onclick="closeCertDecisionModal()">&times;</button>
+    </div>
+    <form id="form-cert-decision" onsubmit="submitCertDecision(event)">
+      <p class="muted" id="modal-cert-action-desc" style="font-size: 14px; line-height: 1.5; margin: 0 0 12px;"></p>
+      
+      <div class="panel padded" style="margin: 12px 0; background: #fbfdfc; border: 1px solid #e8f0ec; font-size: 13.5px; line-height: 1.6;">
+        <div><strong>Chứng nhận:</strong> <span id="modal-cert-name">—</span></div>
+      </div>
+
+      <div class="field" style="margin-bottom: 16px;">
+        <label for="cert-decision-reason" style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">
+          Lý do / Ghi chú <span style="color: #dc2626;">*</span>
+        </label>
+        <textarea
+          id="cert-decision-reason"
+          rows="3"
+          maxlength="500"
+          style="width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #c9d6ce; border-radius: 8px; font-size: 14px; resize: vertical;"
+          placeholder="Nhập lý do..."
+        ></textarea>
+        <div id="modal-cert-reason-error" class="notice error" style="display: none; margin-top: 8px; font-size: 12px; padding: 6px 10px;"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" onclick="closeCertDecisionModal()">Hủy bỏ</button>
+        <button type="submit" id="btn-modal-cert-submit" class="danger">Xác nhận</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="../js/config.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js"></script>
@@ -439,8 +474,10 @@
       Approved: { label: 'Đã xác minh', cls: 'badge Active' },
       Verified: { label: 'Đã xác minh', cls: 'badge Active' },
       Pending: { label: 'Chờ xác minh', cls: 'badge Pending' },
+      PendingReview: { label: 'Chờ xác minh', cls: 'badge Pending' },
       PendingApproval: { label: 'Chờ xác minh', cls: 'badge Pending' },
       Rejected: { label: 'Từ chối', cls: 'badge Suspended' },
+      Revoked: { label: 'Đã thu hồi', cls: 'badge Suspended' },
       AdditionalInfoRequired: { label: 'Cần bổ sung TT', cls: 'badge Pending' },
       NotSubmitted: { label: 'Chưa nộp hồ sơ', cls: 'badge neutral' }
     };
@@ -999,13 +1036,35 @@
       const docsTbody = document.getElementById('detail-docs-tbody');
 
       if (!docs.length) {
-        docsTbody.innerHTML = '<tr><td colspan="7" class="empty" style="text-align:center; padding:20px; color:#62796c;">Chưa có tệp tài liệu đính kèm riêng biệt cho hồ sơ này.</td></tr>';
+        docsTbody.innerHTML = '<tr><td colspan="8" class="empty" style="text-align:center; padding:20px; color:#62796c;">Chưa có tệp tài liệu đính kèm riêng biệt cho hồ sơ này.</td></tr>';
       } else {
         docsTbody.innerHTML = docs.map((doc, idx) => {
           const docBadge = VERIF_BADGES[doc.status || doc.verificationStatus || d.verificationStatus] || { label: 'Chờ xử lý', cls: 'badge neutral' };
           const linkHtml = doc.documentUrl
             ? `<a href="${Utils.escapeHtml(doc.documentUrl)}" target="_blank" rel="noreferrer" style="color:#166534; font-weight:600; text-decoration:underline;">Xem tài liệu / Ảnh KYC ↗</a>`
             : '<span class="muted">Đã đối chiếu dữ liệu hồ sơ</span>';
+
+          const certId = doc.certificateId || (d.role === 'Farmer' && doc.id ? doc.id : null);
+          const status = doc.status || doc.verificationStatus || d.verificationStatus;
+          let actionBtns = '';
+          if (certId) {
+            if (status === 'Pending' || status === 'PendingReview') {
+              actionBtns = `
+                <div style="display:inline-flex; gap:6px;">
+                  <button type="button" class="primary" style="padding:4px 10px; font-size:12px; height:auto; min-width:auto;" onclick="reviewIndividualCertificate(${certId}, 'approve')">✓ Duyệt CC</button>
+                  <button type="button" class="danger" style="padding:4px 10px; font-size:12px; height:auto; min-width:auto;" onclick="openCertDecisionModal(${certId}, '${Utils.escapeHtml(doc.certificateType || doc.certificateNumber || 'Chứng chỉ')}', 'reject')">✕ Từ chối</button>
+                </div>
+              `;
+            } else if (status === 'Verified' || status === 'Approved') {
+              actionBtns = `
+                <button type="button" style="padding:4px 10px; font-size:12px; height:auto; min-width:auto; color:#b91c1c; border:1px solid #fca5a5; background:#fff;" onclick="openCertDecisionModal(${certId}, '${Utils.escapeHtml(doc.certificateType || doc.certificateNumber || 'Chứng chỉ')}', 'revoke')">Thu hồi CC</button>
+              `;
+            } else {
+              actionBtns = `<span class="muted" style="font-size:12px;">Đã kết luận</span>`;
+            }
+          } else {
+            actionBtns = `<span class="muted" style="font-size:12px;">Theo hồ sơ KYC</span>`;
+          }
 
           return `
             <tr>
@@ -1016,6 +1075,7 @@
               <td>${Utils.formatDateTime(doc.expiryDate)}</td>
               <td><span class="${docBadge.cls}">${docBadge.label}</span></td>
               <td>${linkHtml}</td>
+              <td>${actionBtns}</td>
             </tr>
           `;
         }).join('');
@@ -1136,11 +1196,18 @@
               reviewedAt: nowIso,
               reviewedBy: reviewerName,
               rejectReason: decisionModal === 'approve' ? null : reason,
-              documents: (item.documents || []).map(doc => ({
-                ...doc,
-                status: nextStatus,
-                verificationStatus: nextStatus
-              }))
+              documents: (item.documents || []).map(doc => {
+                const docStatus = doc.status || doc.verificationStatus;
+                if (!docStatus || docStatus === 'Pending' || docStatus === 'PendingReview') {
+                  const docNext = decisionModal === 'approve' ? 'Verified' : (decisionModal === 'reject' ? 'Rejected' : docStatus);
+                  return {
+                    ...doc,
+                    status: docNext,
+                    verificationStatus: docNext
+                  };
+                }
+                return doc;
+              })
             };
           }
           return item;
@@ -1170,6 +1237,99 @@
       } finally {
         btnSubmit.disabled = false;
         btnSubmit.textContent = cfg.submitLabel;
+      }
+    }
+
+    /* ==========================================================================
+       Individual Certificate Review Logic
+       ========================================================================== */
+    let pendingCertDecision = null;
+
+    function openCertDecisionModal(certId, certName, action) {
+      pendingCertDecision = { certId, certName, action };
+      const isRevoke = action === 'revoke';
+      document.getElementById('modal-cert-title').textContent = isRevoke ? 'Thu hồi chứng nhận' : 'Từ chối chứng nhận';
+      document.getElementById('modal-cert-name').textContent = certName;
+      document.getElementById('modal-cert-action-desc').textContent = isRevoke
+        ? 'Thu hồi chứng nhận này. Sau khi thu hồi, chứng nhận sẽ không còn hiển thị huy hiệu "Đã xác minh" trên gian hàng và trang truy xuất nguồn gốc (TRC-01).'
+        : 'Từ chối duyệt chứng nhận này. Nông dân sẽ nhận được thông báo kèm lý do từ chối để cập nhật lại.';
+      document.getElementById('cert-decision-reason').value = '';
+      document.getElementById('modal-cert-reason-error').style.display = 'none';
+      const btn = document.getElementById('btn-modal-cert-submit');
+      btn.textContent = isRevoke ? 'Xác nhận thu hồi' : 'Xác nhận từ chối';
+      btn.className = 'danger';
+      document.getElementById('modal-cert-decision').showModal();
+    }
+
+    function closeCertDecisionModal() {
+      const modal = document.getElementById('modal-cert-decision');
+      if (modal && modal.open) modal.close();
+      pendingCertDecision = null;
+    }
+
+    async function submitCertDecision(e) {
+      if (e) e.preventDefault();
+      if (!pendingCertDecision) return;
+      const { certId, action } = pendingCertDecision;
+      const reason = document.getElementById('cert-decision-reason').value.trim();
+      const errBox = document.getElementById('modal-cert-reason-error');
+
+      if (!reason) {
+        errBox.textContent = action === 'revoke' ? 'Vui lòng nhập lý do thu hồi chứng nhận.' : 'Vui lòng nhập lý do từ chối chứng nhận.';
+        errBox.style.display = 'block';
+        return;
+      }
+
+      errBox.style.display = 'none';
+      closeCertDecisionModal();
+      await executeCertReview(certId, action, reason);
+    }
+
+    async function reviewIndividualCertificate(certId, action, reason = null) {
+      if (action === 'approve') {
+        if (!confirm('Bạn có chắc chắn muốn phê duyệt chứng chỉ này thành "Đã xác minh" (Verified)?')) {
+          return;
+        }
+      }
+      await executeCertReview(certId, action, reason);
+    }
+
+    async function executeCertReview(certId, action, reason) {
+      try {
+        let message = 'Cập nhật trạng thái chứng chỉ thành công.';
+        const token = Auth.getAccessToken();
+        if (token) {
+          const res = await API.post(`/kyc-applications/certificates/${certId}/review`, {
+            action,
+            reason
+          });
+          if (res && res.message) message = res.message;
+        }
+
+        // Cập nhật trạng thái trong chi tiết hiện tại
+        if (selectedDetail && selectedDetail.documents) {
+          const targetStatus = action === 'approve' ? 'Verified' : (action === 'revoke' ? 'Revoked' : 'Rejected');
+          selectedDetail.documents = selectedDetail.documents.map(doc => {
+            const docCertId = doc.certificateId || (selectedDetail.role === 'Farmer' && doc.id ? doc.id : null);
+            if (docCertId === certId) {
+              return { ...doc, status: targetStatus, verificationStatus: targetStatus };
+            }
+            return doc;
+          });
+          renderDetail();
+        }
+
+        showNotice('success', message);
+
+        // Nạp lại chi tiết từ server nếu có thể
+        if (selectedDetail?.userId) {
+          try {
+            await openDetail(selectedDetail.userId);
+          } catch {}
+        }
+      } catch (err) {
+        console.error('Certificate review error:', err);
+        showNotice('error', err.message || 'Không thể cập nhật chứng chỉ.');
       }
     }
 
