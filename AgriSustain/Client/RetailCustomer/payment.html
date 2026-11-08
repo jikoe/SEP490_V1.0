@@ -508,6 +508,10 @@
     }
 
     function handleReturnToOrder() {
+      if (queryParams.orderCode && queryParams.orderCode.startsWith('WS-')) {
+        window.location.href = '../WholesaleBuyer/wholesale-order.html';
+        return;
+      }
       window.location.href = 'orders.html';
     }
 
@@ -532,7 +536,12 @@
       const check = async () => {
         if (status !== 'PENDING') return;
         try {
-          const detail = await API.get(`/orders/by-code/${encodeURIComponent(queryParams.orderCode)}`, { suppressErrorToast: true });
+          const isWholesale = queryParams.orderCode.startsWith('WS-');
+          const endpoint = isWholesale
+            ? `/b2b/orders/by-code/${encodeURIComponent(queryParams.orderCode)}`
+            : `/orders/by-code/${encodeURIComponent(queryParams.orderCode)}`;
+          const res = await API.get(endpoint, { suppressErrorToast: true });
+          const detail = res?.data || res;
           if (!detail) return;
 
           if (detail.orderStatus === 'Confirmed' || detail.paymentStatus === 'Paid' || detail.status === 'Confirmed' || detail.status === 'Paid') {
@@ -578,7 +587,7 @@
 
       // Auto redirect to orders after 4s
       setTimeout(() => {
-        window.location.href = 'orders.html';
+        handleReturnToOrder();
       }, 4000);
     }
   </script>

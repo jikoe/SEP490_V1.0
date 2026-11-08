@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đơn Sỉ Chờ Thanh Toán (Giỏ Hàng Sỉ) - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .ws-page-wrap { padding: 24px 32px; max-width: 1440px; margin: 0 auto; }
+
+    /* Top Nav Switcher between Orders & Unpaid Cart */
+    .ws-top-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .ws-nav-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+    .ws-nav-tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 750; text-decoration: none; color: #475569; background: #f8fafc; border: 1px solid #cbd5e1; transition: all 0.18s; }
+    .ws-nav-tab:hover { background: #ecfdf5; color: #064e3b; border-color: #a7f3d0; }
+    .ws-nav-tab.active { background: #064e3b; color: #fff; border-color: #064e3b; box-shadow: 0 4px 12px rgba(6, 78, 59, 0.2); }
+    .ws-tab-pill { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: rgba(255,255,255,0.2); color: inherit; }
+    .ws-nav-tab:not(.active) .ws-tab-pill { background: #e2e8f0; color: #334155; }
+
+    /* Table Styles */
+    .ws-pay-badge { font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; display: inline-block; }
+    .ws-pay-badge.unpaid { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+    .ws-table-row { cursor: pointer; transition: background 0.15s; }
+    .ws-table-row:hover { background: #f0fdf4 !important; }
+
+    /* Modals */
+    .order-modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 18px; }
+    .order-modal-content { background: white; border-radius: 16px; max-width: 740px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); position: relative; animation: modalPop 0.2s ease-out; }
+    .qr-modal-content { max-width: 820px; text-align: left; }
+    @keyframes modalPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+    .modal-close-x { position: absolute; top: 16px; right: 18px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; }
+    .modal-close-x:hover { background: #fee2e2; color: #dc2626; }
+
+    /* SePay QR Modal Grid */
+    .sepay-qr-grid { display: grid; grid-template-columns: 280px 1fr; gap: 22px; align-items: start; margin-top: 16px; }
+    @media (max-width: 720px) {
+      .sepay-qr-grid { grid-template-columns: 1fr; }
+    }
+    .sepay-qr-box { border: 1px solid #cfe5d7; background: #f5faf6; border-radius: 14px; padding: 18px; text-align: center; }
+    .sepay-qr-box img { width: 220px; height: 220px; object-fit: contain; border-radius: 10px; border: 1px solid #dce5da; background: white; padding: 6px; margin: 10px auto; display: block; }
+    .sepay-info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 9px; margin-bottom: 8px; background: #fff; }
+    .sepay-info-row .lbl { font-size: 11.5px; color: #64748b; }
+    .sepay-info-row .val { font-size: 14px; font-weight: 700; color: #0f172a; }
+    .btn-copy-mini { padding: 5px 10px; font-size: 12px; font-weight: 700; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; cursor: pointer; color: #0f172a; }
+    .btn-copy-mini:hover { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="ws-page-wrap">
+          
+          <!-- TOP NAVIGATION SWITCHER -->
+          <div class="ws-top-nav">
+            <div class="ws-nav-tabs">
+              <a href="orders.html" class="ws-nav-tab">
+                📦 Danh sách đơn hàng mua sỉ
+                <span class="ws-tab-pill" id="tab-all-count">0</span>
+              </a>
+              <a href="cart.html" class="ws-nav-tab active">
+                🛒 Đơn sỉ chờ thanh toán (Giỏ hàng sỉ)
+                <span class="ws-tab-pill" id="tab-unpaid-count">0</span>
+              </a>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <a href="../RetailCustomer/index.html" class="btn primary" style="text-decoration:none; padding:9px 16px; border-radius:8px; font-size:13.5px; font-weight:700; background:#064e3b; color:#fff;">
+                + Thêm sản phẩm mua sỉ mới
+              </a>
+            </div>
+          </div>
+
+          <!-- UNPAID WHOLESALE ORDERS TABLE (CART) -->
+          <div class="panel padded">
+            <div class="record-heading" style="padding: 0 0 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div>
+                <h1 style="font-size:22px; margin:0 0 4px; color:#064e3b;">🛒 Danh Sách Đơn Mua Sỉ Chưa Thanh Toán</h1>
+                <p class="muted" style="margin:0; font-size:13.5px;">Các đơn hàng bạn đã bấm mua sỉ nhưng chưa thanh toán. Bấm vào dòng để xem chi tiết hoặc bấm <strong>Thanh toán SePay</strong> để quét mã QR.</p>
+              </div>
+              <div style="background:#ecfdf5; border:1px solid #a7f3d0; padding:8px 16px; border-radius:10px; font-size:13.5px; color:#064e3b;">
+                Tổng tiền chờ thanh toán: <strong id="cart-total-unpaid" style="font-size:16px; font-weight:900;">0 ₫</strong>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã đơn sỉ</th>
+                    <th>Nhà bán (Nông hộ / HTX)</th>
+                    <th>Mặt hàng nông sản</th>
+                    <th>Khối lượng đặt</th>
+                    <th>Đơn giá sỉ</th>
+                    <th>Tổng cần thanh toán</th>
+                    <th>Trạng thái</th>
+                    <th>Thanh toán</th>
+                  </tr>
+                </thead>
+                <tbody id="unpaid-orders-tbody">
+                  <tr>
+                    <td colspan="8" style="text-align:center; padding:32px; color:#64748b;">⏳ Đang tải danh sách đơn sỉ chờ thanh toán...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Giỏ Hàng Mua Sỉ &amp; Thanh Toán SePay B2B
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL 1: CHI TIẾT ĐƠN HÀNG SỈ -->
+  <div id="modal-order-detail" class="order-modal-backdrop" onclick="if(event.target===this) closeOrderDetailModal()">
+    <div class="order-modal-content">
+      <button type="button" class="modal-close-x" onclick="closeOrderDetailModal()">&times;</button>
+
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span style="font-size:24px;">📦</span>
+        <div>
+          <span style="font-size:11.5px; font-weight:700; text-transform:uppercase; color:#059669;">CHI TIẾT ĐƠN SỈ CHỜ THANH TOÁN</span>
+          <h2 id="detail-code" style="font-size:20px; font-weight:850; color:#064e3b; margin:0;">#WS---</h2>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 0;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">🌾 Nhà bán / Nông hộ cung ứng</div>
+          <div id="detail-seller" style="font-size:15px; font-weight:800; color:#064e3b; margin-bottom:4px;">--</div>
+          <div id="detail-farm-addr" style="font-size:12.5px; color:#475569; margin-bottom:4px;">--</div>
+          <div style="font-size:12px; color:#64748b;">Mã đơn NCC: <code id="detail-seller-code" style="font-weight:700; color:#0f172a;">--</code></div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">📊 Trạng thái &amp; Thời gian</div>
+          <div style="margin-bottom:6px;">Thanh toán: <span class="ws-pay-badge unpaid">⏳ Chờ thanh toán SePay</span></div>
+          <div style="font-size:12.5px; color:#475569; margin-bottom:4px;">Ngày đặt: <strong id="detail-date">--</strong></div>
+          <div style="font-size:12.5px; color:#475569;">Ngày giao dự kiến: <strong id="detail-exp-date">--</strong></div>
+        </div>
+      </div>
+
+      <div style="background:#fff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:14px;">
+        <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px;">🛒 Mặt hàng &amp; Giá trị thanh toán</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px dashed #e2e8f0; margin-bottom:10px;">
+          <div>
+            <div id="detail-product" style="font-size:15.5px; font-weight:800; color:#0f172a;">--</div>
+            <div id="detail-qty-price" style="font-size:13px; color:#475569; margin-top:2px;">--</div>
+          </div>
+          <div id="detail-subtotal" style="font-size:15px; font-weight:800; color:#0f172a;">--</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#475569; margin-bottom:6px;">
+          <span>Phí vận chuyển logistics B2B:</span>
+          <strong id="detail-shipping">--</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#475569; margin-bottom:8px;">
+          <span>Phương thức thanh toán:</span>
+          <strong>Chuyển khoản ngân hàng (SePay QR)</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; padding-top:8px; border-top:1px solid #e2e8f0;">
+          <span style="font-weight:800; color:#0f172a;">TỔNG THANH TOÁN ĐƠN SỈ:</span>
+          <span id="detail-total" style="font-size:20px; font-weight:900; color:#047857;">--</span>
+        </div>
+      </div>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px;">
+        <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px;">🏢 Giao nhận kho &amp; Hóa đơn Doanh nghiệp</div>
+        <div style="display:grid; grid-template-columns:140px 1fr; gap:6px 12px;">
+          <span style="color:#64748b;">Đơn vị xuất HĐ:</span><strong id="detail-company">--</strong>
+          <span style="color:#64748b;">Mã số thuế:</span><strong id="detail-tax">--</strong>
+          <span style="color:#64748b;">Người nhận hàng:</span><span id="detail-recipient">--</span>
+          <span style="color:#64748b;">Kho nhận hàng:</span><span id="detail-address">--</span>
+          <span style="color:#64748b;">Lô hàng phân bổ:</span><span id="detail-batches" style="font-weight:700; color:#047857;">--</span>
+          <span style="color:#64748b;">Ghi chú:</span><span id="detail-notes">--</span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" id="btn-detail-pay-qr" style="padding:10px 20px; border-radius:8px; background:#1e6546; color:#fff; border:none; font-weight:800; cursor:pointer;">
+          💳 Quét mã QR Thanh toán SePay ngay
+        </button>
+        <button type="button" onclick="closeOrderDetailModal()" style="padding:10px 18px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-weight:700; cursor:pointer;">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: QUÉT MÃ QR SEPAY -->
+  <div id="modal-sepay-qr-payment" class="order-modal-backdrop" onclick="if(event.target===this) closeSePayQrModal()">
+    <div class="order-modal-content qr-modal-content">
+      <button type="button" class="modal-close-x" onclick="closeSePayQrModal()">&times;</button>
+
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; padding-bottom:14px; border-bottom:1px solid #e2e8f0;">
+        <div>
+          <span style="display:inline-block; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; margin-bottom:6px;">
+            ⏳ Chờ thanh toán SePay · Mã đơn #<span id="sepay-badge-code">WS---</span>
+          </span>
+          <h2 style="font-size:22px; font-weight:850; color:#064e3b; margin:0 0 4px;">Thanh toán đơn hàng sỉ qua SePay</h2>
+          <p style="margin:0; font-size:13px; color:#475569;">
+            Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử. SePay tự động xác nhận ngay khi tiền về tài khoản.
+          </p>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:8px 14px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">⏱️</span>
+          <div>
+            <div style="font-size:10.5px; text-transform:uppercase; font-weight:700; color:#64748b;">Thời gian giữ lô</div>
+            <div id="sepay-timer-digits" style="font-size:17px; font-weight:900; color:#047857; font-family:monospace;">15:00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success State -->
+      <div id="sepay-paid-success-box" style="display:none; text-align:center; padding:28px 16px;">
+        <div style="width:68px; height:68px; border-radius:50%; background:#dcfce7; color:#15803d; font-size:36px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">✓</div>
+        <h3 style="font-size:22px; font-weight:850; color:#064e3b; margin:0 0 6px;">Đã thanh toán SePay thành công!</h3>
+        <p style="font-size:14px; color:#475569; max-width:520px; margin:0 auto 18px;">
+          Giao dịch chuyển khoản <strong id="sepay-succ-amount" style="color:#047857;">0 ₫</strong> cho đơn hàng sỉ <strong id="sepay-succ-code">#WS---</strong> đã được hệ thống SePay xác nhận.
+        </p>
+        <div style="display:flex; justify-content:center; gap:12px;">
+          <a href="orders.html" style="text-decoration:none; background:#064e3b; color:#fff; padding:10px 22px; border-radius:8px; font-weight:700;">
+            📦 Xem danh sách đơn hàng mua sỉ
+          </a>
+        </div>
+      </div>
+
+      <!-- Active QR & Bank Transfer Info Grid -->
+      <div id="sepay-active-qr-body" class="sepay-qr-grid">
+        <div class="sepay-qr-box">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="font-size:14px; color:#064e3b;">Quét mã QR (<span id="sepay-qr-bank-short">MB</span>)</strong>
+            <span style="font-size:10.5px; font-weight:800; background:#dcfce7; color:#166534; padding:2px 7px; border-radius:6px;">✓ NAPAS 247</span>
+          </div>
+          <img id="sepay-qr-img" src="" alt="Mã QR thanh toán SePay">
+          <p style="font-size:12px; color:#475569; margin:8px 0 4px; line-height:1.4;">
+            Mở App <strong>Ngân hàng</strong> hoặc <strong>MoMo / ViettelPay</strong> quét mã để điền sẵn số tiền &amp; nội dung.
+          </p>
+          <div style="font-size:11px; color:#047857; font-weight:700;">
+            Vietcombank · MB · BIDV · Techcombank · ACB
+          </div>
+        </div>
+
+        <div>
+          <h4 style="margin:0 0 10px; font-size:15px; font-weight:800; color:#064e3b;">Thông tin chuyển khoản ngân hàng</h4>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Kênh thanh toán</div>
+              <div class="val" style="color:#047857;">SePay · Chuyển khoản Napas 247 (Tự động xác nhận)</div>
+            </div>
+          </div>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Ngân hàng thụ hưởng</div>
+              <div class="val" id="sepay-bank-name">MB Bank (Ngân hàng TMCP Quân Đội)</div>
+            </div>
+          </div>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Chủ tài khoản</div>
+              <div class="val" id="sepay-account-name">CONG TY CP NONG SAN VIET</div>
+            </div>
+          </div>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Số tài khoản</div>
+              <div class="val" id="sepay-account-number" style="font-family:monospace; letter-spacing:0.8px;">0000499456980</div>
+            </div>
+            <button type="button" class="btn-copy-mini" id="btn-copy-sepay-acc" onclick="copySePayField('acc', sePayBeneficiary.accountNumber)">Sao chép</button>
+          </div>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Số tiền cần thanh toán</div>
+              <div class="val" id="sepay-amount-display" style="color:#047857; font-size:16px; font-weight:900;">0 ₫</div>
+            </div>
+            <button type="button" class="btn-copy-mini" id="btn-copy-sepay-amt" onclick="copySePayField('amt', String(activeSePayOrder?.finalAmount || 0))">Sao chép</button>
+          </div>
+
+          <div class="sepay-info-row" style="background:#ecfdf5; border-color:#6ee7b7;">
+            <div>
+              <div class="lbl" style="color:#065f46; font-weight:700;">Nội dung chuyển khoản (bắt buộc)</div>
+              <div class="val" id="sepay-transfer-content" style="color:#047857; font-family:monospace; font-size:15px; font-weight:900;">WS---</div>
+            </div>
+            <button type="button" class="btn-copy-mini" id="btn-copy-sepay-content" onclick="copySePayField('content', activeSePayOrder?.transferContent || '')">Sao chép</button>
+          </div>
+
+          <div style="font-size:12px; color:#475569; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:9px 12px; margin-top:10px;">
+            💡 <em>Hệ thống đang tự động kiểm tra giao dịch SePay mỗi 3 giây. Ngay khi chuyển khoản đúng nội dung, đơn hàng sỉ sẽ tự động chuyển sang trạng thái <strong>Đã thanh toán</strong>.</em>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+    let allOrders = [];
+    let unpaidOrders = [];
+    let sePayBeneficiary = {
+      bankName: 'MB Bank (Ngân hàng TMCP Quân Đội)',
+      bankBin: '970422',
+      bankShortName: 'MB',
+      accountNumber: '0000499456980',
+      accountName: 'CONG TY CP NONG SAN VIET'
+    };
+    let activeSePayOrder = null;
+    let sePayPollingTimer = null;
+    let sePayCountdownTimer = null;
+    let sePaySecondsLeft = 900;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof Components !== 'undefined' && Components.init) {
+        Components.init();
+      }
+      loadSePayBeneficiaryConfig();
+      await loadUnpaidOrders();
+
+      const params = new URLSearchParams(window.location.search);
+      const payOrderCode = params.get('payOrder');
+      if (payOrderCode) {
+        const target = unpaidOrders.find(o => o.orderCode === payOrderCode);
+        if (target) {
+          openSePayQrModal(target);
+        }
+      }
+    });
+
+    async function loadSePayBeneficiaryConfig() {
+      try {
+        const res = await API.getPaymentConfig();
+        const cfg = res?.data || res;
+        if (cfg && cfg.accountNumber) {
+          sePayBeneficiary = {
+            bankName: cfg.bankName || sePayBeneficiary.bankName,
+            bankBin: cfg.bankBin || sePayBeneficiary.bankBin,
+            bankShortName: cfg.bankShortName || sePayBeneficiary.bankShortName,
+            accountNumber: cfg.accountNumber || sePayBeneficiary.accountNumber,
+            accountName: cfg.accountName || sePayBeneficiary.accountName
+          };
+        }
+      } catch (_) {}
+    }
+
+    async function loadUnpaidOrders() {
+      try {
+        const res = await API.getMyWholesaleOrders();
+        if (res && res.success && res.data) {
+          allOrders = res.data.orders || [];
+          unpaidOrders = allOrders.filter(o => o.paymentStatus !== 'Paid');
+
+          document.getElementById('tab-all-count').textContent = allOrders.length;
+          document.getElementById('tab-unpaid-count').textContent = unpaidOrders.length;
+
+          const totalUnpaid = unpaidOrders.reduce((sum, o) => sum + Number(o.finalAmount || 0), 0);
+          document.getElementById('cart-total-unpaid').textContent = `${totalUnpaid.toLocaleString('vi-VN')} ₫`;
+
+          renderUnpaidTable(unpaidOrders);
+        }
+      } catch (err) {
+        console.error('Error loading unpaid wholesale orders:', err);
+      }
+    }
+
+    function renderUnpaidTable(orders) {
+      const tbody = document.getElementById('unpaid-orders-tbody');
+      if (!orders || orders.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:36px 20px; color:#64748b;">
+              🎉 Hiện không có đơn hàng mua sỉ nào đang chờ thanh toán.<br>
+              <a href="../RetailCustomer/index.html" style="display:inline-block; margin-top:10px; color:#047857; font-weight:700; text-decoration:underline;">Khám phá nông sản sỉ mới →</a>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = orders.map(o => {
+        return `
+          <tr class="ws-table-row" onclick="openOrderDetailModal('${o.orderCode}')" title="Bấm vào dòng để xem chi tiết đơn hàng sỉ">
+            <td><code style="font-weight:800; color:#047857; background:#e6f4ea; padding:4px 8px; border-radius:6px;">#${o.orderCode}</code></td>
+            <td><strong style="color:#064e3b;">🏢 ${o.sellerName}</strong></td>
+            <td><strong>${o.productName}</strong></td>
+            <td><strong>${Number(o.quantity).toLocaleString('vi-VN')} ${o.unit}</strong></td>
+            <td>${Number(o.unitPrice).toLocaleString('vi-VN')} ₫/${o.unit}</td>
+            <td><strong style="color:#047857; font-size:15px;">${Number(o.finalAmount).toLocaleString('vi-VN')} ₫</strong></td>
+            <td><span class="ws-pay-badge unpaid">⏳ Chưa thanh toán</span></td>
+            <td onclick="event.stopPropagation()">
+              <button type="button" onclick="openSePayQrByCode('${o.orderCode}')" style="padding:7px 14px; border-radius:8px; border:none; background:#1e6546; color:#fff; font-size:12.5px; font-weight:700; cursor:pointer;">
+                💳 Thanh toán SePay
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openOrderDetailModal(orderCode) {
+      const o = unpaidOrders.find(x => x.orderCode === orderCode) || allOrders.find(x => x.orderCode === orderCode);
+      if (!o) return;
+
+      document.getElementById('detail-code').textContent = `Đơn hàng sỉ #${o.orderCode}`;
+      document.getElementById('detail-seller').textContent = o.sellerName;
+      document.getElementById('detail-farm-addr').textContent = `📍 ${o.farmAddress || 'Việt Nam'}`;
+      document.getElementById('detail-seller-code').textContent = o.sellerOrderCode || `${o.orderCode}-1`;
+
+      document.getElementById('detail-date').textContent = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
+      document.getElementById('detail-exp-date').textContent = o.expectedDeliveryDate ? new Date(o.expectedDeliveryDate).toLocaleDateString('vi-VN') : '--';
+      document.getElementById('detail-product').textContent = o.productName;
+      document.getElementById('detail-qty-price').textContent = `Số lượng: ${Number(o.quantity).toLocaleString('vi-VN')} ${o.unit} × Đơn giá sỉ: ${Number(o.unitPrice).toLocaleString('vi-VN')} ₫/${o.unit}`;
+      document.getElementById('detail-subtotal').textContent = `${Number(o.subtotal).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('detail-shipping').textContent = `${Number(o.deliveryFee).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('detail-total').textContent = `${Number(o.finalAmount).toLocaleString('vi-VN')} ₫`;
+
+      document.getElementById('detail-company').textContent = o.companyName || '--';
+      document.getElementById('detail-tax').textContent = o.taxCode || '--';
+      document.getElementById('detail-recipient').textContent = `${o.recipientName || '--'} (${o.recipientPhone || '--'})`;
+      document.getElementById('detail-address').textContent = o.shippingAddress || '--';
+      document.getElementById('detail-notes').textContent = o.orderNotes || 'Không có ghi chú thêm';
+
+      const batches = o.batchAllocations || [];
+      document.getElementById('detail-batches').textContent = batches.length > 0
+        ? batches.map(b => `${b.batchCode} (${Number(b.allocatedQuantity).toLocaleString('vi-VN')} ${b.unit || o.unit})`).join(', ')
+        : 'Đã khóa giữ tự động từ lô thu hoạch';
+
+      document.getElementById('btn-detail-pay-qr').onclick = () => {
+        closeOrderDetailModal();
+        openSePayQrModal(o);
+      };
+
+      document.getElementById('modal-order-detail').style.display = 'flex';
+    }
+
+    function closeOrderDetailModal() {
+      document.getElementById('modal-order-detail').style.display = 'none';
+    }
+
+    function openSePayQrByCode(orderCode) {
+      const o = unpaidOrders.find(x => x.orderCode === orderCode);
+      if (o) openSePayQrModal(o);
+    }
+
+    function openSePayQrModal(order) {
+      activeSePayOrder = {
+        ...order,
+        transferContent: order.transferContent || (order.orderCode || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 18)
+      };
+
+      document.getElementById('sepay-paid-success-box').style.display = 'none';
+      document.getElementById('sepay-active-qr-body').style.display = 'grid';
+
+      document.getElementById('sepay-badge-code').textContent = activeSePayOrder.orderCode;
+      document.getElementById('sepay-qr-bank-short').textContent = sePayBeneficiary.bankShortName;
+      document.getElementById('sepay-bank-name').textContent = sePayBeneficiary.bankName;
+      document.getElementById('sepay-account-name').textContent = sePayBeneficiary.accountName;
+      document.getElementById('sepay-account-number').textContent = sePayBeneficiary.accountNumber;
+      document.getElementById('sepay-amount-display').textContent = `${Number(activeSePayOrder.finalAmount || 0).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('sepay-transfer-content').textContent = activeSePayOrder.transferContent;
+
+      const qrParams = new URLSearchParams({
+        acc: sePayBeneficiary.accountNumber,
+        bank: sePayBeneficiary.bankShortName,
+        amount: String(Math.round(Number(activeSePayOrder.finalAmount || 0))),
+        des: activeSePayOrder.transferContent,
+        template: 'compact'
+      });
+      document.getElementById('sepay-qr-img').src = `https://qr.sepay.vn/img?${qrParams.toString()}`;
+
+      document.getElementById('modal-sepay-qr-payment').style.display = 'flex';
+      startSePayTimer();
+      startSePayPolling(activeSePayOrder.orderCode);
+    }
+
+    function closeSePayQrModal() {
+      if (sePayPollingTimer) clearInterval(sePayPollingTimer);
+      if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
+      document.getElementById('modal-sepay-qr-payment').style.display = 'none';
+    }
+
+    function startSePayTimer() {
+      if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
+      sePaySecondsLeft = 15 * 60;
+      const digitsEl = document.getElementById('sepay-timer-digits');
+
+      const tick = () => {
+        if (sePaySecondsLeft <= 0) {
+          clearInterval(sePayCountdownTimer);
+          digitsEl.textContent = '00:00';
+          return;
+        }
+        sePaySecondsLeft--;
+        const m = String(Math.floor(sePaySecondsLeft / 60)).padStart(2, '0');
+        const s = String(sePaySecondsLeft % 60).padStart(2, '0');
+        digitsEl.textContent = `${m}:${s}`;
+      };
+      tick();
+      sePayCountdownTimer = setInterval(tick, 1000);
+    }
+
+    function startSePayPolling(orderCode) {
+      if (sePayPollingTimer) clearInterval(sePayPollingTimer);
+      if (!orderCode) return;
+
+      sePayPollingTimer = setInterval(async () => {
+        try {
+          const res = await API.getWholesaleOrderDetail(orderCode, { suppressErrorToast: true });
+          if (res && res.success && res.data) {
+            if (res.data.paymentStatus === 'Paid' || res.data.orderStatus === 'Confirmed') {
+              if (sePayPollingTimer) clearInterval(sePayPollingTimer);
+              if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
+              document.getElementById('sepay-active-qr-body').style.display = 'none';
+              document.getElementById('sepay-succ-amount').textContent = `${Number(res.data.finalAmount || 0).toLocaleString('vi-VN')} ₫`;
+              document.getElementById('sepay-succ-code').textContent = `#${res.data.orderCode}`;
+              document.getElementById('sepay-paid-success-box').style.display = 'block';
+              await loadUnpaidOrders();
+            }
+          }
+        } catch (_) {}
+      }, 3000);
+    }
+
+    function copySePayField(type, text) {
+      if (navigator.clipboard && text) {
+        navigator.clipboard.writeText(String(text));
+      }
+      const btn = document.getElementById(`btn-copy-sepay-${type}`);
+      if (btn) {
+        const old = btn.textContent;
+        btn.textContent = '✓ Đã chép';
+        setTimeout(() => { btn.textContent = old; }, 2000);
+      }
+    }
+  </script>
+</body>
+</html>
+
