@@ -8,7 +8,6 @@ const content = document.getElementById('finance-content');
 const notice = document.getElementById('finance-notice');
 const dialog = document.getElementById('finance-dialog');
 const params = new URLSearchParams(location.search);
-let sample = sessionStorage.getItem('agrisustain:finance-source') !== 'database';
 let data;
 let busy = false;
 let sequence = 0;
@@ -21,27 +20,16 @@ let period = { period: 'Month', date: `${today.slice(0, 7)}-01` };
 const active = Object.fromEntries(['search', 'category', 'provider', 'status', 'from', 'to', 'needsAttention', 'page'].map(key => [key, params.get(key) || '']));
 active.page = Math.max(1, Number(active.page) || 1);
 
-function api(path, query = {}) { return `/finance/${path}?${API.toQueryString({ ...query, sample })}`; }
-function header(title, description, extra = '') {
-  heading.innerHTML = `<div class="fin-heading"><div><h1>${esc(title)}</h1><p>${esc(description)}</p></div><div class="fin-heading-actions">${sample ? '<span class="fin-mode-badge">Dữ liệu mẫu</span>' : ''}${extra}<button id="finance-refresh" type="button">↻ Làm mới</button></div></div>`;
-  document.getElementById('finance-refresh').addEventListener('click', load);
+function api(path, query = {}) {
+  const search = API.toQueryString(query);
+  return `/finance/${path}${search ? `?${search}` : ''}`;
 }
-function source() {
-  document.getElementById('finance-source').innerHTML = `<div class="fin-source-note" role="note">${sample
-    ? 'Đang xem dữ liệu mẫu. Thao tác không thay đổi dữ liệu tài chính thật. Kết quả mẫu chỉ được lưu tạm trong phiên sử dụng.'
-    : 'Đang xem dữ liệu từ cơ sở dữ liệu. Kết nối xác minh cổng thanh toán sẽ được tích hợp sau.'}</div><div class="fin-footer"><span>Đơn vị: VND · Thời gian Việt Nam (UTC+7)</span><label>Nguồn dữ liệu <select id="finance-source-select"><option value="sample" ${sample ? 'selected' : ''}>Dữ liệu mẫu</option><option value="database" ${!sample ? 'selected' : ''}>Cơ sở dữ liệu</option></select></label></div>`;
-  document.getElementById('finance-source-select').addEventListener('change', event => {
-    if (busy) return;
-    sample = event.target.value === 'sample';
-    sessionStorage.setItem('agrisustain:finance-source', sample ? 'sample' : 'database');
-    data = null; operation = null; dialog.close();
-    if (page === 'payments') renderFilters();
-    load();
-  });
+function header(title, description, extra = '') {
+  heading.innerHTML = `<div class="fin-heading"><div><h1>${esc(title)}</h1><p>${esc(description)}</p></div><div class="fin-heading-actions">${extra}<button id="finance-refresh" type="button">↻ Làm mới</button></div></div>`;
+  document.getElementById('finance-refresh').addEventListener('click', load);
 }
 function setBusy(value) {
   busy = value;
-  document.getElementById('finance-source-select').disabled = value;
   document.getElementById('finance-refresh').disabled = value;
   document.getElementById('finance-close-dialog').disabled = value;
   content.querySelectorAll('button').forEach(button => { button.disabled = value || button.dataset.disabled === 'true'; });
@@ -88,7 +76,7 @@ async function openRecords(metric, pageNumber = 1) {
   try {
     const result = await request(api('dashboard/records', { metric, period: data.period.type, date: data.period.start, page: recordsPage, pageSize: 10 }));
     if (current !== recordsSequence) return;
-    body.innerHTML = `<p class="muted">${dateLabel(data.period.start)} – ${dateLabel(data.period.end)} · ${sample ? 'Dữ liệu mẫu' : 'Cơ sở dữ liệu'}</p><div class="fin-table-wrap"><table class="fin-table"><thead><tr><th>Mã chứng từ</th><th>Liên quan</th><th>Số tiền</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody>${result.items.map(row => `<tr><td>${esc(row.reference)}</td><td>${esc(row.relatedReference || '—')}</td><td>${money(row.amount)}</td><td>${status(row.status, metric === 'PendingPayouts' && row.status === 'Pending' ? 'Chờ chi trả' : ['CompletedPayouts'].includes(metric) && row.status === 'Paid' ? 'Đã chi trả' : undefined)}</td><td>${esc(localTime(row.at))}</td><td>${row.paymentId ? `<a href="payment-detail.html?id=${row.paymentId}">Xem giao dịch</a>` : '—'}</td></tr>`).join('')}</tbody></table></div>${!result.total ? '<p class="fin-empty">Không có chứng từ trong kỳ này.</p>' : ''}<div class="fin-records-pager"><button id="records-prev" type="button" ${recordsPage <= 1 ? 'disabled' : ''}>‹ Trước</button><span>Trang ${recordsPage} / ${Math.max(1, Math.ceil(result.total / 10))}</span><button id="records-next" type="button" ${recordsPage * 10 >= result.total ? 'disabled' : ''}>Sau ›</button></div>`;
+    body.innerHTML = `<p class="muted">${dateLabel(data.period.start)} – ${dateLabel(data.period.end)}</p><div class="fin-table-wrap"><table class="fin-table"><thead><tr><th>Mã chứng từ</th><th>Liên quan</th><th>Số tiền</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody>${result.items.map(row => `<tr><td>${esc(row.reference)}</td><td>${esc(row.relatedReference || '—')}</td><td>${money(row.amount)}</td><td>${status(row.status, metric === 'PendingPayouts' && row.status === 'Pending' ? 'Chờ chi trả' : ['CompletedPayouts'].includes(metric) && row.status === 'Paid' ? 'Đã chi trả' : undefined)}</td><td>${esc(localTime(row.at))}</td><td>${row.paymentId ? `<a href="payment-detail.html?id=${row.paymentId}">Xem giao dịch</a>` : '—'}</td></tr>`).join('')}</tbody></table></div>${!result.total ? '<p class="fin-empty">Không có chứng từ trong kỳ này.</p>' : ''}<div class="fin-records-pager"><button id="records-prev" type="button" ${recordsPage <= 1 ? 'disabled' : ''}>‹ Trước</button><span>Trang ${recordsPage} / ${Math.max(1, Math.ceil(result.total / 10))}</span><button id="records-next" type="button" ${recordsPage * 10 >= result.total ? 'disabled' : ''}>Sau ›</button></div>`;
     document.getElementById('records-prev').onclick = () => openRecords(metric, recordsPage - 1);
     document.getElementById('records-next').onclick = () => openRecords(metric, recordsPage + 1);
   } catch (error) { if (current === recordsSequence) body.textContent = cleanMessage(error.message); }
@@ -97,7 +85,7 @@ function renderFilters() {
   const options = (name, rows) => `<select name="${name}"><option value="">Tất cả</option>${rows.map(([key, label]) => `<option value="${key}" ${active[name] === key ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
   filters.innerHTML = `<form id="finance-search" class="fin-panel fin-filters"><label class="fin-filter-search">Tìm kiếm<input name="search" maxlength="150" value="${esc(active.search)}" placeholder="Mã giao dịch, tham chiếu hoặc nghĩa vụ"></label>
     <label>Loại thanh toán${options('category', [['Order', 'Đơn hàng'], ['Subscription', 'Gói thành viên']])}</label>
-    <label>Cổng thanh toán${options('provider', (sample ? ['PayOS', 'VietQR'] : ['PayOS', 'VietQR', 'VNPay', 'MoMo']).map(value => [value, value]))}</label>
+    <label>Cổng thanh toán${options('provider', ['PayOS', 'VietQR', 'VNPay', 'MoMo'].map(value => [value, value]))}</label>
     <label>Trạng thái${options('status', [['Pending', 'Chờ xác minh'], ['Succeeded', 'Thành công'], ['Failed', 'Thất bại'], ['Expired', 'Hết hạn']])}</label>
     <label class="fin-filter-date">Từ ngày tạo<input name="from" type="date" min="1900-01-01" max="9998-12-31" value="${esc(active.from)}"></label>
     <label class="fin-filter-date">Đến ngày tạo<input name="to" type="date" min="1900-01-01" max="9998-12-31" value="${esc(active.to)}"></label>
@@ -148,7 +136,7 @@ function renderDetail() {
 function confirmReconcile() {
   if (busy || !data.canReconcile) return;
   document.getElementById('finance-dialog-title').textContent = 'Xác nhận đối soát';
-  document.getElementById('finance-dialog-content').innerHTML = `<p>Đối soát giao dịch <strong>${esc(data.payment.code)}</strong> qua <strong>${esc(data.payment.provider)}</strong>?</p><p>Số tiền yêu cầu: <strong>${money(data.payment.amount)}</strong></p>${sample ? '<p class="fin-calculation">Đây là giao dịch mẫu. Kết quả không ghi vào dữ liệu tài chính thật.</p>' : ''}<div class="modal-actions"><button id="finance-cancel" type="button">Hủy</button><button id="finance-confirm" class="primary" type="button">Xác nhận đối soát</button></div>`;
+  document.getElementById('finance-dialog-content').innerHTML = `<p>Đối soát giao dịch <strong>${esc(data.payment.code)}</strong> qua <strong>${esc(data.payment.provider)}</strong>?</p><p>Số tiền yêu cầu: <strong>${money(data.payment.amount)}</strong></p><div class="modal-actions"><button id="finance-cancel" type="button">Hủy</button><button id="finance-confirm" class="primary" type="button">Xác nhận đối soát</button></div>`;
   document.getElementById('finance-cancel').onclick = () => dialog.close();
   document.getElementById('finance-confirm').onclick = reconcile;
   dialog.showModal();
@@ -179,7 +167,6 @@ async function load(keepNotice = false) {
   loadController = controller;
   const current = ++sequence;
   if (!keepNotice) showNotice(notice, '');
-  source();
   if (page === 'dashboard') header('Tổng quan tài chính', 'Theo dõi số liệu tài chính và các giao dịch cần xử lý.');
   if (page === 'payments') header('Đối soát thanh toán', 'Kiểm tra thanh toán đơn hàng và gói thành viên với PayOS / VietQR.');
   if (page === 'detail') header('Chi tiết giao dịch', 'Đang tải thông tin thanh toán.');

@@ -123,7 +123,7 @@ public sealed class FinanceService(
             return Fail<ReconcilePaymentResponse>(detail.Error!);
         }
         return Invalid<ReconcilePaymentResponse>(
-            "Đối soát trực tiếp đang chờ tích hợp cổng thanh toán. Vui lòng dùng dữ liệu mẫu để thử thao tác.");
+            "Đối soát trực tiếp đang chờ tích hợp cổng thanh toán.");
     }
 
     private FinancePaymentDetail BuildDetail(

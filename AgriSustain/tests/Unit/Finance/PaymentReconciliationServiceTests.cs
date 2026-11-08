@@ -5,7 +5,6 @@ using AgriSustain.Application.Services.Finance;
 using AgriSustain.Application.Validators;
 using AgriSustain.Domain.Entities;
 using AgriSustain.UnitTests.DuIte1;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -13,19 +12,13 @@ namespace AgriSustain.UnitTests.Finance;
 
 /// <summary>UC-FIN-02 unit tests of services, validation and domain rules.</summary>
 [Trait("UseCase", "UC-FIN-02")]
-public sealed class PaymentReconciliationServiceTests : IDisposable
+public sealed class PaymentReconciliationServiceTests
 {
     private static readonly DateTimeOffset T0 = new(2026, 11, 2, 10, 0, 0, TimeSpan.Zero);
     private readonly FinanceStore _store = new();
 
     private FinanceService Service() => new(_store, new FinanceActor(), _store.Clock,
         NullLogger<FinanceService>.Instance);
-    private FinanceSampleService Sample(long actor = 90) =>
-        new(_store, new FinanceActor(actor), _store.Cache, _store.Clock);
-    public void Dispose() => _store.Dispose();
-
-    private static async Task<ReconcilePaymentRequest> Request(FinanceSampleService service, long id) =>
-        new((await service.DetailAsync(id, default)).Value!.Version, Guid.NewGuid().ToString("D"));
 
     // ---------- UC-FIN-02: FinanceService.SearchAsync ----------
 
@@ -147,135 +140,6 @@ public sealed class PaymentReconciliationServiceTests : IDisposable
         Assert.NotEqual(version, FinancePaymentRules.Version(p, []));
     }
 
-    // ---------- UC-FIN-02: FinanceSampleService.SearchAsync ----------
-
-    [Fact(DisplayName = "[UC-FIN-02 #013] Return the three matching sample subscriptions")]
-    public async Task SearchAsync_SampleFilters_ReturnsMatchingRows()
-    {
-        var result = await Sample().SearchAsync(new(Category: "Subscription", Provider: "PayOS"), default);
-
-        Assert.Equal(3, result.Value!.Total);
-        Assert.All(result.Value.Items, x =>
-        {
-            Assert.Equal("Subscription", x.Category);
-            Assert.Equal("PayOS", x.Provider);
-        });
-    }
-
-    [Fact(DisplayName = "[UC-FIN-02 #014] Return three different rows and preserve total eight")]
-    public async Task SearchAsync_SamplePaging_ReturnsDistinctPages()
-    {
-        var s = Sample();
-        var first = (await s.SearchAsync(new(PageSize: 3), default)).Value!;
-        var second = (await s.SearchAsync(new(Page: 2, PageSize: 3), default)).Value!;
-
-        Assert.Equal(8, second.Total);
-        Assert.Equal(3, second.Items.Count);
-        Assert.Empty(first.Items.Select(x => x.Id).Intersect(second.Items.Select(x => x.Id)));
-    }
-
-    // ---------- UC-FIN-02: FinanceSampleService.ReconcileAsync ----------
-
-    [Fact(DisplayName = "[UC-FIN-02 #015] Mark sample paid, clear obligation balance and record one history entry")]
-    public async Task ReconcileAsync_SampleSuccess_RecordsSuccess()
-    {
-        var s = Sample();
-        var result = await s.ReconcileAsync(1, await Request(s, 1), default);
-
-        Assert.True(result.IsSuccess);
-        Assert.Equal("Succeeded", result.Value!.Outcome);
-        Assert.Equal(0, result.Value.Detail.Obligation!.Unpaid);
-        Assert.Equal("Paid", result.Value.Detail.Obligation.Status);
-        Assert.NotNull(result.Value.Detail.Payment.PaidAt);
-        Assert.Single(result.Value.Detail.History);
-        Assert.False(result.Value.Detail.CanReconcile);
-    }
-
-    [Fact(DisplayName = "[UC-FIN-02 #016] Record mismatch, preserve Pending and unpaid amount, require review")]
-    public async Task ReconcileAsync_SampleMismatch_PreservesUnpaidMismatch()
-    {
-        var s = Sample();
-        var result = await s.ReconcileAsync(2, await Request(s, 2), default);
-
-        Assert.Equal("Mismatch", result.Value!.Outcome);
-        Assert.Equal("Pending", result.Value.Detail.Payment.Status);
-        Assert.Equal(455000, result.Value.Detail.Obligation!.Unpaid);
-        Assert.True(result.Value.Detail.Payment.NeedsReview);
-    }
-
-    [Fact(DisplayName = "[UC-FIN-02 #017] Record late payment for manual review without paying the obligation")]
-    public async Task ReconcileAsync_SampleLatePayment_FlagsLatePayment()
-    {
-        var s = Sample();
-        var result = await s.ReconcileAsync(7, await Request(s, 7), default);
-
-        Assert.Equal("LatePayment", result.Value!.Outcome);
-        Assert.Equal("Pending", result.Value.Detail.Payment.Status);
-        Assert.True(result.Value.Detail.Payment.NeedsReview);
-        Assert.Equal("Cancelled", result.Value.Detail.Obligation!.Status);
-    }
-
-    [Fact(DisplayName = "[UC-FIN-02 #018] Record Failed and keep obligation unpaid")]
-    public async Task ReconcileAsync_SampleFailed_PreservesUnpaidFailure()
-    {
-        var s = Sample();
-        var result = await s.ReconcileAsync(6, await Request(s, 6), default);
-
-        Assert.Equal("Failed", result.Value!.Detail.Payment.Status);
-        Assert.Equal(555000, result.Value.Detail.Obligation!.Unpaid);
-    }
-
-    [Fact(DisplayName = "[UC-FIN-02 #019] Record Expired without clearing outstanding obligation")]
-    public async Task ReconcileAsync_SampleExpired_PreservesUnpaidExpiry()
-    {
-        var s = Sample();
-        var result = await s.ReconcileAsync(5, await Request(s, 5), default);
-
-        Assert.Equal("Expired", result.Value!.Detail.Payment.Status);
-        Assert.Equal(999000, result.Value.Detail.Obligation!.Unpaid);
-    }
-
-    [Fact(DisplayName = "[UC-FIN-02 #020] Return AlreadyApplied without adding history or money twice")]
-    public async Task ReconcileAsync_IdempotentReplay_AvoidsDuplicateCredit()
-    {
-        var s = Sample();
-        var request = await Request(s, 1);
-        await s.ReconcileAsync(1, request, default);
-        var result = await s.ReconcileAsync(1, request, default);
-
-        Assert.True(result.Value!.AlreadyApplied);
-        Assert.Single(result.Value.Detail.History);
-        Assert.Equal(0, result.Value.Detail.Obligation!.Unpaid);
-    }
-
-    [Fact(DisplayName = "[UC-FIN-02 #021] Reject stale version and preserve one history entry")]
-    public async Task ReconcileAsync_StaleVersion_RejectsStaleRequest()
-    {
-        var s = Sample();
-        var request = await Request(s, 2);
-        await s.ReconcileAsync(2, request, default);
-        var response = await s.ReconcileAsync(2, request with { RequestKey = Guid.NewGuid().ToString("D") }, default);
-
-        Assert.False(response.IsSuccess);
-        var response2 = await s.DetailAsync(2, default);
-
-        Assert.Single(response2.Value!.History);
-    }
-
-    [Fact(DisplayName = "[UC-FIN-02 #022] Actor 91 still sees original Pending sample")]
-    public async Task ReconcileAsync_ActorIsolation_IsolatesSampleLedgers()
-    {
-        var first = Sample(90);
-        var second = Sample(91);
-        await first.ReconcileAsync(1, await Request(first, 1), default);
-        var response = await second.DetailAsync(1, default);
-
-        Assert.Equal("Pending", response.Value!.Payment.Status);
-        var response2 = await second.DetailAsync(1, default);
-
-        Assert.Empty(response2.Value!.History);
-    }
-
     // ---------- UC-FIN-02: FinanceQueryValidator.IsValid ----------
 
     [Fact(DisplayName = "[UC-FIN-02 #023] Reject invalid concurrency and idempotency tokens")]
@@ -283,18 +147,6 @@ public sealed class PaymentReconciliationServiceTests : IDisposable
     {
         Assert.False(FinanceQueryValidator.IsValid(new ReconcilePaymentRequest(new string('Z', 64), Guid.NewGuid().ToString("D"))));
         Assert.False(FinanceQueryValidator.IsValid(new ReconcilePaymentRequest(new string('A', 64), "bad-key")));
-    }
-
-    // ---------- UC-FIN-02: FinanceSampleService.ReconcileAsync ----------
-
-    [Fact(DisplayName = "[UC-FIN-02 #024] Activate sample subscription and clear unpaid balance")]
-    public async Task ReconcileAsync_SampleSubscription_ActivatesSubscription()
-    {
-        var s = Sample();
-        var result = await s.ReconcileAsync(3, await Request(s, 3), default);
-
-        Assert.Equal("Active", result.Value!.Detail.Obligation!.Status);
-        Assert.Equal(0, result.Value.Detail.Obligation.Unpaid);
     }
 
     // ---------- Test doubles ----------
@@ -305,7 +157,7 @@ public sealed class PaymentReconciliationServiceTests : IDisposable
         public string Role => "FinanceStaff";
     }
 
-    private sealed class FinanceStore : IFinanceRepository, IDisposable
+    private sealed class FinanceStore : IFinanceRepository
     {
         public bool Allowed { get; set; } = true;
         public string? FailedMetric { get; set; }
@@ -316,7 +168,6 @@ public sealed class PaymentReconciliationServiceTests : IDisposable
         public PaymentTransaction? Payment { get; set; }
         public List<AuditLog> Audits { get; } = [];
         public FakeClock Clock { get; } = new(T0);
-        public MemoryCache Cache { get; } = new(new MemoryCacheOptions());
         public Task<bool> CanAccessAsync(long userId, CancellationToken ct) => Task.FromResult(Allowed);
         public Task<decimal> MetricAsync(string metric, FinancePeriod period, CancellationToken ct)
         {
@@ -352,6 +203,5 @@ public sealed class PaymentReconciliationServiceTests : IDisposable
             };
             order.PaymentTransactions.Add(payment); return payment;
         }
-        public void Dispose() => Cache.Dispose();
     }
 }
