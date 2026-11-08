@@ -1,3 +1,4 @@
+using AgriSustain.Application.Services.Refunds;
 using System.Net;
 using System.Net.Http.Json;
 using AgriSustain.Application.DTOs.Complaints;
@@ -589,5 +590,143 @@ public sealed class SupportFinancePromotionApiTests : IAsyncLifetime
 
         Assert.Equal(0m, quote.VoucherDiscount);
         Assert.StartsWith("MSG116", quote.Warning);
+    }
+
+    // ---------- Added 08/11/2026 for the proposed rows of Report 5.2 ----------
+
+    [CommerceSqlFact(DisplayName = "[IT-CS01-10] JOB-11: a Farmer who misses the 48h evidence deadline loses the case")]
+    public async Task Job11_FarmerMissedDeadline_FullRefundAndNotices()
+    {
+        await ApiAssert.Status(await _api.Support().PostAsJsonAsync($"{Complaint()}/request-info",
+            new RequestComplaintInfoRequest(ComplaintParties.Seller, "Gửi ảnh lô hàng")), HttpStatusCode.OK);
+        _api.Clock.Advance(TimeSpan.FromHours(49));
+        var decidedAt = _api.Clock.GetUtcNow().UtcDateTime;
+
+        var processor = _api.Service(sp => sp.GetRequiredService<IComplaintEvidenceTimeoutProcessor>(), out var scope);
+        using (scope)
+        {
+            Assert.Equal(1, await processor.ResolveOverdueAsync(default));
+        }
+
+        await using var db = _api.Open();
+        var ticket = await db.DisputeTickets.SingleAsync();
+        Assert.Equal(DisputeTicket.StatusRefundPending, ticket.TicketStatus);
+        Assert.Equal(RefundTransaction.StatusPending, (await db.RefundTransactions.SingleAsync()).RefundStatus);
+        var notices = await db.Notifications.Where(n => n.SentAt >= decidedAt).ToListAsync();
+        foreach (long userId in new[] { _api.OtherBuyerId, _api.FarmerUserId, _api.FinanceId })
+        {
+            Assert.Contains(notices, n => n.UserId == userId && n.DeliveryChannel == "InApp");
+            Assert.Contains(notices, n => n.UserId == userId && n.DeliveryChannel == "Email");
+        }
+    }
+
+    [CommerceSqlFact(DisplayName = "[IT-CS01-11] JOB-11 handles at most 25 overdue tickets per run")]
+    public async Task Job11_ThirtyOverdue_TwentyFiveThenFive()
+    {
+        await using (var setup = _api.Open())
+        {
+            long sellerOrderB = await setup.SellerOrders.Where(x => x.SellerOrderCode == "SO-B")
+                .Select(x => x.SellerOrderId).SingleAsync();
+            var now = _api.Clock.GetUtcNow().UtcDateTime;
+            for (int i = 0; i < 30; i++)
+            {
+                var ticket = new DisputeTicket
+                {
+                    SubmittedByUserId = _api.OtherBuyerId, SellerOrderId = sellerOrderB, DisputeReason = $"Overdue {i}",
+                    TicketStatus = DisputeTicket.StatusWaitingInfo, CreatedAt = now.AddDays(-3)
+                };
+                // The buyer was asked and did not answer: an overdue buyer request rejects the claim.
+                ticket.DisputeEvidenceRequests.Add(new DisputeEvidenceRequest
+                {
+                    RequestedPartyUserId = _api.OtherBuyerId, RequestedByUserId = _api.SupportId,
+                    RequestedAt = now.AddHours(-50).AddMinutes(i), DueAt = now.AddHours(-2).AddMinutes(i),
+                    RequestStatus = DisputeTicket.EvidenceRequestPending, Instructions = "Gửi ảnh"
+                });
+                setup.DisputeTickets.Add(ticket);
+            }
+            await setup.SaveChangesAsync();
+        }
+
+        int first, second, waitingAfterFirst;
+        var processor = _api.Service(sp => sp.GetRequiredService<IComplaintEvidenceTimeoutProcessor>(), out var scope);
+        using (scope)
+        {
+            first = await processor.ResolveOverdueAsync(default);
+        }
+        await using (var db = _api.Open())
+        {
+            waitingAfterFirst = await db.DisputeTickets.CountAsync(x => x.TicketStatus == DisputeTicket.StatusWaitingInfo);
+        }
+        processor = _api.Service(sp => sp.GetRequiredService<IComplaintEvidenceTimeoutProcessor>(), out scope);
+        using (scope)
+        {
+            second = await processor.ResolveOverdueAsync(default);
+        }
+
+        Assert.Equal((25, 5, 5), (first, waitingAfterFirst, second));
+        await using var check = _api.Open();
+        Assert.Equal(30, await check.DisputeTickets.CountAsync(x => x.TicketStatus == DisputeTicket.StatusRejected));
+    }
+
+    [CommerceSqlFact(DisplayName = "[IT-FIN03-14] Customer re-confirms the account (UC-FIN-08), then Finance transfers again")]
+    public async Task TransferAgain_AfterCustomerConfirmsAccount_Processing()
+    {
+        long refundId = await RefundRequestAsync();
+        string url = $"api/finance/refunds/{refundId}";
+        await ApiAssert.Status(await _api.Finance().PostAsJsonAsync($"{url}/transfer-failed",
+            new RefundTransferFailedRequest("Sai số tài khoản")), HttpStatusCode.OK);
+        DateTime? before;
+        await using (var db = _api.Open())
+        {
+            before = (await db.RefundTransactions.SingleAsync()).ReceiverAccountProvidedAt;
+        }
+        _api.Clock.Advance(TimeSpan.FromMinutes(5));
+
+        var confirmed = await _api.As(_api.OtherBuyerId, "RetailCustomer").PutAsJsonAsync(
+            $"api/profile/refunds/{refundId}/account",
+            new ProvideRefundAccountRequest(true, null, null, null, true, false, null));
+        await ApiAssert.Status(confirmed, HttpStatusCode.OK);
+        var again = await _api.Finance().PostAsJsonAsync($"{url}/start-transfer",
+            new RefundTransferRequest(RefundTransaction.StatusFailed));
+
+        await ApiAssert.Status(again, HttpStatusCode.OK);
+        await using var check = _api.Open();
+        var refund = await check.RefundTransactions.SingleAsync();
+        Assert.Equal(RefundTransaction.StatusProcessing, refund.RefundStatus);
+        Assert.True(refund.ReceiverAccountProvidedAt > before);
+    }
+
+    [CommerceSqlFact(DisplayName = "[IT-PS01-16] A refunded order does not give its voucher use back (BR-PV-10)")]
+    public async Task Refund_DoesNotRestoreVoucherUse()
+    {
+        long voucherId;
+        await using (var setup = _api.Open())
+        {
+            var order = await setup.Orders.SingleAsync(x => x.OrderCode == "RC-COMPLAINT");
+            var voucher = new AgriSustain.Domain.Entities.Voucher
+            {
+                VoucherCode = "USED20", VoucherName = "Used", DiscountType = AgriSustain.Domain.Entities.Voucher.TypeFixedAmount, DiscountValue = 20_000,
+                MinOrderAmount = 0, UsageLimit = 10, PerCustomerLimit = 1, UsedCount = 1, IsActive = true,
+                StartDate = ApiHost.T0.UtcDateTime.AddDays(-5), EndDate = ApiHost.T0.UtcDateTime.AddDays(5)
+            };
+            voucher.VoucherRedemptions.Add(new VoucherRedemption
+            {
+                OrderId = order.OrderId, DiscountSnapshot = 20_000, Status = VoucherRedemptionStatus.Applied,
+                ReservedAt = ApiHost.T0.UtcDateTime.AddDays(-2), AppliedAt = ApiHost.T0.UtcDateTime.AddDays(-2)
+            });
+            setup.Vouchers.Add(voucher);
+            await setup.SaveChangesAsync();
+            voucherId = voucher.VoucherId;
+        }
+
+        long refundId = await RefundRequestAsync();
+        await ApiAssert.Status(await _api.Finance().PostAsJsonAsync($"api/finance/refunds/{refundId}/complete",
+            new CompleteRefundRequest(RefundMethods.GatewayRefund, "SEPAY-REFUND-01", null)), HttpStatusCode.OK);
+
+        await using var db = _api.Open();
+        Assert.Equal(RefundTransaction.StatusCompleted, (await db.RefundTransactions.SingleAsync()).RefundStatus);
+        var saved = await db.Vouchers.Include(x => x.VoucherRedemptions).SingleAsync(x => x.VoucherId == voucherId);
+        Assert.Equal(1, saved.UsedCount);
+        Assert.Equal(VoucherRedemptionStatus.Applied, Assert.Single(saved.VoucherRedemptions).Status);
     }
 }

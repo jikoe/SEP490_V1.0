@@ -63,6 +63,7 @@ internal sealed class ApiHost : IAsyncDisposable
     public EmailSink Email { get; } = new();
     public SequenceOtp Otp { get; } = new();
     public TestShipping Shipping { get; } = new();
+    public LogSink Logs { get; } = new();
     public HttpClient Client { get; private set; } = null!;
     public long AdminId, BuyerId, OtherBuyerId, FarmerUserId, OfficerId, SupportId, FinanceId, PromotionId, ResetUserId;
     public long CategoryId, SpinachId, BatchId, CartItemId, SellerOrderId, SpinachItemId, TicketId, FarmBId;
@@ -164,6 +165,7 @@ internal sealed class ApiHost : IAsyncDisposable
         });
         builder.WebHost.UseTestServer();
         builder.Logging.ClearProviders();
+        builder.Logging.AddProvider(Logs);
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -219,6 +221,13 @@ internal sealed class ApiHost : IAsyncDisposable
         services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
         services.AddScoped<IRefundRepository, RefundRepository>();
         services.AddScoped<IRefundProcessingService, RefundProcessingService>();
+        // UC-ADM-01 dashboard reads the finance figures through this repository (Program.cs line 94).
+        services.AddScoped<IFinanceRepository, FinanceRepository>();
+        // UC-FIN-08 (customer provides the refund account), registered as in Program.cs.
+        services.AddScoped<IRefundAccountRepository, RefundAccountRepository>();
+        services.AddScoped<IRefundAccountService, RefundAccountService>();
+        services.AddScoped<IBankAccountRepository, BankAccountRepository>();
+        services.AddScoped<IBankAccountLookup, AgriSustain.Infrastructure.Banking.FakeBankAccountLookup>();
         services.AddScoped<IVoucherRepository, VoucherRepository>();
         services.AddScoped<IVoucherManagementService, VoucherManagementService>();
         services.AddOptions<JwtOptions>().Bind(builder.Configuration.GetSection(JwtOptions.SectionName));
@@ -454,6 +463,23 @@ internal sealed class EmailSink : IEmailService
     }
 }
 
+/// <summary>Keeps every formatted log line written by the host, to check that secrets never reach the logs.</summary>
+internal sealed class LogSink : ILoggerProvider
+{
+    public ConcurrentQueue<string> Lines { get; } = new();
+    public ILogger CreateLogger(string categoryName) => new Writer(this);
+    public void Dispose() { }
+
+    private sealed class Writer(LogSink sink) : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            sink.Lines.Enqueue(formatter(state, exception) + " " + exception);
+    }
+}
+
 internal sealed class SequenceOtp : IOtpGenerator
 {
     private readonly ConcurrentQueue<string> _codes = new();
@@ -464,9 +490,14 @@ internal sealed class SequenceOtp : IOtpGenerator
 internal sealed class TestShipping : IShippingRateProvider
 {
     public bool Down { get; set; }
+
+    /// <summary>When set, quotes go through this provider (e.g. the real Goship adapter on a stub HTTP handler).</summary>
+    public IShippingRateProvider? Through { get; set; }
+
     public int EstimatedDeliveryDays(string deliveryMethod) => 2;
     public Task<ShippingRateResult?> GetRateAsync(ShippingRateRequest request, CancellationToken cancellationToken) =>
-        Task.FromResult(Down ? null : new ShippingRateResult(true, 20_000m));
+        Through is not null ? Through.GetRateAsync(request, cancellationToken)
+            : Task.FromResult(Down ? null : new ShippingRateResult(true, 20_000m));
 }
 
 /// <summary>Offline stand-in for the Goship province/district/ward catalog.</summary>

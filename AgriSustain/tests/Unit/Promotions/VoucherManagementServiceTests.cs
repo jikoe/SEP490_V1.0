@@ -101,7 +101,20 @@ public sealed class VoucherManagementServiceTests
         Assert.Equal(409, result.StatusCode);
     }
 
-    [Fact(DisplayName = "UTC-PS01-06 Unused voucher that has not started can change its whole rule (BR-PV-07)")]
+    [Fact(DisplayName = "UTC-PS01-24 The code of a deleted voucher is never reused, whatever its case (BR-PV-01)")]
+    public async Task Create_CodeOfDeletedVoucher_Conflict()
+    {
+        _store.RetiredCodes.Add("GONE2026");
+
+        var result = await Service().CreateAsync(Request(code: "gone2026"), default);
+
+        Assert.Equal("VOUCHER_CODE_EXISTS", result.Error!.Code);
+        Assert.Equal(409, result.StatusCode);
+        Assert.Empty(_store.Vouchers);
+        Assert.Empty(_store.Audits);
+    }
+
+    [Fact(DisplayName = "UTC-PS01-06Unused voucher that has not started can change its whole rule (BR-PV-07)")]
     public async Task Update_Unused_AllFieldsEditable()
     {
         var voucher = Existing(startDays: 1);
@@ -234,9 +247,12 @@ public sealed class VoucherManagementServiceTests
             Task.FromResult<(int, IReadOnlyList<VoucherDto>)>((0, []));
         public Task<Voucher?> GetPlatformVoucherAsync(long id, CancellationToken ct) =>
             Task.FromResult(Vouchers.SingleOrDefault(v => v.VoucherId == id && v.FarmerProfileId == null));
+        /// <summary>Codes of deleted vouchers, as VoucherRepository finds them in the audit log (exact match).</summary>
+        public HashSet<string> RetiredCodes { get; } = new(StringComparer.Ordinal);
         public Task<bool> CodeExistsAsync(string code, long? exceptId, CancellationToken ct) =>
-            Task.FromResult(Vouchers.Any(v => string.Equals(v.VoucherCode, code, StringComparison.OrdinalIgnoreCase)
-                && v.VoucherId != exceptId));
+            Task.FromResult(RetiredCodes.Contains(code)
+                || Vouchers.Any(v => string.Equals(v.VoucherCode, code, StringComparison.OrdinalIgnoreCase)
+                    && v.VoucherId != exceptId));
         public Task<int> CountRedemptionsAsync(long id, CancellationToken ct) =>
             Task.FromResult(Redemptions.GetValueOrDefault(id));
         public Task<int> CountReservedAsync(long id, CancellationToken ct) =>

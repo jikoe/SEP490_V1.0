@@ -121,6 +121,44 @@ public sealed class SePayWebhookSqlTests
         Assert.Equal(Voucher.StatusExhausted, saved.LifecycleStatus(DateTime.UtcNow));
     }
 
+    [CommerceSqlFact(DisplayName = "[IT-PS01-15] A voucher deactivated while the order awaits payment keeps its discount and is counted (BR-PV-08)"),
+        Trait("UseCase", "UC-PS-01")]
+    public async Task PaidOrder_VoucherDeactivatedMeanwhile_StillApplied()
+    {
+        var (f, code) = await Arrange();
+        await using var _ = f;
+        string voucherCode = $"OFF{Guid.NewGuid():N}"[..12].ToUpperInvariant();
+        await f.Edit(async db =>
+        {
+            var order = await db.Orders.SingleAsync(x => x.OrderCode == code);
+            order.DiscountAmount = 10_000;
+            var voucher = new Voucher
+            {
+                VoucherCode = voucherCode, VoucherName = "Deactivated meanwhile", DiscountType = Voucher.TypeFixedAmount,
+                DiscountValue = 10_000, MinOrderAmount = 0, UsageLimit = 10, PerCustomerLimit = 1, UsedCount = 0,
+                IsActive = true, StartDate = DateTime.UtcNow.AddDays(-1), EndDate = DateTime.UtcNow.AddDays(1)
+            };
+            voucher.VoucherRedemptions.Add(new VoucherRedemption
+            {
+                OrderId = order.OrderId, DiscountSnapshot = 10_000, Status = VoucherRedemptionStatus.Reserved,
+                ReservedAt = DateTime.UtcNow, ExpiresAt = DateTime.UtcNow.AddMinutes(15)
+            });
+            db.Vouchers.Add(voucher);
+        });
+        // Promotion Staff deactivates the voucher after the order was placed (UC-PS-01).
+        await f.Edit(async db => (await db.Vouchers.SingleAsync(x => x.VoucherCode == voucherCode)).IsActive = false);
+
+        await AssertAcknowledged(await Send(f.Client, Webhook(code, 175700, 92790)));
+
+        await using var db = f.Open();
+        var order = await db.Orders.SingleAsync(x => x.OrderCode == code);
+        Assert.Equal(("Confirmed", 10_000m, 175700m), (order.OrderStatus, order.DiscountAmount, order.FinalAmount));
+        var saved = await db.Vouchers.Include(x => x.VoucherRedemptions).SingleAsync(x => x.VoucherCode == voucherCode);
+        Assert.Equal(VoucherRedemptionStatus.Applied, Assert.Single(saved.VoucherRedemptions).Status);
+        Assert.Equal(1, saved.UsedCount);
+        Assert.False(saved.IsActive);
+    }
+
     [CommerceSqlFact, Trait("UseCase", "UC-RC-03")]
     public async Task UnderpaidTransfer_IsRecordedForReconciliation_AndOrderStaysPending()
     {
