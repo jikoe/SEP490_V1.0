@@ -777,6 +777,47 @@ public sealed class SqlUseCaseTests : IAsyncLifetime
         Assert.All(await _context.OrderItemFees.ToListAsync(), fee => Assert.Equal(fee.Amount, fee.ReversedAmount));
     }
 
+    [Fact(DisplayName = "[UC-FIN-05 BR-FEE-06] A farm voucher lowers the commission base; a platform voucher does not")]
+    public async Task PlatformFees_FarmVoucherLowersBase_PlatformVoucherDoesNot()
+    {
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var today = DateOnly.FromDateTime(now.AddHours(7));
+        long farmId = (await _context.FarmerProfiles.SingleAsync()).FarmerProfileId;
+        var commission = new FeeType { FeeCode = "PLATFORM_COMMISSION", FeeName = "Hoa hồng", FeeGroup = FeeType.GroupPlatformCommission,
+            RefundMode = FeeType.RefundProportional, Status = FeeType.StatusActive, CreatedAt = now };
+        commission.Policies.Add(new FeePolicy { PolicyCode = "COM-10", Method = FeePolicy.MethodPercentage,
+            CalculationBase = FeePolicy.BaseItemSubtotal, Rate = 10, OrderType = "Retail", EffectiveFrom = today.AddDays(-1),
+            ApprovalStatus = FeePolicy.ApprovalApproved, Reason = "test", CreatedByUserId = 1, CreatedAt = now, RequestKey = "fee-farm" });
+        _context.FeeTypes.Add(commission);
+        _context.Vouchers.Add(new Voucher { VoucherCode = "FARM5K", VoucherName = "Farm 5 000", DiscountType = "FixedAmount",
+            DiscountValue = 5000, MinOrderAmount = 0, UsageLimit = 10, PerCustomerLimit = 1, IsActive = true,
+            FarmerProfileId = farmId, StartDate = now.AddDays(-1), EndDate = now.AddDays(1) });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        // 2 kg × 10 000 ₫ with the farm's 5 000 ₫ voucher: commission 10 % of 15 000 ₫.
+        var quote = await Checkout(withFees: true).QuoteAsync(Input() with { VoucherCode = "FARM5K" }, default);
+        Assert.True(quote.IsSuccess, quote.Error?.Message);
+        Assert.True((await Checkout(withFees: true).PlaceAsync(Placement(quote.Value!), default)).IsSuccess);
+        _context.ChangeTracker.Clear();
+        var farmFee = await _context.OrderItemFees.SingleAsync();
+        Assert.Equal((15_000m, 1_500m), (farmFee.BaseAmount, farmFee.Amount));
+
+        // Platform voucher TEST10 (10 %): the base stays 20 000 ₫ (BR-PV-11).
+        _context.OrderItemFees.RemoveRange(_context.OrderItemFees);
+        var cart = await _context.Carts.SingleAsync();
+        cart.CartItems.Add(new CartItem { ProductId = (await _context.Products.SingleAsync()).ProductId, Quantity = 2,
+            IsSelected = true, AddedAt = now });
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+        var second = await Checkout(withFees: true).QuoteAsync(Input() with { VoucherCode = "TEST10" }, default);
+        Assert.True(second.IsSuccess, second.Error?.Message);
+        Assert.True((await Checkout(withFees: true).PlaceAsync(Placement(second.Value!), default)).IsSuccess);
+        _context.ChangeTracker.Clear();
+        var platformFee = await _context.OrderItemFees.SingleAsync();
+        Assert.Equal((20_000m, 2_000m), (platformFee.BaseAmount, platformFee.Amount));
+    }
+
     [Fact]
     public async Task Place_InsufficientStock_RejectsWithoutCreatingOrder()
     {

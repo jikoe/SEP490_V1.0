@@ -219,7 +219,8 @@
     document.getElementById('row-rate').hidden = !pct;
     document.getElementById('row-fixed').hidden = pct;
     const group = state.form && state.form.mode === 'create' ? val('in-group') : (state.current || {}).feeGroup;
-    const scoped = ['PlatformCommission', 'Service'].includes(group);
+    // BR-FEE-03: only commission and service fees, and not a fixed per-order fee, can target categories.
+    const scoped = ['PlatformCommission', 'Service'].includes(group) && val('in-method') !== 'FixedPerOrder';
     document.getElementById('row-scope').hidden = !scoped;
     if (!scoped) document.getElementById('in-all').checked = true;
     document.getElementById('in-cats').hidden = document.getElementById('in-all').checked;
