@@ -15,6 +15,7 @@ public sealed class OfftakeService(IOfftakeRepository repository, IUseCaseUnitOf
 {
     public const string ProposalNotificationType = "OfftakeProposalSubmitted";
     private const string InvalidProposal = "MSG48 – Vui lòng kiểm tra thông tin đề xuất.";
+    private const string IncompleteArticles = "Vui lòng nhập đầy đủ nội dung của cả 8 điều khoản.";
     private const string Ineligible = "Hồ sơ doanh nghiệp phải được duyệt để gửi đề xuất.";
     private const string Unavailable = "MSG54 – Hồ sơ hợp đồng hoặc đơn hàng không còn khả dụng.";
     private const string Confirmed = "Confirmed";
@@ -64,8 +65,12 @@ public sealed class OfftakeService(IOfftakeRepository repository, IUseCaseUnitOf
                     : Result<OfftakeProposalReceipt>.Fail("Đề xuất đã được gửi với nội dung khác.", 409);
             }
 
+            if (!OfftakeProposalValidator.HasCompleteArticles(request))
+            {
+                return Result<OfftakeProposalReceipt>.Fail(IncompleteArticles);
+            }
             var product = await repository.FindProductAsync(request.FarmerId, request.ProductId, ct);
-            if (product is null)
+            if (product is null || !SupportsQuantityUnit(product, request))
             {
                 return Result<OfftakeProposalReceipt>.Fail(InvalidProposal);
             }
@@ -177,6 +182,10 @@ public sealed class OfftakeService(IOfftakeRepository repository, IUseCaseUnitOf
             {
                 return Result<OfftakeProposalReceipt>.Fail(DraftConflict, 409);
             }
+            if (!OfftakeProposalValidator.HasCompleteArticles(request))
+            {
+                return Result<OfftakeProposalReceipt>.Fail(IncompleteArticles);
+            }
             var lines = contract.ContractLines.Where(x => x.ContractVersionId
                 == current.ContractVersionId).Take(2).ToArray();
             var milestones = contract.ContractMilestones.Where(x => x.ContractVersionId
@@ -186,7 +195,7 @@ public sealed class OfftakeService(IOfftakeRepository repository, IUseCaseUnitOf
                 return Result<OfftakeProposalReceipt>.Fail(DraftConflict, 409);
             }
             var product = await repository.FindProductAsync(request.FarmerId, request.ProductId, ct);
-            if (product is null)
+            if (product is null || !SupportsQuantityUnit(product, request))
             {
                 return Result<OfftakeProposalReceipt>.Fail(InvalidProposal);
             }
@@ -438,6 +447,9 @@ public sealed class OfftakeService(IOfftakeRepository repository, IUseCaseUnitOf
             return null;
         }
     }
+
+    private static bool SupportsQuantityUnit(OfftakeProduct product, OfftakeProposalRequest request) =>
+        request.QuantityUnit is null || product.QuantityUnits.Any(unit => unit.Unit == request.QuantityUnit);
 
     private static string Snapshot(OfftakeProposalRequest request) =>
         JsonSerializer.Serialize(request with

@@ -1,5 +1,5 @@
 import { esc, money, request } from './page-ui.js';
-import { badge, byId, date, dateRange, detailMarkup, notice, number, statusName, thumbnail } from './offtake-ui.js';
+import { badge, byId, date, dateRange, detailMarkup, hasBuyerParty, loadBuyerParty, notice, number, statusName, thumbnail } from './offtake-ui.js';
 
 const params = new URLSearchParams(location.search);
 const path = '/b2b/contracts';
@@ -23,7 +23,7 @@ let query = {};
 let page = 1;
 let pending;
 let pendingDetail;
-let detailCode;
+let contractDetail;
 let cancellation;
 
 function url(pageNumber, size, activeFilters = query) {
@@ -140,6 +140,7 @@ async function openDetail(id, download = false) {
   pendingDetail?.abort();
   const controller = new AbortController();
   pendingDetail = controller;
+  contractDetail = null;
   downloadButton.hidden = true;
   notice(pdfNotice, '');
   revisionLink.hidden = true;
@@ -149,7 +150,7 @@ async function openDetail(id, download = false) {
     const data = await request(path + '/' + id, { signal: controller.signal });
     if (controller.signal.aborted) return;
     detailContent.innerHTML = detailMarkup(data);
-    detailCode = data.code;
+    contractDetail = data;
     downloadButton.hidden = false;
     if (data.canConfirmRevision) {
       revisionLink.href = 'offtake-proposal.html?revision=' + id;
@@ -171,13 +172,18 @@ async function openDetail(id, download = false) {
 }
 
 async function downloadPdf() {
+  const detail = contractDetail;
+  if (!detail) return;
   downloadButton.disabled = true;
-  const content = detailContent.cloneNode(true);
-  const code = detailCode;
   notice(pdfNotice, 'Đang tạo tệp PDF…');
   try {
+    const buyer = hasBuyerParty(detail.document?.buyer) ? detail.document.buyer : await loadBuyerParty();
+    if (!hasBuyerParty(buyer)) {
+      notice(pdfNotice, 'Vui lòng bổ sung thông tin Bên B trong hồ sơ doanh nghiệp trước khi tải PDF.', true);
+      return;
+    }
     const { downloadOfftakePdf } = await import('./offtake-pdf.js');
-    await downloadOfftakePdf(content, code);
+    await downloadOfftakePdf({ ...detail, document: { ...detail.document, buyer } });
     notice(pdfNotice, '');
   } catch {
     notice(pdfNotice, 'Không thể tải tệp PDF. Vui lòng thử lại.', true);

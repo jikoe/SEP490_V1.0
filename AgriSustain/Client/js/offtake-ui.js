@@ -1,4 +1,5 @@
-import { esc, icon, localTime, money, safeUrl } from './page-ui.js';
+import { esc, icon, localTime, money, request, safeUrl } from './page-ui.js';
+import { contractArticles, readContractTerms } from './offtake-terms.js';
 
 export const byId = id => document.getElementById(id);
 export const number = value => value == null ? '—' : Number(value).toLocaleString('vi-VN');
@@ -10,6 +11,15 @@ export function date(value) {
 export const dateRange = (from, to) => from === to || !to ? date(from) : date(from) + ' – ' + date(to);
 export const facts = entries => entries.map(([label, value]) =>
   '<div><dt>' + esc(label) + '</dt><dd>' + esc(value ?? '—') + '</dd></div>').join('');
+
+export async function loadBuyerParty() {
+  const profile = await request('/profile/business');
+  return { name: profile.companyName, representative: profile.representativeName,
+    address: profile.businessAddress, taxCode: profile.taxCode };
+}
+
+export const hasBuyerParty = party =>
+  [party?.name, party?.representative, party?.address, party?.taxCode].every(value => value?.trim());
 
 const statuses = {
   Draft: ['Bản nháp', 'warm'],
@@ -54,16 +64,27 @@ export function notice(element, message, isError = false) {
   element.setAttribute('role', isError ? 'alert' : 'status');
 }
 
+export function termsMarkup(terms, paymentTerms, showEmpty = false, articleFacts = {}) {
+  const values = readContractTerms(terms, paymentTerms);
+  const articles = contractArticles.filter(([, field]) => showEmpty || values[field])
+    .map(([title, field]) => '<h4>' + esc(title) + '</h4>'
+      + (articleFacts[field] ? '<dl class="offtake-facts">' + facts(articleFacts[field]) + '</dl>' : '')
+      + '<p>' + esc(values[field] || 'Chưa nhập nội dung bổ sung') + '</p>').join('');
+  const revision = values.revisionTerms ? '<p>' + esc(values.revisionTerms) + '</p>' : '';
+  return articles || revision ? '<section class="offtake-terms"><h3>Điều khoản hợp đồng</h3>'
+    + articles + revision + '</section>' : '';
+}
+
 export function detailMarkup(detail) {
   const info = [['Đối tác', detail.partner], ['Trạng thái', statusName(detail.status)]];
   if (detail.version != null) {
     info.push(['Phiên bản', detail.version], ['Hiệu lực', dateRange(detail.validFrom, detail.validUntil)],
-      ['Tiền cọc', money(detail.deposit)], ['Điều khoản giao hàng', detail.terms],
-      ['Điều khoản thanh toán', detail.paymentTerms]);
+      ['Tiền cọc', money(detail.deposit)]);
   }
   return '<h3>' + esc(detail.code) + '</h3><dl class="offtake-facts">' + facts(info) + '</dl>'
     + detailTable('Sản phẩm', ['Sản phẩm', 'Số lượng', 'Giá / cơ chế giá'], detail.lines.map(line =>
       [line.product, number(line.quantity) + ' ' + line.unit, line.priceFormula || money(line.unitPrice)]))
+    + (detail.version == null ? '' : termsMarkup(detail.terms, detail.paymentTerms))
     + (detail.version == null ? '' : detailTable('Xác nhận điều khoản', ['Bên xác nhận', 'Thời điểm', 'Trạng thái'],
       detail.confirmations.map(item => [
         ({ Buyer: 'Bên mua', WholesaleBuyer: 'Bên mua', Farmer: 'Nhà cung cấp' })[item.role] || item.role,
