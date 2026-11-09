@@ -23,11 +23,13 @@
   gap: 16px; align-items: start; margin-top: 18px;
 }
 .offtake-steps { padding: 7px; }
-.offtake-steps ol, .offtake-summary ol { list-style: none; counter-reset: offtake-step; padding: 0; margin: 0; }
-.offtake-steps li, .offtake-summary li {
+.offtake-steps ol { list-style: none; counter-reset: offtake-step; padding: 0; margin: 0; }
+.offtake-wizard-status { margin: 0 0 7px; padding: 8px; border-bottom: 1px solid #e4eeea; }
+.offtake-wizard-status .offtake-badge { margin-top: 4px; }
+.offtake-steps li {
   counter-increment: offtake-step; position: relative; padding: 11px 6px 11px 36px; color: #34586a;
 }
-.offtake-steps li::before, .offtake-summary li::before {
+.offtake-steps li::before {
   content: counter(offtake-step); position: absolute; inset: 10px auto auto 5px; width: 23px;
   height: 23px; border: 1px solid #a8c8bc; border-radius: 50%; display: grid; place-items: center;
 }
@@ -35,6 +37,8 @@
 .offtake-steps li[aria-current="step"]::before { color: white; background: #086845; }
 .offtake small { display: block; margin-top: 4px; color: #48687c; }
 .offtake-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.offtake-article-input { min-width: 0; margin: 0 0 14px; padding: 10px 12px 2px; border: 1px solid #d2e1e4; border-radius: 7px; }
+.offtake-article-input legend { padding: 0 5px; color: #154432; font-weight: 700; }
 .offtake label { display: block; min-width: 0; margin-bottom: 9px; color: #36546c; font-weight: 600; }
 .offtake label :is(input, select, textarea) {
   display: block; width: 100%; margin-top: 5px; padding: 8px 10px;
@@ -63,6 +67,8 @@
 }
 .offtake-facts dt { color: #48687c; }
 .offtake-facts dd { margin: 0; text-align: right; overflow-wrap: anywhere; white-space: pre-wrap; }
+.offtake-terms h4 { margin: 12px 0 4px; color: #154432; }
+.offtake-terms p { margin: 0 0 8px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .offtake-note, .offtake-notice {
   color: #105344; background: #eaf6ef; border: 1px solid #cce8dc;
   border-radius: 7px; padding: 9px 12px;

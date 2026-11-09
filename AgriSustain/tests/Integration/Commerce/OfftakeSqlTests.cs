@@ -39,7 +39,8 @@ public sealed class OfftakeSqlTests
             new AccountNotificationSettings(null));
         var proposal = new OfftakeProposalRequest(Guid.NewGuid(), farmerId, fixture.ProductId,
             20, 25000, new(2026, 11, 1), new(2026, 12, 31), new(2026, 11, 20),
-            "Giao tại kho", "Thanh toán khi nhận", 100000);
+            string.Join("\n\n", new[] { 1, 2, 3, 4, 6, 7, 8 }.Select(number => $"Điều {number}: Điều khoản\n  Nội dung {number}")),
+            "Thanh toán khi nhận", 100000);
 
         var submitted = await service.ProposeAsync(proposal, default);
         Assert.True(submitted.Success, submitted.Message);
@@ -111,6 +112,11 @@ public sealed class OfftakeSqlTests
             await repository.DetailAsync(fixture.BuyerId, false, id, default));
         Assert.Equal("AwaitingDeposit", confirmed.Status);
         Assert.Equal(2, confirmed.Confirmations.Count(x => x.Status == "Confirmed"));
+        Assert.All(confirmed.Confirmations, item =>
+        {
+            Assert.NotNull(item.ConfirmedAt);
+            Assert.False(string.IsNullOrWhiteSpace(item.ConfirmedBy));
+        });
         var buyer = fixture.As(fixture.BuyerId, "WholesaleBuyer");
         using var blocked = await buyer.PostAsync($"api/b2b/contracts/{id}/cancellation", null);
         Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
@@ -126,6 +132,9 @@ public sealed class OfftakeSqlTests
         var draftDetail = Assert.IsType<OfftakeTrackingDetail>(
             await repository.DetailAsync(fixture.BuyerId, false, draftId, default));
         Assert.Equal("Draft", draftDetail.Status);
+        Assert.Equal(profile.CompanyName, draftDetail.Document?.Buyer.Name);
+        Assert.Equal(profile.TaxCode, draftDetail.Document?.Buyer.TaxCode);
+        Assert.Equal(draft.CreatedAt, draftDetail.Document?.VersionCreatedAt);
         Assert.Empty(draftDetail.Confirmations);
         Assert.False(await db.Notifications.AnyAsync(x => x.RelatedRecordType == "B2BContract"
             && x.RelatedRecordId == draftId));

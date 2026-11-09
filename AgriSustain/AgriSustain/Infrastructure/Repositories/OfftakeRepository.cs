@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AgriSustain.Application.DTOs.Offtake;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
@@ -21,8 +22,7 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
         var products = db.Products.AsNoTracking().Where(MarketplaceRules.PublicProduct);
         if (!string.IsNullOrWhiteSpace(keyword))
         {
-            products = products.Where(x => x.ProductName.Contains(keyword)
-                || x.FarmerProfile.FarmName.Contains(keyword));
+            products = products.Where(x => x.ProductName.Contains(keyword));
         }
         return await ProductOptions(products.OrderBy(x => x.ProductName).ThenBy(x => x.ProductId)
             .Take(50)).ToListAsync(ct);
@@ -125,6 +125,7 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
             .Include(x => x.FarmerProfile)
             .Include(x => x.WholesaleBuyerProfile)
             .Include(x => x.ContractVersions).ThenInclude(x => x.ContractSignatures)
+                .ThenInclude(x => x.SignedByUser)
             .Include(x => x.ContractLines).ThenInclude(x => x.Product)
             .Include(x => x.ContractMilestones).ThenInclude(x => x.Invoices).AsSplitQuery();
         if (!forFarmer)
@@ -142,22 +143,29 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
 
         var version = contract.ContractVersions
             .SingleOrDefault(x => x.VersionNo == contract.CurrentVersionNo);
-        var lines = contract.ContractLines.Where(x => version is null
-                || x.ContractVersionId == version.ContractVersionId)
+        var versionLines = contract.ContractLines.Where(x => version is null
+            || x.ContractVersionId == version.ContractVersionId).ToList();
+        var displayUnit = versionLines.Count == 1 ? RequestedUnit(version, versionLines[0]) : null;
+        var lines = versionLines
             .Select(x => new OfftakeLine(x.Product.ProductName, x.CommittedQuantity,
-                x.UnitSnapshot, x.AgreedPrice, x.PriceFormula)).ToList();
-        var milestones = contract.ContractMilestones.Where(x => version is null
+                x.UnitSnapshot, x.AgreedPrice, x.PriceFormula, x.QualitySpecification,
+                displayUnit is null ? null : x.CommittedQuantity / displayUnit.Factor,
+                displayUnit?.Unit)).ToList();
+        var orderedMilestones = contract.ContractMilestones.OrderBy(x => x.DueDate).ToList();
+        var milestones = orderedMilestones.Where(x => version is null
                 || x.ContractVersionId == version.ContractVersionId
                 || x.DeliveredQuantity > 0 || x.Invoices.Count > 0)
-            .OrderBy(x => x.DueDate).Select(x => new OfftakeDelivery(x.MilestoneTitle, x.DueDate,
-                x.DeliveryQuantity, x.DeliveredQuantity, x.AcceptedQuantity,
-                x.FulfillmentStatus, x.PaymentStatus)).ToList();
+            .Select(Delivery).ToList();
         var invoices = contract.ContractMilestones.SelectMany(x => x.Invoices)
             .Concat(contract.SellerOrders.SelectMany(x => x.Invoices));
         var confirmations = version?.ContractSignatures.Select(x => new OfftakeConfirmation(
-            x.PartyRole, x.ConfirmedAt, x.ConfirmationStatus)).ToList() ?? [];
+            x.PartyRole, x.ConfirmedAt, x.ConfirmationStatus,
+            x.ConfirmationStatus == "Confirmed" && x.ConfirmedAt.HasValue
+                ? x.SignedByUser?.FullName : null)).ToList() ?? [];
         var partner = forFarmer ? contract.WholesaleBuyerProfile.CompanyName
             : contract.FarmerProfile.FarmName;
+        var farmer = contract.FarmerProfile;
+        var buyer = contract.WholesaleBuyerProfile;
         return new(contract.ContractNumber, contract.Status, partner,
             version?.VersionNo, version?.TermsAndConditions, contract.PaymentTerms,
             contract.DepositAmount, contract.ValidFrom, contract.ValidUntil, lines, milestones,
@@ -166,7 +174,43 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
                 && version.ProposedByUserId == contract.FarmerProfile.UserId
                 && contract.Status is not ("Rejected" or "Cancelled" or "Terminated" or "Completed")
                 && !confirmations.Any(x => x.Role is "WholesaleBuyer" or "Buyer"
-                    && x.Status == "Confirmed"));
+                    && x.Status == "Confirmed"))
+        {
+            Document = forFarmer ? null : new(
+                new(farmer.FarmName, farmer.RepresentativeName, farmer.Address, null),
+                new(buyer.CompanyName, buyer.RepresentativeName, buyer.BusinessAddress, buyer.TaxCode),
+                orderedMilestones.Where(x => x.ContractVersionId == version?.ContractVersionId
+                    && x.DeliveryQuantity > 0).Select(Delivery).ToList(),
+                version?.CreatedAt ?? contract.CreatedAt)
+        };
+    }
+
+    private static OfftakeDelivery Delivery(ContractMilestone milestone) =>
+        new(milestone.MilestoneTitle, milestone.DueDate, milestone.DeliveryQuantity,
+            milestone.DeliveredQuantity, milestone.AcceptedQuantity,
+            milestone.FulfillmentStatus, milestone.PaymentStatus);
+
+    private static OfftakeQuantityUnit? RequestedUnit(ContractVersion? version, ContractLine line)
+    {
+        var snapshot = version?.LineSnapshotJson;
+        if (string.IsNullOrWhiteSpace(snapshot))
+            return null;
+        try
+        {
+            using var document = JsonDocument.Parse(snapshot);
+            if (document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty(nameof(OfftakeProposalRequest.QuantityUnit), out var value)
+                && value.ValueKind == JsonValueKind.String)
+            {
+                return OfftakeQuantityUnit.For(line.UnitSnapshot)
+                    .FirstOrDefault(unit => unit.Unit == value.GetString());
+            }
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        return null;
     }
 
     private async Task<OfftakeTrackingDetail?> OrderDetailAsync(long userId, long id,

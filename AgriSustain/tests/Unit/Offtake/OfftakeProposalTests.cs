@@ -14,6 +14,66 @@ public sealed class OfftakeProposalTests
     public void AcceptsCompleteProposal()
     {
         Assert.True(OfftakeProposalValidator.IsValid(Proposal()));
+        Assert.True(OfftakeProposalValidator.HasCompleteArticles(Proposal()));
+    }
+
+    [Fact]
+    public async Task RejectsNewProposalWithMissingArticle()
+    {
+        var store = new ProposalStore();
+        var service = new OfftakeService(store, store, store, store,
+            TimeProvider.System, new AccountNotificationSettings(null));
+        var proposal = Proposal() with { PaymentTerms = " " };
+
+        var result = await service.ProposeAsync(proposal, default);
+
+        Assert.False(result.Success);
+        Assert.Null(store.Contract);
+        Assert.False(OfftakeProposalValidator.HasCompleteArticles(Proposal() with { DeliveryTerms = "Giao tại kho" }));
+    }
+
+    [Theory]
+    [InlineData(10000, true)]
+    [InlineData(10001, false)]
+    public void ValidatesCombinedContractArticleLength(int length, bool valid)
+    {
+        Assert.Equal(valid, OfftakeProposalValidator.IsValid(Proposal() with
+        {
+            DeliveryTerms = new string('x', length)
+        }));
+    }
+
+    [Fact]
+    public async Task SavesTonneSelectionInDraftWithoutChangingTheProductUnit()
+    {
+        var store = new ProposalStore();
+        var service = new OfftakeService(store, store, store, store,
+            TimeProvider.System, new AccountNotificationSettings(null));
+        var proposal = Proposal() with { Quantity = 1500, QuantityUnit = "tấn" };
+
+        var created = await service.ProposeAsync(proposal, default, draft: true);
+        var draft = await service.DraftAsync(10, default);
+
+        Assert.Equal(201, created.StatusCode);
+        Assert.Equal("tấn", draft.Data!.Proposal.QuantityUnit);
+        Assert.Contains(draft.Data.Product!.QuantityUnits, unit => unit.Unit == "tấn" && unit.Factor == 1000);
+        var line = Assert.Single(store.Contract!.ContractLines);
+        Assert.Equal("kg", line.UnitSnapshot);
+        Assert.Equal(1500m, line.CommittedQuantity);
+        Assert.Equal(15000000m, Assert.Single(store.Contract.ContractMilestones).Amount);
+    }
+
+    [Fact]
+    public async Task RejectsQuantityUnitFromAnotherMeasurementFamily()
+    {
+        var store = new ProposalStore();
+        var service = new OfftakeService(store, store, store, store,
+            TimeProvider.System, new AccountNotificationSettings(null));
+
+        var result = await service.ProposeAsync(Proposal() with { QuantityUnit = "thùng" }, default);
+
+        Assert.Null(result.Data);
+        Assert.Null(store.Contract);
     }
 
     [Fact]
@@ -62,7 +122,8 @@ public sealed class OfftakeProposalTests
 
     private static OfftakeProposalRequest Proposal() => new(
         Guid.NewGuid(), 1, 2, 10, 10000, new DateOnly(2026, 11, 9),
-        new DateOnly(2026, 12, 30), new DateOnly(2026, 12, 25), "Giao tại kho",
+        new DateOnly(2026, 12, 30), new DateOnly(2026, 12, 25),
+        string.Join("\n\n", new[] { 1, 2, 3, 4, 6, 7, 8 }.Select(number => $"Điều {number}: Điều khoản\n  Nội dung {number}")),
         "Thanh toán khi nhận hàng", 10000);
 
     private sealed class ProposalStore : IOfftakeRepository, IUseCaseUnitOfWork,
@@ -111,7 +172,7 @@ public sealed class OfftakeProposalTests
             CancellationToken ct) => throw new NotSupportedException();
 
         public Task<B2bcontract?> FindManagedAsync(long buyerId, long contractId,
-            CancellationToken ct) => throw new NotSupportedException();
+            CancellationToken ct) => Task.FromResult(Contract?.B2bcontractId == contractId ? Contract : null);
 
         public Task<bool> HasCommitmentsAsync(long contractId, CancellationToken ct) =>
             throw new NotSupportedException();
