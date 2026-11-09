@@ -167,6 +167,12 @@
                 </label>
 
                 <label class="field commerce-full">
+                  <span id="certificate-label"></span>
+                  <select id="edit-certificate" aria-describedby="certificate-hint"></select>
+                  <small class="muted" id="certificate-hint"></small>
+                </label>
+
+                <label class="field commerce-full">
                   <span>Mô tả sản phẩm *</span>
                   <textarea id="edit-desc" rows="5" maxlength="10000" required placeholder="Ví dụ: Xoài tươi, đóng hộp 1 kg. Bảo quản nơi khô thoáng."></textarea>
                 </label>
@@ -280,6 +286,7 @@
     const pageSize = 10;
     let productsCache = [];
     let categoriesList = [];
+    let certificateOptions = [];
     let currentEditingProduct = null;
     let productImages = [];
     let canManageProducts = true;
@@ -299,13 +306,16 @@
         const res = await API.getFarmerProductOptions();
         if (res.success && res.data) {
           categoriesList = res.data.categories || [];
+          certificateOptions = res.data.certificates || [];
           canManageProducts = res.data.canManage !== false;
         } else {
           categoriesList = [];
+          certificateOptions = [];
           if (res.error) showListNotice(res.error, true);
         }
       } catch (e) {
         categoriesList = [];
+        certificateOptions = [];
         showListNotice('Không thể tải danh mục từ máy chủ backend.', true);
       }
 
@@ -315,6 +325,27 @@
         showListNotice(MSG.MSG75, true);
       }
       populateCategoryDropdowns(categoriesList);
+    }
+
+    function populateCertificateDropdown(product) {
+      const select = document.getElementById('edit-certificate');
+      document.getElementById('certificate-label').textContent = MSG.certificateLabel;
+      document.getElementById('certificate-hint').textContent = MSG.certificateHint;
+      select.replaceChildren(new Option(MSG.certificateNone, ''));
+      for (const certificate of certificateOptions) {
+        const expiry = certificate.expiryDate
+          ? `${MSG.certificateExpiry}: ${certificate.expiryDate}` : MSG.certificateNoExpiry;
+        select.add(new Option(`${certificate.certificateType} · ${certificate.certificateNumber} · ${expiry}`,
+          String(certificate.farmCertificateId)));
+      }
+      const selectedId = product?.farmCertificateId;
+      if (selectedId && !certificateOptions.some(c => c.farmCertificateId === selectedId)) {
+        const label = product.certificate
+          ? `${product.certificate.certificateType} · ${product.certificate.certificateNumber}` : `#${selectedId}`;
+        select.add(new Option(`${label} · ${MSG.certificateUnavailable}`, String(selectedId), false, true));
+        select.lastElementChild.disabled = true;
+      }
+      select.value = selectedId ? String(selectedId) : '';
     }
 
     function populateCategoryDropdowns(cats) {
@@ -401,7 +432,7 @@
 
         const primaryImg = p.images?.find(img => img.isPrimary)?.imageUrl || p.imageUrl || '';
         const thumbHtml = primaryImg
-          ? `<img src="${primaryImg}" alt="${Utils.escapeHtml(p.productName)}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\'width:40px;height:40px;border-radius:6px;background:#e8f5ed;display:grid;place-items:center;font-size:18px;\'>🌿</div>';">`
+          ? `<img src="${primaryImg}" alt="${Utils.escapeHtml(p.productName)}" style="width:40px; height:40px; border-radius:6px; object-fit:cover;" onerror="this.onerror=null; this.removeAttribute('src'); this.alt='🌿';">`
           : `<div style="width:40px; height:40px; border-radius:6px; background:#e8f5ed; display:grid; place-items:center; font-size:18px;">🌿</div>`;
 
         const rejectNotice = p.rejectionReason
@@ -494,6 +525,7 @@
 
     /* ================= EDITOR VIEW LOGIC ================= */
     async function openEditor(productId = null) {
+      await loadOptions();
       clearFieldErrors();
       document.getElementById('product-list-view').style.display = 'none';
       document.getElementById('product-editor-view').style.display = 'block';
@@ -625,6 +657,7 @@
         productImages = [];
         renderGalleryImages();
       }
+      populateCertificateDropdown(currentEditingProduct);
       editorSnapshot = editorState();
     }
 
@@ -731,7 +764,7 @@
       ProductName: 'edit-name', CategoryId: 'edit-category', Unit: 'edit-unit',
       Description: 'edit-desc', BaseRetailPrice: 'edit-retail-price',
       WholesaleMinQuantity: 'edit-wholesale-min', WholesalePrice: 'edit-wholesale-price',
-      Images: 'product-images-input'
+      Images: 'product-images-input', FarmCertificateId: 'edit-certificate'
     };
     function clearFieldErrors() {
       document.querySelectorAll('[data-product-field-error]').forEach(el => el.remove());
@@ -769,6 +802,9 @@
       clearFieldErrors();
       const val = id => document.getElementById(id).value.trim();
       const errors = {};
+      const certificateId = val('edit-certificate');
+      if (certificateId && !certificateOptions.some(c => String(c.farmCertificateId) === certificateId))
+        errors.FarmCertificateId = MSG.certificateInvalid;
       if (!val('edit-name') || val('edit-name').length > 255) errors.ProductName = 'Nhập tên sản phẩm từ 1 đến 255 ký tự.';
       if (!categoriesList.some(c => Number(c.categoryId || c.id) === Number(val('edit-category')))) errors.CategoryId = 'Chọn danh mục đang hoạt động.';
       if (!val('edit-unit')) errors.Unit = 'Vui lòng chọn đơn vị.';
@@ -811,6 +847,8 @@
       const payload = {
         productName: document.getElementById('edit-name').value.trim(),
         categoryId: Number(document.getElementById('edit-category').value),
+        farmCertificateId: document.getElementById('edit-certificate').value
+          ? Number(document.getElementById('edit-certificate').value) : null,
         unit: document.getElementById('edit-unit').value,
         description: document.getElementById('edit-desc').value.trim(),
         baseRetailPrice: Number(document.getElementById('edit-retail-price').value),
@@ -858,6 +896,7 @@
       if (validateProductForm()) { showEditorNotice('Vui lòng kiểm tra các trường được đánh dấu.', true); return; }
       if (!currentEditingProduct || document.getElementById('edit-name').value.trim() !== currentEditingProduct.productName
         || Number(document.getElementById('edit-category').value) !== currentEditingProduct.categoryId
+        || (Number(document.getElementById('edit-certificate').value) || null) !== (currentEditingProduct.farmCertificateId || null)
         || document.getElementById('edit-unit').value !== currentEditingProduct.unit
         || document.getElementById('edit-desc').value.trim() !== (currentEditingProduct.description || '')
         || JSON.stringify(productImages) !== JSON.stringify(currentEditingProduct.images)) {

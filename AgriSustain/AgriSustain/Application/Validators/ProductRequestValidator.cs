@@ -10,6 +10,8 @@ public sealed class ProductRequestValidator : AbstractValidator<ProductRequest>
     {
         RuleFor(x => x.ProductName).NotEmpty().WithMessage(ProductListingMessages.Field("tên sản phẩm", "không được để trống"))
             .MaximumLength(255).WithMessage(ProductListingMessages.Field("tên sản phẩm", "tối đa 255 ký tự"));
+        RuleFor(x => x.FarmCertificateId).Must(id => id == null || id > 0)
+            .WithMessage(ProductListingMessages.InvalidCertificate);
         RuleFor(x => x.CategoryId).GreaterThan(0).WithMessage(ProductListingMessages.Field("danh mục", "chọn danh mục đang hoạt động"));
         RuleFor(x => x.Unit).NotEmpty().WithMessage(ProductListingMessages.Field("đơn vị", "không được để trống"))
             .MaximumLength(50).WithMessage(ProductListingMessages.Field("đơn vị", "tối đa 50 ký tự"))
@@ -47,5 +49,3 @@ public sealed class ProductRequestValidator : AbstractValidator<ProductRequest>
             || Uri.TryCreate(value, UriKind.Absolute, out var uri)
             && uri.Scheme == Uri.UriSchemeHttps) && !value.Contains("..");
 }
-
-

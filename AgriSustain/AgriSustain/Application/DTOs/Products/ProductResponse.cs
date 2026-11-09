@@ -7,6 +7,8 @@ public sealed record ProductResponse(long ProductId, string ProductName, long Ca
     decimal AvailableQuantity, int BatchCount, bool UnitLocked, string Version,
     IReadOnlyList<ProductImageInput> Images)
 {
+    public long? FarmCertificateId { get; init; }
+    public ProductCertificateOption? Certificate { get; init; }
     public string? Message { get; init; }
     public bool NotificationPending { get; init; }
     public string? NotificationMessage { get; init; }

@@ -15,6 +15,13 @@ public partial class AgriSustainContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Product>()
+            .HasOne(x => x.FarmCertificate).WithMany()
+            .HasForeignKey(x => x.FarmCertificateId)
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasConstraintName("FK_Product_FarmCertificate");
+        modelBuilder.Entity<Product>()
+            .HasIndex(x => x.FarmCertificateId, "IX_Product_FarmCertificateId");
         modelBuilder.Entity<RevokedToken>(entity =>
         {
             entity.ToTable("RevokedTokens");
