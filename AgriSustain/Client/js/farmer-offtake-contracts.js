@@ -280,6 +280,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const proposal =
       current &&
       [
+        "PendingApproval",
         "Proposed",
         "Pending",
         "PendingConfirmation",
