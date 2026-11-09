@@ -55,7 +55,7 @@ public sealed class FarmerOfftakeContractService(
         context.Contract.DigitalSignatureStatus = both ? "FullySigned" : "PartiallySigned";
         if (!both) return "MSG151";
         context.Contract.SignedDate = DateTime.UtcNow;
-        version.VersionStatus = "Agreed";
+        version.VersionStatus = "Signed";
         context.Contract.Status = rules.CanExecute(context) ? "Active" : "AwaitingDeposit";
         return context.Contract.Status == "Active" ? "MSG153" : "MSG152";
     }, ct);
@@ -64,7 +64,7 @@ public sealed class FarmerOfftakeContractService(
         ContractActionRequest input, CancellationToken ct) => Execute(actor, id, "Reject", input, context =>
     {
         if (!OfftakeContractRules.Feedback(input.Reason)) return "MSG109";
-        if (context.Contract.Status is not ("Proposed" or "Pending" or "PendingConfirmation" or "Negotiating")) return "MSG131";
+        if (context.Contract.Status is not ("PendingApproval" or "Proposed" or "Pending" or "PendingConfirmation" or "Negotiating")) return "MSG131";
         context.Contract.RejectProposal(input.Reason!.Trim());
         return "MSG105";
     }, ct);
@@ -82,7 +82,7 @@ public sealed class FarmerOfftakeContractService(
             VersionNo = context.Contract.CurrentVersionNo + 1,
             ProposedByUserId = actor,
             CreatedAt = DateTime.UtcNow,
-            VersionStatus = "Proposed",
+            VersionStatus = "Pending",
             FeedbackReason = input.Reason!.Trim(),
             TermsAndConditions = old.TermsAndConditions + "\n\nĐề xuất sửa đổi:\n" + input.ProposedChanges.Trim(),
             LineSnapshotJson = JsonSerializer.Serialize(old.ContractLines.Select(x => new

@@ -39,7 +39,7 @@ public sealed class OfftakeContractRules
     {
         if (!seasonId.HasValue || version <= 0) return "MSG02";
         if (version != context.Contract.CurrentVersionNo) return "MSG163";
-        if (context.Contract.Status is not ("Proposed" or "Pending" or "PendingConfirmation" or "Negotiating" or "AwaitingDeposit")) return "MSG131";
+        if (context.Contract.Status is not ("PendingApproval" or "Proposed" or "Pending" or "PendingConfirmation" or "Negotiating" or "AwaitingDeposit")) return "MSG131";
         var season = context.Seasons.SingleOrDefault(x => x.CropSeasonId == seasonId);
         var lines = Lines(context).ToList();
         if (season is null || lines.Count == 0 || lines.Any(x => x.ProductId != season.ProductId || x.UnitSnapshot != season.YieldUnit)
