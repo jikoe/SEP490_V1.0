@@ -5,5 +5,6 @@ public sealed record ProductRequest(string ProductName, long CategoryId, string 
     decimal? WholesaleMinQuantity, decimal? WholesalePrice,
     IReadOnlyList<ProductImageInput> Images, string? Version = null)
 {
+    public long? FarmCertificateId { get; init; }
     public bool PriceOnly { get; init; }
 }
