@@ -21,7 +21,7 @@ public sealed class CheckoutController(
 
     [HttpGet("provinces")]
     public async Task<IActionResult> Provinces(CancellationToken cancellationToken) =>
-        Ok(await addresses.GetProvincesAsync(cancellationToken));
+        AddressCatalogResults.Provinces(await addresses.GetProvincesAsync(cancellationToken), HttpContext);
 
     [HttpGet("provinces/{code}/districts")]
     public async Task<IActionResult> Districts(string code, CancellationToken cancellationToken) =>

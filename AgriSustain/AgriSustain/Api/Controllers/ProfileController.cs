@@ -82,7 +82,7 @@ public sealed class ProfileController(
     // Address catalog for the default delivery address (same source as checkout).
     [HttpGet("address/provinces")]
     public async Task<IActionResult> Provinces(CancellationToken cancellationToken) =>
-        Ok(await addresses.GetProvincesAsync(cancellationToken));
+        AddressCatalogResults.Provinces(await addresses.GetProvincesAsync(cancellationToken), HttpContext);
 
     [HttpGet("address/provinces/{code}/districts")]
     public async Task<IActionResult> Districts(string code, CancellationToken cancellationToken) =>

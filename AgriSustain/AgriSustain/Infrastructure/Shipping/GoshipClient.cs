@@ -1,12 +1,14 @@
 using System.Globalization;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace AgriSustain.Infrastructure.Shipping;
 
 /// <summary>Typed client for the Goship v2 location and rate APIs.</summary>
-public sealed class GoshipClient(HttpClient httpClient)
+public sealed class GoshipClient(HttpClient httpClient, ILogger<GoshipClient>? logger = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -65,11 +67,22 @@ public sealed class GoshipClient(HttpClient httpClient)
         }
     }
 
-    private static async Task<T?> ReadAsync<T>(HttpResponseMessage response,
+    private async Task<T?> ReadAsync<T>(HttpResponseMessage response,
         CancellationToken cancellationToken) where T : class
     {
         if (!response.IsSuccessStatusCode)
         {
+            string uri = response.RequestMessage?.RequestUri?.AbsolutePath ?? "";
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                logger?.LogError("Goship rejected the access token ({Status}) for {Uri}. "
+                    + "Renew Goship__AccessToken in .env; addresses and delivery fees are unavailable until then.",
+                    (int)response.StatusCode, uri);
+            }
+            else
+            {
+                logger?.LogWarning("Goship returned {Status} for {Uri}.", (int)response.StatusCode, uri);
+            }
             return null;
         }
         var envelope = await response.Content.ReadFromJsonAsync<GoshipEnvelope<T>>(JsonOptions,
