@@ -201,7 +201,7 @@
 
       <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; padding-bottom:14px; border-bottom:1px solid #e2e8f0;">
         <div>
-          <span style="display:inline-block; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; margin-bottom:6px;">
+          <span id="sepay-header-status-pill" style="display:inline-block; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; margin-bottom:6px;">
             ⏳ Chờ thanh toán SePay · Mã đơn #<span id="sepay-badge-code">WS---</span>
           </span>
           <h2 style="font-size:22px; font-weight:850; color:#064e3b; margin:0 0 4px;">Thanh toán đơn hàng sỉ qua SePay</h2>
@@ -209,7 +209,7 @@
             Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử. SePay tự động xác nhận ngay khi tiền về tài khoản.
           </p>
         </div>
-        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:8px 14px; display:flex; align-items:center; gap:8px;">
+        <div id="sepay-timer-box" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:8px 14px; display:flex; align-items:center; gap:8px;">
           <span style="font-size:18px;">⏱️</span>
           <div>
             <div style="font-size:10.5px; text-transform:uppercase; font-weight:700; color:#64748b;">Thời gian giữ lô</div>
@@ -228,6 +228,23 @@
         <div style="display:flex; justify-content:center; gap:12px;">
           <a href="orders.html" style="text-decoration:none; background:#064e3b; color:#fff; padding:10px 22px; border-radius:8px; font-weight:700;">
             📦 Xem danh sách đơn hàng mua sỉ
+          </a>
+        </div>
+      </div>
+
+      <!-- Expired & Auto-Cancelled State -->
+      <div id="sepay-expired-cancelled-box" style="display:none; text-align:center; padding:28px 16px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; margin-top:16px;">
+        <div style="width:68px; height:68px; border-radius:50%; background:#fee2e2; color:#dc2626; font-size:34px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">🚫</div>
+        <h3 style="font-size:21px; font-weight:850; color:#991b1b; margin:0 0 6px;">Đơn hàng đã tự động hủy do hết thời gian thanh toán!</h3>
+        <p style="font-size:14px; color:#7f1d1d; max-width:560px; margin:0 auto 18px; line-height:1.5;">
+          Thời gian giữ hàng thanh toán (15 phút) cho đơn hàng sỉ <strong id="sepay-exp-code">#WS---</strong> đã kết thúc mà chưa ghi nhận giao dịch chuyển khoản. Hệ thống đã tự động hủy đơn hàng và hoàn trả lại tồn kho lô thu hoạch.
+        </p>
+        <div style="display:flex; justify-content:center; gap:12px;">
+          <button type="button" onclick="closeSePayQrModal()" style="background:#dc2626; color:#fff; padding:10px 22px; border-radius:8px; font-weight:700; border:none; cursor:pointer;">
+            Đóng
+          </button>
+          <a href="orders.html" style="text-decoration:none; background:#064e3b; color:#fff; padding:10px 20px; border-radius:8px; font-weight:700;">
+            📦 Xem danh sách đơn hàng sỉ
           </a>
         </div>
       </div>
@@ -362,7 +379,7 @@
         const res = await API.getMyWholesaleOrders();
         if (res && res.success && res.data) {
           allOrders = res.data.orders || [];
-          unpaidOrders = allOrders.filter(o => o.paymentStatus !== 'Paid');
+          unpaidOrders = allOrders.filter(o => o.paymentStatus === 'PendingPayment' && o.orderStatus !== 'Cancelled');
 
           document.getElementById('tab-all-count').textContent = allOrders.length;
           document.getElementById('tab-unpaid-count').textContent = unpaidOrders.length;
@@ -456,16 +473,62 @@
       if (o) openSePayQrModal(o);
     }
 
+    let sePayTargetExpiryMs = 0;
+
+    function resolveOrderExpiryMs(order) {
+      const code = order?.orderCode || '';
+      if (order?.reservationExpiresAt) {
+        const parsed = new Date(order.reservationExpiresAt).getTime();
+        if (!isNaN(parsed) && parsed > 0) {
+          try { localStorage.setItem(`ws_order_expiry_${code}`, String(parsed)); } catch (_) {}
+          return parsed;
+        }
+      }
+
+      if (code) {
+        try {
+          const saved = Number(localStorage.getItem(`ws_order_expiry_${code}`));
+          if (!isNaN(saved) && saved > 0) return saved;
+        } catch (_) {}
+      }
+
+      if (order?.orderDate) {
+        const orderTime = new Date(order.orderDate).getTime();
+        if (!isNaN(orderTime) && orderTime > 0 && (Date.now() - orderTime) < 15 * 60 * 1000) {
+          const exp = orderTime + 15 * 60 * 1000;
+          try { if (code) localStorage.setItem(`ws_order_expiry_${code}`, String(exp)); } catch (_) {}
+          return exp;
+        }
+      }
+
+      const fallback = Date.now() + 15 * 60 * 1000;
+      try { if (code) localStorage.setItem(`ws_order_expiry_${code}`, String(fallback)); } catch (_) {}
+      return fallback;
+    }
+
     function openSePayQrModal(order) {
       activeSePayOrder = {
         ...order,
         transferContent: order.transferContent || (order.orderCode || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 18)
       };
 
+      sePayTargetExpiryMs = resolveOrderExpiryMs(activeSePayOrder);
+
       document.getElementById('sepay-paid-success-box').style.display = 'none';
+      const expBox = document.getElementById('sepay-expired-cancelled-box');
+      if (expBox) expBox.style.display = 'none';
       document.getElementById('sepay-active-qr-body').style.display = 'grid';
 
-      document.getElementById('sepay-badge-code').textContent = activeSePayOrder.orderCode;
+      const pillEl = document.getElementById('sepay-header-status-pill');
+      if (pillEl) {
+        pillEl.style.background = '#ecfdf5';
+        pillEl.style.color = '#047857';
+        pillEl.style.borderColor = '#a7f3d0';
+        pillEl.innerHTML = `⏳ Chờ thanh toán SePay · Mã đơn #<span id="sepay-badge-code">${activeSePayOrder.orderCode}</span>`;
+      } else {
+        document.getElementById('sepay-badge-code').textContent = activeSePayOrder.orderCode;
+      }
+
       document.getElementById('sepay-qr-bank-short').textContent = sePayBeneficiary.bankShortName;
       document.getElementById('sepay-bank-name').textContent = sePayBeneficiary.bankName;
       document.getElementById('sepay-account-name').textContent = sePayBeneficiary.accountName;
@@ -495,22 +558,60 @@
 
     function startSePayTimer() {
       if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
-      sePaySecondsLeft = 15 * 60;
       const digitsEl = document.getElementById('sepay-timer-digits');
+      const timerBoxEl = document.getElementById('sepay-timer-box');
 
       const tick = () => {
-        if (sePaySecondsLeft <= 0) {
-          clearInterval(sePayCountdownTimer);
-          digitsEl.textContent = '00:00';
-          return;
-        }
-        sePaySecondsLeft--;
+        sePaySecondsLeft = Math.max(0, Math.ceil((sePayTargetExpiryMs - Date.now()) / 1000));
         const m = String(Math.floor(sePaySecondsLeft / 60)).padStart(2, '0');
         const s = String(sePaySecondsLeft % 60).padStart(2, '0');
         digitsEl.textContent = `${m}:${s}`;
+
+        if (sePaySecondsLeft <= 120) {
+          digitsEl.style.color = '#dc2626';
+          if (timerBoxEl) timerBoxEl.style.borderColor = '#fca5a5';
+        } else {
+          digitsEl.style.color = '#047857';
+          if (timerBoxEl) timerBoxEl.style.borderColor = '#cbd5e1';
+        }
+
+        if (sePaySecondsLeft <= 0) {
+          clearInterval(sePayCountdownTimer);
+          onSePayOrderExpired();
+        }
       };
       tick();
       sePayCountdownTimer = setInterval(tick, 1000);
+    }
+
+    async function onSePayOrderExpired() {
+      if (sePayPollingTimer) clearInterval(sePayPollingTimer);
+      if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
+
+      const code = activeSePayOrder?.orderCode;
+      if (code) {
+        try {
+          await API.cancelExpiredWholesaleOrder(code);
+        } catch (_) {}
+      }
+
+      document.getElementById('sepay-active-qr-body').style.display = 'none';
+      document.getElementById('sepay-paid-success-box').style.display = 'none';
+      const expCodeEl = document.getElementById('sepay-exp-code');
+      if (expCodeEl && code) expCodeEl.textContent = `#${code}`;
+
+      const expBox = document.getElementById('sepay-expired-cancelled-box');
+      if (expBox) expBox.style.display = 'block';
+
+      const pillEl = document.getElementById('sepay-header-status-pill');
+      if (pillEl) {
+        pillEl.style.background = '#fee2e2';
+        pillEl.style.color = '#991b1b';
+        pillEl.style.borderColor = '#fecaca';
+        pillEl.innerHTML = `🚫 Đã tự động hủy (Hết thời gian thanh toán) · Mã đơn #${code || '---'}`;
+      }
+
+      await loadUnpaidOrders();
     }
 
     function startSePayPolling(orderCode) {
@@ -521,6 +622,12 @@
         try {
           const res = await API.getWholesaleOrderDetail(orderCode, { suppressErrorToast: true });
           if (res && res.success && res.data) {
+            if (res.data.reservationExpiresAt) {
+              const srvExp = new Date(res.data.reservationExpiresAt).getTime();
+              if (!isNaN(srvExp) && srvExp > 0) {
+                sePayTargetExpiryMs = srvExp;
+              }
+            }
             if (res.data.paymentStatus === 'Paid' || res.data.orderStatus === 'Confirmed') {
               if (sePayPollingTimer) clearInterval(sePayPollingTimer);
               if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
@@ -529,6 +636,8 @@
               document.getElementById('sepay-succ-code').textContent = `#${res.data.orderCode}`;
               document.getElementById('sepay-paid-success-box').style.display = 'block';
               await loadUnpaidOrders();
+            } else if (res.data.paymentStatus === 'Cancelled' || res.data.orderStatus === 'Cancelled') {
+              onSePayOrderExpired();
             }
           }
         } catch (_) {}

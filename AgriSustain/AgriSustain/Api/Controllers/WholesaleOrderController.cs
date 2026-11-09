@@ -96,6 +96,19 @@ public sealed class WholesaleOrderController(IWholesaleOrderService orderService
         return ToActionResult(result);
     }
 
+    /// <summary>
+    /// Tự động hủy đơn hàng mua sỉ và hoàn trả hạn ngạch tồn kho lô hàng khi hết thời gian chờ thanh toán SePay.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("{orderCode}/cancel-expired")]
+    public async Task<IActionResult> CancelExpiredWholesaleOrderAsync(
+        string orderCode,
+        CancellationToken cancellationToken)
+    {
+        var result = await _orderService.CancelExpiredWholesaleOrderAsync(orderCode, cancellationToken);
+        return ToActionResult(result);
+    }
+
     private long ResolveBuyerUserId()
     {
         var nameId = User.FindFirstValue(ClaimTypes.NameIdentifier);

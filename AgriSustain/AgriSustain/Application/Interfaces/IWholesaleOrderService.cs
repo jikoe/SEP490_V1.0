@@ -11,5 +11,6 @@ public interface IWholesaleOrderService
     Task<Result<WholesaleBuyerOrdersOverviewDto>> GetBuyerWholesaleOrdersOverviewAsync(long buyerUserId, CancellationToken cancellationToken);
     Task<Result<WholesaleOrderListItemDto>> GetWholesaleOrderDetailByCodeAsync(string orderCode, CancellationToken cancellationToken);
     Task<Result<WholesaleOrderListItemDto>> ConfirmSePayWholesaleOrderAsync(string orderCode, CancellationToken cancellationToken);
+    Task<Result<WholesaleOrderListItemDto>> CancelExpiredWholesaleOrderAsync(string orderCode, CancellationToken cancellationToken);
 }
 

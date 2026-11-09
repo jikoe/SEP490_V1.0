@@ -251,16 +251,19 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
         var finalAmount = subtotal + vatAmount + logisticsFee;
 
         // Build Order
-        var orderCode = $"WS-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
-        var expectedDelivery = request.ExpectedDeliveryDate ?? DateTime.UtcNow.AddDays(3);
+        var nowUtc = DateTime.UtcNow;
+        var reservationExpiresAt = nowUtc.AddMinutes(15);
+        var orderCode = $"WS-{nowUtc:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
+        var expectedDelivery = request.ExpectedDeliveryDate ?? nowUtc.AddDays(3);
 
         var order = new Order
         {
             BuyerUserId = buyerUserId,
             OrderCode = orderCode,
             OrderType = "Wholesale",
-            OrderStatus = "Pending", // Pending Confirmation / Pending Farmer Acceptance
-            OrderDate = DateTime.UtcNow,
+            OrderStatus = "Pending", // Pending Confirmation / Pending Payment
+            OrderDate = nowUtc,
+            ReservationExpiresAt = reservationExpiresAt,
             ExpectedDeliveryDate = expectedDelivery,
             ShippingAddress = warehouseAddress.Trim(),
             RecipientNameSnapshot = request.RecipientName.Trim(),
@@ -323,8 +326,8 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
                 AllocatedQuantity = allocate,
                 AllocationSequence = ++sequence,
                 AllocationStatus = "Reserved",
-                ReservedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(3)
+                ReservedAt = nowUtc,
+                ExpiresAt = reservationExpiresAt
             };
 
             orderItem.OrderItemBatchAllocations.Add(allocation);
@@ -392,7 +395,8 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             TaxCode: request.TaxCode.Trim(),
             PaymentMethod: paymentMethod,
             BatchAllocations: batchAllocations,
-            Message: "Đơn hàng sỉ B2B đã được khởi tạo thành công và đang chờ nông trại phê duyệt.");
+            Message: "Đơn hàng sỉ B2B đã được khởi tạo thành công và đang chờ thanh toán SePay (giữ hàng 15 phút).",
+            ReservationExpiresAt: order.ReservationExpiresAt);
 
         return Result<WholesaleOrderConfirmationDto>.Ok(confirmation);
     }
@@ -402,13 +406,34 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
         CancellationToken cancellationToken)
     {
         var orders = await _repository.GetBuyerWholesaleOrdersAsync(buyerUserId, cancellationToken);
+        var nowUtc = DateTime.UtcNow;
+
+        // Tự động hủy các đơn sỉ quá thời gian giữ hàng thanh toán (ReservationExpiresAt <= nowUtc)
+        foreach (var o in orders)
+        {
+            if (IsOrderExpiredAndUnpaid(o, nowUtc))
+            {
+                await CancelExpiredWholesaleOrderAsync(o.OrderCode, cancellationToken);
+            }
+        }
+
+        // Nạp lại danh sách sau khi đã cập nhật các đơn quá hạn (nếu có)
+        if (orders.Any(o => IsOrderExpiredAndUnpaid(o, nowUtc)))
+        {
+            orders = await _repository.GetBuyerWholesaleOrdersAsync(buyerUserId, cancellationToken);
+        }
+
         var buyerKyc = await _repository.GetBuyerKycProfileAsync(buyerUserId, cancellationToken);
 
         var orderDtos = orders
             .Select(o => MapOrderToListItemDto(o, buyerKyc))
             .ToList();
 
-        var supplierBreakdown = orderDtos
+        var activeOrderDtos = orderDtos
+            .Where(o => !string.Equals(o.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var supplierBreakdown = activeOrderDtos
             .GroupBy(o => new { o.FarmerProfileId, o.SellerName })
             .Select(g => new WholesaleSupplierSummaryDto(
                 FarmerProfileId: g.Key.FarmerProfileId,
@@ -425,15 +450,15 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             .ToList();
 
         var paidCount = orderDtos.Count(o => string.Equals(o.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase));
-        var pendingCount = orderDtos.Count - paidCount;
+        var pendingCount = orderDtos.Count(o => string.Equals(o.PaymentStatus, "PendingPayment", StringComparison.OrdinalIgnoreCase));
 
         var overview = new WholesaleBuyerOrdersOverviewDto(
-            TotalOrdersCount: orderDtos.Count,
+            TotalOrdersCount: activeOrderDtos.Count,
             PaidOrdersCount: paidCount,
             PendingOrdersCount: pendingCount,
             TotalSuppliersCount: supplierBreakdown.Count,
-            TotalVolume: orderDtos.Sum(o => o.Quantity),
-            TotalSpendAmount: orderDtos.Sum(o => o.FinalAmount),
+            TotalVolume: activeOrderDtos.Sum(o => o.Quantity),
+            TotalSpendAmount: activeOrderDtos.Sum(o => o.FinalAmount),
             SupplierBreakdown: supplierBreakdown,
             Orders: orderDtos);
 
@@ -456,8 +481,98 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             return Result<WholesaleOrderListItemDto>.Fail($"Không tìm thấy đơn hàng sỉ #{cleanCode}.", 404);
         }
 
+        if (IsOrderExpiredAndUnpaid(order, DateTime.UtcNow))
+        {
+            return await CancelExpiredWholesaleOrderAsync(cleanCode, cancellationToken);
+        }
+
         var buyerKyc = await _repository.GetBuyerKycProfileAsync(order.BuyerUserId, cancellationToken);
         return Result<WholesaleOrderListItemDto>.Ok(MapOrderToListItemDto(order, buyerKyc));
+    }
+
+    public async Task<Result<WholesaleOrderListItemDto>> CancelExpiredWholesaleOrderAsync(
+        string orderCode,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(orderCode))
+        {
+            return Result<WholesaleOrderListItemDto>.Fail("Mã đơn hàng không hợp lệ.", 400);
+        }
+
+        var cleanCode = orderCode.Trim().TrimStart('#');
+        var order = await _repository.GetWholesaleOrderForPaymentAsync(cleanCode, cancellationToken);
+        if (order == null)
+        {
+            return Result<WholesaleOrderListItemDto>.Fail($"Không tìm thấy đơn hàng sỉ #{cleanCode}.", 404);
+        }
+
+        var alreadyPaid = string.Equals(order.OrderStatus, "Confirmed", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(order.OrderStatus, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                          order.PaymentTransactions.Any(p => string.Equals(p.PaymentStatus, "Success", StringComparison.OrdinalIgnoreCase));
+
+        if (!alreadyPaid && !string.Equals(order.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase))
+        {
+            var now = DateTime.UtcNow;
+            order.OrderStatus = "Cancelled";
+
+            foreach (var sellerOrder in order.SellerOrders)
+            {
+                sellerOrder.Status = "Cancelled";
+                foreach (var item in sellerOrder.OrderItems)
+                {
+                    item.ItemStatus = "Cancelled";
+                    foreach (var alloc in item.OrderItemBatchAllocations.Where(a => a.AllocationStatus == "Reserved"))
+                    {
+                        alloc.HarvestBatch?.ReleaseReservation(alloc.AllocatedQuantity);
+                        alloc.AllocationStatus = "Released";
+                        alloc.ReleasedAt = now;
+                    }
+                }
+            }
+
+            await _repository.SaveChangesAsync(cancellationToken);
+
+            await _repository.AddNotificationAsync(new Notification
+            {
+                UserId = order.BuyerUserId,
+                Title = "Đơn hàng sỉ tự động hủy do hết hạn thanh toán",
+                Content = $"Đơn hàng sỉ #{order.OrderCode} ({order.FinalAmount:N0} ₫) đã tự động bị hủy và hoàn trả tồn kho lô hàng do hết thời gian thanh toán SePay.",
+                NotificationType = "FarmerOrderUpdate",
+                DeliveryChannel = "InApp",
+                DeliveryStatus = "Sent",
+                SentAt = now,
+                RelatedRecordType = "Order",
+                RelatedRecordId = order.OrderId
+            }, cancellationToken);
+        }
+
+        var refreshed = await _repository.GetOrderByCodeAsync(cleanCode, cancellationToken) ?? order;
+        var buyerKyc = await _repository.GetBuyerKycProfileAsync(refreshed.BuyerUserId, cancellationToken);
+        return Result<WholesaleOrderListItemDto>.Ok(MapOrderToListItemDto(refreshed, buyerKyc));
+    }
+
+    private static bool IsOrderExpiredAndUnpaid(Order order, DateTime nowUtc)
+    {
+        if (!order.ReservationExpiresAt.HasValue || order.ReservationExpiresAt.Value > nowUtc)
+        {
+            return false;
+        }
+
+        if (string.Equals(order.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.OrderStatus, "Confirmed", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.OrderStatus, "Preparing", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.OrderStatus, "ReadyToShip", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.OrderStatus, "Shipping", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.OrderStatus, "Delivered", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(order.OrderStatus, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var hasSuccessPayment = order.PaymentTransactions.Any(p =>
+            string.Equals(p.PaymentStatus, "Success", StringComparison.OrdinalIgnoreCase));
+
+        return !hasSuccessPayment;
     }
 
     public async Task<Result<WholesaleOrderListItemDto>> ConfirmSePayWholesaleOrderAsync(
@@ -563,6 +678,12 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
                      string.Equals(order.OrderStatus, "Completed", StringComparison.OrdinalIgnoreCase) ||
                      order.PaymentTransactions.Any(p => string.Equals(p.PaymentStatus, "Success", StringComparison.OrdinalIgnoreCase));
 
+        var isCancelled = !isPaid && (
+            string.Equals(order.OrderStatus, "Cancelled", StringComparison.OrdinalIgnoreCase) ||
+            order.SellerOrders.Any(so => string.Equals(so.Status, "Cancelled", StringComparison.OrdinalIgnoreCase)));
+
+        var paymentStatus = isPaid ? "Paid" : (isCancelled ? "Cancelled" : "PendingPayment");
+
         var batchAllocations = (orderItem?.OrderItemBatchAllocations ?? [])
             .Select(ba => new WholesaleBatchAllocationDto(
                 HarvestBatchId: ba.HarvestBatchId,
@@ -587,8 +708,8 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             OrderId: order.OrderId,
             OrderCode: order.OrderCode ?? $"ORD-{order.OrderId}",
             SellerOrderCode: sellerOrder?.SellerOrderCode ?? $"{order.OrderCode}-1",
-            OrderStatus: order.OrderStatus,
-            PaymentStatus: isPaid ? "Paid" : "PendingPayment",
+            OrderStatus: isCancelled ? "Cancelled" : order.OrderStatus,
+            PaymentStatus: paymentStatus,
             OrderDate: order.OrderDate,
             ExpectedDeliveryDate: order.ExpectedDeliveryDate,
             FarmerProfileId: sellerOrder?.FarmerProfileId ?? 0,
@@ -611,7 +732,8 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             PaymentMethod: string.IsNullOrWhiteSpace(order.PaymentMethod) ? "SePay" : order.PaymentMethod,
             OrderNotes: string.IsNullOrWhiteSpace(cleanNotes) ? null : cleanNotes,
             TransferContent: transferContent,
-            BatchAllocations: batchAllocations);
+            BatchAllocations: batchAllocations,
+            ReservationExpiresAt: order.ReservationExpiresAt);
     }
 
     private static (string TierName, decimal DiscountPercent, decimal UnitPrice) DetermineTier(

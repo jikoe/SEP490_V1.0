@@ -10,6 +10,7 @@
     .ws-pay-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display: inline-block; }
     .ws-pay-badge.paid { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
     .ws-pay-badge.unpaid { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .ws-pay-badge.cancelled { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
     .supplier-count-pill { display: inline-flex; align-items: center; gap: 5px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-weight: 800; font-size: 13px; padding: 4px 12px; border-radius: 999px; }
     .prod-tag { display: inline-block; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0; }
     .clickable-row { cursor: pointer; transition: background 0.15s; }
@@ -40,9 +41,6 @@
             <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
               <a href="orders.html" class="secondary" style="text-decoration:none; padding:10px 18px; border-radius:8px; font-weight:600; background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1;">
                 📦 Đơn hàng mua sỉ
-              </a>
-              <a href="cart.html" class="secondary" style="text-decoration:none; padding:10px 18px; border-radius:8px; font-weight:700; background:#fffbeb; color:#92400e; border:1px solid #fde68a;">
-                🛒 Đơn sỉ chờ thanh toán
               </a>
               <a href="../RetailCustomer/index.html" class="primary" style="text-decoration:none; padding:10px 18px; border-radius:8px; font-weight:700; background:#064e3b; color:#fff;">
                 ✦ Khám phá nông sản sỉ
@@ -390,6 +388,9 @@
 
       tbody.innerHTML = orders.map(o => {
         const isPaid = o.paymentStatus === 'Paid';
+        const isCancelled = o.paymentStatus === 'Cancelled' || o.orderStatus === 'Cancelled';
+        const badgeClass = isPaid ? 'paid' : (isCancelled ? 'cancelled' : 'unpaid');
+        const badgeLabel = isPaid ? '✓ Đã thanh toán SePay' : (isCancelled ? '✕ Đã hủy (Quá hạn TT)' : '⏳ Chờ thanh toán QR');
         const dateStr = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
         return `
           <tr class="clickable-row" onclick="openDashOrderDetail('${o.orderCode}')">
@@ -399,8 +400,8 @@
             <td><strong>${Number(o.quantity).toLocaleString('vi-VN')} ${o.unit}</strong></td>
             <td><strong style="color:#047857;">${Number(o.finalAmount).toLocaleString('vi-VN')} ₫</strong></td>
             <td>
-              <span class="ws-pay-badge ${isPaid ? 'paid' : 'unpaid'}">
-                ${isPaid ? '✓ Đã thanh toán SePay' : '⏳ Chờ thanh toán QR'}
+              <span class="ws-pay-badge ${badgeClass}">
+                ${badgeLabel}
               </span>
             </td>
             <td style="font-size:13px; color:#64748b;">${dateStr}</td>
@@ -409,7 +410,7 @@
                 <button type="button" onclick="openDashOrderDetail('${o.orderCode}')" style="padding:5px 10px; border-radius:6px; border:1px solid #cbd5e1; background:#fff; font-size:12px; font-weight:700; cursor:pointer; color:#0f172a;">
                   🔍 Chi tiết
                 </button>
-                ${!isPaid ? `
+                ${(!isPaid && !isCancelled) ? `
                   <button type="button" onclick="goToSePayPayment('${o.orderCode}', ${o.finalAmount})" style="padding:5px 10px; border-radius:6px; border:none; background:#1e6546; color:#fff; font-size:12px; font-weight:700; cursor:pointer;">
                     💳 TT SePay
                   </button>
@@ -426,13 +427,14 @@
       if (!o) return;
 
       const isPaid = o.paymentStatus === 'Paid';
+      const isCancelled = o.paymentStatus === 'Cancelled' || o.orderStatus === 'Cancelled';
       document.getElementById('dash-detail-code').textContent = `Đơn hàng sỉ #${o.orderCode}`;
       document.getElementById('dash-detail-seller').textContent = o.sellerName;
       document.getElementById('dash-detail-farm-addr').textContent = `📍 ${o.farmAddress || 'Việt Nam'}`;
 
       const payBadge = document.getElementById('dash-detail-pay-badge');
-      payBadge.textContent = isPaid ? '✓ Đã thanh toán SePay' : '⏳ Chờ thanh toán QR SePay';
-      payBadge.className = `ws-pay-badge ${isPaid ? 'paid' : 'unpaid'}`;
+      payBadge.textContent = isPaid ? '✓ Đã thanh toán SePay' : (isCancelled ? '✕ Đã hủy (Quá hạn TT)' : '⏳ Chờ thanh toán QR SePay');
+      payBadge.className = `ws-pay-badge ${isPaid ? 'paid' : (isCancelled ? 'cancelled' : 'unpaid')}`;
 
       document.getElementById('dash-detail-date').textContent = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
       document.getElementById('dash-detail-exp-date').textContent = o.expectedDeliveryDate ? new Date(o.expectedDeliveryDate).toLocaleDateString('vi-VN') : '--';
@@ -455,7 +457,7 @@
       document.getElementById('dash-detail-reorder-link').href = `wholesale-order.html?productId=${o.productId || 1}`;
 
       const sepayBox = document.getElementById('dash-detail-sepay-box');
-      if (isPaid) {
+      if (isPaid || isCancelled) {
         sepayBox.style.display = 'none';
       } else {
         sepayBox.style.display = 'flex';

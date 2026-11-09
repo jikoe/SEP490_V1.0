@@ -63,7 +63,6 @@ const ROLE_CONFIGS = {
     navItems: [
       { key: 'wholesale-dash', label: 'Tổng quan mua buôn', icon: '📊', path: 'WholesaleBuyer/dashboard.html' },
       { key: 'wholesale-orders', label: 'Đơn hàng mua sỉ', icon: '📦', path: 'WholesaleBuyer/orders.html' },
-      { key: 'wholesale-cart', label: 'Đơn sỉ chờ thanh toán', icon: '🛒', path: 'WholesaleBuyer/cart.html' },
       { key: 'supplier-capacity', label: 'Hồ sơ năng lực NCC', icon: '🏭', path: 'WholesaleBuyer/supplier-capacity.html' },
       { key: 'marketplace', label: 'Khám phá nông sản', icon: '✦', path: 'RetailCustomer/index.html' },
       { key: 'wholesale-profile', label: 'Hồ sơ & Tài khoản', icon: '👤', path: 'WholesaleBuyer/profile.html' },

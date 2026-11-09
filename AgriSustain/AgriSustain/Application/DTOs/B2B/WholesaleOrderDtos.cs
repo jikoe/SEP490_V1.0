@@ -125,7 +125,8 @@ public sealed record WholesaleOrderConfirmationDto(
     string TaxCode,
     string PaymentMethod,
     IReadOnlyList<WholesaleBatchAllocationDto> BatchAllocations,
-    string Message)
+    string Message,
+    DateTime? ReservationExpiresAt = null)
 {
     public decimal TotalQuantity => Quantity;
     public decimal TotalAmount => FinalAmount;
@@ -166,7 +167,8 @@ public sealed record WholesaleOrderListItemDto(
     string PaymentMethod,
     string? OrderNotes,
     string TransferContent,
-    IReadOnlyList<WholesaleBatchAllocationDto> BatchAllocations);
+    IReadOnlyList<WholesaleBatchAllocationDto> BatchAllocations,
+    DateTime? ReservationExpiresAt = null);
 
 public sealed record WholesaleSupplierSummaryDto(
     long FarmerProfileId,

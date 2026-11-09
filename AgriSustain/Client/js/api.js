@@ -780,6 +780,13 @@ const API = {
 
   async confirmWholesaleOrderSePay(orderCode) {
     return this.confirmSePayWholesaleOrder(orderCode);
+  },
+
+  async cancelExpiredWholesaleOrder(orderCode) {
+    return this.request(`/b2b/orders/${encodeURIComponent(orderCode)}/cancel-expired`, {
+      method: 'POST',
+      suppressErrorToast: true
+    });
   }
 };
 

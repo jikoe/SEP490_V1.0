@@ -22,6 +22,7 @@
     .ws-pay-badge { font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; display: inline-block; }
     .ws-pay-badge.paid { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
     .ws-pay-badge.unpaid { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .ws-pay-badge.cancelled { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
 
     .ws-table-row { cursor: pointer; transition: background 0.15s; }
     .ws-table-row:hover { background: #f0fdf4 !important; }
@@ -211,7 +212,7 @@
         const res = await API.getMyWholesaleOrders();
         if (res && res.success && res.data) {
           allOrders = res.data.orders || [];
-          const unpaidCount = allOrders.filter(o => o.paymentStatus !== 'Paid').length;
+          const unpaidCount = allOrders.filter(o => o.paymentStatus === 'PendingPayment' && o.orderStatus !== 'Cancelled').length;
 
           document.getElementById('tab-all-count').textContent = allOrders.length;
           document.getElementById('tab-unpaid-count').textContent = unpaidCount;
@@ -253,6 +254,9 @@
 
       tbody.innerHTML = orders.map(o => {
         const isPaid = o.paymentStatus === 'Paid';
+        const isCancelled = o.paymentStatus === 'Cancelled' || o.orderStatus === 'Cancelled';
+        const badgeClass = isPaid ? 'paid' : (isCancelled ? 'cancelled' : 'unpaid');
+        const badgeLabel = isPaid ? '✓ Đã thanh toán SePay' : (isCancelled ? '✕ Đã hủy (Quá hạn TT)' : '⏳ Chờ thanh toán SePay');
         const dateStr = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
         return `
           <tr class="ws-table-row" onclick="openOrderDetailModal('${o.orderCode}')" title="Bấm để xem chi tiết đơn hàng sỉ #${o.orderCode}">
@@ -263,8 +267,8 @@
             <td>${Number(o.unitPrice).toLocaleString('vi-VN')} ₫/${o.unit}</td>
             <td><strong style="color:#047857; font-size:14.5px;">${Number(o.finalAmount).toLocaleString('vi-VN')} ₫</strong></td>
             <td>
-              <span class="ws-pay-badge ${isPaid ? 'paid' : 'unpaid'}">
-                ${isPaid ? '✓ Đã thanh toán SePay' : '⏳ Chờ thanh toán SePay'}
+              <span class="ws-pay-badge ${badgeClass}">
+                ${badgeLabel}
               </span>
             </td>
             <td style="color:#64748b; font-size:13px;">${dateStr}</td>
@@ -278,14 +282,15 @@
       if (!o) return;
 
       const isPaid = o.paymentStatus === 'Paid';
+      const isCancelled = o.paymentStatus === 'Cancelled' || o.orderStatus === 'Cancelled';
       document.getElementById('detail-code').textContent = `Đơn hàng sỉ #${o.orderCode}`;
       document.getElementById('detail-seller').textContent = o.sellerName;
       document.getElementById('detail-farm-addr').textContent = `📍 ${o.farmAddress || 'Việt Nam'}`;
       document.getElementById('detail-seller-code').textContent = o.sellerOrderCode || `${o.orderCode}-1`;
 
       const payBadge = document.getElementById('detail-pay-badge');
-      payBadge.textContent = isPaid ? '✓ Đã thanh toán SePay' : '⏳ Chờ thanh toán SePay';
-      payBadge.className = `ws-pay-badge ${isPaid ? 'paid' : 'unpaid'}`;
+      payBadge.textContent = isPaid ? '✓ Đã thanh toán SePay' : (isCancelled ? '✕ Đã hủy (Quá hạn TT)' : '⏳ Chờ thanh toán SePay');
+      payBadge.className = `ws-pay-badge ${isPaid ? 'paid' : (isCancelled ? 'cancelled' : 'unpaid')}`;
 
       document.getElementById('detail-date').textContent = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
       document.getElementById('detail-exp-date').textContent = o.expectedDeliveryDate ? new Date(o.expectedDeliveryDate).toLocaleDateString('vi-VN') : '--';
@@ -307,7 +312,7 @@
         : 'Đã khóa giữ tự động từ lô thu hoạch';
 
       const unpaidBanner = document.getElementById('detail-unpaid-banner');
-      if (isPaid) {
+      if (isPaid || isCancelled) {
         unpaidBanner.style.display = 'none';
       } else {
         unpaidBanner.style.display = 'flex';
