@@ -822,9 +822,14 @@
             <div class="inv-sub" style="color: #047857; font-weight: 600;">
               ✓ Kho sẵn có: ${Number(item.availableQuantity).toLocaleString('vi-VN')} ${item.unit}
             </div>
-            <a href="../RetailCustomer/product-detail.html?id=${item.productId}" class="btn primary inv-action" style="display: block; text-align: center; text-decoration: none; margin-top: 14px;">
-              Xem chi tiết & Đặt mua sỉ
-            </a>
+            <div style="display:flex; gap:8px; margin-top: 14px;">
+              <a href="../RetailCustomer/product-detail.html?id=${item.productId}" class="back-btn" style="flex: 1; text-align: center; justify-content: center; text-decoration: none; font-size: 13px;">
+                Chi tiết
+              </a>
+              <a href="wholesale-order.html?productId=${item.productId}" class="btn primary" style="flex: 1.6; text-align: center; text-decoration: none; font-size: 13px; background: #064e3b; color: white;">
+                🛒 Đặt sỉ ngay
+              </a>
+            </div>
           </div>
         </div>
       `).join('');
@@ -995,7 +1000,7 @@
     function handleCreateWholesaleOrder() {
       if (currentProfile && currentProfile.availableInventory && currentProfile.availableInventory.length > 0) {
         const firstProd = currentProfile.availableInventory[0];
-        window.location.href = `../RetailCustomer/product-detail.html?id=${firstProd.productId}`;
+        window.location.href = `wholesale-order.html?productId=${firstProd.productId}`;
       } else {
         window.location.href = '../RetailCustomer/index.html';
       }

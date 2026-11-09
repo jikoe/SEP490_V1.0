@@ -74,6 +74,13 @@ function render() {
       <label class="mkt-quantity-unit" for="detail-quantity">(${esc(product.unit)})</label>
       <button id="detail-add-cart" class="mkt-primary" type="submit">${icon('cart')}${maxQuantity < 1 ? 'Hết hàng' : 'Thêm vào giỏ hàng'}</button>
     </fieldset></form>
+    ${detail.wholesalePrice != null && detail.wholesaleMinQuantity != null ? `
+      <div style="margin-top: 10px;">
+        <a href="../WholesaleBuyer/wholesale-order.html?productId=${product.id}" class="b2b-wholesale-order-btn" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px 16px; background: #064e3b; color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; box-shadow: 0 4px 12px rgba(6, 78, 59, 0.18); transition: background 0.2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#064e3b'">
+          📦 Đặt hàng sỉ / Mua buôn B2B (từ ${detail.wholesaleMinQuantity} ${esc(product.unit)}) →
+        </a>
+      </div>
+    ` : ''}
     <button id="detail-share" class="mkt-share" type="button">${icon('share')} Chia sẻ</button><p id="detail-share-message" class="mkt-share-message" role="status"></p></section>
     <aside class="mkt-detail-sidebar"><section class="mkt-farm-card"><div class="mkt-farm-heading"><span class="mkt-farm-avatar">${icon()}</span><div><h2>${esc(product.supplier)}</h2><p>${detail.isFarmVerified ? `${icon('shield')}Đã xác thực` : 'Nhà cung cấp'}</p></div></div><button type="button" id="detail-farm-toggle" aria-expanded="false">Xem gian hàng →</button><div id="detail-farm-extra" class="mkt-farm-extra" hidden><p>${esc(detail.farmAddress)}</p><a href="index.html?supplierId=${product.supplierId}">Xem sản phẩm của nhà cung cấp</a><div style="margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 8px;"><a href="../WholesaleBuyer/supplier-capacity.html?id=${product.supplierId}" class="b2b-capacity-link" style="color: #15803d; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">🏭 Hồ sơ năng lực B2B →</a></div></div></section>
     <section class="mkt-service-card" aria-label="Thông tin mua hàng">${[['truck', 'Vận chuyển', 'Phí và phạm vi giao hàng được xác nhận khi thanh toán.'], ['card', 'Thanh toán', 'Kiểm tra phương thức và tổng tiền tại bước thanh toán.'], ['shield', 'Thông tin minh bạch', 'Xem chứng nhận và truy xuất lô hàng bên dưới.']].map(([name, title, text]) => `<div>${icon(name)}<div><h2>${title}</h2><p>${text}</p></div></div>`).join('')}</section></aside>

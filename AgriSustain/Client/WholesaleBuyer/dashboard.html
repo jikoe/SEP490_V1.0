@@ -3,9 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mua buôn B2B - AgriSustain</title>
+  <title>Bảng Điều Khiển Mua Buôn B2B - AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .ws-pay-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; display: inline-block; }
+    .ws-pay-badge.paid { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .ws-pay-badge.unpaid { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .ws-pay-badge.cancelled { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .supplier-count-pill { display: inline-flex; align-items: center; gap: 5px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-weight: 800; font-size: 13px; padding: 4px 12px; border-radius: 999px; }
+    .prod-tag { display: inline-block; background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0; }
+    .clickable-row { cursor: pointer; transition: background 0.15s; }
+    .clickable-row:hover { background: #f0fdf4 !important; }
+
+    /* Modal Styles */
+    .order-modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 18px; }
+    .order-modal-content { background: white; border-radius: 16px; max-width: 720px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); position: relative; }
+    .modal-close-x { position: absolute; top: 16px; right: 18px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; }
+    .modal-close-x:hover { background: #fee2e2; color: #dc2626; }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -15,62 +31,134 @@
       <header id="app-header"></header>
 
       <main>
-        <div class="wholesale-dashboard" style="padding: 24px 32px; max-width: 1400px; margin: 0 auto;">
+        <div class="wholesale-dashboard" style="padding: 24px 32px; max-width: 1440px; margin: 0 auto;">
           <div class="section-heading">
             <div>
               <p class="eyebrow">KHÁCH HÀNG DOANH NGHIỆP B2B</p>
-              <h1>Bảng Điều Khiển Mua Buôn</h1>
-              <p class="muted">Theo dõi tiến độ hợp đồng thu mua bao tiêu, đặt hàng trước theo mùa vụ và đối soát hóa đơn sỉ.</p>
+              <h1>Bảng Điều Khiển Mua Buôn Nông Sản Sỉ</h1>
+              <p class="muted">Thống kê số lượng đơn hàng sỉ đã mua theo từng Nhà bán (Nông hộ / HTX), tiến độ giao nhận và đối soát thanh toán SePay.</p>
             </div>
-            <div style="display:flex; gap:12px; align-items:center;">
-              <a href="supplier-capacity.html" class="secondary" style="text-decoration:none; padding:10px 18px; border-radius:7px; font-weight:600; background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1;">
-                🏭 Tra cứu năng lực NCC
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <a href="orders.html" class="secondary" style="text-decoration:none; padding:10px 18px; border-radius:8px; font-weight:600; background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1;">
+                📦 Đơn hàng mua sỉ
               </a>
-              <a href="../RetailCustomer/index.html" class="primary" style="text-decoration:none; padding:10px 18px; border-radius:7px; font-weight:600;">
+              <a href="../RetailCustomer/index.html" class="primary" style="text-decoration:none; padding:10px 18px; border-radius:8px; font-weight:700; background:#064e3b; color:#fff;">
                 ✦ Khám phá nông sản sỉ
               </a>
             </div>
           </div>
 
+          <!-- KPI CARDS -->
           <div class="dashboard-grid">
             <div class="metric-card">
-              <div class="metric-icon blue">📜</div>
+              <div class="metric-icon green">📦</div>
               <div class="metric-info">
-                <p class="metric-label">Hợp đồng B2B hiệu lực</p>
-                <h3 class="metric-value">4 hợp đồng</h3>
-                <p class="metric-sub">Lâm Đồng &amp; Vĩnh Long</p>
+                <p class="metric-label">Số lượng đơn sỉ đã mua</p>
+                <h3 class="metric-value" id="kpi-total-orders">0 đơn sỉ</h3>
+                <p class="metric-sub" id="kpi-total-volume">Tổng khối lượng: 0 kg</p>
               </div>
             </div>
             <div class="metric-card">
-              <div class="metric-icon green">🚛</div>
+              <div class="metric-icon blue">🏡</div>
               <div class="metric-info">
-                <p class="metric-label">Đơn hàng sỉ đang giao</p>
-                <h3 class="metric-value">2 đơn</h3>
-                <p class="metric-sub">1.200 kg nông sản tươi</p>
+                <p class="metric-label">Nhà bán (Nông hộ) đã mua</p>
+                <h3 class="metric-value" id="kpi-total-suppliers">0 nhà bán</h3>
+                <p class="metric-sub" id="kpi-supplier-names">Đang tải dữ liệu nhà bán...</p>
               </div>
             </div>
             <div class="metric-card">
               <div class="metric-icon gold">💳</div>
               <div class="metric-info">
-                <p class="metric-label">Hạn mức giao dịch</p>
-                <h3 class="metric-value">180.000.000 ₫</h3>
-                <p class="metric-sub">Đã bảo lãnh thanh toán</p>
+                <p class="metric-label">Tổng giá trị đơn mua sỉ</p>
+                <h3 class="metric-value" id="kpi-total-spend">0 ₫</h3>
+                <p class="metric-sub" id="kpi-payment-breakdown">Thanh toán qua SePay QR</p>
               </div>
             </div>
             <div class="metric-card">
-              <div class="metric-icon purple">🏷️</div>
+              <div class="metric-icon purple">📜</div>
               <div class="metric-info">
-                <p class="metric-label">Chiết khấu bao tiêu</p>
-                <h3 class="metric-value">14,5%</h3>
-                <p class="metric-sub">Cam kết kỳ hạn vụ mùa</p>
+                <p class="metric-label">Hợp đồng &amp; Chiết khấu B2B</p>
+                <h3 class="metric-value">3 hợp đồng</h3>
+                <p class="metric-sub">Ưu đãi bậc giá sỉ tới 14,5%</p>
               </div>
             </div>
           </div>
 
-          <div class="dashboard-sections">
+          <div class="dashboard-sections" style="display:flex; flex-direction:column; gap:24px;">
+            
+            <!-- SECTION 1: THỐNG KÊ SỐ LƯỢNG ĐƠN SỈ ĐÃ MUA THEO NHÀ BÁN (NÔNG HỘ / HTX) -->
+            <div class="panel padded">
+              <div class="record-heading" style="padding: 0 0 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div>
+                  <h2 style="margin:0 0 4px;">🌾 Thống Kê Đơn Hàng Sỉ Đã Mua Theo Nhà Bán (Nông Hộ / HTX)</h2>
+                  <p class="muted" style="margin:0; font-size:13px;">Tổng hợp số lượng đơn hàng sỉ doanh nghiệp đã đặt mua từ từng Nhà bán nông sản trên sàn AgriSustain.</p>
+                </div>
+                <span class="badge Active" id="badge-supplier-summary">0 Nhà bán đối tác</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Nhà bán / Nông hộ cung ứng</th>
+                      <th>Địa chỉ vùng trồng</th>
+                      <th>Nông sản đã đặt mua</th>
+                      <th>Số lượng đơn sỉ đã mua</th>
+                      <th>Tổng khối lượng</th>
+                      <th>Tổng giá trị mua</th>
+                      <th>Đơn gần nhất</th>
+                      <th>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="supplier-breakdown-tbody">
+                    <tr>
+                      <td colspan="8" style="text-align:center; padding:24px; color:#64748b;">⏳ Đang tải thống kê đơn sỉ theo nhà bán...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- SECTION 2: DANH SÁCH CHI TIẾT CÁC ĐƠN HÀNG SỈ ĐÃ MUA -->
+            <div class="panel padded">
+              <div class="record-heading" style="padding: 0 0 16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div>
+                  <h2 style="margin:0 0 4px;">📦 Danh Sách Đơn Hàng Mua Sỉ Đã Đặt</h2>
+                  <p class="muted" style="margin:0; font-size:13px;">Bấm vào đơn hàng bất kỳ để xem chi tiết lô thu hoạch, hóa đơn doanh nghiệp và thanh toán QR SePay.</p>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                  <input type="search" id="dash-order-search" placeholder="🔎 Tìm mã đơn, nhà bán, sản phẩm..." oninput="filterDashboardOrders(this.value)" style="padding:8px 12px; border:1px solid #cbd5e1; border-radius:8px; font-size:13px; width:260px;">
+                  <a href="wholesale-order.html?productId=1" class="btn primary" style="text-decoration:none; padding:8px 14px; border-radius:7px; font-size:13px; font-weight:700; background:#064e3b; color:white;">
+                    + Đặt đơn sỉ mới
+                  </a>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Mã đơn sỉ</th>
+                      <th>Nhà bán (Nông hộ)</th>
+                      <th>Mặt hàng nông sản</th>
+                      <th>Khối lượng đặt</th>
+                      <th>Tổng thanh toán</th>
+                      <th>Thanh toán SePay</th>
+                      <th>Ngày đặt</th>
+                      <th>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="wholesale-orders-tbody">
+                    <tr>
+                      <td colspan="8" style="text-align:center; padding:24px; color:#64748b;">⏳ Đang tải danh sách đơn hàng mua sỉ...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- SECTION 3: HỢP ĐỒNG BAO TIÊU MÙA VỤ -->
             <div class="panel padded">
               <div class="record-heading" style="padding: 0 0 16px;">
-                <h2>Hợp đồng thu mua nông sản theo vụ</h2>
+                <h2>📜 Hợp Đồng Thu Mua Nông Sản Theo Vụ</h2>
                 <span class="badge Active">Ký số điện tử</span>
               </div>
               <div class="table-wrap">
@@ -88,24 +176,24 @@
                   <tbody>
                     <tr>
                       <td><strong>B2B-2026-DL01</strong></td>
-                      <td>HTX Rau Sạch Đà Lạt</td>
-                      <td>Rau củ hữu cơ tổng hợp</td>
+                      <td>Nông Trại Rau Sạch Đà Lạt Gap</td>
+                      <td>Rau củ hữu cơ VietGAP</td>
                       <td>2.5 tấn/tháng</td>
                       <td>31/12/2026</td>
                       <td><span class="badge Active">Đang thực hiện</span></td>
                     </tr>
                     <tr>
-                      <td><strong>B2B-2026-TG04</strong></td>
-                      <td>Vườn Cam Tân Phú (Vĩnh Long)</td>
-                      <td>Cam sành loại 1 xuất khẩu</td>
+                      <td><strong>B2B-2026-CB04</strong></td>
+                      <td>Hợp Tác Xã Trái Cây Cái Bè</td>
+                      <td>Xoài Cát Hòa Lộc Loại 1</td>
                       <td>5.0 tấn/vụ</td>
-                      <td>15/11/2026</td>
+                      <td>15/12/2026</td>
                       <td><span class="badge Pending">Đang giao nhận</span></td>
                     </tr>
                     <tr>
-                      <td><strong>B2B-2026-ST02</strong></td>
-                      <td>HTX Lúa Thơm Sóc Trăng</td>
-                      <td>Gạo ST25 chuẩn hữu cơ</td>
+                      <td><strong>B2B-2026-AG02</strong></td>
+                      <td>Cánh Đồng Lúa Sinh Thái An Giang</td>
+                      <td>Gạo ST25 Lúa Tôm Sinh Thái</td>
                       <td>10.0 tấn/vụ</td>
                       <td>28/02/2027</td>
                       <td><span class="badge Active">Đã ký kết</span></td>
@@ -114,6 +202,7 @@
                 </table>
               </div>
             </div>
+
           </div>
         </div>
       </main>
@@ -124,10 +213,267 @@
     </div>
   </div>
 
+  <!-- MODAL CHI TIẾT ĐƠN HÀNG SỈ TRÊN DASHBOARD -->
+  <div id="modal-dash-order-detail" class="order-modal-backdrop" onclick="if(event.target===this) closeDashOrderDetail()">
+    <div class="order-modal-content">
+      <button type="button" class="modal-close-x" onclick="closeDashOrderDetail()">&times;</button>
+
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span style="font-size:24px;">📦</span>
+        <div>
+          <span style="font-size:11.5px; font-weight:700; text-transform:uppercase; color:#059669;">CHI TIẾT ĐƠN HÀNG MUA SỈ B2B</span>
+          <h2 id="dash-detail-code" style="font-size:20px; font-weight:850; color:#064e3b; margin:0;">#WS---</h2>
+        </div>
+      </div>
+
+      <div id="dash-detail-sepay-box" style="background:#eaf5ee; border:1px solid #a7f3d0; border-radius:10px; padding:14px 16px; margin:12px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <strong style="color:#064e3b; font-size:14px;">⏳ Đơn hàng sỉ đang chờ thanh toán SePay QR</strong>
+          <p style="margin:3px 0 0; font-size:12.5px; color:#334155;">Quét mã QR chuyển khoản ngân hàng để hệ thống xác nhận tự động.</p>
+        </div>
+        <button type="button" id="btn-dash-pay-sepay" style="background:#1e6546; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-weight:700; cursor:pointer;">
+          💳 Thanh toán ngay qua SePay QR
+        </button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:14px 0;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">🌾 Nhà bán / Nông hộ cung ứng</div>
+          <div id="dash-detail-seller" style="font-size:15px; font-weight:800; color:#064e3b; margin-bottom:4px;">--</div>
+          <div id="dash-detail-farm-addr" style="font-size:12.5px; color:#475569;">--</div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">📊 Trạng thái &amp; Thanh toán</div>
+          <div style="margin-bottom:6px;">Thanh toán: <span id="dash-detail-pay-badge" class="ws-pay-badge unpaid">--</span></div>
+          <div style="font-size:12.5px; color:#475569;">Ngày đặt: <strong id="dash-detail-date">--</strong> · Giao dự kiến: <strong id="dash-detail-exp-date">--</strong></div>
+        </div>
+      </div>
+
+      <div style="background:#fff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px dashed #e2e8f0; margin-bottom:10px;">
+          <div>
+            <div id="dash-detail-product" style="font-size:15.5px; font-weight:800; color:#0f172a;">--</div>
+            <div id="dash-detail-qty-price" style="font-size:13px; color:#475569; margin-top:2px;">--</div>
+          </div>
+          <div id="dash-detail-subtotal" style="font-size:15px; font-weight:800; color:#0f172a;">--</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#475569; margin-bottom:6px;">
+          <span>Phí vận chuyển logistics:</span>
+          <strong id="dash-detail-shipping">--</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; padding-top:8px; border-top:1px solid #e2e8f0;">
+          <span style="font-weight:800; color:#0f172a;">TỔNG GIÁ TRỊ ĐƠN SỈ:</span>
+          <span id="dash-detail-total" style="font-size:20px; font-weight:900; color:#047857;">--</span>
+        </div>
+      </div>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:14px; font-size:13px;">
+        <div style="display:grid; grid-template-columns:140px 1fr; gap:6px 12px;">
+          <span style="color:#64748b;">Công ty xuất HĐ:</span><strong id="dash-detail-company">--</strong>
+          <span style="color:#64748b;">Mã số thuế:</span><strong id="dash-detail-tax">--</strong>
+          <span style="color:#64748b;">Người nhận hàng:</span><span id="dash-detail-recipient">--</span>
+          <span style="color:#64748b;">Kho nhận hàng:</span><span id="dash-detail-address">--</span>
+          <span style="color:#64748b;">Lô hàng phân bổ:</span><span id="dash-detail-batches" style="font-weight:700; color:#047857;">--</span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <a id="dash-detail-reorder-link" href="wholesale-order.html" style="text-decoration:none; padding:9px 16px; border-radius:8px; border:1px solid #cbd5e1; color:#0f172a; font-weight:600; font-size:13px;">
+          🛒 Đặt lại mặt hàng này
+        </a>
+        <button type="button" onclick="closeDashOrderDetail()" style="padding:9px 18px; border-radius:8px; background:#064e3b; color:#fff; border:none; font-weight:700; cursor:pointer;">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="../js/config.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/components.js"></script>
+  <script>
+    let allWholesaleOrders = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof Components !== 'undefined' && Components.init) {
+        Components.init();
+      }
+      await loadWholesaleDashboardData();
+    });
+
+    async function loadWholesaleDashboardData() {
+      try {
+        const res = await API.getMyWholesaleOrders();
+        if (res && res.success && res.data) {
+          const data = res.data;
+          allWholesaleOrders = data.orders || [];
+          const suppliers = data.supplierBreakdown || [];
+
+          // Update KPIs
+          document.getElementById('kpi-total-orders').textContent = `${data.totalOrdersCount || 0} đơn sỉ`;
+          document.getElementById('kpi-total-volume').textContent = `Tổng sản lượng: ${Number(data.totalVolume || 0).toLocaleString('vi-VN')} kg`;
+          document.getElementById('kpi-total-suppliers').textContent = `${data.totalSuppliersCount || suppliers.length} nhà bán`;
+          document.getElementById('kpi-supplier-names').textContent = suppliers.length > 0
+            ? suppliers.map(s => s.sellerName).slice(0, 2).join(', ') + (suppliers.length > 2 ? ` (+${suppliers.length - 2})` : '')
+            : 'Chưa có giao dịch';
+          document.getElementById('kpi-total-spend').textContent = `${Number(data.totalSpendAmount || 0).toLocaleString('vi-VN')} ₫`;
+          document.getElementById('kpi-payment-breakdown').textContent = `${data.paidOrdersCount || 0} đã TT SePay · ${data.pendingOrdersCount || 0} chờ TT`;
+          document.getElementById('badge-supplier-summary').textContent = `${suppliers.length} Nhà bán đã giao dịch`;
+
+          renderSupplierBreakdown(suppliers);
+          renderOrdersTable(allWholesaleOrders);
+        }
+      } catch (err) {
+        console.error('Failed to load wholesale dashboard:', err);
+      }
+    }
+
+    function renderSupplierBreakdown(suppliers) {
+      const tbody = document.getElementById('supplier-breakdown-tbody');
+      if (!suppliers || suppliers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">Chưa có dữ liệu đơn hàng mua sỉ.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = suppliers.map(s => {
+        const productsHtml = (s.productsBought || []).map(p => `<span class="prod-tag">🌾 ${p}</span>`).join('');
+        const latestDate = s.latestOrderDate ? new Date(s.latestOrderDate).toLocaleDateString('vi-VN') : '--';
+        return `
+          <tr>
+            <td>
+              <strong style="color:#064e3b; font-size:14px;">🏢 ${s.sellerName}</strong>
+            </td>
+            <td style="color:#475569; font-size:13px;">📍 ${s.farmAddress || 'Việt Nam'}</td>
+            <td>${productsHtml}</td>
+            <td>
+              <span class="supplier-count-pill">📦 ${s.orderCount} đơn sỉ</span>
+            </td>
+            <td><strong>${Number(s.totalQuantity).toLocaleString('vi-VN')} ${s.unit || 'kg'}</strong></td>
+            <td><strong style="color:#047857;">${Number(s.totalSpendAmount).toLocaleString('vi-VN')} ₫</strong></td>
+            <td style="font-size:13px; color:#64748b;">${latestDate}</td>
+            <td>
+              <div style="display:flex; gap:6px;">
+                <a href="supplier-capacity.html?farmerProfileId=${s.farmerProfileId}" style="text-decoration:none; font-size:12px; font-weight:700; color:#047857; padding:5px 10px; border:1px solid #a7f3d0; border-radius:6px; background:#ecfdf5;">
+                  Hồ sơ NCC
+                </a>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function filterDashboardOrders(keyword) {
+      const q = (keyword || '').trim().toLowerCase();
+      if (!q) {
+        renderOrdersTable(allWholesaleOrders);
+        return;
+      }
+      const filtered = allWholesaleOrders.filter(o =>
+        (o.orderCode || '').toLowerCase().includes(q) ||
+        (o.sellerName || '').toLowerCase().includes(q) ||
+        (o.productName || '').toLowerCase().includes(q)
+      );
+      renderOrdersTable(filtered);
+    }
+
+    function renderOrdersTable(orders) {
+      const tbody = document.getElementById('wholesale-orders-tbody');
+      if (!orders || orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;">Không tìm thấy đơn hàng mua sỉ nào.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = orders.map(o => {
+        const isPaid = o.paymentStatus === 'Paid';
+        const isCancelled = o.paymentStatus === 'Cancelled' || o.orderStatus === 'Cancelled';
+        const badgeClass = isPaid ? 'paid' : (isCancelled ? 'cancelled' : 'unpaid');
+        const badgeLabel = isPaid ? '✓ Đã thanh toán SePay' : (isCancelled ? '✕ Đã hủy (Quá hạn TT)' : '⏳ Chờ thanh toán QR');
+        const dateStr = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
+        return `
+          <tr class="clickable-row" onclick="openDashOrderDetail('${o.orderCode}')">
+            <td><code style="font-weight:800; color:#047857; background:#e6f4ea; padding:3px 7px; border-radius:5px;">#${o.orderCode}</code></td>
+            <td><strong style="color:#0f172a;">🏢 ${o.sellerName}</strong></td>
+            <td><strong>${o.productName}</strong></td>
+            <td><strong>${Number(o.quantity).toLocaleString('vi-VN')} ${o.unit}</strong></td>
+            <td><strong style="color:#047857;">${Number(o.finalAmount).toLocaleString('vi-VN')} ₫</strong></td>
+            <td>
+              <span class="ws-pay-badge ${badgeClass}">
+                ${badgeLabel}
+              </span>
+            </td>
+            <td style="font-size:13px; color:#64748b;">${dateStr}</td>
+            <td onclick="event.stopPropagation()">
+              <div style="display:flex; gap:6px;">
+                <button type="button" onclick="openDashOrderDetail('${o.orderCode}')" style="padding:5px 10px; border-radius:6px; border:1px solid #cbd5e1; background:#fff; font-size:12px; font-weight:700; cursor:pointer; color:#0f172a;">
+                  🔍 Chi tiết
+                </button>
+                ${(!isPaid && !isCancelled) ? `
+                  <button type="button" onclick="goToSePayPayment('${o.orderCode}', ${o.finalAmount})" style="padding:5px 10px; border-radius:6px; border:none; background:#1e6546; color:#fff; font-size:12px; font-weight:700; cursor:pointer;">
+                    💳 TT SePay
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openDashOrderDetail(orderCode) {
+      const o = allWholesaleOrders.find(x => x.orderCode === orderCode);
+      if (!o) return;
+
+      const isPaid = o.paymentStatus === 'Paid';
+      const isCancelled = o.paymentStatus === 'Cancelled' || o.orderStatus === 'Cancelled';
+      document.getElementById('dash-detail-code').textContent = `Đơn hàng sỉ #${o.orderCode}`;
+      document.getElementById('dash-detail-seller').textContent = o.sellerName;
+      document.getElementById('dash-detail-farm-addr').textContent = `📍 ${o.farmAddress || 'Việt Nam'}`;
+
+      const payBadge = document.getElementById('dash-detail-pay-badge');
+      payBadge.textContent = isPaid ? '✓ Đã thanh toán SePay' : (isCancelled ? '✕ Đã hủy (Quá hạn TT)' : '⏳ Chờ thanh toán QR SePay');
+      payBadge.className = `ws-pay-badge ${isPaid ? 'paid' : (isCancelled ? 'cancelled' : 'unpaid')}`;
+
+      document.getElementById('dash-detail-date').textContent = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
+      document.getElementById('dash-detail-exp-date').textContent = o.expectedDeliveryDate ? new Date(o.expectedDeliveryDate).toLocaleDateString('vi-VN') : '--';
+      document.getElementById('dash-detail-product').textContent = o.productName;
+      document.getElementById('dash-detail-qty-price').textContent = `Số lượng: ${Number(o.quantity).toLocaleString('vi-VN')} ${o.unit} × Đơn giá sỉ: ${Number(o.unitPrice).toLocaleString('vi-VN')} ₫/${o.unit}`;
+      document.getElementById('dash-detail-subtotal').textContent = `${Number(o.subtotal).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('dash-detail-shipping').textContent = `${Number(o.deliveryFee).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('dash-detail-total').textContent = `${Number(o.finalAmount).toLocaleString('vi-VN')} ₫`;
+
+      document.getElementById('dash-detail-company').textContent = o.companyName || '--';
+      document.getElementById('dash-detail-tax').textContent = o.taxCode || '--';
+      document.getElementById('dash-detail-recipient').textContent = `${o.recipientName || '--'} (${o.recipientPhone || '--'})`;
+      document.getElementById('dash-detail-address').textContent = o.shippingAddress || '--';
+
+      const batches = o.batchAllocations || [];
+      document.getElementById('dash-detail-batches').textContent = batches.length > 0
+        ? batches.map(b => `${b.batchCode} (${Number(b.allocatedQuantity).toLocaleString('vi-VN')} ${b.unit || o.unit})`).join(', ')
+        : 'Đã khóa giữ tự động từ lô thu hoạch';
+
+      document.getElementById('dash-detail-reorder-link').href = `wholesale-order.html?productId=${o.productId || 1}`;
+
+      const sepayBox = document.getElementById('dash-detail-sepay-box');
+      if (isPaid || isCancelled) {
+        sepayBox.style.display = 'none';
+      } else {
+        sepayBox.style.display = 'flex';
+        document.getElementById('btn-dash-pay-sepay').onclick = () => goToSePayPayment(o.orderCode, o.finalAmount);
+      }
+
+      document.getElementById('modal-dash-order-detail').style.display = 'flex';
+    }
+
+    function closeDashOrderDetail() {
+      document.getElementById('modal-dash-order-detail').style.display = 'none';
+    }
+
+    function goToSePayPayment(orderCode, amount) {
+      window.location.href = `../RetailCustomer/payment.html?orderCode=${encodeURIComponent(orderCode)}&amount=${encodeURIComponent(amount)}&method=SePay&orderId=${encodeURIComponent(orderCode)}`;
+    }
+  </script>
 </body>
 </html>

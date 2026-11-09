@@ -727,6 +727,66 @@ const API = {
 
   async getSupplierSeasonLogs(cropSeasonId) {
     return this.request(`/b2b/suppliers/seasons/${cropSeasonId}/logs`);
+  },
+
+  /* ---------------- B2B WHOLESALE ORDER MODULE ---------------- */
+  async getWholesaleProductInfo(productId) {
+    return this.request(`/b2b/orders/product-info/${productId}`);
+  },
+
+  async calculateWholesalePrice(data) {
+    return this.request('/b2b/orders/calculate-price', {
+      method: 'POST',
+      body: {
+        productId: Number(data?.productId),
+        quantity: Number(data?.quantity)
+      },
+      suppressErrorToast: true
+    });
+  },
+
+  async calculateWholesalePricing(data) {
+    return this.calculateWholesalePrice(data);
+  },
+
+  async createWholesaleOrder(data) {
+    return this.request('/b2b/orders/create', {
+      method: 'POST',
+      body: {
+        ...data,
+        productId: Number(data?.productId),
+        quantity: Number(data?.quantity)
+      }
+    });
+  },
+
+  async getMyWholesaleOrders(options = {}) {
+    return this.request('/b2b/orders/my-orders', options);
+  },
+
+  async getWholesaleOrderDetail(orderCode, options = {}) {
+    return this.request(`/b2b/orders/by-code/${encodeURIComponent(orderCode)}`, options);
+  },
+
+  async getWholesaleOrderByCode(orderCode, options = {}) {
+    return this.getWholesaleOrderDetail(orderCode, options);
+  },
+
+  async confirmSePayWholesaleOrder(orderCode) {
+    return this.request(`/b2b/orders/${encodeURIComponent(orderCode)}/confirm-sepay`, {
+      method: 'POST'
+    });
+  },
+
+  async confirmWholesaleOrderSePay(orderCode) {
+    return this.confirmSePayWholesaleOrder(orderCode);
+  },
+
+  async cancelExpiredWholesaleOrder(orderCode) {
+    return this.request(`/b2b/orders/${encodeURIComponent(orderCode)}/cancel-expired`, {
+      method: 'POST',
+      suppressErrorToast: true
+    });
   }
 };
 

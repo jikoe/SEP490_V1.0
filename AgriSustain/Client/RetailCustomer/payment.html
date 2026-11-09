@@ -431,15 +431,41 @@
 
         if (timeLeft <= 0) {
           clearInterval(countdownInterval);
+          if (pollingInterval) clearInterval(pollingInterval);
           status = 'EXPIRED';
-          showStatusBanner('error', 'Phiên thanh toán đã hết hạn. Đơn hàng đã hết thời gian giữ hàng (15 phút). Bạn có thể bấm "Thử lại thanh toán" để tạo mã mới.');
-          document.getElementById('qr-expired-overlay').style.display = 'flex';
-          renderActions();
+          handleAutoCancelExpiredOrder();
         }
       };
 
       tick();
       countdownInterval = setInterval(tick, 1000);
+    }
+
+    async function handleAutoCancelExpiredOrder() {
+      try {
+        if (queryParams.orderCode && queryParams.orderCode.startsWith('WS-')) {
+          await API.cancelExpiredWholesaleOrder(queryParams.orderCode);
+        }
+      } catch (_) {}
+
+      const headerBadge = document.getElementById('header-order-badge');
+      if (headerBadge) {
+        headerBadge.style.background = '#fee2e2';
+        headerBadge.style.color = '#991b1b';
+        headerBadge.innerHTML = `🚫 Đã tự động hủy · Mã đơn #<span>${queryParams.orderCode}</span>`;
+      }
+
+      showStatusBanner('error', `Đơn hàng #${queryParams.orderCode} đã tự động bị hủy và hoàn trả lại tồn kho do hết thời gian chờ thanh toán (15 phút).`);
+      const overlay = document.getElementById('qr-expired-overlay');
+      if (overlay) {
+        overlay.innerHTML = `
+          <span style="font-size: 38px;">🚫</span>
+          <strong style="color: var(--pay-error); font-size: 15px;">Đơn hàng đã tự động hủy</strong>
+          <p style="margin: 0; font-size: 12px; color: var(--pay-muted);">Đã hết 15 phút chờ thanh toán SePay.</p>
+        `;
+        overlay.style.display = 'flex';
+      }
+      renderActions();
     }
 
     function showStatusBanner(type, message) {
@@ -508,6 +534,10 @@
     }
 
     function handleReturnToOrder() {
+      if (queryParams.orderCode && queryParams.orderCode.startsWith('WS-')) {
+        window.location.href = '../WholesaleBuyer/wholesale-order.html';
+        return;
+      }
       window.location.href = 'orders.html';
     }
 
@@ -532,7 +562,12 @@
       const check = async () => {
         if (status !== 'PENDING') return;
         try {
-          const detail = await API.get(`/orders/by-code/${encodeURIComponent(queryParams.orderCode)}`, { suppressErrorToast: true });
+          const isWholesale = queryParams.orderCode.startsWith('WS-');
+          const endpoint = isWholesale
+            ? `/b2b/orders/by-code/${encodeURIComponent(queryParams.orderCode)}`
+            : `/orders/by-code/${encodeURIComponent(queryParams.orderCode)}`;
+          const res = await API.get(endpoint, { suppressErrorToast: true });
+          const detail = res?.data || res;
           if (!detail) return;
 
           if (detail.orderStatus === 'Confirmed' || detail.paymentStatus === 'Paid' || detail.status === 'Confirmed' || detail.status === 'Paid') {
@@ -578,7 +613,7 @@
 
       // Auto redirect to orders after 4s
       setTimeout(() => {
-        window.location.href = 'orders.html';
+        handleReturnToOrder();
       }, 4000);
     }
   </script>

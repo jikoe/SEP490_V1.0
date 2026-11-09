@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đơn Hàng Mua Sỉ - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .ws-page-wrap { padding: 24px 32px; max-width: 1440px; margin: 0 auto; }
+
+    /* Top Nav Switcher between Orders & Unpaid Cart */
+    .ws-top-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .ws-nav-tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+    .ws-nav-tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 750; text-decoration: none; color: #475569; background: #f8fafc; border: 1px solid #cbd5e1; transition: all 0.18s; }
+    .ws-nav-tab:hover { background: #ecfdf5; color: #064e3b; border-color: #a7f3d0; }
+    .ws-nav-tab.active { background: #064e3b; color: #fff; border-color: #064e3b; box-shadow: 0 4px 12px rgba(6, 78, 59, 0.2); }
+    .ws-tab-pill { padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 800; background: rgba(255,255,255,0.2); color: inherit; }
+    .ws-nav-tab:not(.active) .ws-tab-pill { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+    /* Table Styles */
+    .ws-pay-badge { font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; display: inline-block; }
+    .ws-pay-badge.paid { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .ws-pay-badge.unpaid { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .ws-pay-badge.cancelled { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+    .ws-table-row { cursor: pointer; transition: background 0.15s; }
+    .ws-table-row:hover { background: #f0fdf4 !important; }
+
+    /* Modal Styles */
+    .order-modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 18px; }
+    .order-modal-content { background: white; border-radius: 16px; max-width: 740px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); position: relative; animation: modalPop 0.2s ease-out; }
+    @keyframes modalPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+    .modal-close-x { position: absolute; top: 16px; right: 18px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; }
+    .modal-close-x:hover { background: #fee2e2; color: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="ws-page-wrap">
+          
+          <!-- TOP NAVIGATION SWITCHER -->
+          <div class="ws-top-nav">
+            <div class="ws-nav-tabs">
+              <a href="orders.html" class="ws-nav-tab active">
+                📦 Danh sách đơn hàng mua sỉ
+                <span class="ws-tab-pill" id="tab-all-count">0</span>
+              </a>
+              <a href="cart.html" class="ws-nav-tab">
+                🛒 Đơn sỉ chờ thanh toán (Giỏ hàng sỉ)
+                <span class="ws-tab-pill" id="tab-unpaid-count">0</span>
+              </a>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <input type="search" id="orders-search-input" placeholder="🔎 Tìm mã đơn, nhà bán, sản phẩm..." oninput="filterOrdersTable(this.value)" style="padding:9px 14px; border:1px solid #cbd5e1; border-radius:8px; font-size:13.5px; width:270px; background:#fff;">
+              <a href="../RetailCustomer/index.html" class="btn primary" style="text-decoration:none; padding:9px 16px; border-radius:8px; font-size:13.5px; font-weight:700; background:#064e3b; color:#fff;">
+                + Chọn mua nông sản sỉ mới
+              </a>
+            </div>
+          </div>
+
+          <!-- TABLE OF WHOLESALE ORDERS ONLY -->
+          <div class="panel padded">
+            <div class="record-heading" style="padding: 0 0 16px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h1 style="font-size:22px; margin:0 0 4px; color:#064e3b;">📦 Danh Sách Đơn Hàng Mua Sỉ</h1>
+                <p class="muted" style="margin:0; font-size:13.5px;">Bấm trực tiếp vào bất kỳ dòng đơn hàng nào trong bảng để xem chi tiết đơn hàng sỉ.</p>
+              </div>
+              <span class="badge Active" id="table-summary-badge">0 đơn hàng</span>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã đơn sỉ</th>
+                    <th>Nhà bán (Nông hộ / HTX)</th>
+                    <th>Mặt hàng nông sản</th>
+                    <th>Khối lượng đặt</th>
+                    <th>Đơn giá sỉ</th>
+                    <th>Tổng thanh toán</th>
+                    <th>Trạng thái thanh toán</th>
+                    <th>Ngày đặt</th>
+                  </tr>
+                </thead>
+                <tbody id="wholesale-orders-tbody">
+                  <tr>
+                    <td colspan="8" style="text-align:center; padding:32px; color:#64748b;">⏳ Đang tải danh sách đơn hàng mua sỉ...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ thống Quản lý Đơn hàng Mua Sỉ B2B
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL CHI TIẾT ĐƠN HÀNG SỈ (CLICK VÀO DÒNG TRONG BẢNG MỚI HIỆN) -->
+  <div id="modal-order-detail" class="order-modal-backdrop" onclick="if(event.target===this) closeOrderDetailModal()">
+    <div class="order-modal-content">
+      <button type="button" class="modal-close-x" onclick="closeOrderDetailModal()">&times;</button>
+
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <span style="font-size:24px;">📦</span>
+        <div>
+          <span style="font-size:11.5px; font-weight:700; text-transform:uppercase; color:#059669;">CHI TIẾT ĐƠN HÀNG MUA SỈ B2B</span>
+          <h2 id="detail-code" style="font-size:20px; font-weight:850; color:#064e3b; margin:0;">#WS---</h2>
+        </div>
+      </div>
+
+      <!-- Callout if unpaid -->
+      <div id="detail-unpaid-banner" style="background:#eaf5ee; border:1px solid #a7f3d0; border-radius:10px; padding:14px 16px; margin:12px 0; display:none; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <strong style="color:#064e3b; font-size:14px;">⏳ Đơn hàng sỉ này đang chờ thanh toán SePay</strong>
+          <p style="margin:3px 0 0; font-size:12.5px; color:#334155;">Chuyển sang mục Đơn sỉ chờ thanh toán hoặc quét mã QR SePay để hoàn tất đơn.</p>
+        </div>
+        <a id="detail-pay-link" href="cart.html" style="text-decoration:none; background:#1e6546; color:#fff; border-radius:8px; padding:10px 18px; font-weight:700; font-size:13.5px;">
+          💳 Đi tới thanh toán SePay →
+        </a>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 0;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">🌾 Nhà bán / Nông hộ cung ứng</div>
+          <div id="detail-seller" style="font-size:15px; font-weight:800; color:#064e3b; margin-bottom:4px;">--</div>
+          <div id="detail-farm-addr" style="font-size:12.5px; color:#475569; margin-bottom:4px;">--</div>
+          <div style="font-size:12px; color:#64748b;">Mã đơn NCC: <code id="detail-seller-code" style="font-weight:700; color:#0f172a;">--</code></div>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:6px;">📊 Trạng thái &amp; Thời gian</div>
+          <div style="margin-bottom:6px;">Thanh toán: <span id="detail-pay-badge" class="ws-pay-badge unpaid">--</span></div>
+          <div style="font-size:12.5px; color:#475569; margin-bottom:4px;">Ngày đặt: <strong id="detail-date">--</strong></div>
+          <div style="font-size:12.5px; color:#475569;">Ngày giao dự kiến: <strong id="detail-exp-date">--</strong></div>
+        </div>
+      </div>
+
+      <div style="background:#fff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:14px;">
+        <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px;">🛒 Mặt hàng &amp; Giá trị thanh toán</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px dashed #e2e8f0; margin-bottom:10px;">
+          <div>
+            <div id="detail-product" style="font-size:15.5px; font-weight:800; color:#0f172a;">--</div>
+            <div id="detail-qty-price" style="font-size:13px; color:#475569; margin-top:2px;">--</div>
+          </div>
+          <div id="detail-subtotal" style="font-size:15px; font-weight:800; color:#0f172a;">--</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#475569; margin-bottom:6px;">
+          <span>Phí vận chuyển logistics B2B:</span>
+          <strong id="detail-shipping">--</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#475569; margin-bottom:8px;">
+          <span>Phương thức thanh toán:</span>
+          <strong>Chuyển khoản ngân hàng (SePay QR)</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; padding-top:8px; border-top:1px solid #e2e8f0;">
+          <span style="font-weight:800; color:#0f172a;">TỔNG THANH TOÁN ĐƠN SỈ:</span>
+          <span id="detail-total" style="font-size:20px; font-weight:900; color:#047857;">--</span>
+        </div>
+      </div>
+
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px;">
+        <div style="font-size:11.5px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px;">🏢 Giao nhận kho &amp; Hóa đơn Doanh nghiệp</div>
+        <div style="display:grid; grid-template-columns:140px 1fr; gap:6px 12px;">
+          <span style="color:#64748b;">Đơn vị xuất HĐ:</span><strong id="detail-company">--</strong>
+          <span style="color:#64748b;">Mã số thuế:</span><strong id="detail-tax">--</strong>
+          <span style="color:#64748b;">Người nhận hàng:</span><span id="detail-recipient">--</span>
+          <span style="color:#64748b;">Kho nhận hàng:</span><span id="detail-address">--</span>
+          <span style="color:#64748b;">Lô hàng phân bổ:</span><span id="detail-batches" style="font-weight:700; color:#047857;">--</span>
+          <span style="color:#64748b;">Ghi chú:</span><span id="detail-notes">--</span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" onclick="window.print()" style="padding:9px 16px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; color:#0f172a; font-weight:600; cursor:pointer;">
+          🖨️ In phiếu đơn sỉ
+        </button>
+        <button type="button" onclick="closeOrderDetailModal()" style="padding:9px 20px; border-radius:8px; background:#064e3b; color:#fff; border:none; font-weight:700; cursor:pointer;">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+    let allOrders = [];
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (typeof Components !== 'undefined' && Components.init) {
+        Components.init();
+      }
+      await loadWholesaleOrders();
+    });
+
+    async function loadWholesaleOrders() {
+      try {
+        const res = await API.getMyWholesaleOrders();
+        if (res && res.success && res.data) {
+          allOrders = res.data.orders || [];
+          const unpaidCount = allOrders.filter(o => o.paymentStatus === 'PendingPayment' && o.orderStatus !== 'Cancelled').length;
+
+          document.getElementById('tab-all-count').textContent = allOrders.length;
+          document.getElementById('tab-unpaid-count').textContent = unpaidCount;
+          document.getElementById('table-summary-badge').textContent = `${allOrders.length} đơn hàng sỉ`;
+
+          renderOrdersTable(allOrders);
+        }
+      } catch (err) {
+        console.error('Error loading wholesale orders:', err);
+      }
+    }
+
+    function filterOrdersTable(keyword) {
+      const q = (keyword || '').trim().toLowerCase();
+      if (!q) {
+        renderOrdersTable(allOrders);
+        return;
+      }
+      const filtered = allOrders.filter(o =>
+        (o.orderCode || '').toLowerCase().includes(q) ||
+        (o.sellerName || '').toLowerCase().includes(q) ||
+        (o.productName || '').toLowerCase().includes(q)
+      );
+      renderOrdersTable(filtered);
+    }
+
+    function renderOrdersTable(orders) {
+      const tbody = document.getElementById('wholesale-orders-tbody');
+      if (!orders || orders.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:32px; color:#64748b;">
+              Chưa có đơn hàng mua sỉ nào.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = orders.map(o => {
+        const isPaid = o.paymentStatus === 'Paid';
+        const isCancelled = o.paymentStatus === 'Cancelled' || o.orderStatus === 'Cancelled';
+        const badgeClass = isPaid ? 'paid' : (isCancelled ? 'cancelled' : 'unpaid');
+        const badgeLabel = isPaid ? '✓ Đã thanh toán SePay' : (isCancelled ? '✕ Đã hủy (Quá hạn TT)' : '⏳ Chờ thanh toán SePay');
+        const dateStr = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
+        return `
+          <tr class="ws-table-row" onclick="openOrderDetailModal('${o.orderCode}')" title="Bấm để xem chi tiết đơn hàng sỉ #${o.orderCode}">
+            <td><code style="font-weight:800; color:#047857; background:#e6f4ea; padding:4px 8px; border-radius:6px;">#${o.orderCode}</code></td>
+            <td><strong style="color:#064e3b;">🏢 ${o.sellerName}</strong></td>
+            <td><strong>${o.productName}</strong></td>
+            <td><strong>${Number(o.quantity).toLocaleString('vi-VN')} ${o.unit}</strong></td>
+            <td>${Number(o.unitPrice).toLocaleString('vi-VN')} ₫/${o.unit}</td>
+            <td><strong style="color:#047857; font-size:14.5px;">${Number(o.finalAmount).toLocaleString('vi-VN')} ₫</strong></td>
+            <td>
+              <span class="ws-pay-badge ${badgeClass}">
+                ${badgeLabel}
+              </span>
+            </td>
+            <td style="color:#64748b; font-size:13px;">${dateStr}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function openOrderDetailModal(orderCode) {
+      const o = allOrders.find(x => x.orderCode === orderCode);
+      if (!o) return;
+
+      const isPaid = o.paymentStatus === 'Paid';
+      const isCancelled = o.paymentStatus === 'Cancelled' || o.orderStatus === 'Cancelled';
+      document.getElementById('detail-code').textContent = `Đơn hàng sỉ #${o.orderCode}`;
+      document.getElementById('detail-seller').textContent = o.sellerName;
+      document.getElementById('detail-farm-addr').textContent = `📍 ${o.farmAddress || 'Việt Nam'}`;
+      document.getElementById('detail-seller-code').textContent = o.sellerOrderCode || `${o.orderCode}-1`;
+
+      const payBadge = document.getElementById('detail-pay-badge');
+      payBadge.textContent = isPaid ? '✓ Đã thanh toán SePay' : (isCancelled ? '✕ Đã hủy (Quá hạn TT)' : '⏳ Chờ thanh toán SePay');
+      payBadge.className = `ws-pay-badge ${isPaid ? 'paid' : (isCancelled ? 'cancelled' : 'unpaid')}`;
+
+      document.getElementById('detail-date').textContent = o.orderDate ? new Date(o.orderDate).toLocaleDateString('vi-VN') : '--';
+      document.getElementById('detail-exp-date').textContent = o.expectedDeliveryDate ? new Date(o.expectedDeliveryDate).toLocaleDateString('vi-VN') : '--';
+      document.getElementById('detail-product').textContent = o.productName;
+      document.getElementById('detail-qty-price').textContent = `Số lượng: ${Number(o.quantity).toLocaleString('vi-VN')} ${o.unit} × Đơn giá sỉ: ${Number(o.unitPrice).toLocaleString('vi-VN')} ₫/${o.unit}`;
+      document.getElementById('detail-subtotal').textContent = `${Number(o.subtotal).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('detail-shipping').textContent = `${Number(o.deliveryFee).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('detail-total').textContent = `${Number(o.finalAmount).toLocaleString('vi-VN')} ₫`;
+
+      document.getElementById('detail-company').textContent = o.companyName || '--';
+      document.getElementById('detail-tax').textContent = o.taxCode || '--';
+      document.getElementById('detail-recipient').textContent = `${o.recipientName || '--'} (${o.recipientPhone || '--'})`;
+      document.getElementById('detail-address').textContent = o.shippingAddress || '--';
+      document.getElementById('detail-notes').textContent = o.orderNotes || 'Không có ghi chú thêm';
+
+      const batches = o.batchAllocations || [];
+      document.getElementById('detail-batches').textContent = batches.length > 0
+        ? batches.map(b => `${b.batchCode} (${Number(b.allocatedQuantity).toLocaleString('vi-VN')} ${b.unit || o.unit})`).join(', ')
+        : 'Đã khóa giữ tự động từ lô thu hoạch';
+
+      const unpaidBanner = document.getElementById('detail-unpaid-banner');
+      if (isPaid || isCancelled) {
+        unpaidBanner.style.display = 'none';
+      } else {
+        unpaidBanner.style.display = 'flex';
+        document.getElementById('detail-pay-link').href = `cart.html?payOrder=${encodeURIComponent(o.orderCode)}`;
+      }
+
+      document.getElementById('modal-order-detail').style.display = 'flex';
+    }
+
+    function closeOrderDetailModal() {
+      document.getElementById('modal-order-detail').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
+

@@ -246,6 +246,8 @@ if (builder.Configuration.GetValue("B2B:EnableReminderWorkers", true))
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 builder.Services.AddScoped<ISupplierCapacityRepository, SupplierCapacityRepository>();
 builder.Services.AddScoped<ISupplierCapacityService, AgriSustain.Application.Services.B2B.SupplierCapacityService>();
+builder.Services.AddScoped<IWholesaleOrderRepository, WholesaleOrderRepository>();
+builder.Services.AddScoped<IWholesaleOrderService, AgriSustain.Application.Services.B2B.WholesaleOrderService>();
 
 // DuND Validators
 builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
