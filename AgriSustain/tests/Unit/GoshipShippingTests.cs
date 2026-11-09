@@ -169,6 +169,42 @@ public sealed class GoshipShippingTests
         }
     }
 
+    [Fact(DisplayName = "[UC-RC-02] Expired Goship token: provinces endpoint answers 503, not an empty 200")]
+    public async Task Provinces_GoshipUnauthorized_Returns503()
+    {
+        var catalog = new GoshipAddressCatalog(Client(new StatusHandler(HttpStatusCode.Unauthorized,
+                """{"code":401,"status":"error","data":{"error":"Unauthenticated."}}""")),
+            new MemoryCache(new MemoryCacheOptions()), Options.Create(new GoshipOptions()));
+
+        var provinces = await catalog.GetProvincesAsync(default);
+        var result = AgriSustain.Api.Controllers.AddressCatalogResults.Provinces(provinces,
+            new Microsoft.AspNetCore.Http.DefaultHttpContext());
+
+        Assert.Empty(provinces);
+        var problem = Assert.IsType<Microsoft.AspNetCore.Mvc.ObjectResult>(result);
+        Assert.Equal(503, problem.StatusCode);
+        var details = Assert.IsType<Microsoft.AspNetCore.Mvc.ProblemDetails>(problem.Value);
+        Assert.Equal(AgriSustain.Api.Controllers.AddressCatalogResults.UnavailableCode, details.Extensions["code"]);
+    }
+
+    [Fact(DisplayName = "[UC-RC-02] Loaded provinces are returned as 200")]
+    public void Provinces_Loaded_Returns200()
+    {
+        var result = AgriSustain.Api.Controllers.AddressCatalogResults.Provinces(
+            [new ProvinceOption("100000", "Hà Nội")], new Microsoft.AspNetCore.Http.DefaultHttpContext());
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.OkObjectResult>(result);
+    }
+
+    private sealed class StatusHandler(HttpStatusCode status, string json) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+            CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(status)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+    }
+
     private sealed class RoutingHandler(IReadOnlyDictionary<string, string> routes) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
