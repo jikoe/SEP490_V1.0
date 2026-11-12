@@ -22,12 +22,14 @@
           <h1 id="rf-title">Yêu cầu hoàn tiền</h1>
           <p class="rf-sub">Hoàn từ khiếu nại hoặc đơn bị Nông dân từ chối; chuyển khoản và ghi nhận kết quả.</p>
 
+          <!-- The (n) numbers in the comments are the field numbers of Report 3 §18.4.1 Refund Processing
+               Screen; they are not shown on screen. -->
           <!-- (1)–(5) List -->
           <div id="view-list">
             <form class="rf-card rf-filters" onsubmit="event.preventDefault(); loadRefunds(1);">
-              <label>(1) Tìm kiếm
+              <label><!-- (1) -->Tìm kiếm
                 <input id="f-search" type="search" maxlength="50" placeholder="Mã hoàn, mã khiếu nại hoặc đơn nông trại"></label>
-              <label>(2) Trạng thái
+              <label><!-- (2) -->Trạng thái
                 <select id="f-status" onchange="loadRefunds(1)">
                   <option value="">Tất cả trạng thái</option>
                   <option value="Pending">Chờ chuyển</option>
@@ -36,7 +38,7 @@
                   <option value="Failed">Thất bại</option>
                   <option value="NeedsReconciliation">Cần đối soát</option>
                 </select></label>
-              <label>(3) Thời gian tạo
+              <label><!-- (3) -->Thời gian tạo
                 <span class="rf-dates">
                   <input id="f-from" type="date" aria-label="Từ ngày" onchange="loadRefunds(1)">
                   <span>–</span>
@@ -46,7 +48,7 @@
             </form>
 
             <div class="rf-card">
-              <h2>(4) Danh sách yêu cầu · <span id="rf-count">0</span> kết quả</h2>
+              <h2><!-- (4) -->Danh sách yêu cầu · <span id="rf-count">0</span> kết quả</h2>
               <table class="rf-table">
                 <thead><tr><th>Mã hoàn / Đơn nông trại</th><th>Khoản hoàn</th><th>Ngày tạo</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
                 <tbody id="rf-rows"><tr><td colspan="5" class="empty">Đang tải...</td></tr></tbody>
@@ -67,7 +69,7 @@
 
           <!-- (17) Transfer history -->
           <div class="rf-card" id="view-history" hidden>
-            <h2>(17) Lịch sử chuyển khoản</h2>
+            <h2><!-- (17) -->Lịch sử chuyển khoản</h2>
             <ul class="rf-history" id="rf-history"></ul>
           </div>
 
@@ -80,18 +82,18 @@
               <dl id="t-account"></dl>
             </div>
             <div class="rf-record">
-              <label>(18) Mã giao dịch ngân hàng *
+              <label><!-- (18) -->Mã giao dịch ngân hàng *
                 <input id="t-reference" maxlength="150" placeholder="VD: VCB-231026-778812" autocomplete="off">
                 <span class="rf-field-error" id="t-reference-error" hidden></span></label>
-              <label>(19) Ghi chú / lý do
+              <label><!-- (19) -->Ghi chú / lý do
                 <textarea id="t-note" maxlength="500" placeholder="Bắt buộc khi ghi nhận thất bại hoặc cần đối soát"></textarea>
                 <span class="rf-field-error" id="t-note-error" hidden></span></label>
             </div>
             <div class="rf-buttons">
-              <button type="button" class="rf-btn primary" id="btn-success" onclick="recordSuccess()">(20) Ghi nhận thành công</button>
-              <button type="button" class="rf-btn" id="btn-failure" onclick="recordFailure()">(21) Ghi nhận thất bại</button>
-              <button type="button" class="rf-btn" id="btn-reconcile" onclick="recordReconciliation()">(22) Cần đối soát</button>
-              <button type="button" class="rf-btn" id="btn-cancel" onclick="cancelTransfer()">(23) Huỷ chuyển</button>
+              <button type="button" class="rf-btn primary" id="btn-success" onclick="recordSuccess()"><!-- (20) -->Ghi nhận thành công</button>
+              <button type="button" class="rf-btn" id="btn-failure" onclick="recordFailure()"><!-- (21) -->Ghi nhận thất bại</button>
+              <button type="button" class="rf-btn" id="btn-reconcile" onclick="recordReconciliation()"><!-- (22) -->Cần đối soát</button>
+              <button type="button" class="rf-btn" id="btn-cancel" onclick="cancelTransfer()"><!-- (23) -->Huỷ chuyển</button>
               <button type="button" class="rf-btn" onclick="showDetail()">Quay lại chi tiết</button>
             </div>
           </div>
@@ -207,7 +209,7 @@
       const from = data.total ? (data.page - 1) * data.pageSize + 1 : 0;
       const to = Math.min(data.page * data.pageSize, data.total);
       document.getElementById('rf-range').textContent =
-        `(5) Hiển thị ${from}–${to} / ${data.total} yêu cầu · ${data.pageSize} dòng / trang`;
+        /* (5) */ `Hiển thị ${from}–${to} / ${data.total} yêu cầu · ${data.pageSize} dòng / trang`;
       const pages = Math.ceil(data.total / data.pageSize);
       document.getElementById('rf-pager').innerHTML = pages <= 1 ? '' : Array.from({ length: pages }, (_, i) =>
         `<button type="button" class="${i + 1 === currentPage ? 'current' : ''}" onclick="loadRefunds(${i + 1})">${i + 1}</button>`).join('');
@@ -251,18 +253,18 @@
         : r.refundStatus === 'Completed' ? Math.max(0, r.sellerOrderRefundableAmount - r.amount) : r.sellerOrderRefundableAmount;
       const fact = (label, value) => `<div><span>${label}</span><strong>${value}</strong></div>`;
       document.getElementById('rf-facts').innerHTML = [
-        fact('(6) Mã hoàn tiền', esc(r.refundCode)),
+        /* (6) */ fact('Mã hoàn tiền', esc(r.refundCode)),
         `<div class="status">${pill(r.refundStatus, r.hasReceivingAccount)}</div>`,
         '<div></div>',
-        fact('(7) Đơn nông trại / Thanh toán', `${esc(r.sellerOrderCode || '—')} / ${esc(r.paymentCode)}`),
-        fact('(8) Nguồn hoàn tiền', esc(source)),
-        fact('(9) Khách hàng', `${esc(r.buyerName || '—')}${r.buyerPhone ? ` · ${esc(r.buyerPhone)}` : ''}`),
-        fact('(10) Tài khoản nhận hoàn', accountText(r)),
-        fact('(11) Nội dung chuyển khoản', esc(r.refundCode)),
-        fact('(12) Còn hoàn được của đơn nông trại', remaining == null ? '—' : money(remaining)),
-        fact('(13) Số tiền được duyệt', money(r.amount)),
-        fact('(14) Loại hoàn tiền', esc(typeLabels[r.refundType] || r.refundType)),
-        fact(complaint ? '(15) Lý do quyết định' : '(15) Lý do từ chối', esc(r.resolutionNotes || r.reason || '—'))
+        /* (7) */ fact('Đơn nông trại / Thanh toán', `${esc(r.sellerOrderCode || '—')} / ${esc(r.paymentCode)}`),
+        /* (8) */ fact('Nguồn hoàn tiền', esc(source)),
+        /* (9) */ fact('Khách hàng', `${esc(r.buyerName || '—')}${r.buyerPhone ? ` · ${esc(r.buyerPhone)}` : ''}`),
+        /* (10) */ fact('Tài khoản nhận hoàn', accountText(r)),
+        /* (11) */ fact('Nội dung chuyển khoản', esc(r.refundCode)),
+        /* (12) */ fact('Còn hoàn được của đơn nông trại', remaining == null ? '—' : money(remaining)),
+        /* (13) */ fact('Số tiền được duyệt', money(r.amount)),
+        /* (14) */ fact('Loại hoàn tiền', esc(typeLabels[r.refundType] || r.refundType)),
+        /* (15) */ fact(complaint ? 'Lý do quyết định' : 'Lý do từ chối', esc(r.resolutionNotes || r.reason || '—'))
       ].join('');
       const parts = [];
       if (complaint && r.decidedAt) parts.push(`Quyết định của Chăm sóc khách hàng ngày ${vnDateTime(r.decidedAt)}`);
@@ -290,7 +292,7 @@
             ? notice('ok', 'Đã có tài khoản nhận', 'Kiểm tra tên chủ tài khoản trước khi chuyển. Bắt đầu chuyển chưa làm thay đổi tiền.')
             : notice('idle', 'Chờ tài khoản khách hàng', 'Khách hàng chưa cung cấp tài khoản nhận hoàn tiền nên chưa thể bắt đầu chuyển.' + reminderNote(r)))
             + `<div class="rf-buttons"><button type="button" class="rf-btn primary" id="btn-start" onclick="startTransfer()"
-                ${r.canStartTransfer ? '' : 'disabled'}>(16) Bắt đầu chuyển</button>${remindButton(r)}${back}</div>`;
+                ${r.canStartTransfer ? '' : 'disabled'}><!-- (16) -->Bắt đầu chuyển</button>${remindButton(r)}${back}</div>`;
           break;
         case 'Processing':
           html = notice('warn', 'Đang chuyển · chờ ghi kết quả',
@@ -438,7 +440,7 @@
     function showTransfer() {
       const r = refund;
       const processing = r.refundStatus === 'Processing';
-      document.getElementById('t-title').textContent = `(17) Chuyển ${money(r.amount)} cho ${r.receiverAccountHolder || ''}`;
+      document.getElementById('t-title').textContent = /* (17) VietQR */ `Chuyển ${money(r.amount)} cho ${r.receiverAccountHolder || ''}`;
       document.getElementById('t-guide').textContent = processing
         ? `Quét mã VietQR bằng ứng dụng ngân hàng của công ty. Nội dung chuyển khoản phải là ${r.refundCode}. Chuyển xong, nhập mã giao dịch ngân hàng rồi ghi nhận kết quả.`
         : `Cần đối soát: không chuyển thêm. Đối chiếu sao kê theo nội dung ${r.refundCode} rồi ghi nhận thành công hoặc thất bại.`;

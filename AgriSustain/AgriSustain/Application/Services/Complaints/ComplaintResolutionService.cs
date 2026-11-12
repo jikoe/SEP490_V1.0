@@ -131,7 +131,8 @@ public sealed class ComplaintResolutionService(
             partyUserId, instructions, actor.UserId, now, EvidenceResponseWindow);
         AddNotice(partyUserId, "Yêu cầu bổ sung thông tin khiếu nại",
             $"Khiếu nại #{ticket.DisputeTicketId} của đơn {sellerOrder.SellerOrderCode} cần bổ sung "
-                + $"thông tin trong 48 giờ (hạn {evidenceRequest.DueAt:dd/MM/yyyy HH:mm} UTC): {instructions}",
+                // Shown to the buyer or farmer in Vietnam time (UTC+7), like the CS-01 screen.
+                + $"thông tin trong 48 giờ (hạn {evidenceRequest.DueAt?.AddHours(7):dd/MM/yyyy HH:mm}): {instructions}",
             ticket.DisputeTicketId);
         AddAudit(ticket, "RequestComplaintInformation", previousStatus,
             new { ticket.TicketStatus, request.Party, evidenceRequest.DueAt }, instructions,

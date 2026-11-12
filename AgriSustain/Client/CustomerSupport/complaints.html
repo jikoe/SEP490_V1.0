@@ -16,16 +16,17 @@
       <header id="app-header"></header>
 
       <main>
-        <!-- UC-CS-01 Resolve Complaint (Figma UC-CS-01, node 73:317) -->
+        <!-- UC-CS-01 Resolve Complaint (Figma UC-CS-01, node 73:317). The (n) numbers in the comments
+             are the field numbers of Report 3 §16.1.1 Field Description; they are not shown on screen. -->
         <section class="cs-page">
           <p class="cs-crumbs">Chăm sóc khách hàng / Khiếu nại</p>
           <h1>Xử lý khiếu nại</h1>
           <p class="cs-sub">Xem xét bằng chứng của hai bên rồi từ chối khiếu nại hoặc duyệt hoàn tiền toàn bộ hay một phần cho đơn của nông trại.</p>
 
           <form class="cs-card cs-filters" id="cs-filters" onsubmit="event.preventDefault(); loadComplaints(1);">
-            <label><span class="cs-label">(1) Từ khoá</span>
+            <label><span class="cs-label"><!-- (1) -->Từ khoá</span>
               <input id="f-search" type="search" maxlength="50" placeholder="Mã khiếu nại hoặc mã đơn"></label>
-            <label><span class="cs-label">(2) Trạng thái</span>
+            <label><span class="cs-label"><!-- (2) -->Trạng thái</span>
               <select id="f-status">
                 <option value="">Tất cả trạng thái</option>
                 <option value="Open">Mới gửi</option>
@@ -35,9 +36,9 @@
                 <option value="Rejected">Đã từ chối</option>
                 <option value="Closed">Đã đóng</option>
               </select></label>
-            <label><span class="cs-label">(3) Lý do</span>
+            <label><span class="cs-label"><!-- (3) -->Lý do</span>
               <select id="f-reason"><option value="">Tất cả lý do</option></select></label>
-            <button type="submit" class="cs-btn primary">(4) Tìm kiếm</button>
+            <button type="submit" class="cs-btn primary"><!-- (4) -->Tìm kiếm</button>
           </form>
 
           <div class="cs-columns">
@@ -45,9 +46,10 @@
             <div class="cs-card">
               <h2>Danh sách khiếu nại · <span id="cs-total">0</span></h2>
               <table class="cs-table">
-                <thead><tr><th>(5) Mã</th><th>(6) Đơn nông trại</th><th>(7) Trạng thái</th><th>(8) Hạn</th></tr></thead>
+                <thead><tr><th><!-- (5) -->Mã</th><th><!-- (6) -->Đơn nông trại</th><th><!-- (7) -->Trạng thái</th><th><!-- (8) -->Hạn</th></tr></thead>
                 <tbody id="cs-rows"><tr><td colspan="4" class="empty">Đang tải...</td></tr></tbody>
               </table>
+              <!-- (9) Pagination -->
               <p class="cs-list-foot" id="cs-foot"></p>
               <div class="cs-pager" id="cs-pager"></div>
             </div>
@@ -59,31 +61,31 @@
 
             <!-- (15)–(21) -->
             <div class="cs-card cs-decision" id="cs-decision">
-              <h2>(15) Quyết định</h2>
+              <h2><!-- (15) -->Quyết định</h2>
               <div id="cs-final" class="cs-final" hidden></div>
               <div id="cs-form">
-                <label class="cs-field"><span class="cs-label">(16) Kết quả *</span>
+                <label class="cs-field"><span class="cs-label"><!-- (16) -->Kết quả *</span>
                   <select id="d-resolution" onchange="onResolutionChange()">
                     <option value="">Chọn kết quả</option>
                     <option value="FullRefund">Hoàn toàn bộ</option>
                     <option value="PartialRefund">Hoàn một phần</option>
                     <option value="RejectClaim">Từ chối khiếu nại</option>
                   </select></label>
-                <label class="cs-field"><span class="cs-label">(17) Bên có lỗi *</span>
+                <label class="cs-field"><span class="cs-label"><!-- (17) -->Bên có lỗi *</span>
                   <select id="d-fault">
                     <option value="">Chọn bên có lỗi</option>
                     <option value="Seller">Nông dân / Người bán</option>
                     <option value="Buyer">Người mua</option>
                     <option value="NotDetermined">Chưa xác định</option>
                   </select></label>
-                <label class="cs-field"><span class="cs-label">(18) Lý do *</span>
+                <label class="cs-field"><span class="cs-label"><!-- (18) -->Lý do *</span>
                   <textarea id="d-reason" maxlength="1000" placeholder="Nêu căn cứ từ bằng chứng của hai bên"></textarea></label>
                 <span class="cs-label">Số tiền hoàn</span>
                 <p class="cs-amount" id="d-amount">—</p>
                 <p class="cs-error" id="d-error" hidden></p>
-                <button type="button" class="cs-btn primary" id="btn-confirm" onclick="openConfirm()">(19) Xác nhận quyết định</button>
-                <button type="button" class="cs-btn" id="btn-request" onclick="toggleRequestInfo(true)">(20) Yêu cầu bổ sung thông tin</button>
-                <button type="button" class="cs-btn" id="btn-cancel" onclick="resetDecision()">(21) Huỷ</button>
+                <button type="button" class="cs-btn primary" id="btn-confirm" onclick="openConfirm()"><!-- (19) -->Xác nhận quyết định</button>
+                <button type="button" class="cs-btn" id="btn-request" onclick="toggleRequestInfo(true)"><!-- (20) -->Yêu cầu bổ sung thông tin</button>
+                <button type="button" class="cs-btn" id="btn-cancel" onclick="resetDecision()"><!-- (21) -->Huỷ</button>
 
                 <div class="cs-info" id="cs-info" hidden>
                   <label class="cs-field"><span class="cs-label">Bên cần bổ sung *</span>
@@ -128,7 +130,8 @@
   <script src="../js/components.js"></script>
 
   <script>
-    const pageSize = 5;
+    // (9) Report 3 §16.1.1: normal page size is 10 (the Figma example only shows five rows).
+    const pageSize = 10;
     let currentPage = 1;
     let selectedId = null;
     let detail = null;
@@ -197,7 +200,7 @@
       const from = data.total ? (data.page - 1) * data.pageSize + 1 : 0;
       const to = Math.min(data.page * data.pageSize, data.total);
       document.getElementById('cs-foot').textContent =
-        `(9) Hiển thị ${from}–${to} trên ${data.total} · Khiếu nại quá hạn bằng chứng được tô đỏ`;
+        `Hiển thị ${from}–${to} trên ${data.total} · Khiếu nại quá hạn bằng chứng được tô đỏ`;
       renderPager(Math.ceil(data.total / data.pageSize));
 
       if (!selectedId && items.length) selectComplaint(items[0].ticketId);
@@ -264,22 +267,22 @@
           `<li>${esc(r.refundCode)} · ${money(r.amount)} · ${esc(refundStatusLabels[r.refundStatus] || r.refundStatus)}</li>`).join('')}</ul>` : '';
 
       document.getElementById('cs-detail').innerHTML = `
-        <h2>(10) ${ticketCode(d.ticketId, d.createdAt)} · ${esc(d.disputeReason)}</h2>
+        <h2><!-- (10) -->${ticketCode(d.ticketId, d.createdAt)} · ${esc(d.disputeReason)}</h2>
         <p class="cs-head">Người mua · Đơn nông trại</p>
         <p>${esc(buyer?.fullName)} · ${esc(d.orderCode || '—')} / ${esc(d.sellerOrderCode || '—')}
           ${d.seller ? `(${esc(d.seller.fullName)})` : ''}${d.deliveredAt ? ` · Đã giao ${vnDate(d.deliveredAt)}` : ''}</p>
         <p class="cs-head">Mô tả</p>
         <p>${esc(d.description || '—')}</p>
-        <p class="cs-head">(11) Bằng chứng</p>
+        <p class="cs-head"><!-- (11) -->Bằng chứng</p>
         <ul>${evidence}</ul>
-        <p class="cs-head">(12) Yêu cầu bằng chứng</p>
+        <p class="cs-head"><!-- (12) -->Yêu cầu bằng chứng</p>
         <ul>${requests}</ul>
-        <p class="cs-head">(13) Sản phẩm của đơn nông trại (chọn khi hoàn một phần)</p>
+        <p class="cs-head"><!-- (13) -->Sản phẩm của đơn nông trại (chọn khi hoàn một phần)</p>
         <table class="cs-items">
           <thead><tr><th>Chọn</th><th>Sản phẩm</th><th>Đã giao</th><th>SL hoàn</th><th>Đơn giá đã trả</th></tr></thead>
           <tbody>${d.items.map(itemRow).join('') || '<tr><td colspan="5">Không có sản phẩm.</td></tr>'}</tbody>
         </table>
-        <p class="cs-head">(14) Số tiền tối đa còn hoàn được của đơn nông trại</p>
+        <p class="cs-head"><!-- (14) -->Số tiền tối đa còn hoàn được của đơn nông trại</p>
         <p class="cs-amount">${money(d.maxRefundAmount)}</p>
         ${refunds}`;
       document.querySelectorAll('[data-item]').forEach(el => el.addEventListener('input', updateAmount));
@@ -419,8 +422,13 @@
       document.getElementById('confirm-dialog').close();
       if (!res.success) {
         const fieldError = res.data?.errors && Object.values(res.data.errors).flat()[0];
-        showError('d-error', fieldError || res.error);
-        if (res.status === 409 || res.status === 404) await refreshSelected();
+        const message = fieldError || res.error;
+        if (res.status === 409 || res.status === 404) {
+          // Reload first: it resets the form, so the reason must be shown after it, not before.
+          await refreshSelected();
+          Utils.showToast(message, 'error');
+        }
+        showError('d-error', message);
         return;
       }
       Utils.showToast(res.data.message, 'success');   // MSG-CS-05
