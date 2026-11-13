@@ -21,15 +21,29 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
 
     private readonly GoshipOptions _options = options.Value;
 
+    /// <summary>
+    /// Configured days: Standard or FreshExpress.
+    /// </summary>
+    /// <param name="deliveryMethod">Method.</param>
+    /// <returns>Days.</returns>
     public int EstimatedDeliveryDays(string deliveryMethod) => deliveryMethod == "Standard"
         ? _options.EstimatedStandardDeliveryDays
         : _options.EstimatedFreshExpressDeliveryDays;
 
-    public bool HasPickupAddress(long farmerProfileId, ShippingPickup? pickup) =>
+public bool HasPickupAddress(long farmerProfileId, ShippingPickup? pickup) =>
         pickup is not null
         || _options.PickupLocations.TryGetValue(farmerProfileId.ToString(CultureInfo.InvariantCulture), out var configured)
             && !string.IsNullOrWhiteSpace(configured.City) && !string.IsNullOrWhiteSpace(configured.District);
 
+    /// <summary>
+    /// Returns null (shown as MSG-CO-02, cause logged) when Goship is disabled or has no token, the farm has no pickup
+    /// address (profile, else configured fallback), the recipient has no province/district, or the weight cannot be
+    /// derived from the units. Otherwise calls Goship POST /rates for one parcel (no COD because checkout is prepaid) and
+    /// picks the cheapest rate for the method.
+    /// </summary>
+    /// <param name="request">Farm, recipient, parcel lines, declared value, method and pickup.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Fee when a rate exists, IsSupported false when no rate fits the method, or null.</returns>
     public async Task<ShippingRateResult?> GetRateAsync(ShippingRateRequest request,
         CancellationToken cancellationToken)
     {
@@ -88,7 +102,12 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
             : new ShippingRateResult(true, selected.TotalFee);
     }
 
-    /// <summary>Standard takes the cheapest rate; FreshExpress the cheapest fast ("Nhanh"/"Hỏa tốc") one.</summary>
+    /// <summary>
+    /// Standard takes the cheapest rate; FreshExpress the cheapest fast ("Nhanh"/"Hỏa tốc") one.
+    /// </summary>
+    /// <param name="rates">Rates from Goship.</param>
+    /// <param name="deliveryMethod">Method.</param>
+    /// <returns>Chosen rate or null.</returns>
     private static GoshipRate? SelectRate(IEnumerable<GoshipRate> rates, string deliveryMethod)
     {
         var candidates = rates.Where(rate => rate.TotalFee >= 0);
@@ -101,6 +120,11 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
         return candidates.OrderBy(rate => rate.TotalFee).FirstOrDefault();
     }
 
+    /// <summary>
+    /// Parcel weight from the selling units: kg and g only; any other unit makes the weight unknown.
+    /// </summary>
+    /// <param name="lines">Unit and quantity of each line.</param>
+    /// <returns>Grams, or null.</returns>
     private static int? CalculateWeightGrams(IReadOnlyList<ShippingPackageLine> lines)
     {
         decimal totalGrams = 0;

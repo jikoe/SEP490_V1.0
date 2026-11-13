@@ -16,10 +16,10 @@ public sealed class ComplaintsController : ControllerBase
     private readonly IFarmerComplaintFiles _files;
 
     /// <summary>
-    /// Receives the complaint service and the hosting environment from dependency injection.
+    /// Receives the complaint service and the evidence file store from dependency injection.
     /// </summary>
     /// <param name="complaintService">UC-CS-01 application service that holds all business rules.</param>
-    /// <param name="environment">Gives the content root, used to locate private evidence files on disk.</param>
+    /// <param name="files">Resolves a stored evidence URL to a private file on disk.</param>
     public ComplaintsController(
         IComplaintResolutionService complaintService,
         IFarmerComplaintFiles files)
@@ -91,14 +91,15 @@ public sealed class ComplaintsController : ControllerBase
 
     /// <summary>
     /// GET api/support/complaints/{ticketId}/evidence/{evidenceId} — "Xem" link of field (11).
-    /// Streams an evidence file. Files live outside wwwroot in private-files/{owner}/{key}, so they are only
-    /// reachable through this authorized action; the stored URL is checked against a strict pattern before
-    /// it is turned into a disk path (no path traversal).
+    /// Streams an evidence file. Files live outside wwwroot, so they are only reachable through this authorized
+    /// action: the stored URL must have the form /api/.../{owner}/{key}, and <see cref="IFarmerComplaintFiles.Resolve"/>
+    /// turns it into a disk path only when it is a file of that owner (no path traversal). Videos are served with
+    /// range requests so the browser can seek; responses are not cached.
     /// </summary>
     /// <param name="ticketId">Complaint that must own the evidence.</param>
     /// <param name="evidenceId">Evidence row to open.</param>
     /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
-    /// <returns>The file as JPEG, PNG or PDF; 404 when the evidence, its URL pattern or the file does not exist.</returns>
+    /// <returns>The image, PDF or video; 404 when the evidence, its URL or the file does not exist.</returns>
     [HttpGet("{ticketId:long}/evidence/{evidenceId:long}")]
     public async Task<IActionResult> Evidence(
         long ticketId,
@@ -126,13 +127,4 @@ public sealed class ComplaintsController : ControllerBase
         return PhysicalFile(file, contentType,
             enableRangeProcessing: contentType == OrderFeedbackValidator.VideoContentType);
     }
-
-    /// <summary>
-    /// Pattern of a stored evidence URL: /api/files/evidence/{owner id}/{32 hex chars}.{jpg|jpeg|png|pdf}.
-    /// Anything else is refused, which keeps user-controlled text out of the file path.
-    /// </summary>
-    [GeneratedRegex(
-        @"^/api/files/evidence/(?<owner>\d+)/(?<key>[0-9a-f]{32}\.(jpg|jpeg|png|pdf))$",
-        RegexOptions.IgnoreCase)]
-    private static partial Regex EvidenceUrl();
 }

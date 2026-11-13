@@ -15,9 +15,17 @@ public sealed class AdministrationService(
     INotificationGateway? notificationGateway = null,
     AccountNotificationSettings? notificationSettings = null) : IAdministrationService
 {
-    /// <summary>Queued account emails; the notification retry worker resends this type (JOB-09).</summary>
+    /// <summary>
+    /// Queued account emails; the notification retry worker resends this type (JOB-09).
+    /// </summary>
     public const string AccountEmailType = "AccountStatusEmail";
 
+    /// <summary>
+    /// Checks the caller in the database, not only the token: an Active, unlocked SystemAdmin / Administrator / Admin.
+    /// Shared by UC-ADM-03 and UC-ADM-05.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>True when the caller may act.</returns>
     public async Task<bool> IsAdministratorAsync(CancellationToken cancellationToken)
     {
         var actor = await repository.FindActorAsync(actorContext.UserId, cancellationToken);
@@ -26,6 +34,14 @@ public sealed class AdministrationService(
             && actor.Role is "SystemAdmin" or "Administrator" or "Admin";
     }
 
+    /// <summary>
+    /// Step 1–2. User list for the Administrator: keyword (id, name, email, phone, farm or company name), role and
+    /// account status (BR-UM-01), paged. Each row says whether it is the caller, locked, and may be suspended, so the
+    /// screen only shows allowed actions.
+    /// </summary>
+    /// <param name="search">Keyword (≤ 100), Role, Status, Page and PageSize (1..100).</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The page; 403 FORBIDDEN for non-administrators; 400 VALIDATION for invalid paging or keyword.</returns>
     public async Task<UseCaseResult<Page<UserDto>>> SearchUsersAsync(UserSearch search,
         CancellationToken cancellationToken)
     {
@@ -41,6 +57,12 @@ public sealed class AdministrationService(
             search, actorContext.UserId, clock.GetUtcNow(), cancellationToken));
     }
 
+    /// <summary>
+    /// Step 3–4. One account with its displayed status, KYC status, lock state and failed login count.
+    /// </summary>
+    /// <param name="id">User id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The account; 403 / 404.</returns>
     public async Task<UseCaseResult<UserDto>> GetUserAsync(long id, CancellationToken cancellationToken)
     {
         if (!await IsAdministratorAsync(cancellationToken))
@@ -52,7 +74,13 @@ public sealed class AdministrationService(
         return user is null ? Missing<UserDto>() : UseCaseResult<UserDto>.Success(user);
     }
 
-    /// <summary>Step 6: what a Suspend would affect, for MSG-UM-07 in the confirmation.</summary>
+    /// <summary>
+    /// Step 6: what a Suspend would affect, for MSG-UM-07 in the confirmation: open orders (as buyer or seller),
+    /// active contracts and unsettled payout amount. Read-only.
+    /// </summary>
+    /// <param name="id">Account to inspect.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Counts and amount; 403 / 404.</returns>
     public async Task<UseCaseResult<AccountImpactDto>> GetAccountImpactAsync(long id,
         CancellationToken cancellationToken)
     {
@@ -68,6 +96,19 @@ public sealed class AdministrationService(
             await repository.GetAccountImpactAsync(id, cancellationToken));
     }
 
+    /// <summary>
+    /// Step 7–10: Suspend, Reactivate or Unlock another account. Steps: 1) validate the request before any transaction
+    /// (MSG-UM-05); 2) open a transaction and check the caller is an active Administrator (MSG-UM-13); 3) load the
+    /// account (404); 4) refuse the caller's own account (MSG-UM-03); 5) the status and lock shown on the screen must
+    /// still be current (BR-UM-12, MSG-UM-06); 6) the action must be allowed for the role and state (MSG-UM-04);
+    /// 7) apply it — Suspend also revokes refresh tokens, Unlock clears the lock and failed count; 8) audit row, account
+    /// email queued in the same transaction (BR-UM-10), Customer Support and Finance told about open transactions
+    /// (BR-UM-07); 9) commit, then try to send the email once: MSG-UM-08 when sent, MSG-UM-09 when JOB-09 will retry.
+    /// </summary>
+    /// <param name="id">Account to change.</param>
+    /// <param name="request">Action, Reason, Confirmed, ExpectedStatus and ExpectedLockedUntil.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The updated account, the message and whether the email was sent; or the error to show.</returns>
     public async Task<UseCaseResult<AccountActionResultDto>> ChangeAccountAsync(long id,
         AccountActionRequest request, CancellationToken cancellationToken)
     {
@@ -156,7 +197,12 @@ public sealed class AdministrationService(
     /// BR-UM-07 / BR-UM-08: open orders, contracts and unsettled payouts are not cancelled; Customer
     /// Support and Finance Staff are told which account changed so they review them. Payout holds
     /// are not stored: FarmerPayout.Blockers() refuses a Suspended Farmer when Finance pays.
+    /// Does nothing for Unlock, for staff accounts, or when there is nothing open.
     /// </summary>
+    /// <param name="user">Changed account.</param>
+    /// <param name="action">suspend or activate.</param>
+    /// <param name="now">Current UTC time.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
     private async Task FlagOpenTransactionsAsync(User user, string action, DateTime now,
         CancellationToken cancellationToken)
     {
@@ -191,7 +237,12 @@ public sealed class AdministrationService(
         }
     }
 
-    /// <summary>BR-UM-12: status and lock state must still be the ones shown at Step 4.</summary>
+    /// <summary>
+    /// BR-UM-12: status and lock state must still be the ones shown at Step 4 (compared to the second).
+    /// </summary>
+    /// <param name="user">Account as stored.</param>
+    /// <param name="request">Status and lock the screen showed.</param>
+    /// <returns>True when the confirmation is still valid.</returns>
     private static bool MatchesDisplayedVersion(User user, AccountActionRequest request)
     {
         static long? Seconds(DateTime? value) =>
@@ -201,7 +252,15 @@ public sealed class AdministrationService(
             && Seconds(user.LockedUntil) == request.ExpectedLockedUntil?.ToUnixTimeSeconds();
     }
 
-    /// <summary>BR-UM-11: the account holder's email; a suspension includes the reason and support contact.</summary>
+    /// <summary>
+    /// BR-UM-11: the account holder's email; a suspension includes the reason and support contact.
+    /// Stored as "Sending" so the retry worker does not send it while this request is about to.
+    /// </summary>
+    /// <param name="user">Account holder.</param>
+    /// <param name="action">suspend, activate or unlock.</param>
+    /// <param name="reason">Reason, or an optional note for unlock.</param>
+    /// <param name="now">Current UTC time.</param>
+    /// <returns>The email notification, not yet staged.</returns>
     private Notification AccountEmail(User user, string action, string? reason, DateTime now)
     {
         string support = string.IsNullOrWhiteSpace(notificationSettings?.SupportEmail)
@@ -238,8 +297,11 @@ public sealed class AdministrationService(
 
     /// <summary>
     /// Sends the queued email once right away. A failure keeps the change and leaves the email
-    /// Failed for the notification retry worker (JOB-09).
+    /// Failed for the notification retry worker (JOB-09). Without a gateway the email is left Pending for the worker.
     /// </summary>
+    /// <param name="email">Email committed with the change.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>True when sent now.</returns>
     private async Task<bool> TrySendAsync(Notification email, CancellationToken cancellationToken)
     {
         if (notificationGateway is null)
@@ -452,6 +514,15 @@ public sealed class AdministrationService(
     private static UseCaseResult<T> Archived<T>() => UseCaseResult<T>.Failure("ARCHIVED",
         "Danh mục đã lưu trữ chỉ xem được và không thể thay đổi hoặc kích hoạt lại.", "Conflict");
 
+    /// <summary>
+    /// Queues an audit row with the current Administrator and trace id. Shared by UC-ADM-03 and UC-ADM-05.
+    /// </summary>
+    /// <param name="type">User or Category.</param>
+    /// <param name="id">Entity id.</param>
+    /// <param name="action">Action name.</param>
+    /// <param name="before">JSON before.</param>
+    /// <param name="after">JSON after.</param>
+    /// <param name="reason">Reason, when there is one.</param>
     private void Audit(string type, long id, string action, string before, string after,
         string? reason)
     {
@@ -464,6 +535,11 @@ public sealed class AdministrationService(
         });
     }
 
+    /// <summary>
+    /// JSON of the audited account fields: status, lock and failed login count.
+    /// </summary>
+    /// <param name="user">Account.</param>
+    /// <returns>JSON text.</returns>
     private static string AccountSnapshot(User user) => JsonSerializer.Serialize(new
     {
         user.Status, user.LockedUntil, user.FailedLoginCount
@@ -477,14 +553,35 @@ public sealed class AdministrationService(
         });
     }
 
+    /// <summary>
+    /// Page ≥ 1 and page size 1..100.
+    /// </summary>
+    /// <param name="page">Page number.</param>
+    /// <param name="size">Page size.</param>
+    /// <returns>True when valid.</returns>
     private static bool ValidPage(int page, int size) => page > 0 && size is > 0 and <= 100;
 
+    /// <summary>
+    /// 403 FORBIDDEN (MSG-UM-13).
+    /// </summary>
+    /// <typeparam name="T">Result payload type.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Denied<T>() => UseCaseResult<T>.Failure(
         "FORBIDDEN", "Bạn không có quyền thực hiện thao tác này.", "Forbidden");
 
+    /// <summary>
+    /// 400 VALIDATION.
+    /// </summary>
+    /// <typeparam name="T">Result payload type.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Invalid<T>() => UseCaseResult<T>.Failure(
         "VALIDATION", "Vui lòng kiểm tra dữ liệu và xác nhận thao tác.");
 
+    /// <summary>
+    /// 404 NOT_FOUND.
+    /// </summary>
+    /// <typeparam name="T">Result payload type.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Missing<T>() => UseCaseResult<T>.Failure(
         "NOT_FOUND", "Không tìm thấy bản ghi.", "NotFound");
 }
