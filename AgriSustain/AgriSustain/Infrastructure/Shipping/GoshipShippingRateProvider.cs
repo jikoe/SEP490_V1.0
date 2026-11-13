@@ -30,6 +30,11 @@ public sealed class GoshipShippingRateProvider(GoshipClient client,
         ? _options.EstimatedStandardDeliveryDays
         : _options.EstimatedFreshExpressDeliveryDays;
 
+public bool HasPickupAddress(long farmerProfileId, ShippingPickup? pickup) =>
+        pickup is not null
+        || _options.PickupLocations.TryGetValue(farmerProfileId.ToString(CultureInfo.InvariantCulture), out var configured)
+            && !string.IsNullOrWhiteSpace(configured.City) && !string.IsNullOrWhiteSpace(configured.District);
+
     /// <summary>
     /// Returns null (shown as MSG-CO-02, cause logged) when Goship is disabled or has no token, the farm has no pickup
     /// address (profile, else configured fallback), the recipient has no province/district, or the weight cannot be

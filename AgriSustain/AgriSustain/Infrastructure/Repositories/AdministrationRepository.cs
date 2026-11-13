@@ -15,13 +15,24 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
     private static readonly string[] s_activeContractStatuses = ["Active", "Signed", "InProgress", "Fulfilling"];
     private static readonly string[] s_settledPayoutStatuses = ["Paid", "Processed", "Cancelled", "Failed", "Rejected"];
 
-    /// <summary>Loads the KYC profiles so <see cref="User.AccountStatus"/> matches the list.</summary>
+    /// <summary>
+    /// Loads the KYC profiles so <see cref="User.AccountStatus"/> matches the list.
+    /// </summary>
+    /// <param name="id">User id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Tracked user or null.</returns>
     public Task<User?> FindUserAsync(long id, CancellationToken cancellationToken)
     {
         return context.Users.Include(x => x.FarmerProfile).Include(x => x.WholesaleBuyerProfile)
             .SingleOrDefaultAsync(x => x.UserId == id, cancellationToken);
     }
 
+    /// <summary>
+    /// Counts orders not closed (as buyer and as seller), active B2B contracts on either side, and sums unsettled payouts.
+    /// </summary>
+    /// <param name="userId">Account.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The impact.</returns>
     public async Task<AccountImpactDto> GetAccountImpactAsync(long userId,
         CancellationToken cancellationToken)
     {
@@ -38,8 +49,18 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         return new AccountImpactDto(buyerOrders + sellerOrders, contracts, held);
     }
 
+    /// <summary>
+    /// Adds the notification row to the context.
+    /// </summary>
+    /// <param name="notification">New row.</param>
     public void AddNotification(Notification notification) => context.Notifications.Add(notification);
 
+    /// <summary>
+    /// Ids of Active users in the roles.
+    /// </summary>
+    /// <param name="roles">Role names.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>User ids.</returns>
     public async Task<IReadOnlyList<long>> GetActiveUserIdsByRolesAsync(IReadOnlyCollection<string> roles,
         CancellationToken cancellationToken)
     {
@@ -48,12 +69,27 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
             .Select(user => user.UserId).ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Untracked caller lookup.
+    /// </summary>
+    /// <param name="id">User id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>User or null.</returns>
     public Task<User?> FindActorAsync(long id, CancellationToken cancellationToken)
     {
         return context.Users.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == id,
             cancellationToken);
     }
 
+    /// <summary>
+    /// Keyword matches the id exactly or is contained in name, email, phone, farm or company; role is exact; status
+    /// is filtered on the derived account status. Sorted by id; one COUNT and one page query.
+    /// </summary>
+    /// <param name="search">Filters and paging.</param>
+    /// <param name="actorId">Caller.</param>
+    /// <param name="now">Current time.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The page.</returns>
     public async Task<Page<UserDto>> SearchUsersAsync(UserSearch search, long actorId,
         DateTimeOffset now, CancellationToken cancellationToken)
     {
@@ -84,6 +120,14 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         return new Page<UserDto>(items, total, search.Page, search.PageSize, actorId);
     }
 
+    /// <summary>
+    /// Same projection as the list for one account.
+    /// </summary>
+    /// <param name="id">User id.</param>
+    /// <param name="actorId">Caller.</param>
+    /// <param name="now">Current time.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Account or null.</returns>
     public Task<UserDto?> GetUserAsync(long id, long actorId, DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -229,12 +273,18 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         context.Categories.Remove(category);
     }
 
+    /// <summary>
+    /// Adds the audit row to the context.
+    /// </summary>
+    /// <param name="audit">New row.</param>
     public void AddAudit(AuditLog audit) => context.AuditLogs.Add(audit);
 
     /// <summary>
     /// Derives the SRS account status: Farmer/WholesaleBuyer stay Pending until KYC is Approved
-    /// (Rejected when declined); staff and retail accounts are Active unless suspended.
+    /// (Rejected when declined); staff and retail accounts are Active unless suspended. Written as a query so it runs in SQL.
     /// </summary>
+    /// <param name="query">Users to project.</param>
+    /// <returns>Rows with the derived status.</returns>
     private static IQueryable<AccountRow> WithAccountStatus(IQueryable<User> query)
     {
         return query.Select(x => new AccountRow
@@ -252,6 +302,14 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         });
     }
 
+    /// <summary>
+    /// Maps rows to the screen DTO: organisation name, KYC status, lock flag and expiry, failed logins, whether the
+    /// role can be suspended (mirrors User.CanBeSuspended so it translates to SQL) and the caller id.
+    /// </summary>
+    /// <param name="query">Rows with status.</param>
+    /// <param name="actorId">Caller.</param>
+    /// <param name="now">Current time.</param>
+    /// <returns>DTO query.</returns>
     private static IQueryable<UserDto> ProjectUsers(IQueryable<AccountRow> query, long actorId,
         DateTimeOffset now)
     {
@@ -276,6 +334,9 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
             actorId));
     }
 
+    /// <summary>
+    /// A user with its derived account status, used inside the list query.
+    /// </summary>
     private sealed class AccountRow
     {
         public User User { get; init; } = null!;
@@ -283,6 +344,13 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         public string AccountStatus { get; init; } = "";
     }
 
+    /// <summary>
+    /// Sets RevokedAt on every active refresh token of the user; saved with the suspension.
+    /// </summary>
+    /// <param name="userId">Suspended account.</param>
+    /// <param name="now">Revocation time.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>A task.</returns>
     public async Task RevokeRefreshTokensForUserAsync(long userId, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var activeTokens = await context.RefreshTokens

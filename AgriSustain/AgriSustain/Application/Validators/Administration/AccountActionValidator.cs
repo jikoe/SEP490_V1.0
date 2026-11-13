@@ -6,6 +6,10 @@ namespace AgriSustain.Application.Validators.Administration;
 /// <summary>BR-UM-04 reason rules; every failure is reported with MSG-UM-05.</summary>
 public sealed class AccountActionValidator : AbstractValidator<AccountActionRequest>
 {
+    /// <summary>
+    /// MSG-UM-05 rules: action is suspend, activate or unlock; Confirmed must be true; reason at most 500 characters and
+    /// required except for unlock; ExpectedStatus required (the status the screen showed, BR-UM-12).
+    /// </summary>
     public AccountActionValidator()
     {
         RuleFor(x => x.Action).Must(x => x is "suspend" or "activate" or "unlock")

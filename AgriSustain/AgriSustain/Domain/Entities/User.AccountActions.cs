@@ -2,12 +2,22 @@ namespace AgriSustain.Domain.Entities;
 
 public partial class User
 {
+    /// <summary>
+    /// An Administrator may act on any account except their own (MSG-UM-03).
+    /// </summary>
+    /// <param name="actor">Caller.</param>
+    /// <returns>True when the caller may change this account.</returns>
     public bool CanBeManagedBy(User actor)
     {
         return actor.UserId != UserId && actor.Status == "Active"
             && actor.Role is "SystemAdmin" or "Administrator" or "Admin";
     }
 
+    /// <summary>
+    /// True while the login lock (after repeated failed logins) has not expired.
+    /// </summary>
+    /// <param name="now">Current time.</param>
+    /// <returns>True when locked.</returns>
     public bool IsTemporarilyLocked(DateTimeOffset now)
     {
         return LockedUntil > now.UtcDateTime;
@@ -32,6 +42,9 @@ public partial class User
     /// BR-UM-02 and BR-UM-05: Suspend an Active marketplace account, Reactivate a Suspended one,
     /// Unlock any Active account with an unexpired lock. Pending and Rejected accounts get nothing.
     /// </summary>
+    /// <param name="action">suspend, activate or unlock.</param>
+    /// <param name="now">Current time.</param>
+    /// <returns>True when the action is allowed now.</returns>
     public bool AllowsAccountAction(string action, DateTimeOffset now) => action switch
     {
         "suspend" => CanBeSuspended && AccountStatus == "Active",
@@ -40,6 +53,10 @@ public partial class User
         _ => false
     };
 
+    /// <summary>
+    /// Active marketplace account → Suspended. Throws when not allowed; the service checks first.
+    /// </summary>
+    /// <param name="reason">Required reason.</param>
     public void Suspend(string reason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
@@ -54,7 +71,10 @@ public partial class User
         Status = "Suspended";
     }
 
-    /// <summary>BR-UM-08: lifts only the suspension; KYC state and an unexpired lock stay as they are.</summary>
+    /// <summary>
+    /// BR-UM-08: lifts only the suspension; KYC state and an unexpired lock stay as they are.
+    /// </summary>
+    /// <param name="reason">Required reason.</param>
     public void Activate(string reason)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
@@ -65,12 +85,20 @@ public partial class User
         Status = "Active";
     }
 
+    /// <summary>
+    /// BR-UM-05: clears the login lock and the failed login counter.
+    /// </summary>
     public void Unlock()
     {
         LockedUntil = null;
         FailedLoginCount = 0;
     }
 
+    /// <summary>
+    /// Account status from a KYC result: Approved → Active, Rejected → Rejected, otherwise Pending.
+    /// </summary>
+    /// <param name="verificationStatus">KYC status, or null when not submitted.</param>
+    /// <returns>Displayed status.</returns>
     private static string StatusFromKyc(string? verificationStatus) => verificationStatus switch
     {
         "Approved" => "Active",
