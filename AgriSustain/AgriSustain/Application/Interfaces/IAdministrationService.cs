@@ -42,19 +42,41 @@ public interface IAdministrationService
     /// <returns>The result or the error.</returns>
     Task<UseCaseResult<AccountActionResultDto>> ChangeAccountAsync(long id, AccountActionRequest request,
         CancellationToken cancellationToken);
+    /// <summary>
+    /// SD1. Category list: keyword on the name, status Active / Inactive / Archived, paged by name. Archived categories
+    /// stay listed as read-only history (BR-CAT-01). Each row carries its version token for later actions.
+    /// </summary>
+    /// <param name="search">Keyword (≤ 100), Status, Page and PageSize (1..100).</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The page; 403 FORBIDDEN; 400 VALIDATION for invalid paging, keyword or status.</returns>
     Task<UseCaseResult<Page<CategoryDto>>> SearchCategoriesAsync(CategorySearch search,
         CancellationToken cancellationToken);
+    /// <summary>
+    /// One category with product counts, archive flag and version token.
+    /// </summary>
+    /// <param name="id">Category id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The category; 403 / 404.</returns>
     Task<UseCaseResult<CategoryDto>> GetCategoryAsync(long id, CancellationToken cancellationToken);
 
     /// <summary>
     /// Validates BR-CAT-02 and the displayed version before committing category and audit.
     /// </summary>
+    /// <param name="id">Category to edit, or null to create.</param>
+    /// <param name="request">Category values.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The category or the error.</returns>
     Task<UseCaseResult<CategoryDto>> SaveCategoryAsync(long? id, CategoryRequest request,
         CancellationToken cancellationToken);
     /// <summary>
     /// Activate, deactivate or delete (BR-CAT-04): used categories are archived instead of
     /// deleted, and active products block both.
     /// </summary>
+    /// <param name="id">Category id.</param>
+    /// <param name="action">activate, deactivate or delete.</param>
+    /// <param name="request">Confirmed and Version.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The outcome or the error.</returns>
     Task<UseCaseResult<CategoryChangeResultDto>> ChangeCategoryAsync(long id, string action,
         ConfirmationRequest request, CancellationToken cancellationToken);
 }

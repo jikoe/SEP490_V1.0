@@ -135,11 +135,23 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
             .Where(x => x.UserId == id)), actorId, now).SingleOrDefaultAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Tracked category by id.
+    /// </summary>
+    /// <param name="id">Category id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Category or null.</returns>
     public Task<Category?> FindCategoryAsync(long id, CancellationToken cancellationToken)
     {
         return context.Categories.SingleOrDefaultAsync(x => x.CategoryId == id, cancellationToken);
     }
 
+    /// <summary>
+    /// Finds the settings row, or adds a new non-archived one for categories created before the table existed.
+    /// </summary>
+    /// <param name="id">Category id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Tracked settings.</returns>
     public async Task<CategorySettings> GetCategorySettingsAsync(long id,
         CancellationToken cancellationToken)
     {
@@ -152,6 +164,13 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         return settings;
     }
 
+    /// <summary>
+    /// Keyword is contained in the name. Status Archived shows archived ones; Active / Inactive show non-archived ones with
+    /// that flag; the older IsActive filter is still honoured. Sorted by name; one COUNT and one page query.
+    /// </summary>
+    /// <param name="search">Filters and paging.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The page, each row with its version.</returns>
     public async Task<Page<CategoryDto>> SearchCategoriesAsync(CategorySearch search,
         CancellationToken cancellationToken)
     {
@@ -186,6 +205,12 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         return new Page<CategoryDto>(items.Select(WithVersion).ToList(), total, search.Page, search.PageSize);
     }
 
+    /// <summary>
+    /// One category with its version.
+    /// </summary>
+    /// <param name="id">Category id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Category or null.</returns>
     public async Task<CategoryDto?> GetCategoryAsync(long id, CancellationToken cancellationToken)
     {
         var category = await ProjectCategories(context.Categories.AsNoTracking()
@@ -193,12 +218,23 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         return category is null ? null : WithVersion(category);
     }
 
+    /// <summary>
+    /// Adds the version token computed from the displayed values.
+    /// </summary>
+    /// <param name="category">Row.</param>
+    /// <returns>Row with Version.</returns>
     private static CategoryDto WithVersion(CategoryDto category) => category with
     {
         Version = Category.VersionOf(category.Name, category.Description, category.IsActive, category.IsArchived)
     };
 
-    /// <summary>Names are unique across all categories; case-insensitivity follows the CI collation.</summary>
+    /// <summary>
+    /// Names are unique across all categories; case-insensitivity follows the CI collation.
+    /// </summary>
+    /// <param name="name">Name.</param>
+    /// <param name="exceptId">Category to ignore.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>True when taken.</returns>
     public Task<bool> CategoryNameExistsAsync(string name, long exceptId,
         CancellationToken cancellationToken)
     {
@@ -206,13 +242,25 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
             cancellationToken);
     }
 
-    /// <summary>BR-CAT-04 active products: listings still published in the category.</summary>
+    /// <summary>
+    /// BR-CAT-04 active products: products still published in the category, approved or not.
+    /// </summary>
+    /// <param name="categoryId">Category id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Count.</returns>
     public Task<int> CountActiveProductsAsync(long categoryId, CancellationToken cancellationToken)
     {
         return context.Products.CountAsync(x => x.CategoryId == categoryId && x.IsPublished,
             cancellationToken);
     }
 
+    /// <summary>
+    /// True when products, legacy child categories, fee policies or commission policies refer to the category; their
+    /// foreign keys would block a delete.
+    /// </summary>
+    /// <param name="categoryId">Category id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>True when used.</returns>
     public async Task<bool> HasCategoryReferencesAsync(long categoryId,
         CancellationToken cancellationToken)
     {
@@ -227,6 +275,15 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
                 cancellationToken);
     }
 
+    /// <summary>
+    /// For every fee policy linked to the category (not all-categories): an approved policy already in force whose only
+    /// category is this one ends on the archive date; a not-yet-effective policy whose only category is this one is
+    /// rejected; a policy shared with other categories only loses this category link.
+    /// </summary>
+    /// <param name="categoryId">Archived category.</param>
+    /// <param name="archiveDate">Archive date.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>A task; the caller saves.</returns>
     public async Task EndCategoryFeePoliciesAsync(long categoryId, DateOnly archiveDate,
         CancellationToken cancellationToken)
     {
@@ -261,12 +318,22 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         }
     }
 
+    /// <summary>
+    /// Adds the category through its settings row.
+    /// </summary>
+    /// <param name="category">Category.</param>
+    /// <param name="settings">Settings.</param>
     public void AddCategory(Category category, CategorySettings settings)
     {
         settings.Category = category;
         context.CategorySettings.Add(settings);
     }
 
+    /// <summary>
+    /// Removes the settings row and the category.
+    /// </summary>
+    /// <param name="category">Category.</param>
+    /// <param name="settings">Settings.</param>
     public void DeleteCategory(Category category, CategorySettings settings)
     {
         context.CategorySettings.Remove(settings);
@@ -363,6 +430,11 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         }
     }
 
+    /// <summary>
+    /// Maps categories with total and published product counts and the archive flag.
+    /// </summary>
+    /// <param name="query">Categories.</param>
+    /// <returns>DTO query (version filled afterwards).</returns>
     private IQueryable<CategoryDto> ProjectCategories(IQueryable<Category> query)
     {
         return query.Select(x => new CategoryDto(x.CategoryId, x.CategoryName, x.Description,

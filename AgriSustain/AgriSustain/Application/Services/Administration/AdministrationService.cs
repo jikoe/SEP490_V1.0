@@ -330,6 +330,13 @@ public sealed class AdministrationService(
         return sent;
     }
 
+    /// <summary>
+    /// SD1. Category list: keyword on the name, status Active / Inactive / Archived, paged by name. Archived categories
+    /// stay listed as read-only history (BR-CAT-01). Each row carries its version token for later actions.
+    /// </summary>
+    /// <param name="search">Keyword (≤ 100), Status, Page and PageSize (1..100).</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The page; 403 FORBIDDEN; 400 VALIDATION for invalid paging, keyword or status.</returns>
     public async Task<UseCaseResult<Page<CategoryDto>>> SearchCategoriesAsync(CategorySearch search,
         CancellationToken cancellationToken)
     {
@@ -346,6 +353,12 @@ public sealed class AdministrationService(
             await repository.SearchCategoriesAsync(search, cancellationToken));
     }
 
+    /// <summary>
+    /// One category with product counts, archive flag and version token.
+    /// </summary>
+    /// <param name="id">Category id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The category; 403 / 404.</returns>
     public async Task<UseCaseResult<CategoryDto>> GetCategoryAsync(long id,
         CancellationToken cancellationToken)
     {
@@ -357,6 +370,17 @@ public sealed class AdministrationService(
         return category is null ? Missing<CategoryDto>() : UseCaseResult<CategoryDto>.Success(category);
     }
 
+    /// <summary>
+    /// SD2. Create (id null) or edit a category. Steps: 1) CategoryValidator (name required ≤ 100, description ≤ 500);
+    /// 2) editing needs the version the form was opened with; 3) transaction + Administrator check; 4) the category
+    /// exists, is unchanged since it was shown (MSG122) and not archived; 5) changing Active/Inactive while editing
+    /// needs Confirmed (MSG-CAT-03); 6) the trimmed name is unique (MSG-CAT-02, case-insensitive by collation);
+    /// 7) apply, save once to get the new id, write the Create / Update audit row, save and commit.
+    /// </summary>
+    /// <param name="id">Category to edit, or null to create.</param>
+    /// <param name="request">Name, Description, IsActive, Confirmed and Version.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The saved category (201 on create); or 400 / 403 / 404 / 409 CATEGORY_CHANGED / ARCHIVED.</returns>
     public async Task<UseCaseResult<CategoryDto>> SaveCategoryAsync(long? id, CategoryRequest request,
         CancellationToken cancellationToken)
     {
@@ -425,6 +449,19 @@ public sealed class AdministrationService(
         return await GetCategoryAsync(category.CategoryId, cancellationToken);
     }
 
+    /// <summary>
+    /// SD3–SD4. Activate, deactivate or delete after confirmation. Steps: 1) Confirmed and a known action (400);
+    /// 2) a version is required; 3) transaction + Administrator check; 4) the category exists (404), is unchanged
+    /// (MSG122) and not archived (ARCHIVED); 5) delete: refused while published products remain (MSG-CAT-05 with
+    /// their count); a category that was ever used (products, child categories, fee or commission policies) is
+    /// archived instead — set Inactive, marked Archived, its category-specific fee policies ended (BR-CAT-04,
+    /// BR-CAT-05); an unused one is deleted; 6) activate / deactivate only switch availability; 7) audit and commit.
+    /// </summary>
+    /// <param name="id">Category id.</param>
+    /// <param name="action">activate, deactivate or delete.</param>
+    /// <param name="request">Confirmed and Version.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Outcome activated / deactivated / archived / deleted with its message, or the error.</returns>
     public async Task<UseCaseResult<CategoryChangeResultDto>> ChangeCategoryAsync(long id, string action,
         ConfirmationRequest request, CancellationToken cancellationToken)
     {
@@ -502,15 +539,32 @@ public sealed class AdministrationService(
         return UseCaseResult<CategoryChangeResultDto>.Success(new CategoryChangeResultDto(outcome, message));
     }
 
+    /// <summary>
+    /// Compares the version the screen sent with the one computed from the stored name, description, active and archived flags.
+    /// </summary>
+    /// <param name="category">Stored category.</param>
+    /// <param name="settings">Its archive state.</param>
+    /// <param name="version">Version from the screen.</param>
+    /// <returns>True when nobody changed it in between.</returns>
     private static bool MatchesVersion(Category category, CategorySettings settings, string? version) =>
         Category.VersionOf(category.CategoryName, category.Description, category.IsActive, settings.IsArchived)
             == version;
 
     // MSG122: someone else changed or archived the category after it was shown.
+    /// <summary>
+    /// 409 CATEGORY_CHANGED (MSG122): someone else changed or archived the category after it was shown.
+    /// </summary>
+    /// <typeparam name="T">Result payload type.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> CategoryChanged<T>() => UseCaseResult<T>.Failure("CATEGORY_CHANGED",
         "Danh mục này đã thay đổi hoặc thao tác đã được xử lý. Hãy tải lại để xem kết quả hiện tại; "
             + "chưa có thao tác nào được thực hiện thêm.", "Conflict");
 
+    /// <summary>
+    /// 409 ARCHIVED: an archived category is read-only and cannot be reactivated.
+    /// </summary>
+    /// <typeparam name="T">Result payload type.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Archived<T>() => UseCaseResult<T>.Failure("ARCHIVED",
         "Danh mục đã lưu trữ chỉ xem được và không thể thay đổi hoặc kích hoạt lại.", "Conflict");
 
@@ -545,6 +599,12 @@ public sealed class AdministrationService(
         user.Status, user.LockedUntil, user.FailedLoginCount
     });
 
+    /// <summary>
+    /// JSON of the audited category fields: name, description, active and archived flags.
+    /// </summary>
+    /// <param name="category">Category.</param>
+    /// <param name="settings">Its archive state.</param>
+    /// <returns>JSON text.</returns>
     private static string CategorySnapshot(Category category, CategorySettings settings)
     {
         return JsonSerializer.Serialize(new
