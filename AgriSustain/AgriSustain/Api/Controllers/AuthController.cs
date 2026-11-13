@@ -143,24 +143,49 @@ public sealed class AuthController : ControllerBase
         [FromBody] ResendOtpRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _registrationService.ResendOtpAsync(request, cancellationToken), HttpContext);
 
+    /// <summary>
+    /// POST api/auth/forgot-password — UC-AUTH-07 step 1, anonymous. Always answers with the same neutral message.
+    /// </summary>
+    /// <param name="request">E-mail address.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>200 with MSG-OTP-04; 400 for an invalid e-mail.</returns>
     [AllowAnonymous]
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword(
         [FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _passwordResetService.RequestCodeAsync(request, cancellationToken), HttpContext);
 
+    /// <summary>
+    /// POST api/auth/forgot-password/resend-otp — resend the reset code, anonymous.
+    /// </summary>
+    /// <param name="request">E-mail address.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>200 with the neutral message; 400 for an invalid e-mail.</returns>
     [AllowAnonymous]
     [HttpPost("forgot-password/resend-otp")]
     public async Task<IActionResult> ResendPasswordResetOtp(
         [FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _passwordResetService.ResendCodeAsync(request, cancellationToken), HttpContext);
 
+    /// <summary>
+    /// POST api/auth/forgot-password/verify-otp — UC-AUTH-07 step 2: exchange the code for a 10-minute reset token.
+    /// </summary>
+    /// <param name="request">E-mail and code.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>200 with the reset token; 400 for a wrong, expired, used or locked code (INVALID_OTP, OTP_EXPIRED,
+    /// OTP_ALREADY_USED, MAX_ATTEMPTS_EXCEEDED).</returns>
     [AllowAnonymous]
     [HttpPost("forgot-password/verify-otp")]
     public async Task<IActionResult> VerifyPasswordResetOtp(
         [FromBody] VerifyOtpRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _passwordResetService.VerifyCodeAsync(request, cancellationToken), HttpContext);
 
+    /// <summary>
+    /// POST api/auth/reset-password — UC-AUTH-07 step 3: set the new password with the reset token.
+    /// </summary>
+    /// <param name="request">E-mail, reset token, new password and confirmation.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>200; 400 for invalid or reused passwords; 401 for an invalid reset session.</returns>
     [AllowAnonymous]
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(

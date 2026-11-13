@@ -5,6 +5,9 @@ namespace AgriSustain.Application.Validators.Authentication;
 
 public sealed class ForgotPasswordRequestValidator : AbstractValidator<ForgotPasswordRequest>
 {
+    /// <summary>
+    /// E-mail required, at most 255 characters, valid format.
+    /// </summary>
     public ForgotPasswordRequestValidator()
     {
         RuleFor(x => x.Email)
@@ -16,6 +19,10 @@ public sealed class ForgotPasswordRequestValidator : AbstractValidator<ForgotPas
 
 public sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequest>
 {
+    /// <summary>
+    /// E-mail required and valid; reset token required; new password required (MSG02) and strong (8+ characters, upper
+    /// case, lower case, digit); confirmation required (MSG02) and equal to the new password (MSG05).
+    /// </summary>
     public ResetPasswordRequestValidator()
     {
         RuleFor(x => x.Email)
