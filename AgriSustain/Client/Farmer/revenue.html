@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <title>Doanh thu và dòng tiền - AgriSustain</title>
+    <link href="../css/style.css" rel="stylesheet" />
+    <link href="../css/components.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="app-sidebar"></aside>
+      <div class="workspace">
+        <header id="app-header"></header>
+        <main>
+          <div id="business-root"></div>
+        </main>
+      </div>
+    </div>
+    <template id="business-template">
+      <link href="../css/farmer-revenue.css" rel="stylesheet" />
+      <main>
+        <div class="page-title">
+          <h1>Doanh thu và dòng tiền nông trại</h1>
+          <p>Chọn trang chức năng hoặc mở chi tiết từ danh sách để tiếp tục.</p>
+        </div>
+        <div
+          aria-label="Các trang chức năng"
+          class="screen-tabs"
+          role="tablist"
+        >
+          <button
+            aria-controls="screen-dashboard"
+            data-screen-go="dashboard"
+            id="tab-dashboard"
+            role="tab"
+            type="button"
+          >
+            Tổng quan doanh thu
+          </button>
+          <button
+            aria-controls="screen-transactions"
+            data-screen-go="transactions"
+            id="tab-transactions"
+            role="tab"
+            type="button"
+          >
+            Lịch sử giao dịch
+          </button>
+          <button
+            aria-controls="screen-detail"
+            data-screen-go="detail"
+            id="tab-detail"
+            role="tab"
+            type="button"
+          >
+            Chi tiết giao dịch
+          </button>
+        </div>
+        <div
+          aria-live="polite"
+          class="notice feedback"
+          hidden=""
+          id="feedback"
+          role="status"
+        >
+          <span id="feedbackText"> </span>
+        </div>
+        <section
+          aria-labelledby="tab-dashboard"
+          class="screen"
+          data-screen="dashboard"
+          hidden=""
+          id="screen-dashboard"
+          role="tabpanel"
+        >
+          <section class="panel">
+            <div class="body toolbar revenue">
+              <div class="field">
+                <label for="revenueSeason"> Mùa vụ </label>
+                <select id="revenueSeason"></select>
+              </div>
+              <div class="field">
+                <label> Kênh bán </label>
+                <select id="revenueChannel">
+                  <option value="">Tất cả</option>
+                  <option value="Retail">Bán lẻ</option>
+                  <option value="Wholesale">Bán sỉ</option>
+                  <option value="PreOrder">Đặt trước</option>
+                  <option value="Contract">Hợp đồng bao tiêu</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="revenueFrom"> Từ ngày </label>
+                <input id="revenueFrom" required="" type="date" />
+              </div>
+              <div class="field">
+                <label> Đến ngày </label>
+                <input id="revenueTo" required="" type="date" />
+              </div>
+              <div class="field">
+                <label for="revenueStage"> Giai đoạn thanh toán </label>
+                <select id="revenueStage">
+                  <option value="">Tất cả</option>
+                  <option value="Goods">Tiền hàng</option>
+                  <option value="Deposit">Tiền cọc</option>
+                  <option value="Milestone">Giao theo đợt</option>
+                  <option value="Settlement">Quyết toán</option>
+                </select>
+              </div>
+              <div class="field">
+                <label> Trạng thái </label>
+                <select id="revenueStatus">
+                  <option value="">Tất cả</option>
+                  <option value="Verified">Đã xác minh</option>
+                  <option value="Held">Đang giữ</option>
+                  <option value="Eligible">Đủ điều kiện</option>
+                  <option value="Processed">Đã thực nhận</option>
+                </select>
+              </div>
+              <div class="field">
+                <label> Cơ sở ngày </label>
+                <input readonly="" value="Ngày ghi nhận sự kiện tài chính" />
+              </div>
+              <div class="actions">
+                <button class="btn primary" id="applyRevenue">Áp dụng</button>
+                <button class="btn" id="resetRevenue">30 ngày gần nhất</button>
+              </div>
+            </div>
+          </section>
+          <div class="metrics">
+            <article class="metric">
+              <p>Giá trị bán / thực hiện</p>
+              <strong id="salesMetric"> </strong>
+              <small> Khác với số tiền đã được chuyển </small>
+            </article>
+            <article class="metric">
+              <p>Tiền người mua đã trả</p>
+              <strong id="receiptsMetric"> </strong>
+              <small> Chỉ khoản thu đã xác minh </small>
+            </article>
+            <article class="metric">
+              <p>Tiền cọc đang giữ</p>
+              <strong id="depositsMetric"> </strong>
+              <small> Không cộng lại khi áp dụng quyết toán </small>
+            </article>
+            <article class="metric">
+              <p>Hoa hồng</p>
+              <strong id="commissionMetric"> </strong>
+              <small> Tỷ lệ tại thời điểm phát sinh </small>
+            </article>
+            <article class="metric">
+              <p>Điều chỉnh hoàn tiền</p>
+              <strong id="refundMetric"> </strong>
+              <small> Khoản đã hoàn được xác minh </small>
+            </article>
+            <article class="metric">
+              <p>Đủ điều kiện chi trả</p>
+              <strong id="eligibleMetric"> </strong>
+              <small> Chưa phải tiền đã thực nhận </small>
+            </article>
+            <article class="metric">
+              <p>Khoản đang giữ</p>
+              <strong id="heldMetric"> </strong>
+              <small> Theo lý do giữ của từng khoản </small>
+            </article>
+            <article class="metric">
+              <p>Nông dân đã thực nhận</p>
+              <strong id="payoutMetric"> </strong>
+              <small> Chuyển khoản đã xác minh thành công </small>
+            </article>
+          </div>
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Doanh số, khoản thu và tiền thực nhận</h2>
+              <small> VND · Theo cơ sở ngày đã chọn </small>
+            </div>
+            <div class="body">
+              <svg
+                aria-label="Biểu đồ doanh số, khoản thu và thực nhận theo kênh"
+                class="chart"
+                id="revenueChart"
+                role="img"
+                viewbox="0 0 1000 210"
+              ></svg>
+              <div class="legend">
+                <span>
+                  <i class="local-style-0"> </i>
+                  Giá trị bán
+                </span>
+                <span>
+                  <i class="local-style-1"> </i>
+                  Thu đã xác minh
+                </span>
+                <span>
+                  <i class="local-style-2"> </i>
+                  Thực nhận
+                </span>
+              </div>
+            </div>
+          </section>
+          <p class="muted">
+            Chỉ xem lịch sử tài chính của nông trại. Các số liệu theo từng giai
+            đoạn không được cộng thành một số dư chung. Thời gian Việt Nam ·
+            Tiền tệ VND.
+          </p>
+          <div class="actions end">
+            <button class="btn primary" data-screen-go="transactions">
+              Xem lịch sử giao dịch →
+            </button>
+          </div>
+        </section>
+        <section
+          aria-labelledby="tab-transactions"
+          class="screen"
+          data-screen="transactions"
+          hidden=""
+          id="screen-transactions"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="dashboard" type="button">
+              ← Tổng quan doanh thu
+            </button>
+            <h2>Lịch sử giao dịch</h2>
+          </div>
+          <div class="notice">
+            <span id="appliedFilterLabel">
+              Dữ liệu theo bộ lọc đã áp dụng.
+            </span>
+            <button class="btn" data-screen-go="dashboard">Sửa bộ lọc</button>
+          </div>
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Lịch sử tài chính</h2>
+              <div class="actions">
+                <select
+                  aria-label="Định dạng xuất"
+                  class="local-style-3"
+                  id="exportFormat"
+                >
+                  <option value="xlsx">Excel</option>
+                  <option value="csv">CSV</option>
+                </select>
+                <button class="btn primary" id="exportRevenue">
+                  Xuất báo cáo
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tham chiếu / Ngày</th>
+                    <th>Nguồn / Mùa vụ</th>
+                    <th>Kênh / Giai đoạn</th>
+                    <th class="amount">Giá trị sự kiện</th>
+                    <th class="amount">Hoa hồng / Hoàn</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="revenueRows"></tbody>
+              </table>
+            </div>
+            <div class="empty" hidden="" id="revenueEmpty">
+              Không tìm thấy dữ liệu doanh thu theo điều kiện đã chọn.
+            </div>
+            <div class="pagination">
+              <span id="revenueCount"> </span>
+              <div>
+                <button class="btn" id="revenuePrev">‹</button>
+                <span id="revenuePage"> 1 </span>
+                <button class="btn" id="revenueNext">›</button>
+              </div>
+            </div>
+          </section>
+        </section>
+        <section
+          aria-labelledby="tab-detail"
+          class="screen"
+          data-screen="detail"
+          hidden=""
+          id="screen-detail"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="transactions" type="button">
+              ← Lịch sử giao dịch
+            </button>
+            <h2>Chi tiết giao dịch</h2>
+          </div>
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Chi tiết giao dịch / khoản chi trả</h2>
+            </div>
+            <div class="body">
+              <dl class="kv" id="revenueDetail"></dl>
+            </div>
+          </section>
+        </section>
+      </main>
+      <dialog id="confirmDialog">
+        <h2>Xác nhận thao tác</h2>
+        <p id="confirmText"></p>
+        <div class="actions end">
+          <button class="btn" id="confirmCancel" type="button">Quay lại</button>
+          <button class="btn primary" id="confirmOk" type="button">
+            Xác nhận
+          </button>
+        </div>
+      </dialog>
+    </template>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/farmer-business.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/farmer-business.js"></script>
+    <script src="../js/farmer-revenue.js"></script>
+  </body>
+</html>

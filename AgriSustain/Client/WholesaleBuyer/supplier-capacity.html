@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hồ Sơ Năng Lực & Độ Tin Cậy Nhà Cung Cấp B2B - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .b2b-container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+    .back-btn { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; text-decoration: none; padding: 8px 14px; border-radius: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; cursor: pointer; transition: all 0.2s; }
+    .back-btn:hover { background: #e2e8f0; color: #0f172a; }
+    
+    /* Supplier Hero Header */
+    .supplier-hero { background: linear-gradient(135deg, #064e3b 0%, #047857 60%, #059669 100%); color: white; border-radius: 16px; padding: 32px; margin-bottom: 28px; box-shadow: 0 10px 25px -5px rgba(6, 78, 59, 0.25); position: relative; overflow: hidden; }
+    .supplier-hero::after { content: ""; position: absolute; right: -40px; bottom: -40px; width: 260px; height: 260px; background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%); border-radius: 50%; pointer-events: none; }
+    .hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+    .hero-profile { display: flex; gap: 24px; align-items: center; }
+    .hero-avatar { width: 90px; height: 90px; border-radius: 16px; background: white; color: #064e3b; font-size: 38px; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 3px solid rgba(255,255,255,0.4); object-fit: cover; }
+    .hero-info h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; color: white; letter-spacing: -0.5px; }
+    .hero-info p { margin: 3px 0; color: #d1fae5; font-size: 14.5px; }
+    .hero-badges { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 9999px; font-size: 13px; font-weight: 600; }
+    .badge-verified-green { background: #10b981; color: white; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .badge-pending-amber { background: #f59e0b; color: white; border: 1px solid rgba(255,255,255,0.3); }
+    .badge-outline-white { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); backdrop-filter: blur(4px); }
+    .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    
+    /* Performance Stats Grid */
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .stat-box { background: white; border-radius: 12px; padding: 18px 20px; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.03); display: flex; align-items: center; gap: 16px; }
+    .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+    .stat-val { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0; line-height: 1.2; }
+    .stat-lbl { font-size: 13px; color: #64748b; margin: 2px 0 0; }
+
+    /* Layout Sections */
+    .b2b-section { background: white; border-radius: 14px; border: 1px solid #e2e8f0; padding: 24px 28px; margin-bottom: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .section-title { font-size: 19px; font-weight: 700; color: #0f172a; margin: 0 0 16px; display: flex; justify-content: space-between; align-items: center; }
+    .section-desc { font-size: 14px; color: #64748b; margin: -10px 0 20px; }
+
+    /* Capacity Grid */
+    .capacity-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+    .capacity-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 20px; }
+    .capacity-card h4 { font-size: 15px; font-weight: 700; color: #1e293b; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+    .capacity-card p { font-size: 14px; color: #475569; margin: 6px 0; }
+
+    /* Certifications Grid */
+    .certs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 18px; }
+    .cert-card { border: 1px solid #cbd5e1; border-radius: 12px; padding: 20px; background: #fff; transition: all 0.2s; position: relative; display: flex; flex-direction: column; justify-content: space-between; }
+    .cert-card:hover { border-color: #059669; box-shadow: 0 6px 16px rgba(5, 150, 105, 0.1); transform: translateY(-2px); }
+    .cert-badge-type { display: inline-block; padding: 4px 10px; font-size: 12px; font-weight: 700; border-radius: 6px; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; margin-bottom: 10px; }
+    .cert-title { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
+    .cert-issuer { font-size: 13.5px; color: #475569; margin: 0 0 10px; }
+    .cert-meta { font-size: 12.5px; color: #64748b; margin: 3px 0; }
+    .cert-footer { margin-top: 16px; padding-top: 14px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+
+    /* Inventory Items */
+    .inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 18px; }
+    .inv-card { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: white; transition: all 0.2s; }
+    .inv-card:hover { border-color: #10b981; box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+    .inv-img { width: 100%; height: 160px; object-fit: cover; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #94a3b8; }
+    .inv-body { padding: 16px; }
+    .inv-title { font-size: 16px; font-weight: 700; margin: 0 0 8px; color: #0f172a; }
+    .inv-price { font-size: 17px; font-weight: 800; color: #059669; }
+    .inv-sub { font-size: 13px; color: #64748b; margin-top: 4px; }
+    .inv-action { margin-top: 14px; width: 100%; padding: 8px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 600; }
+
+    /* Season Table */
+    .custom-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .custom-table th { background: #f8fafc; color: #475569; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; border-bottom: 2px solid #e2e8f0; text-align: left; }
+    .custom-table td { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #1e293b; vertical-align: middle; }
+    .custom-table tr:hover td { background: #f8fafc; }
+
+    /* Modals */
+    .b2b-modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 20px; }
+    .b2b-modal-content { background: white; border-radius: 16px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 28px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.25); position: relative; animation: modalPop 0.25s ease-out; }
+    @keyframes modalPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+    .modal-close { position: absolute; top: 20px; right: 20px; border: none; background: #f1f5f9; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; }
+    .modal-close:hover { background: #e2e8f0; color: #0f172a; }
+
+    /* Directory Search Bar */
+    .directory-search { background: white; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .search-input { flex: 1; min-width: 240px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; }
+    .select-input { padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; min-width: 180px; }
+
+    /* Empty state */
+    .empty-placeholder { text-align: center; padding: 40px 20px; color: #64748b; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1; }
+    .empty-icon { font-size: 36px; margin-bottom: 8px; display: block; }
+
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="b2b-container">
+          
+          <!-- SUPPLIER DIRECTORY SECTION (Toggled when browsing) -->
+          <div id="supplier-directory-container" style="display: none;" class="b2b-section">
+            <h2 class="section-title">🏭 Danh Bạ Nhà Cung Cấp Nông Sản B2B Đã Xác Minh</h2>
+            <p class="section-desc">Lựa chọn nhà cung cấp hoặc hợp tác xã nông nghiệp để thẩm định năng lực cung ứng trước khi đặt hàng buôn.</p>
+            
+            <div class="directory-search">
+              <input type="text" id="dir-keyword" class="search-input" placeholder="Tìm theo tên trang trại, HTX, đại diện pháp lý, tỉnh thành...">
+              <select id="dir-province" class="select-input">
+                <option value="">-- Tất cả tỉnh thành --</option>
+                <option value="49">Lâm Đồng</option>
+                <option value="82">Tiền Giang</option>
+                <option value="89">An Giang</option>
+                <option value="33">Hưng Yên</option>
+                <option value="66">Đắk Lắk</option>
+              </select>
+              <button id="btn-search-dir" class="primary" style="padding: 10px 20px; border-radius: 8px;">Tìm kiếm</button>
+            </div>
+
+            <div id="dir-results" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px;">
+              <!-- Directory cards rendered here -->
+            </div>
+          </div>
+
+          <!-- SUPPLIER PROFILE MAIN CONTENT -->
+          <div id="supplier-profile-view">
+            
+            <!-- Loading Indicator -->
+            <div id="profile-loading" style="text-align: center; padding: 60px 20px;">
+              <div style="font-size: 32px; animation: spin 1s infinite linear; display: inline-block;">⏳</div>
+              <p style="margin-top: 12px; font-weight: 600; color: #475569;">Đang nạp hồ sơ năng lực & dữ liệu thẩm định nhà cung cấp...</p>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="profile-error" style="display: none; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+              <h3 style="margin: 0 0 6px; font-size: 16px; font-weight: 700;">Không thể tải dữ liệu hồ sơ</h3>
+              <p id="profile-error-msg" style="margin: 0; font-size: 14px;"></p>
+            </div>
+
+            <div id="profile-content" style="display: none;">
+              
+              <!-- Nút quay lại màn hình chi tiết -->
+              <div style="margin-bottom: 16px;">
+                <button id="btn-back-detail" class="back-btn" type="button" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 8px 16px; border-radius: 8px; background: white; border: 1px solid #cbd5e1; color: #1e293b; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;">
+                  ← Quay lại
+                </button>
+              </div>
+
+              <!-- 1. HERO BANNER -->
+              <div class="supplier-hero">
+                <div class="hero-top">
+                  <div class="hero-profile">
+                    <div id="hero-avatar" class="hero-avatar">🌿</div>
+                    <div class="hero-info">
+                      <h1 id="hero-farm-name">Tên Nông Trại / HTX</h1>
+                      <p>👤 <strong>Đại diện pháp lý:</strong> <span id="hero-rep-name">--</span> | 🏢 <strong>Mô hình:</strong> <span id="hero-production-model">--</span></p>
+                      <p>📍 <strong>Địa chỉ canh tác:</strong> <span id="hero-address">--</span> (<span id="hero-province">--</span>)</p>
+                      <p>🧭 <strong>Phân vùng khí hậu & thổ nhưỡng:</strong> <span id="hero-zone">--</span></p>
+                      <div class="hero-badges">
+                        <span id="hero-verify-badge" class="hero-badge badge-verified-green">✓ Thẩm định bởi Verification Officer</span>
+                        <span id="hero-gps-badge" class="hero-badge badge-outline-white">🌐 GPS: <span id="hero-gps">--</span></span>
+                        <span id="hero-rep-badge" class="hero-badge badge-outline-white">⭐ Điểm uy tín: <span id="hero-rep-score">--</span>/100</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="hero-actions">
+                    <button id="btn-contact-supplier" class="btn" style="background: white; color: #065f46; font-weight: 700; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                      📞 Liên hệ Nông trại
+                    </button>
+                    <button id="btn-create-order-top" class="btn" style="background: #10b981; color: white; font-weight: 700; border: 1px solid rgba(255,255,255,0.4); padding: 10px 18px; border-radius: 8px; cursor: pointer;">
+                      🛒 Đặt hàng sỉ ngay
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. HISTORICAL PERFORMANCE STATS (Step 4 & AF6) -->
+              <div class="stats-row">
+                <div class="stat-box">
+                  <div class="stat-icon" style="background: #ecfdf5; color: #059669;">📦</div>
+                  <div>
+                    <h3 class="stat-val" id="stat-total-orders">--</h3>
+                    <p class="stat-lbl">Đơn buôn đã xử lý (<span id="stat-completed-orders">--</span> hoàn tất)</p>
+                  </div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-icon" style="background: #eff6ff; color: #2563eb;">🎯</div>
+                  <div>
+                    <h3 class="stat-val" id="stat-fulfillment-rate">--%</h3>
+                    <p class="stat-lbl">Tỷ lệ hoàn thành đơn đúng hạn</p>
+                  </div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-icon" style="background: #fef2f2; color: #dc2626;">⚖️</div>
+                  <div>
+                    <h3 class="stat-val" id="stat-dispute-rate">--%</h3>
+                    <p class="stat-lbl">Tỷ lệ tranh chấp (<span id="stat-dispute-count">0</span> khiếu nại)</p>
+                  </div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-icon" style="background: #fffbeb; color: #d97706;">⭐</div>
+                  <div>
+                    <h3 class="stat-val" id="stat-avg-rating">-- / 5.0</h3>
+                    <p class="stat-lbl">Đánh giá trung bình (<span id="stat-review-count">0</span> lượt)</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. FARM SCALE & PRODUCTION CAPACITY DETAILS (Step 3 & AF3) -->
+              <div class="b2b-section">
+                <h2 class="section-title">
+                  <span>📐 Quy Mô Sản Xuất & Cơ Sở Hạ Tầng Canh Tác</span>
+                  <span id="capacity-badge-scale" class="badge Active">Quy mô lớn</span>
+                </h2>
+                <p class="section-desc">Thông số kỹ thuật về diện tích, phân bổ thửa đất và cơ sở sơ chế bảo quản sau thu hoạch.</p>
+
+                <div class="capacity-grid">
+                  <div class="capacity-card">
+                    <h4>🌱 Diện Tích Canh Tác Tổng Thể</h4>
+                    <p><strong>Tổng diện tích:</strong> <span id="cap-total-area" style="font-size: 17px; font-weight: 700; color: #047857;">--</span></p>
+                    <p><strong>Quy mô phân loại:</strong> <span id="cap-production-scale">--</span></p>
+                    <p><strong>Hình thức canh tác:</strong> <span id="cap-production-model">--</span></p>
+                  </div>
+
+                  <div class="capacity-card">
+                    <h4>🏭 Cơ Sở Hạ Tầng Sau Thu Hoạch & Kho Bãi</h4>
+                    <p id="cap-storage-infra">--</p>
+                  </div>
+
+                  <div class="capacity-card">
+                    <h4>🌾 Phương Thức & Quy Chuẩn Canh Tác</h4>
+                    <div id="cap-farming-methods" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                      <!-- Method tags -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. CREDIBILITY & CERTIFIED QUALITY CREDENTIALS (Step 4 & AF1, AF5) -->
+              <div class="b2b-section">
+                <h2 class="section-title">
+                  <span>🎖️ Chứng Nhận Nông Nghiệp & Thẩm Định Chất Lượng</span>
+                  <span style="font-size: 13px; font-weight: normal; color: #64748b;">(Click chứng chỉ để xem hồ sơ thẩm định chi tiết)</span>
+                </h2>
+                <p class="section-desc">Các chứng chỉ VietGAP, GlobalGAP, OCOP, Organic được cấp bởi cơ quan có thẩm quyền và thẩm định bởi Chuyên viên Thẩm định Hệ thống.</p>
+
+                <div id="certs-container" class="certs-grid">
+                  <!-- Cert cards rendered here -->
+                </div>
+                <div id="certs-empty" class="empty-placeholder" style="display: none;">
+                  <span class="empty-icon">📂</span>
+                  <strong>Chưa đính kèm chứng chỉ chính thức</strong>
+                  <p style="margin: 4px 0 0; font-size: 13px;">Nhà cung cấp chưa cập nhật hồ sơ chứng chỉ chất lượng hoặc chứng chỉ đang trong quá trình thẩm duyệt.</p>
+                </div>
+              </div>
+
+              <!-- 5. CURRENT CROP CYCLES & SEASONAL HARVEST PROJECTIONS (Step 3 & AF2) -->
+              <div class="b2b-section">
+                <h2 class="section-title">
+                  <span>📅 Chu Kỳ Mùa Vụ & Dự Kiến Sản Lượng Cung Ứng Theo Tháng</span>
+                </h2>
+                <p class="section-desc">Kế hoạch gieo trồng và dự phóng sản lượng thu hoạch, giúp người mua sỉ lên lịch trình đặt hàng trước (Seasonal Pre-Order).</p>
+
+                <div class="table-wrap" style="overflow-x: auto;">
+                  <table class="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Tên mùa vụ</th>
+                        <th>Giống cây trồng</th>
+                        <th>Nông sản liên kết</th>
+                        <th>Diện tích canh tác</th>
+                        <th>Lịch trình mùa vụ</th>
+                        <th>Sản lượng dự kiến</th>
+                        <th>Sản lượng thực tế</th>
+                        <th>Trạng thái vụ</th>
+                        <th>Nhật ký canh tác</th>
+                      </tr>
+                    </thead>
+                    <tbody id="seasons-table-body">
+                      <!-- Seasons rows rendered here -->
+                    </tbody>
+                  </table>
+                </div>
+                <div id="seasons-empty" class="empty-placeholder" style="display: none;">
+                  <span class="empty-icon">🌾</span>
+                  <strong>Chưa có thông tin chu kỳ mùa vụ hiện thời</strong>
+                  <p style="margin: 4px 0 0; font-size: 13px;">Nhà cung cấp chưa cập nhật dữ liệu mùa vụ đang gieo trồng.</p>
+                </div>
+              </div>
+
+              <!-- 6. AVAILABLE PRODUCT INVENTORY (Step 3 & Wholesale Orders) -->
+              <div class="b2b-section">
+                <h2 class="section-title">
+                  <span>📦 Nông Sản Hiện Sẵn Có & Báo Giá Bán Buôn (Wholesale Inventory)</span>
+                  <a href="../RetailCustomer/index.html" style="font-size: 14px; font-weight: 600; color: #059669; text-decoration: none;">Xem trên sàn giao dịch →</a>
+                </h2>
+                <p class="section-desc">Các mặt hàng nông sản đã qua kiểm định, đang sẵn sàng xuất kho bán buôn cho doanh nghiệp thu mua.</p>
+
+                <div id="inventory-container" class="inventory-grid">
+                  <!-- Product cards rendered here -->
+                </div>
+                <div id="inventory-empty" class="empty-placeholder" style="display: none;">
+                  <span class="empty-icon">📦</span>
+                  <strong>Kho hàng sỉ đang cập nhật sản phẩm</strong>
+                  <p style="margin: 4px 0 0; font-size: 13px;">Hiện tại chưa có lô hàng nào sẵn sàng xuất kho bán buôn.</p>
+                </div>
+              </div>
+
+              <!-- 7. PRODUCT TRACEABILITY & TRANSPARENT FARM LOGS (Step 4 & AF2) -->
+              <div class="b2b-section">
+                <h2 class="section-title">
+                  <span>🔍 Truy Xuất Nguồn Gốc & Mã QR Lô Hàng Xuất Kho</span>
+                </h2>
+                <p class="section-desc">Mã QR truy xuất gắn liền với từng lô thu hoạch, kết nối dữ liệu minh bạch từ đất trồng đến tay người tiêu dùng.</p>
+
+                <div class="table-wrap" style="overflow-x: auto;">
+                  <table class="custom-table">
+                    <thead>
+                      <tr>
+                        <th>Mã lô hàng</th>
+                        <th>Sản phẩm</th>
+                        <th>Ngày thu hoạch</th>
+                        <th>Khối lượng khả dụng</th>
+                        <th>Mã truy xuất QR</th>
+                        <th>Lượt quét QR</th>
+                        <th>Nhật ký canh tác</th>
+                      </tr>
+                    </thead>
+                    <tbody id="traceability-table-body">
+                      <!-- Traceability rows rendered here -->
+                    </tbody>
+                  </table>
+                </div>
+                <div id="traceability-empty" class="empty-placeholder" style="display: none;">
+                  <span class="empty-icon">🏷️</span>
+                  <strong>Chưa có lô hàng tạo mã QR truy xuất</strong>
+                  <p style="margin: 4px 0 0; font-size: 13px;">Các lô hàng thu hoạch mới sẽ được cấp mã QR điện tử tự động.</p>
+                </div>
+              </div>
+
+              <!-- 8. BUYER REVIEWS & CREDIBILITY FEEDBACK (Step 4 & AF6) -->
+              <div class="b2b-section">
+                <h2 class="section-title">
+                  <span>💬 Đánh Giá Từ Đối Tác & Người Mua Trước Đó</span>
+                </h2>
+                <p class="section-desc">Ý kiến thực tế từ các đơn vị thu mua buôn và người tiêu dùng đã hoàn tất giao dịch.</p>
+
+                <div id="reviews-container" style="display: flex; flex-direction: column; gap: 14px;">
+                  <!-- Review items rendered here -->
+                </div>
+                <div id="reviews-empty" class="empty-placeholder" style="display: none;">
+                  <span class="empty-icon">📝</span>
+                  <strong>Chưa có đánh giá hoặc phản hồi từ đối tác</strong>
+                  <p style="margin: 4px 0 0; font-size: 13px;">Nhà cung cấp mới tham gia nền tảng hoặc các đơn hàng gần đây chưa để lại nhận xét công khai.</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ thống B2B Procurement · Giám sát Năng lực Cung ứng Nông sản Việt Bền Vững
+      </footer>
+    </div>
+  </div>
+
+  <!-- AF1 MODAL: CERTIFICATE DOSSIER -->
+  <div id="modal-dossier" class="b2b-modal-backdrop">
+    <div class="b2b-modal-content">
+      <button type="button" class="modal-close" onclick="closeDossierModal()">✕</button>
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <span style="font-size: 32px;">🎖️</span>
+        <div>
+          <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #064e3b;" id="dossier-cert-type">Hồ Sơ Chứng Chỉ Chất Lượng</h2>
+          <p style="margin: 2px 0 0; font-size: 13.5px; color: #64748b;">Thẩm định và xác nhận bởi Verification Officer</p>
+        </div>
+      </div>
+
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+        <p style="margin: 6px 0;"><strong>Trang trại / HTX:</strong> <span id="dossier-farm-name">--</span></p>
+        <p style="margin: 6px 0;"><strong>Số hiệu chứng nhận:</strong> <code id="dossier-cert-number" style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: 700; color: #0f172a;">--</code></p>
+        <p style="margin: 6px 0;"><strong>Cơ quan chứng nhận:</strong> <span id="dossier-issued-by">--</span></p>
+        <p style="margin: 6px 0;"><strong>Ngày cấp hiệu lực:</strong> <span id="dossier-issue-date">--</span></p>
+        <p style="margin: 6px 0;"><strong>Ngày hết hạn:</strong> <span id="dossier-expiry-date">--</span></p>
+        <p style="margin: 6px 0;"><strong>Trạng thái thẩm duyệt:</strong> <span id="dossier-status-badge" class="badge Active">Đã xác minh</span></p>
+        <p style="margin: 6px 0;"><strong>Chuyên viên thẩm định:</strong> <span id="dossier-officer-name">--</span></p>
+        <p style="margin: 6px 0;"><strong>Thời điểm thẩm định:</strong> <span id="dossier-reviewed-at">--</span></p>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px; font-size: 15px; font-weight: 700;">Bản quét hồ sơ chính thức (Document Scan):</h4>
+        <div id="dossier-document-preview" style="border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; text-align: center; background: #fff;">
+          <a id="dossier-doc-link" href="#" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #059669; text-decoration: none;">
+            📄 Xem file tài liệu chứng chỉ gốc (PDF / Ảnh) →
+          </a>
+        </div>
+      </div>
+
+      <div style="text-align: right;">
+        <button type="button" class="back-btn" onclick="closeDossierModal()">Đóng hồ sơ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AF2 MODAL: CULTIVATION LOGS -->
+  <div id="modal-logs" class="b2b-modal-backdrop">
+    <div class="b2b-modal-content" style="max-width: 820px;">
+      <button type="button" class="modal-close" onclick="closeLogsModal()">✕</button>
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <span style="font-size: 32px;">📋</span>
+        <div>
+          <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #064e3b;" id="logs-season-name">Nhật Ký Canh Tác Minh Bạch</h2>
+          <p style="margin: 2px 0 0; font-size: 13.5px; color: #64748b;">Ghi nhận nguồn gốc hạt giống, phân bón, xử lý sâu bệnh và thu hoạch</p>
+        </div>
+      </div>
+
+      <div id="logs-list-container" style="display: flex; flex-direction: column; gap: 12px; max-height: 55vh; overflow-y: auto; padding-right: 6px;">
+        <!-- Log timeline items rendered here -->
+      </div>
+      <div id="logs-empty" class="empty-placeholder" style="display: none;">
+        <span class="empty-icon">📝</span>
+        <strong>Chưa có bản ghi nhật ký canh tác cho vụ này</strong>
+      </div>
+
+      <div style="text-align: right; margin-top: 20px;">
+        <button type="button" class="back-btn" onclick="closeLogsModal()">Đóng nhật ký</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTACT MODAL -->
+  <div id="modal-contact" class="b2b-modal-backdrop">
+    <div class="b2b-modal-content">
+      <button type="button" class="modal-close" onclick="closeContactModal()">✕</button>
+      <h2 style="margin: 0 0 16px; font-size: 20px; font-weight: 800; color: #064e3b;">Liên Hệ Nhà Cung Cấp Nông Sản</h2>
+      <div style="background: #f8fafc; border-radius: 10px; padding: 18px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+        <p style="margin: 6px 0;"><strong>Đơn vị:</strong> <span id="contact-farm-name">--</span></p>
+        <p style="margin: 6px 0;"><strong>Người đại diện:</strong> <span id="contact-rep-name">--</span></p>
+        <p style="margin: 6px 0;"><strong>Số điện thoại:</strong> <a id="contact-phone" href="#" style="color: #059669; font-weight: 700;">--</a></p>
+        <p style="margin: 6px 0;"><strong>Email liên hệ:</strong> <a id="contact-email" href="#" style="color: #059669; font-weight: 700;">--</a></p>
+        <p style="margin: 6px 0;"><strong>Địa chỉ:</strong> <span id="contact-address">--</span></p>
+      </div>
+      <p style="font-size: 13.5px; color: #64748b; line-height: 1.5;">Quý khách hàng doanh nghiệp cũng có thể khởi tạo trực tiếp Đơn hàng sỉ hoặc Hợp đồng đặt hàng theo vụ để hưởng chính sách bảo lãnh thanh toán của AgriSustain.</p>
+      <div style="text-align: right; margin-top: 18px;">
+        <button type="button" class="primary" onclick="closeContactModal()">Đã hiểu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CORE SCRIPTS -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let currentProfile = null;
+
+    // Tự động cuộn mượt lên đầu trang khi chuyển màn hình
+    function scrollToTop() {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      document.body.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      const workspace = document.querySelector('.workspace');
+      if (workspace) workspace.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Setup Back Button (AF7)
+      document.getElementById('btn-back-detail')?.addEventListener('click', handleBackNavigation);
+
+      // Setup Directory toggles & search
+      document.getElementById('btn-open-directory')?.addEventListener('click', toggleDirectory);
+      document.getElementById('btn-search-dir')?.addEventListener('click', loadDirectory);
+
+      // Contact & order buttons
+      document.getElementById('btn-contact-supplier')?.addEventListener('click', openContactModal);
+      document.getElementById('btn-create-order-top')?.addEventListener('click', handleCreateWholesaleOrder);
+
+      // Handle popstate for browser back/forward
+      window.addEventListener('popstate', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const supplierId = urlParams.get('id') || urlParams.get('farmerProfileId');
+        if (supplierId) {
+          loadSupplierCapacityProfile(supplierId);
+        } else {
+          openDirectoryView();
+          loadDirectory();
+        }
+      });
+
+      // Determine initial supplier ID from query string
+      const urlParams = new URLSearchParams(window.location.search);
+      const supplierId = urlParams.get('id') || urlParams.get('farmerProfileId');
+      const userId = urlParams.get('userId');
+
+      if (supplierId) {
+        await loadSupplierCapacityProfile(supplierId);
+      } else if (userId) {
+        await loadSupplierCapacityProfileByUserId(userId);
+      } else {
+        // No supplier specified: open directory by default
+        openDirectoryView();
+        await loadDirectory();
+      }
+    });
+
+    // AF7: Back navigation
+    function handleBackNavigation() {
+      scrollToTop();
+
+      // If user came from a product detail page, return to that product
+      if (document.referrer && (document.referrer.includes('product-detail') || document.referrer.includes('RetailCustomer'))) {
+        window.history.back();
+        return;
+      }
+
+      // If currently viewing profile detail, return smoothly to directory
+      if (document.getElementById('profile-content').style.display !== 'none') {
+        window.history.pushState({}, '', window.location.pathname);
+        openDirectoryView();
+        loadDirectory();
+        return;
+      }
+
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = 'dashboard.html';
+      }
+    }
+
+    async function loadSupplierCapacityProfile(farmerProfileId) {
+      showLoading(true);
+      try {
+        const response = await API.getSupplierCapacityProfile(farmerProfileId);
+        if (response && response.success && response.data) {
+          currentProfile = response.data;
+          renderCapacityProfile(response.data);
+          showDirectory(false);
+        } else {
+          showError(response?.message || 'Không tìm thấy thông tin hồ sơ nhà cung cấp.');
+        }
+      } catch (err) {
+        showError(err.message || 'Lỗi kết nối khi tải hồ sơ nhà cung cấp.');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    async function loadSupplierCapacityProfileByUserId(userId) {
+      showLoading(true);
+      try {
+        const response = await API.getSupplierCapacityProfileByUserId(userId);
+        if (response && response.success && response.data) {
+          currentProfile = response.data;
+          renderCapacityProfile(response.data);
+          showDirectory(false);
+        } else {
+          showError(response?.message || 'Không tìm thấy thông tin hồ sơ nhà cung cấp từ tài khoản người dùng.');
+        }
+      } catch (err) {
+        showError(err.message || 'Lỗi kết nối khi tải hồ sơ nhà cung cấp.');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    function renderCapacityProfile(p) {
+      document.getElementById('profile-error').style.display = 'none';
+      document.getElementById('profile-content').style.display = 'block';
+      scrollToTop();
+
+      // Hero
+      const breadcrumbEl = document.getElementById('breadcrumb-current');
+      if (breadcrumbEl) {
+        breadcrumbEl.innerHTML = `<a href="supplier-capacity.html" style="color: #64748b; text-decoration: none;">Danh bạ NCC</a> <span style="margin: 0 6px;">/</span> <span style="color: #0f172a; font-weight: 600;">${p.farmName || 'Hồ Sơ Năng Lực'}</span>`;
+      }
+      document.getElementById('hero-farm-name').textContent = p.farmName;
+      document.getElementById('hero-rep-name').textContent = p.representativeName || p.legalName;
+      document.getElementById('hero-production-model').textContent = p.productionModel || 'Hợp tác xã / Hộ kinh doanh';
+      document.getElementById('hero-address').textContent = p.address;
+      document.getElementById('hero-province').textContent = p.provinceName || p.provinceCode;
+      document.getElementById('hero-zone').textContent = p.cultivationZone || 'Vùng khí hậu nông nghiệp tiêu chuẩn';
+      document.getElementById('hero-gps').textContent = p.gpsCoordinates || 'Đã ghi nhận trên bản đồ số';
+      document.getElementById('hero-rep-score').textContent = p.reputationScore ? Number(p.reputationScore).toFixed(0) : '90';
+
+      // Avatar
+      const avatarEl = document.getElementById('hero-avatar');
+      if (p.avatarUrl) {
+        avatarEl.innerHTML = `<img src="${p.avatarUrl}" alt="${p.farmName}" style="width:100%;height:100%;border-radius:12px;object-fit:cover;">`;
+      } else {
+        avatarEl.textContent = (p.farmName || 'N').charAt(0).toUpperCase();
+      }
+
+      // AF4: Verification Badge
+      const verifyBadge = document.getElementById('hero-verify-badge');
+      if (p.isVerified) {
+        verifyBadge.className = 'hero-badge badge-verified-green';
+        verifyBadge.innerHTML = `✓ Thẩm định bởi Verification Officer (${p.approvedAt ? new Date(p.approvedAt).toLocaleDateString('vi-VN') : 'Đã duyệt'})`;
+      } else {
+        verifyBadge.className = 'hero-badge badge-pending-amber';
+        verifyBadge.innerHTML = `⚠ Trạng thái thẩm định: ${p.verificationStatus || 'Chưa xác thực'}`;
+      }
+
+      // Historical Stats (AF6)
+      const stats = p.performanceStats || { totalOrders: 0, completedOrders: 0, fulfillmentRate: 100, disputeCount: 0, disputeRate: 0, averageRating: 5.0, reviewCount: 0 };
+      document.getElementById('stat-total-orders').textContent = stats.totalOrders;
+      document.getElementById('stat-completed-orders').textContent = stats.completedOrders;
+      document.getElementById('stat-fulfillment-rate').textContent = `${stats.fulfillmentRate}%`;
+      document.getElementById('stat-dispute-rate').textContent = `${stats.disputeRate}%`;
+      document.getElementById('stat-dispute-count').textContent = stats.disputeCount;
+      document.getElementById('stat-avg-rating').textContent = `${stats.averageRating} / 5.0`;
+      document.getElementById('stat-review-count').textContent = stats.reviewCount;
+
+      // AF3: Farm Scale Details
+      const areaVal = p.cultivatedArea != null 
+        ? `${Number(p.cultivatedArea).toLocaleString('vi-VN')} ha (${(Number(p.cultivatedArea) * 10000).toLocaleString('vi-VN')} m²)`
+        : 'Chưa cập nhật diện tích';
+      document.getElementById('cap-total-area').textContent = areaVal;
+      document.getElementById('cap-production-scale').textContent = p.productionScale || 'Quy mô canh tác đạt chuẩn';
+      document.getElementById('cap-production-model').textContent = p.productionModel || 'Hợp tác xã nông nghiệp kiểu mới';
+      document.getElementById('cap-storage-infra').textContent = p.storageInfrastructure;
+
+      // Farming methods tags
+      const methodsContainer = document.getElementById('cap-farming-methods');
+      methodsContainer.innerHTML = (p.farmingMethods || []).map(m => `
+        <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 600;">
+          🌱 ${m}
+        </span>
+      `).join('');
+
+      // AF1 & AF5: Certificates
+      renderCertificates(p.certificates || []);
+
+      // Crop Cycles
+      renderSeasons(p.cropCycles || []);
+
+      // Available Inventory
+      renderInventory(p.availableInventory || []);
+
+      // Traceability Batches
+      renderTraceability(p.traceabilityBatches || []);
+
+      // AF6: Recent Reviews
+      renderReviews(p.recentReviews || []);
+    }
+
+    // AF1 & AF5: Render Certificates
+    function renderCertificates(certs) {
+      const container = document.getElementById('certs-container');
+      const emptyEl = document.getElementById('certs-empty');
+
+      if (!certs || certs.length === 0) {
+        container.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      container.innerHTML = certs.map(c => `
+        <div class="cert-card">
+          <div>
+            <span class="cert-badge-type">Chứng chỉ ${c.certificateType}</span>
+            <h3 class="cert-title">${c.certificateType} – Số: ${c.certificateNumber}</h3>
+            <p class="cert-issuer">🏛️ Cơ quan cấp: <strong>${c.issuedBy}</strong></p>
+            <p class="cert-meta">📅 Ngày cấp: ${c.issueDate}</p>
+            <p class="cert-meta">⏳ Hạn chứng nhận: ${c.expiryDate || 'Vô thời hạn'}</p>
+          </div>
+          <div class="cert-footer">
+            <span class="badge ${c.isValid ? 'Active' : 'Pending'}">${c.isValid ? '✓ Hiệu lực hợp quy' : 'Hết hạn / Chờ xét'}</span>
+            <button type="button" class="back-btn" style="padding: 6px 12px; font-size: 12.5px; background: #ecfdf5; border-color: #a7f3d0; color: #065f46;" onclick="inspectCertificateDossier(${c.farmCertificateId})">
+              🔍 Thẩm định dossier
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // AF1: Open Dossier Modal
+    async function inspectCertificateDossier(certificateId) {
+      try {
+        const response = await API.getSupplierCertificateDossier(certificateId);
+        if (response && response.success && response.data) {
+          const d = response.data;
+          document.getElementById('dossier-cert-type').textContent = `Hồ Sơ Chứng Chỉ: ${d.certificateType}`;
+          document.getElementById('dossier-farm-name').textContent = d.farmName || (currentProfile ? currentProfile.farmName : '--');
+          document.getElementById('dossier-cert-number').textContent = d.certificateNumber;
+          document.getElementById('dossier-issued-by').textContent = d.issuedBy;
+          document.getElementById('dossier-issue-date').textContent = d.issueDate;
+          document.getElementById('dossier-expiry-date').textContent = d.expiryDate || 'Vô thời hạn';
+          
+          const statusBadge = document.getElementById('dossier-status-badge');
+          statusBadge.textContent = d.isValid ? '✓ Đã thẩm định & Còn hiệu lực' : 'Chưa thẩm định / Hết hạn';
+          statusBadge.className = `badge ${d.isValid ? 'Active' : 'Pending'}`;
+
+          document.getElementById('dossier-officer-name').textContent = d.reviewedByOfficerName || 'Chuyên viên Thẩm định Hệ thống';
+          document.getElementById('dossier-reviewed-at').textContent = d.reviewedAt ? new Date(d.reviewedAt).toLocaleString('vi-VN') : 'Đã thẩm định theo hồ sơ gốc';
+          
+          const docLink = document.getElementById('dossier-doc-link');
+          if (d.documentUrl) {
+            docLink.href = d.documentUrl;
+            docLink.style.display = 'inline-flex';
+          } else {
+            docLink.style.display = 'none';
+          }
+
+          document.getElementById('modal-dossier').style.display = 'flex';
+        } else {
+          alert(response?.message || 'Không thể xem chi tiết hồ sơ chứng chỉ.');
+        }
+      } catch (err) {
+        alert('Lỗi kết nối khi tải hồ sơ thẩm định chứng chỉ: ' + err.message);
+      }
+    }
+
+    function closeDossierModal() {
+      document.getElementById('modal-dossier').style.display = 'none';
+    }
+
+    // Render Seasons
+    function renderSeasons(seasons) {
+      const tbody = document.getElementById('seasons-table-body');
+      const emptyEl = document.getElementById('seasons-empty');
+
+      if (!seasons || seasons.length === 0) {
+        tbody.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      tbody.innerHTML = seasons.map(s => `
+        <tr>
+          <td><strong>${s.seasonName}</strong></td>
+          <td>${s.cropVariety}</td>
+          <td>${s.productName}</td>
+          <td>${Number(s.cultivatedArea).toLocaleString('vi-VN')} ha</td>
+          <td><small>${s.plantingDate} → ${s.estimatedHarvestDate}</small></td>
+          <td><strong style="color: #047857;">${Number(s.estimatedYield).toLocaleString('vi-VN')} ${s.yieldUnit}</strong></td>
+          <td>${s.actualYield != null ? `${Number(s.actualYield).toLocaleString('vi-VN')} ${s.yieldUnit}` : '<span style="color:#94a3b8;">Đang chăm sóc</span>'}</td>
+          <td><span class="badge ${s.status === 'Completed' ? 'Active' : 'Pending'}">${s.status}</span></td>
+          <td>
+            <button type="button" class="back-btn" style="padding: 4px 10px; font-size: 12px; background: #f0fdf4; border-color: #86efac; color: #166534;" onclick="openSeasonLogsModal(${s.cropSeasonId}, '${s.seasonName.replace(/'/g, "\\'")}')">
+              📋 Nhật ký (${s.cultivationLogs ? s.cultivationLogs.length : 0})
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // AF2: Open Cultivation Logs Modal
+    async function openSeasonLogsModal(cropSeasonId, seasonName) {
+      document.getElementById('logs-season-name').textContent = `Nhật Ký Canh Tác: ${seasonName}`;
+      const container = document.getElementById('logs-list-container');
+      const emptyEl = document.getElementById('logs-empty');
+      container.innerHTML = '<p style="text-align:center; padding: 20px; color: #64748b;">Đang tải nhật ký canh tác...</p>';
+      document.getElementById('modal-logs').style.display = 'flex';
+
+      try {
+        const response = await API.getSupplierSeasonLogs(cropSeasonId);
+        if (response && response.success && response.data) {
+          const logs = response.data;
+          if (logs.length === 0) {
+            container.innerHTML = '';
+            emptyEl.style.display = 'block';
+            return;
+          }
+
+          emptyEl.style.display = 'none';
+          container.innerHTML = logs.map(l => `
+            <div style="background: #f8fafc; border-left: 4px solid #10b981; border-radius: 6px; padding: 14px 16px; border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 700; color: #065f46; font-size: 14.5px;">🌱 ${l.actionType}</span>
+                <span style="font-size: 12.5px; color: #64748b;">📅 ${new Date(l.actionDate).toLocaleDateString('vi-VN')}</span>
+              </div>
+              <p style="margin: 4px 0; font-size: 14px; color: #1e293b;">${l.detailDescription || 'Không có mô tả chi tiết'}</p>
+              ${l.inputMaterial ? `<p style="margin: 4px 0; font-size: 13px; color: #475569;"><strong>Vật tư / Giống:</strong> ${l.inputMaterial} ${l.dosage ? `(Liều lượng: ${l.dosage})` : ''}</p>` : ''}
+              ${l.performedBy ? `<p style="margin: 4px 0; font-size: 12.5px; color: #64748b;">👤 <strong>Thực hiện:</strong> ${l.performedBy}</p>` : ''}
+              ${l.imageUrl ? `<div style="margin-top: 8px;"><img src="${l.imageUrl}" alt="Ảnh nhật ký" style="max-height: 120px; border-radius: 6px; border: 1px solid #cbd5e1;"></div>` : ''}
+            </div>
+          `).join('');
+        } else {
+          container.innerHTML = `<p style="color: #dc2626;">${response?.message || 'Không thể tải nhật ký canh tác.'}</p>`;
+        }
+      } catch (err) {
+        container.innerHTML = `<p style="color: #dc2626;">Lỗi kết nối: ${err.message}</p>`;
+      }
+    }
+
+    function closeLogsModal() {
+      document.getElementById('modal-logs').style.display = 'none';
+    }
+
+    // Render Inventory
+    function renderInventory(items) {
+      const container = document.getElementById('inventory-container');
+      const emptyEl = document.getElementById('inventory-empty');
+
+      if (!items || items.length === 0) {
+        container.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      container.innerHTML = items.map(item => `
+        <div class="inv-card">
+          ${item.primaryImageUrl ? `<img src="${item.primaryImageUrl}" alt="${item.productName}" class="inv-img">` : `<div class="inv-img">🌾</div>`}
+          <div class="inv-body">
+            <h3 class="inv-title">${item.productName}</h3>
+            <div class="inv-price">
+              ${item.wholesalePrice ? `${Number(item.wholesalePrice).toLocaleString('vi-VN')} ₫ / ${item.unit}` : `${Number(item.baseRetailPrice).toLocaleString('vi-VN')} ₫ / ${item.unit}`}
+            </div>
+            <div class="inv-sub">
+              ${item.wholesaleMinQuantity ? `📦 Đơn tối thiểu: <strong>${item.wholesaleMinQuantity} ${item.unit}</strong>` : 'Bán theo bao / kiện'}
+            </div>
+            <div class="inv-sub" style="color: #047857; font-weight: 600;">
+              ✓ Kho sẵn có: ${Number(item.availableQuantity).toLocaleString('vi-VN')} ${item.unit}
+            </div>
+            <div style="display:flex; gap:8px; margin-top: 14px;">
+              <a href="../RetailCustomer/product-detail.html?id=${item.productId}" class="back-btn" style="flex: 1; text-align: center; justify-content: center; text-decoration: none; font-size: 13px;">
+                Chi tiết
+              </a>
+              <a href="wholesale-order.html?productId=${item.productId}" class="btn primary" style="flex: 1.6; text-align: center; text-decoration: none; font-size: 13px; background: #064e3b; color: white;">
+                🛒 Đặt sỉ ngay
+              </a>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Render Traceability
+    function renderTraceability(batches) {
+      const tbody = document.getElementById('traceability-table-body');
+      const emptyEl = document.getElementById('traceability-empty');
+
+      if (!batches || batches.length === 0) {
+        tbody.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      tbody.innerHTML = batches.map(b => `
+        <tr>
+          <td><code style="font-weight: 700; color: #047857;">${b.batchCode}</code></td>
+          <td><strong>${b.productName}</strong></td>
+          <td>${b.actualHarvestDate || 'Vừa thu hoạch'}</td>
+          <td>${Number(b.availableQuantity).toLocaleString('vi-VN')} ${b.unit}</td>
+          <td>
+            ${b.qrContentString ? `<span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-family: monospace;">QR: ${b.qrContentString}</span>` : '<span style="color:#94a3b8;">Chưa phát hành</span>'}
+          </td>
+          <td><strong>${b.scanCount}</strong> lượt</td>
+          <td>
+            <span style="font-size: 13px; color: #059669;">✓ ${b.cultivationLogCount} bản ghi kiểm định</span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // AF6: Render Reviews
+    function renderReviews(reviews) {
+      const container = document.getElementById('reviews-container');
+      const emptyEl = document.getElementById('reviews-empty');
+
+      if (!reviews || reviews.length === 0) {
+        container.innerHTML = '';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      emptyEl.style.display = 'none';
+      container.innerHTML = reviews.map(r => `
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div>
+              <strong style="color: #0f172a; font-size: 14.5px;">${r.buyerName}</strong>
+              <span style="background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">✓ Đã mua hàng xác thực</span>
+            </div>
+            <span style="color: #f59e0b; font-size: 15px;">${'★'.repeat(r.ratingStars)}${'☆'.repeat(5 - r.ratingStars)}</span>
+          </div>
+          <p style="margin: 4px 0 8px; font-size: 14px; color: #334155;">"${r.comment || 'Chất lượng nông sản xuất sắc, đóng gói đạt chuẩn xuất khẩu.'}"</p>
+          <div style="font-size: 12.5px; color: #64748b;">
+            Nông sản: <em>${r.productName}</em> · Ngày đánh giá: ${new Date(r.reviewDate).toLocaleDateString('vi-VN')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // DIRECTORY MANAGEMENT
+    function toggleDirectory() {
+      const dirContainer = document.getElementById('supplier-directory-container');
+      if (dirContainer.style.display === 'none') {
+        openDirectoryView();
+        loadDirectory();
+      } else {
+        showDirectory(false);
+      }
+    }
+
+    function openDirectoryView() {
+      showDirectory(true);
+      document.getElementById('supplier-profile-view').style.display = 'none';
+      const breadcrumbEl = document.getElementById('breadcrumb-current');
+      if (breadcrumbEl) {
+        breadcrumbEl.textContent = 'Danh Bạ Nhà Cung Cấp Nông Sản B2B';
+      }
+      scrollToTop();
+    }
+
+    function showDirectory(visible) {
+      document.getElementById('supplier-directory-container').style.display = visible ? 'block' : 'none';
+      if (!visible) {
+        document.getElementById('supplier-profile-view').style.display = 'block';
+      }
+    }
+
+    async function loadDirectory() {
+      const keyword = document.getElementById('dir-keyword').value;
+      const province = document.getElementById('dir-province').value;
+      const resultsContainer = document.getElementById('dir-results');
+
+      resultsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #64748b;">Đang tìm kiếm nhà cung cấp...</p>';
+
+      try {
+        const response = await API.getSupplierDirectory({ keyword, province });
+        if (response && response.success && response.data) {
+          const suppliers = response.data;
+          if (suppliers.length === 0) {
+            resultsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #64748b; padding: 40px;">Không tìm thấy nhà cung cấp phù hợp với điều kiện tìm kiếm.</p>';
+            return;
+          }
+
+          resultsContainer.innerHTML = suppliers.map(s => `
+            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+              <div>
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                  <div style="width: 50px; height: 50px; border-radius: 10px; background: #064e3b; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold;">
+                    ${s.avatarUrl ? `<img src="${s.avatarUrl}" style="width:100%;height:100%;border-radius:10px;object-fit:cover;">` : (s.farmName || 'N').charAt(0)}
+                  </div>
+                  <div>
+                    <h4 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">${s.farmName}</h4>
+                    <p style="margin: 2px 0 0; font-size: 13px; color: #64748b;">📍 ${s.provinceName || s.provinceCode}</p>
+                  </div>
+                </div>
+
+                <p style="margin: 4px 0; font-size: 13.5px; color: #334155;">👤 Đại diện: <strong>${s.representativeName}</strong></p>
+                <p style="margin: 4px 0; font-size: 13.5px; color: #334155;">🌱 Quy mô: <strong>${s.cultivatedArea ? `${s.cultivatedArea} ha` : 'Tiêu chuẩn'}</strong></p>
+                <p style="margin: 4px 0; font-size: 13.5px; color: #334155;">⭐ Điểm uy tín: <strong>${s.reputationScore}/100</strong></p>
+
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px;">
+                  ${(s.certifiedBadges || []).map(b => `<span style="background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">✓ ${b}</span>`).join('')}
+                </div>
+              </div>
+
+              <div style="margin-top: 16px; padding-top: 12px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <span class="badge ${s.isVerified ? 'Active' : 'Pending'}">${s.isVerified ? 'Đã xác minh' : 'Chờ duyệt'}</span>
+                <button type="button" class="primary" style="padding: 6px 14px; font-size: 13px; border-radius: 6px;" onclick="selectSupplierFromDirectory(${s.farmerProfileId})">
+                  Xem hồ sơ năng lực →
+                </button>
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        resultsContainer.innerHTML = `<p style="grid-column: 1/-1; color: #dc2626; text-align: center;">Lỗi tìm kiếm: ${err.message}</p>`;
+      }
+    }
+
+    function selectSupplierFromDirectory(farmerProfileId) {
+      scrollToTop();
+      window.history.pushState({}, '', `?id=${farmerProfileId}`);
+      loadSupplierCapacityProfile(farmerProfileId);
+    }
+
+    // Modal Contact
+    function openContactModal() {
+      if (!currentProfile) return;
+      document.getElementById('contact-farm-name').textContent = currentProfile.farmName;
+      document.getElementById('contact-rep-name').textContent = currentProfile.representativeName;
+      document.getElementById('contact-phone').textContent = currentProfile.phoneNumber || '0987.654.321 (Bộ phận kinh doanh)';
+      document.getElementById('contact-phone').href = `tel:${currentProfile.phoneNumber || '0987654321'}`;
+      document.getElementById('contact-email').textContent = currentProfile.email || 'b2b-procurement@agrisustain.vn';
+      document.getElementById('contact-email').href = `mailto:${currentProfile.email || 'b2b-procurement@agrisustain.vn'}`;
+      document.getElementById('contact-address').textContent = currentProfile.address;
+      document.getElementById('modal-contact').style.display = 'flex';
+    }
+
+    function closeContactModal() {
+      document.getElementById('modal-contact').style.display = 'none';
+    }
+
+    // Procurement actions
+    function handleCreateWholesaleOrder() {
+      if (currentProfile && currentProfile.availableInventory && currentProfile.availableInventory.length > 0) {
+        const firstProd = currentProfile.availableInventory[0];
+        window.location.href = `wholesale-order.html?productId=${firstProd.productId}`;
+      } else {
+        window.location.href = '../RetailCustomer/index.html';
+      }
+    }
+
+    function handlePreOrder() {
+      alert(`Đã gửi tín hiệu đặt hàng trước (Seasonal Pre-Order) tới ${currentProfile ? currentProfile.farmName : 'nhà cung cấp'}. Bộ phận Hợp đồng B2B của sàn sẽ liên hệ trong 24 giờ làm việc.`);
+    }
+
+    function showLoading(show) {
+      document.getElementById('profile-loading').style.display = show ? 'block' : 'none';
+    }
+
+    function showError(msg) {
+      const errEl = document.getElementById('profile-error');
+      document.getElementById('profile-error-msg').textContent = msg;
+      errEl.style.display = 'block';
+      document.getElementById('profile-content').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
+

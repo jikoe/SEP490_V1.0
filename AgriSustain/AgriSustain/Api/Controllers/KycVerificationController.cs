@@ -44,4 +44,24 @@ public sealed class KycVerificationController(IKycVerificationService service) :
         var merged = new KycReviewDecisionRequest(actionName, request?.Reason);
         return Respond(await service.ReviewAsync(userId, merged, cancellationToken));
     }
+
+    [HttpPost("certificates/{certificateId:long}/review")]
+    public async Task<IActionResult> ReviewCertificate(
+        long certificateId,
+        [FromBody] CertificateReviewDecisionRequest request,
+        CancellationToken cancellationToken)
+    {
+        return Respond(await service.ReviewCertificateAsync(certificateId, request, cancellationToken));
+    }
+
+    [HttpPost("certificates/{certificateId:long}/{actionName:regex(^(approve|reject|revoke)$)}")]
+    public async Task<IActionResult> ReviewCertificateByActionRoute(
+        long certificateId,
+        string actionName,
+        [FromBody] CertificateReviewDecisionRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var merged = new CertificateReviewDecisionRequest(actionName, request?.Reason);
+        return Respond(await service.ReviewCertificateAsync(certificateId, merged, cancellationToken));
+    }
 }

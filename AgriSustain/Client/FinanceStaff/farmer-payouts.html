@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <title>Chi trả cho nông dân - AgriSustain</title>
+    <link href="../css/style.css" rel="stylesheet" />
+    <link href="../css/components.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="app-sidebar"></aside>
+      <div class="workspace">
+        <header id="app-header"></header>
+        <main>
+          <div id="business-root"></div>
+        </main>
+      </div>
+    </div>
+    <template id="business-template">
+      <link href="../css/finance-farmer-payouts.css" rel="stylesheet" />
+      <main>
+        <div class="page-title">
+          <h1>Quản lý chi trả cho nông dân</h1>
+          <p>Chọn trang chức năng hoặc mở chi tiết từ danh sách để tiếp tục.</p>
+        </div>
+        <div
+          aria-label="Các trang chức năng"
+          class="screen-tabs"
+          role="tablist"
+        >
+          <button
+            aria-controls="screen-list"
+            data-screen-go="list"
+            id="tab-list"
+            role="tab"
+            type="button"
+          >
+            Danh sách chi trả
+          </button>
+          <button
+            aria-controls="screen-create"
+            data-screen-go="create"
+            id="tab-create"
+            role="tab"
+            type="button"
+          >
+            Tạo khoản chi trả
+          </button>
+          <button
+            aria-controls="screen-detail"
+            data-screen-go="detail"
+            id="tab-detail"
+            role="tab"
+            type="button"
+          >
+            Chi tiết / xử lý
+          </button>
+        </div>
+        <div
+          aria-live="polite"
+          class="notice feedback"
+          hidden=""
+          id="feedback"
+          role="status"
+        >
+          <span id="feedbackText"> </span>
+        </div>
+        <section
+          aria-labelledby="tab-list"
+          class="screen"
+          data-screen="list"
+          hidden=""
+          id="screen-list"
+          role="tabpanel"
+        >
+          <section class="panel">
+            <div class="body toolbar">
+              <div class="field">
+                <label for="payoutSearch"> Tìm kiếm </label>
+                <input
+                  id="payoutSearch"
+                  placeholder="Mã phiếu hoặc tên nông dân"
+                />
+              </div>
+              <div class="field">
+                <label> Nông dân </label>
+                <select id="payoutFarmerFilter"></select>
+              </div>
+              <div class="field">
+                <label> Trạng thái </label>
+                <select id="payoutStatusFilter">
+                  <option value="">Tất cả</option>
+                  <option value="Prepared">Đã lập, chưa mở QR</option>
+                  <option value="Processing">Đang chờ tiền ra</option>
+                  <option value="NeedsReconciliation">Cần đối soát</option>
+                  <option value="Processed">Đã ghi nhận chi trả</option>
+                  <option value="Cancelled">Đã hủy</option>
+                  <option value="Failed">Thất bại đã xác minh</option>
+                </select>
+              </div>
+              <div class="field">
+                <label> Từ ngày / Đến ngày </label>
+                <div class="grid two payout-local-0">
+                  <input aria-label="Từ ngày" id="payoutFrom" type="date" />
+                  <input aria-label="Đến ngày" id="payoutTo" type="date" />
+                </div>
+              </div>
+              <div class="actions">
+                <button class="btn primary" id="applyPayoutFilter">
+                  Áp dụng
+                </button>
+                <button class="btn" id="resetPayoutFilter">Xóa lọc</button>
+              </div>
+            </div>
+            <div class="panel-title">
+              <h2>Danh sách khoản chi trả</h2>
+              <button class="btn primary" id="newPayout">
+                + Tạo khoản chi trả
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mã phiếu / Ngày tạo</th>
+                    <th>Nông dân</th>
+                    <th class="amount">Tổng gộp</th>
+                    <th class="amount">Hoa hồng / Khấu trừ</th>
+                    <th class="amount">Thực trả</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="payoutRows"></tbody>
+              </table>
+            </div>
+            <div class="empty" hidden="" id="payoutEmpty">
+              Không có kết quả tìm kiếm.
+            </div>
+            <div class="pagination">
+              <span id="payoutCount"> </span>
+              <div>
+                <button class="btn" id="payoutPrev">‹</button>
+                <span id="payoutPage"> 1 </span>
+                <button class="btn" id="payoutNext">›</button>
+              </div>
+            </div>
+          </section>
+        </section>
+        <section
+          aria-labelledby="tab-create"
+          class="screen"
+          data-screen="create"
+          hidden=""
+          id="screen-create"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="list" type="button">
+              ← Danh sách chi trả
+            </button>
+            <h2>Tạo khoản chi trả</h2>
+          </div>
+          <div class="notice warn">
+            Chỉ các khoản đã thu tiền, đã được chấp nhận, hết thời gian chờ và
+            chưa chi trả mới được chọn. Khoản đang có khiếu nại, hoàn tiền hoặc
+            chờ đối soát tiếp tục bị giữ; không được bỏ qua điều kiện giữ tiền.
+          </div>
+          <section class="panel" id="payoutCreate">
+            <div class="panel-title">
+              <h2>Tạo khoản chi trả</h2>
+            </div>
+            <div class="body grid two">
+              <div class="field">
+                <label for="recipientFarmer"> Nông dân * </label>
+                <select id="recipientFarmer"></select>
+              </div>
+              <div class="field">
+                <label> Kỳ nguồn chi trả </label>
+                <input
+                  readonly=""
+                  value="Các khoản đủ điều kiện đến 06/11/2026"
+                />
+              </div>
+              <div class="wide summary">
+                <strong> Tài khoản nhận tiền đã xác minh </strong>
+                <dl class="kv payout-local-1" id="recipientDetails"></dl>
+              </div>
+            </div>
+            <div class="panel-title">
+              <h2>Chọn nguồn đủ điều kiện</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Chọn</th>
+                    <th>Nguồn / Tham chiếu</th>
+                    <th>Điều kiện / Lý do giữ</th>
+                    <th class="amount">Còn được chi</th>
+                    <th class="amount">Hoa hồng</th>
+                    <th class="amount">Khấu trừ đã duyệt</th>
+                  </tr>
+                </thead>
+                <tbody id="sourceRows"></tbody>
+              </table>
+            </div>
+            <div class="body grid two">
+              <div class="notice warn">
+                Loại phần đã hoàn, đã chi trả hoặc đang được giữ khỏi số tiền có
+                thể chọn. Tiền cọc áp dụng vào hóa đơn không tạo thêm quyền nhận
+                tiền. Chiết khấu do nền tảng tài trợ không trừ vào tiền hàng của
+                nông dân.
+              </div>
+              <div class="summary">
+                <h3>Tổng hợp khoản chi trả</h3>
+                <div class="line">
+                  <span> Số nguồn được chọn </span>
+                  <strong id="sourceCount"> </strong>
+                </div>
+                <div class="line">
+                  <span> Tổng gộp </span>
+                  <strong id="sourceGross"> </strong>
+                </div>
+                <div class="line">
+                  <span> Hoa hồng </span>
+                  <strong id="sourceFee"> </strong>
+                </div>
+                <div class="line">
+                  <span> Khấu trừ đã duyệt </span>
+                  <strong id="sourceDeduction"> </strong>
+                </div>
+                <div class="line total">
+                  <span> Thực trả </span>
+                  <strong id="sourceNet"> </strong>
+                </div>
+              </div>
+              <div class="actions end wide">
+                <button class="btn" id="discardPayout">Hủy nhập</button>
+                <button class="btn primary" id="createPayoutButton">
+                  Tạo khoản chi trả
+                </button>
+              </div>
+            </div>
+          </section>
+        </section>
+        <section
+          aria-labelledby="tab-detail"
+          class="screen"
+          data-screen="detail"
+          hidden=""
+          id="screen-detail"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="list" type="button">
+              ← Danh sách chi trả
+            </button>
+            <h2>Chi tiết / xử lý</h2>
+          </div>
+          <section class="panel" id="payoutDetail">
+            <div class="panel-title">
+              <h2>
+                Chi tiết ·
+                <span id="payoutCode"> </span>
+              </h2>
+              <span class="badge" id="payoutBadge"> </span>
+            </div>
+            <div class="body grid two">
+              <dl class="kv" id="savedPayoutDetails"></dl>
+              <div class="summary">
+                <div class="line">
+                  <span> Tổng gộp </span>
+                  <strong id="savedGross"> </strong>
+                </div>
+                <div class="line">
+                  <span> Hoa hồng </span>
+                  <strong id="savedFee"> </strong>
+                </div>
+                <div class="line">
+                  <span> Khấu trừ đã duyệt </span>
+                  <strong id="savedDeduction"> </strong>
+                </div>
+                <div class="line total">
+                  <span> Thực trả </span>
+                  <strong id="savedNet"> </strong>
+                </div>
+              </div>
+              <div class="wide notice">
+                Tạo phiếu hoặc mở QR chưa phải đã chi trả. Hệ thống chỉ ghi nhận
+                khi SePay xác minh tiền ra từ tài khoản nguồn, khớp mã phiếu và
+                số tiền.
+              </div>
+              <div class="wide grid two">
+                <div>
+                  <h3>Kết quả chuyển khoản</h3>
+                  <dl class="kv" id="transferDetails"></dl>
+                </div>
+                <div>
+                  <h3>Đối soát giao dịch đang chờ</h3>
+                  <p id="reconciliationText"></p>
+                  <button class="btn" id="checkGateway">
+                    Kiểm tra kết quả chuyển tiền
+                  </button>
+                </div>
+              </div>
+              <div class="wide grid two">
+                <div>
+                  <h3>Thất bại và kiểm tra lại</h3>
+                  <p id="failureText"></p>
+                </div>
+                <div>
+                  <h3>Thông báo kết quả</h3>
+                  <p id="payoutNotification"></p>
+                </div>
+              </div>
+              <div class="actions end wide">
+                <button class="btn danger" id="cancelPayout">
+                  Hủy khoản chưa gửi chuyển
+                </button>
+                <button class="btn primary" id="processPayout">
+                  Mở QR chi trả
+                </button>
+              </div>
+              <section class="wide summary" hidden="" id="qrPaymentBox">
+                <h3>Chuyển khoản cho nông dân</h3>
+                <div class="grid two">
+                  <div>
+                    <img
+                      alt="Mã QR tài khoản nhận tiền của nông dân"
+                      class="payout-qr"
+                      id="payoutQrImage"
+                    />
+                  </div>
+                  <div>
+                    <dl class="kv" id="payoutQrDetails"></dl>
+                    <button class="btn" id="copyPayoutReference" type="button">
+                      Sao chép nội dung chuyển khoản
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="panel-title">
+              <h2>Lịch sử xử lý</h2>
+            </div>
+            <div class="body">
+              <ul class="history" id="payoutHistory"></ul>
+            </div>
+          </section>
+          <p class="muted">
+            Đơn vị: VND · Thời gian Việt Nam. Finance Staff chuyển khoản bằng
+            ứng dụng ngân hàng; hệ thống đối soát tiền ra SePay và gửi thông báo
+            sau khi ghi nhận thành công.
+          </p>
+        </section>
+      </main>
+      <dialog id="confirmDialog">
+        <h2>Xác nhận thao tác</h2>
+        <p id="confirmText"></p>
+        <div class="actions end">
+          <button class="btn" id="confirmCancel" type="button">Quay lại</button>
+          <button class="btn primary" id="confirmOk" type="button">
+            Xác nhận
+          </button>
+        </div>
+      </dialog>
+    </template>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/finance-payouts.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/farmer-business.js"></script>
+    <script src="../js/finance-farmer-payouts.js"></script>
+  </body>
+</html>

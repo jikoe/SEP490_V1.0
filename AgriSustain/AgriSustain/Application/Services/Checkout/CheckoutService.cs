@@ -428,6 +428,14 @@ public sealed class CheckoutService(
                     ? new ShippingPickup(farm.PickupProvinceCode!, farm.PickupDistrictCode!) : null);
             foreach (var sellerLines in sellerGroups)
             {
+                if (!shippingRates.HasPickupAddress(sellerLines.Key, pickups.GetValueOrDefault(sellerLines.Key)))
+                {
+                    string farmName = items.First(item => item.Product.FarmerProfile.FarmerProfileId == sellerLines.Key)
+                        .Product.FarmerProfile.FarmName;
+                    return UseCaseResult<CheckoutQuoteDto>.Failure("PICKUP_ADDRESS_MISSING",
+                        $"Nông trại {farmName} chưa cài đặt địa chỉ lấy hàng nên chưa tính được phí giao hàng. "
+                        + "Vui lòng bỏ sản phẩm của nông trại này khỏi đơn hoặc quay lại sau."); // MSG-CO-05
+                }
                 var shippingRate = await shippingRates.GetRateAsync(new ShippingRateRequest(
                     sellerLines.Key, input.Address,
                     sellerLines.Select(line => new ShippingPackageLine(line.Unit, line.Quantity)).ToList(),

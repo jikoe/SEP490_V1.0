@@ -16,6 +16,8 @@ public static class ProductListingMessages
     public const string MSG123 = "Không thể lưu sản phẩm. Không có bản ghi nghiệp vụ nào được lưu một phần. Vui lòng thử lại.";
     public const string MSG126 = "Không thể tải sản phẩm. Vui lòng thử lại.";
 
+    public const string InvalidCertificate = "Chứng chỉ đã chọn không thuộc nông trại, chưa được duyệt, chưa có hiệu lực, đã hết hạn hoặc bị thu hồi. Vui lòng chọn chứng chỉ hợp lệ hoặc bỏ lựa chọn.";
+
     public static string Field(string field, string reason) =>
         $"Vui lòng sửa {field}: {reason}. Dữ liệu hợp lệ đã được giữ lại.";
 }

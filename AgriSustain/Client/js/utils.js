@@ -7,12 +7,12 @@ const Utils = {
    * Determine relative path prefix back to the Client/ root folder
    */
   getRootPath() {
-    const p = window.location.pathname.replace(/\\/g, '/');
+    const p = window.location.pathname.replace(/\\/g, '/').toLowerCase();
     const roleDirs = [
-      '/Administrator/', '/Farmer/', '/RetailCustomer/',
-      '/ContentModerator/', '/CustomerSupport/', '/PromotionStaff/',
-      '/FinanceStaff/', '/VerificationOfficer/', '/WholesaleBuyer/',
-      '/GmailService/', '/PaymentGateway/', '/Guest/'
+      '/administrator/', '/farmer/', '/retailcustomer/',
+      '/contentmoderator/', '/customersupport/', '/promotionstaff/',
+      '/financestaff/', '/verificationofficer/', '/wholesalebuyer/',
+      '/gmailservice/', '/paymentgateway/', '/guest/'
     ];
     for (const dir of roleDirs) {
       if (p.includes(dir)) return '../';

@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <title>Quản lý hợp đồng bao tiêu - AgriSustain</title>
+    <link href="../css/style.css" rel="stylesheet" />
+    <link href="../css/components.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="app-sidebar"></aside>
+      <div class="workspace">
+        <header id="app-header"></header>
+        <main>
+          <div id="business-root"></div>
+        </main>
+      </div>
+    </div>
+    <template id="business-template">
+      <link href="../css/farmer-offtake-contracts.css" rel="stylesheet" />
+      <main>
+        <div class="page-title">
+          <h1>Quản lý hợp đồng bao tiêu</h1>
+          <p>Chọn trang chức năng hoặc mở chi tiết từ danh sách để tiếp tục.</p>
+        </div>
+        <div
+          aria-label="Các trang chức năng"
+          class="screen-tabs"
+          role="tablist"
+        >
+          <button
+            aria-controls="screen-list"
+            data-screen-go="list"
+            id="tab-list"
+            role="tab"
+            type="button"
+          >
+            Danh sách hợp đồng
+          </button>
+          <button
+            aria-controls="screen-terms"
+            data-screen-go="terms"
+            id="tab-terms"
+            role="tab"
+            type="button"
+          >
+            Điều khoản
+          </button>
+          <button
+            aria-controls="screen-delivery"
+            data-screen-go="delivery"
+            id="tab-delivery"
+            role="tab"
+            type="button"
+          >
+            Giao hàng
+          </button>
+          <button
+            aria-controls="screen-discrepancy"
+            data-screen-go="discrepancy"
+            id="tab-discrepancy"
+            role="tab"
+            type="button"
+          >
+            Phản hồi chênh lệch
+          </button>
+          <button
+            aria-controls="screen-changes"
+            data-screen-go="changes"
+            id="tab-changes"
+            role="tab"
+            type="button"
+          >
+            Điều chỉnh / chấm dứt
+          </button>
+          <button
+            aria-controls="screen-history"
+            data-screen-go="history"
+            id="tab-history"
+            role="tab"
+            type="button"
+          >
+            Lịch sử / tài chính
+          </button>
+        </div>
+        <div
+          aria-live="polite"
+          class="notice feedback"
+          hidden=""
+          id="feedback"
+          role="status"
+        >
+          <span id="feedbackText"> </span>
+        </div>
+        <section
+          aria-labelledby="tab-list"
+          class="screen"
+          data-screen="list"
+          hidden=""
+          id="screen-list"
+          role="tabpanel"
+        >
+          <section class="panel">
+            <div class="body toolbar">
+              <div class="field">
+                <label for="contractSearch"> Tìm hợp đồng </label>
+                <input
+                  id="contractSearch"
+                  placeholder="Mã hợp đồng hoặc tên doanh nghiệp"
+                />
+              </div>
+              <div class="field">
+                <label> Trạng thái </label>
+                <select id="contractStatus">
+                  <option value="">Tất cả</option>
+                  <option>Chờ xác nhận</option>
+                  <option>Chờ cọc</option>
+                  <option>Đang thực hiện</option>
+                  <option>Chờ chấm dứt</option>
+                  <option>Đã từ chối</option>
+                </select>
+              </div>
+              <div class="field">
+                <label> Từ ngày </label>
+                <input id="contractFrom" type="date" />
+              </div>
+              <div class="field">
+                <label> Đến ngày </label>
+                <input id="contractTo" type="date" />
+              </div>
+              <div class="actions">
+                <button class="btn primary" id="filterContracts">
+                  Áp dụng
+                </button>
+                <button class="btn" id="resetContracts">Xóa lọc</button>
+              </div>
+            </div>
+            <div class="panel-title">
+              <h2>Danh sách hợp đồng</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Hợp đồng / Đối tác</th>
+                    <th>Sản phẩm / Cam kết</th>
+                    <th>Hiệu lực / Tiến độ</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="contractRows"></tbody>
+              </table>
+            </div>
+            <div class="empty" hidden="" id="contractEmpty">
+              Không có hợp đồng phù hợp với bộ lọc.
+            </div>
+            <div class="pagination">
+              <span id="contractCount"> </span>
+              <div>
+                <button class="btn" id="contractPrev">‹</button>
+                <span id="contractPage"> 1 </span>
+                <button class="btn" id="contractNext">›</button>
+              </div>
+            </div>
+          </section>
+        </section>
+        <section
+          aria-labelledby="tab-terms"
+          class="screen"
+          data-screen="terms"
+          hidden=""
+          id="screen-terms"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="list" type="button">
+              ← Danh sách hợp đồng
+            </button>
+            <h2>Điều khoản</h2>
+          </div>
+          <section class="panel">
+            <div class="panel-title">
+              <h2>
+                Điều khoản hiện tại ·
+                <span id="contractCode"> </span>
+              </h2>
+              <span class="badge" id="contractBadge"> </span>
+            </div>
+            <div class="body grid two">
+              <dl class="kv" id="contractTerms"></dl>
+              <div>
+                <h3>Giá, tiền cọc và thanh toán</h3>
+                <dl class="kv" id="priceTerms"></dl>
+                <p></p>
+              </div>
+              <div class="wide summary">
+                <strong> Xác nhận điều khoản </strong>
+                <p id="confirmationState"></p>
+                <span id="depositState"> </span>
+              </div>
+              <div class="field">
+                <label for="contractSeason"> Mùa vụ liên kết * </label>
+                <select id="contractSeason"></select>
+              </div>
+              <div class="actions wide local-style-0">
+                <button class="btn primary" id="confirmContract">
+                  Xác nhận điều khoản
+                </button>
+              </div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-title">
+              <h2>Phản hồi điều khoản</h2>
+            </div>
+            <div class="body">
+              <div class="grid two">
+                <div class="field">
+                  <label for="contractFeedback">
+                    Lý do từ chối / đề nghị sửa *
+                  </label>
+                  <textarea
+                    id="contractFeedback"
+                    maxlength="500"
+                    placeholder="Nhập ít nhất 20 ký tự sau khi bỏ khoảng trắng đầu và cuối"
+                  ></textarea>
+                </div>
+                <div class="field">
+                  <label for="amendmentChanges">
+                    Nội dung đề nghị thay đổi
+                  </label>
+                  <textarea
+                    id="amendmentChanges"
+                    placeholder="Ví dụ: chuyển ngày giao đợt 3 sang 25/11/2026"
+                  ></textarea>
+                </div>
+              </div>
+              <div class="actions end">
+                <button class="btn" id="clearTerms">Xóa nội dung</button>
+                <button class="btn danger" id="rejectContract">
+                  Từ chối đề xuất
+                </button>
+                <button class="btn primary" id="amendContract">
+                  Gửi đề nghị sửa đổi
+                </button>
+              </div>
+            </div>
+          </section>
+          <div class="actions end">
+            <button class="btn" data-screen-go="list">
+              ← Danh sách hợp đồng
+            </button>
+            <button class="btn primary" data-screen-go="delivery">
+              Xem lịch giao hàng →
+            </button>
+          </div>
+        </section>
+        <section
+          aria-labelledby="tab-delivery"
+          class="screen"
+          data-screen="delivery"
+          hidden=""
+          id="screen-delivery"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="list" type="button">
+              ← Danh sách hợp đồng
+            </button>
+            <h2>Giao hàng</h2>
+          </div>
+          <section class="panel" data-contract-execution="true">
+            <div class="panel-title">
+              <h2>Lịch giao và tiến độ thực hiện</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Đợt giao</th>
+                    <th>Ngày dự kiến</th>
+                    <th>Cam kết</th>
+                    <th>Đã giao / Đã chấp nhận</th>
+                    <th>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody id="milestoneRows"></tbody>
+              </table>
+            </div>
+            <form class="body" id="dispatchForm">
+              <div class="grid">
+                <div class="field">
+                  <label for="shipmentMilestone"> Đợt giao * </label>
+                  <select id="shipmentMilestone" required=""></select>
+                </div>
+                <div class="field">
+                  <label for="shipmentBatch"> Lô thực tế có mã QR * </label>
+                  <select id="shipmentBatch" required=""></select>
+                </div>
+                <div class="field">
+                  <label for="shipmentQuantity"> Số lượng giao (kg) * </label>
+                  <input
+                    id="shipmentQuantity"
+                    min="0.01"
+                    placeholder="Ví dụ: 400"
+                    required=""
+                    step="0.01"
+                    type="number"
+                  />
+                </div>
+              </div>
+              <div class="actions end">
+                <button class="btn" type="reset">Hủy nhập</button>
+                <button class="btn primary" id="dispatchButton" type="submit">
+                  Xác nhận giao hàng
+                </button>
+              </div>
+              <p class="muted" id="shipmentResult"></p>
+            </form>
+          </section>
+        </section>
+        <section
+          aria-labelledby="tab-discrepancy"
+          class="screen"
+          data-screen="discrepancy"
+          hidden=""
+          id="screen-discrepancy"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="list" type="button">
+              ← Danh sách hợp đồng
+            </button>
+            <h2>Phản hồi chênh lệch</h2>
+          </div>
+          <section class="panel" data-contract-execution="true">
+            <div class="panel-title">
+              <h2>Kết quả kiểm nhận và chênh lệch</h2>
+              <span class="badge warn" id="discrepancyStatus">
+                Chờ phản hồi
+              </span>
+            </div>
+            <div class="body">
+              <div class="summary">
+                <label for="disputeTicket"> Chênh lệch / tranh chấp </label>
+                <select id="disputeTicket"></select>
+                <label for="disputeShipment"> Hàng hóa đã kiểm nhận </label>
+                <select id="disputeShipment"></select>
+                <dl class="kv" id="inspectionDetail"></dl>
+                <div id="receivedEvidence"></div>
+              </div>
+              <form id="discrepancyForm">
+                <div class="grid local-style-1">
+                  <div class="field">
+                    <label for="proposedQuantity">
+                      Đề xuất số lượng (kg)
+                    </label>
+                    <input
+                      id="proposedQuantity"
+                      min="0"
+                      placeholder="Ví dụ: 390"
+                      step="0.01"
+                      type="number"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="proposedGrade">
+                      Đề xuất chất lượng / phương án *
+                    </label>
+                    <input
+                      id="proposedGrade"
+                      placeholder="Ví dụ: giữ loại A cho 390 kg đạt chất lượng"
+                      required=""
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="discrepancyEvidence">
+                      Bằng chứng phản hồi *
+                    </label>
+                    <input
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      id="discrepancyEvidence"
+                      multiple=""
+                      required=""
+                      type="file"
+                    />
+                    <small aria-live="polite" class="files"> </small>
+                  </div>
+                  <div class="field wide">
+                    <label for="discrepancyExplanation"> Giải trình * </label>
+                    <textarea
+                      id="discrepancyExplanation"
+                      placeholder="Nhập giải trình về số lượng hoặc chất lượng đã được báo"
+                      required=""
+                    ></textarea>
+                  </div>
+                </div>
+                <div class="actions end">
+                  <button class="btn" type="reset">Hủy nhập</button>
+                  <button
+                    class="btn danger"
+                    id="escalateDiscrepancy"
+                    type="button"
+                  >
+                    Đề nghị xem xét tranh chấp
+                  </button>
+                  <button
+                    class="btn primary"
+                    id="submitDiscrepancy"
+                    type="submit"
+                  >
+                    Gửi phản hồi chênh lệch
+                  </button>
+                </div>
+              </form>
+              <p class="muted" id="discrepancyOutcome"></p>
+            </div>
+          </section>
+        </section>
+        <section
+          aria-labelledby="tab-changes"
+          class="screen"
+          data-screen="changes"
+          hidden=""
+          id="screen-changes"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="list" type="button">
+              ← Danh sách hợp đồng
+            </button>
+            <h2>Điều chỉnh / chấm dứt</h2>
+          </div>
+          <section class="panel" data-contract-execution="true">
+            <div class="panel-title">
+              <h2>Báo chậm hoặc thiếu hàng</h2>
+            </div>
+            <div class="body">
+              <form id="delayForm">
+                <div class="grid">
+                  <div class="field">
+                    <label for="delayMilestone">
+                      Nghĩa vụ bị ảnh hưởng *
+                    </label>
+                    <select id="delayMilestone" required=""></select>
+                  </div>
+                  <div class="field">
+                    <label for="delayQuantity">
+                      Số lượng bị ảnh hưởng (kg) *
+                    </label>
+                    <input
+                      id="delayQuantity"
+                      min="0.01"
+                      placeholder="Ví dụ: 200"
+                      required=""
+                      step="0.01"
+                      type="number"
+                    />
+                  </div>
+                  <div class="field">
+                    <label for="delayDate"> Ngày giao đề xuất * </label>
+                    <input id="delayDate" required="" type="date" />
+                  </div>
+                  <div class="field wide">
+                    <label for="delayReason">
+                      Nguyên nhân và phương án *
+                    </label>
+                    <textarea
+                      id="delayReason"
+                      placeholder="Nêu nguyên nhân và đề xuất xử lý"
+                      required=""
+                    ></textarea>
+                  </div>
+                </div>
+                <div class="actions end">
+                  <button class="btn" type="reset">Hủy nhập</button>
+                  <button class="btn primary" id="delayButton" type="submit">
+                    Gửi báo cáo chậm / thiếu hàng
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+          <section class="panel" data-contract-execution="true">
+            <div class="panel-title">
+              <h2>Đề nghị chấm dứt hợp đồng</h2>
+            </div>
+            <div class="body">
+              <form id="terminationForm">
+                <div class="grid two">
+                  <div class="field">
+                    <label for="terminationReason"> Lý do * </label>
+                    <textarea
+                      id="terminationReason"
+                      placeholder="Nhập lý do đề nghị chấm dứt"
+                      required=""
+                    ></textarea>
+                  </div>
+                  <div class="field">
+                    <label for="terminationPlan">
+                      Phương án thanh toán và nghĩa vụ còn lại
+                    </label>
+                    <textarea
+                      id="terminationPlan"
+                      placeholder="Đề xuất xử lý các đợt giao, tiền cọc và số tiền chưa thanh toán"
+                    ></textarea>
+                  </div>
+                  <div class="field">
+                    <label for="terminationEvidence"> Bằng chứng * </label>
+                    <input
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      id="terminationEvidence"
+                      multiple=""
+                      required=""
+                      type="file"
+                    />
+                    <small aria-live="polite" class="files"> </small>
+                  </div>
+                  <div class="summary">
+                    <strong> Kết quả xem xét </strong>
+                    <p id="terminationResult"></p>
+                  </div>
+                </div>
+                <div class="actions end">
+                  <button class="btn" type="reset">Hủy nhập</button>
+                  <button
+                    class="btn danger"
+                    id="terminationButton"
+                    type="submit"
+                  >
+                    Gửi đề nghị chấm dứt
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        </section>
+        <section
+          aria-labelledby="tab-history"
+          class="screen"
+          data-screen="history"
+          hidden=""
+          id="screen-history"
+          role="tabpanel"
+        >
+          <div class="screen-back">
+            <button class="btn" data-screen-go="list" type="button">
+              ← Danh sách hợp đồng
+            </button>
+            <h2>Lịch sử / tài chính</h2>
+          </div>
+          <section class="panel" data-contract-execution="true">
+            <div class="panel-title">
+              <h2>Thanh toán và thực nhận</h2>
+            </div>
+            <div class="body">
+              <div class="grid two">
+                <dl class="kv" id="financialProgress"></dl>
+                <div>
+                  <h3>Điều kiện hoàn tất</h3>
+                  <p id="completionState"></p>
+                  <p class="muted">
+                    Giá theo loại và phạt áp dụng theo điều khoản đã xác nhận.
+                    Tiền cọc được áp dụng khi quyết toán, không tính thêm thành
+                    một lần thu mới.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="panel" data-contract-execution="true">
+            <div class="panel-title">
+              <h2>Lịch sử hợp đồng</h2>
+            </div>
+            <div class="body">
+              <ul class="history" id="contractHistory"></ul>
+            </div>
+          </section>
+        </section>
+      </main>
+      <dialog id="confirmDialog">
+        <h2>Xác nhận thao tác</h2>
+        <p id="confirmText"></p>
+        <div class="actions end">
+          <button class="btn" id="confirmCancel" type="button">Quay lại</button>
+          <button class="btn primary" id="confirmOk" type="button">
+            Xác nhận
+          </button>
+        </div>
+      </dialog>
+    </template>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/farmer-business.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/farmer-business.js"></script>
+    <script src="../js/farmer-offtake-contracts.js"></script>
+  </body>
+</html>

@@ -283,6 +283,18 @@ public sealed class AdministrationRepository(AgriSustainContext context) : IAdmi
         public string AccountStatus { get; init; } = "";
     }
 
+    public async Task RevokeRefreshTokensForUserAsync(long userId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var activeTokens = await context.RefreshTokens
+            .Where(x => x.UserId == userId && x.RevokedAt == null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var token in activeTokens)
+        {
+            token.RevokedAt = now;
+        }
+    }
+
     private IQueryable<CategoryDto> ProjectCategories(IQueryable<Category> query)
     {
         return query.Select(x => new CategoryDto(x.CategoryId, x.CategoryName, x.Description,

@@ -218,6 +218,7 @@ internal sealed class ApiHost : IAsyncDisposable
         services.AddScoped<ComplaintResolutionService>();
         services.AddScoped<IComplaintResolutionService>(sp => sp.GetRequiredService<ComplaintResolutionService>());
         services.AddScoped<IComplaintEvidenceTimeoutProcessor>(sp => sp.GetRequiredService<ComplaintResolutionService>());
+        services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
         services.AddScoped<IRefundRepository, RefundRepository>();
         services.AddScoped<IRefundProcessingService, RefundProcessingService>();
         // UC-ADM-01 dashboard reads the finance figures through this repository (Program.cs line 94).

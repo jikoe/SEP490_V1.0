@@ -1915,7 +1915,6 @@ dialog::backdrop {
 .finance-page .fin-heading h1 { color: #234c3a; font-size: 27px; font-weight: 750; line-height: 1.3; margin: 0 0 7px; }
 .fin-heading p { margin: 0; font-size: 12px; color: #7c8f84; line-height: 1.7; }
 .fin-heading-actions { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
-.fin-mode-badge { padding: 5px 8px; border-radius: 4px; background: #e5f2e9; color: #236344; font-size: 11px; white-space: nowrap; }
 .finance-page button { font-size: 12px; border-radius: 5px; color: #3d5c4e; border-color: #d9e2dc; background: white; }
 .finance-page button.fin-primary { background: #147a53; color: white; border-color: #147a53; }
 .finance-page button.fin-primary:hover:not(:disabled) { background: #106443; }
@@ -1955,11 +1954,8 @@ dialog::backdrop {
 .fin-status.danger { color: #a34d40; background: #fceee8; }
 .finance-page .fin-view { font-size: 10px; padding: 7px 10px; font-weight: 450; }
 .fin-table-caption { padding: 13px 18px; display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid #e9eee9; font-size: 10px; color: #91a095; }
-.fin-calculation, .fin-source-note { margin: 15px 0; padding: 12px 15px; background: #edf7f0; border: 1px solid #d8e9de; border-radius: 5px; color: #74917e; font-size: 11px; line-height: 1.8; }
-.fin-source-note { background: #f9fbf9; color: #728577; }
+.fin-calculation { margin: 15px 0; padding: 12px 15px; background: #edf7f0; border: 1px solid #d8e9de; border-radius: 5px; color: #74917e; font-size: 11px; line-height: 1.8; }
 .fin-footer { display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 16px; color: #95a398; font-size: 10px; }
-.fin-footer label { display: flex; gap: 8px; align-items: center; font-weight: 400; color: #8a9a8e; }
-.finance-page .fin-footer select { width: 155px; margin: 0; min-height: 32px; border-color: transparent; background: transparent; font-size: 11px; }
 .fin-filters { display: grid; grid-template-columns: 1.8fr 1fr 1fr 1fr; gap: 14px; padding: 18px; }
 .fin-filter-date { grid-column: span 1; }
 .fin-filter-actions { display: flex; justify-content: flex-end; align-items: flex-end; gap: 10px; grid-column: span 2; }
@@ -1995,7 +1991,7 @@ dialog::backdrop {
 .fin-history p { margin: 7px 0 0; font-size: 10px; color: #8c9d91; line-height: 1.7; overflow-wrap: anywhere; }
 .fin-period-caption, .fin-metric > span, .fin-metric small, .fin-table th,
 .fin-table small, .fin-table-caption, .fin-facts dt, .fin-history p, .fin-history time,
-.fin-reconcile-actions p, .fin-calculation, .fin-source-note, .fin-footer { color: #627969; }
+.fin-reconcile-actions p, .fin-calculation, .fin-footer { color: #627969; }
 @media (max-width: 1100px) { .finance-shell .workspace > main { padding: 24px 20px; } .fin-filters { grid-template-columns: 1fr 1fr; } .fin-filter-search { grid-column: span 2; } .fin-filter-actions { grid-column: auto; } .fin-table { min-width: 690px; } .fin-detail-grid { grid-template-columns: 1fr; } .fin-comparison { min-width: 600px; } }
 @media (max-width: 900px) { .finance-shell .workspace { margin-left: 165px; } .fin-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .app-shell.finance-shell .sidebar { width: 165px; padding: 22px 10px; } .finance-shell .sidebar .brand { font-size: 19px; } .fin-period-fields { grid-template-columns: 1fr 1.5fr; } .fin-period-fields > button { grid-column: 1 / -1; } }
 @media (max-width: 760px) { .finance-shell .workspace { margin-left: 0; } .app-shell.finance-shell { flex-direction: column; } .app-shell.finance-shell .sidebar { width: 100%; padding: 14px 18px; } .finance-shell .sidebar .brand small, .finance-shell .sidebar .nav-label, .finance-shell .sidebar .sidebar-bottom { display: none; } .finance-shell .main-navigation { display: flex; flex-wrap: wrap; margin-top: 12px; gap: 6px; } .finance-shell .main-navigation button { padding: 9px 12px; font-size: 11px; } .finance-shell .workspace > header { padding: 0 18px; } .finance-shell .workspace > main { padding: 22px 16px; } .finance-page .fin-heading h1 { font-size: 24px; } .fin-history li > div { flex-direction: column; gap: 5px; } }

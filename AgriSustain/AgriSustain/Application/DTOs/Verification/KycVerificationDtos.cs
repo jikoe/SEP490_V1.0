@@ -83,3 +83,15 @@ public sealed record KycReviewResultDto(
     DateTime ReviewedAt,
     string? ReviewedBy,
     string? Reason);
+
+public sealed record CertificateReviewDecisionRequest(
+    string? Action = null,
+    string? Reason = null);
+
+public sealed record CertificateReviewResultDto(
+    long CertificateId,
+    string VerificationStatus,
+    string Message,
+    DateTime ReviewedAt,
+    string? ReviewedBy,
+    string? Reason);

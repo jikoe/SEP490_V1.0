@@ -2,6 +2,7 @@ using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Auth;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Interfaces.Identity;
+using AgriSustain.Application.Interfaces.Services;
 using AgriSustain.Infrastructure.Data;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,7 @@ public sealed class AuthService : IAuthService
     private readonly AgriSustainContext _context;
     private readonly ICurrentUser _currentUser;
     private readonly IValidator<ChangePasswordRequest> _changePasswordValidator;
+    private readonly IRefreshTokenService? _refreshTokenService;
 
     public AuthService(
         IUserRepository userRepository,
@@ -27,7 +29,8 @@ public sealed class AuthService : IAuthService
         TimeProvider timeProvider,
         AgriSustainContext context,
         ICurrentUser currentUser,
-        IValidator<ChangePasswordRequest> changePasswordValidator)
+        IValidator<ChangePasswordRequest> changePasswordValidator,
+        IRefreshTokenService? refreshTokenService = null)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
@@ -36,6 +39,7 @@ public sealed class AuthService : IAuthService
         _context = context;
         _currentUser = currentUser;
         _changePasswordValidator = changePasswordValidator;
+        _refreshTokenService = refreshTokenService;
     }
 
     public async Task<LoginResultDto> LoginAsync(
@@ -97,6 +101,12 @@ public sealed class AuthService : IAuthService
         await _userRepository.SaveChangesAsync(cancellationToken);
 
         var token = _tokenIssuer.Issue(user, now);
+        string? refreshToken = null;
+        if (_refreshTokenService is not null)
+        {
+            refreshToken = await _refreshTokenService.GenerateAndSaveRefreshTokenAsync(user.UserId, cancellationToken);
+        }
+
         return new LoginResultDto(
             LoginResultStatus.Success,
             new LoginResponseDto(
@@ -107,7 +117,8 @@ public sealed class AuthService : IAuthService
                     user.Username,
                     user.Email,
                     user.FullName,
-                    user.Role)));
+                    user.Role),
+                refreshToken));
     }
 
     // Retain the existing password-change endpoint while importing TuTB's login services.

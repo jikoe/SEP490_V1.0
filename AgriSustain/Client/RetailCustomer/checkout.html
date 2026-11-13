@@ -345,7 +345,7 @@
     const legacyStorage = ['agrisustain:checkout-attempt', 'agrisustain:checkout-quote'];
     const phonePattern = /^(0[35789][0-9]{8}|\+84[35789][0-9]{8})$/;
     const addressErrors = ['ADDRESS_INVALID', 'VALIDATION'];
-    const shippingErrors = ['SHIPPING_RATE_UNAVAILABLE', 'MSG117'];
+    const shippingErrors = ['SHIPPING_RATE_UNAVAILABLE', 'PICKUP_ADDRESS_MISSING', 'MSG117'];
     const pointsErrors = ['POINTS_INVALID', 'POINT_POLICY_UNAVAILABLE'];
     const trustedCatalog = 'goship-v2';
 
@@ -1268,7 +1268,7 @@
 
           // Step 11: changed price/fee, expired summary or a Goship failure on the re-quote sends the
           // customer back to the recalculated summary (Steps 4-7).
-          if (['MSG88', 'MSG118', 'QUOTE_EXPIRED', 'MSG117', 'SHIPPING_RATE_UNAVAILABLE'].includes(res.code)) {
+          if (['MSG88', 'MSG118', 'QUOTE_EXPIRED', 'MSG117', 'SHIPPING_RATE_UNAVAILABLE', 'PICKUP_ADDRESS_MISSING'].includes(res.code)) {
             closeConfirmModal();
             triggerQuoteDebounced();
           }

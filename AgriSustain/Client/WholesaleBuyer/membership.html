@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gói hội viên B2B - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .mb-page { padding: 24px 32px; max-width: 1200px; margin: 0 auto; }
+    .mb-sub { color: #6b7f72; margin: 4px 0 18px; }
+    .mb-alert { padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 14px; display: none; }
+    .mb-alert.show { display: block; }
+    .mb-alert.warn { background: #fff8e6; border: 1px solid #f0d58a; color: #7a5b00; }
+    .mb-alert.error { background: #fdecea; border: 1px solid #f3b8b1; color: #8e2a1f; }
+    .mb-alert.info { background: #e8f1e9; border: 1px solid #b9d6c0; color: #225d3e; }
+    .mb-current { background: #fff; border: 1px solid #e0e7e0; border-radius: 12px; padding: 18px;
+      display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin-bottom: 18px; }
+    .mb-current h2 { margin: 0 0 6px; color: #18593e; font-size: 18px; }
+    .mb-row { font-size: 13px; color: #3c5a4a; margin: 3px 0; }
+    .mb-switch { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+    .mb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+    .mb-tier { background: #fff; border: 1px solid #e0e7e0; border-radius: 12px; padding: 18px;
+      display: flex; flex-direction: column; gap: 8px; }
+    .mb-tier.current { border: 2px solid #1e6546; }
+    .mb-tier h3 { margin: 0; color: #18593e; }
+    .mb-price { font-size: 22px; font-weight: 750; color: #213b32; }
+    .mb-price small { font-size: 13px; color: #6b7f72; font-weight: 500; }
+    .mb-tier ul { margin: 4px 0; padding-left: 18px; font-size: 13px; color: #3c5a4a; }
+    .mb-tier li.no { color: #9aa59e; text-decoration: line-through; }
+    .mb-tier button { margin-top: auto; }
+    .mb-tag { align-self: flex-start; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 9px;
+      background: #e8f1e9; color: #225d3e; }
+    .mb-modal { position: fixed; inset: 0; background: rgba(20, 40, 30, .45); display: none;
+      align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+    .mb-modal.open { display: flex; }
+    .mb-box { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; padding: 22px; display: grid; gap: 10px; }
+    .mb-box h2 { margin: 0; color: #18593e; font-size: 18px; }
+    .mb-qr { display: flex; justify-content: center; }
+    .mb-qr img { width: 240px; height: 240px; border: 1px solid #e0e7e0; border-radius: 10px; }
+    .mb-kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 10px; font-size: 13px; }
+    .mb-kv b { word-break: break-all; }
+    .mb-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    @media (max-width: 640px) { .mb-page { padding: 16px; } .mb-current { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+    <div class="workspace">
+      <header id="app-header"></header>
+      <main>
+        <div class="mb-page">
+          <p class="eyebrow">MUA BUÔN B2B</p>
+          <h1 style="margin:0;">Gói hội viên B2B</h1>
+          <p class="mb-sub">Chọn gói để mở quyền liên hệ trực tiếp nông trại, tải mẫu hợp đồng và tăng hạn mức giao dịch.</p>
+
+          <div id="mb-alert" class="mb-alert"></div>
+          <section id="mb-current"></section>
+          <h2 style="font-size:16px; margin:8px 0 12px;">Các gói đang mở bán</h2>
+          <div id="mb-tiers" class="mb-grid"></div>
+        </div>
+      </main>
+      <footer>Nền tảng AgriSustain · UC-WB-08 Quản lý gói hội viên</footer>
+    </div>
+  </div>
+
+  <!-- Confirm downgrade (AF13) -->
+  <div id="mb-confirm" class="mb-modal" role="dialog" aria-modal="true" aria-labelledby="mb-confirm-title">
+    <div class="mb-box">
+      <h2 id="mb-confirm-title">Xác nhận đổi sang gói thấp hơn</h2>
+      <p id="mb-confirm-msg" class="mb-row"></p>
+      <div class="mb-actions">
+        <button type="button" id="mb-confirm-no">Hủy</button>
+        <button type="button" class="primary" id="mb-confirm-yes">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SePay / VietQR payment (Step 7-9, AF3-AF6) -->
+  <div id="mb-pay" class="mb-modal" role="dialog" aria-modal="true" aria-labelledby="mb-pay-title">
+    <div class="mb-box">
+      <h2 id="mb-pay-title">Thanh toán gói hội viên</h2>
+      <p id="mb-pay-msg" class="mb-row"></p>
+      <div class="mb-qr"><img id="mb-qr-img" alt="Mã QR thanh toán SePay"></div>
+      <div class="mb-kv">
+        <span>Ngân hàng</span><b id="mb-bank"></b>
+        <span>Số tài khoản</span><b id="mb-acc"></b>
+        <span>Chủ tài khoản</span><b id="mb-owner"></b>
+        <span>Số tiền</span><b id="mb-amount"></b>
+        <span>Nội dung CK</span><b id="mb-ref"></b>
+        <span>Hết hạn sau</span><b id="mb-timer"></b>
+      </div>
+      <div id="mb-pay-status" class="mb-alert"></div>
+      <div class="mb-actions">
+        <button type="button" id="mb-pay-close">Đóng</button>
+        <button type="button" class="primary" id="mb-pay-retry" style="display:none;">Thanh toán lại</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+  (function () {
+    const $ = id => document.getElementById(id);
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const money = v => `${Number(v).toLocaleString('vi-VN')} ₫`;
+    const day = v => new Date(v.endsWith('Z') ? v : v + 'Z').toLocaleDateString('vi-VN');
+    let overview = null, pending = null, pollTimer = null, tickTimer = null;
+
+    function alertBox(el, msg, type) {
+      el.textContent = msg || '';
+      el.className = msg ? `mb-alert show ${type}` : 'mb-alert';
+    }
+
+    function renderCurrent() {
+      const c = overview.current, s = overview.scheduled;
+      if (!c) {
+        $('mb-current').innerHTML = `<div class="mb-current"><div><h2>Chưa có gói hội viên đang hiệu lực</h2>
+          <p class="mb-row">Chọn một gói bên dưới để bắt đầu.</p></div></div>`;
+      } else {
+        $('mb-current').innerHTML = `<div class="mb-current">
+          <div>
+            <h2>Gói hiện tại: ${esc(c.packageName)}</h2>
+            <p class="mb-row">Hiệu lực: <b>${day(c.startDate)} – ${day(c.endDate)}</b> · còn <b>${c.daysLeft}</b> ngày</p>
+            <p class="mb-row">Liên hệ trực tiếp nông trại: <b>${c.unlocksFarmerDirectContact ? 'Có' : 'Không'}</b> ·
+              Tải mẫu hợp đồng: <b>${c.canDownloadContractTemplate ? 'Có' : 'Không'}</b> ·
+              Hạn mức giao dịch: <b>${c.transactionLimit ?? 'Không giới hạn'}</b></p>
+            ${s ? `<p class="mb-row">⏳ Gói <b>${esc(s.packageName)}</b> sẽ có hiệu lực từ <b>${day(s.startDate)}</b>
+              <button type="button" id="mb-cancel-scheduled" style="margin-left:8px; padding:4px 10px;">Hủy thay đổi</button></p>` : ''}
+          </div>
+          <label class="mb-switch" title="Nhắc gia hạn qua email 7 ngày và 1 ngày trước khi hết hạn">
+            <input type="checkbox" id="mb-auto" ${c.autoRenew ? 'checked' : ''}> Nhắc gia hạn tự động
+          </label>
+        </div>`;
+        $('mb-auto').onchange = e => setAutoRenew(e.target.checked);
+        if (s) $('mb-cancel-scheduled').onclick = cancelScheduled;
+      }
+    }
+
+    const ACTION_LABEL = { Subscribe: 'Đăng ký', Renew: 'Gia hạn', Upgrade: 'Nâng cấp', Downgrade: 'Đổi sang gói này', Current: 'Đang sử dụng', Scheduled: 'Đã hẹn đổi' };
+
+    function renderTiers() {
+      if (!overview.tiers.length) {
+        $('mb-tiers').innerHTML = `<div class="mb-tier" style="grid-column:1/-1; text-align:center;">${esc(overview.emptyMessage)}</div>`;
+        return;
+      }
+      $('mb-tiers').innerHTML = overview.tiers.map(t => {
+        const disabled = t.action === 'Current' || t.action === 'Scheduled';
+        return `<article class="mb-tier ${t.action === 'Current' || t.action === 'Renew' ? 'current' : ''}">
+          ${t.action === 'Current' || t.action === 'Renew' ? '<span class="mb-tag">Gói của bạn</span>' : ''}
+          <h3>${esc(t.packageName)}</h3>
+          <div class="mb-price">${t.price > 0 ? money(t.price) : 'Miễn phí'} <small>/ ${t.durationDays} ngày</small></div>
+          ${t.packageDescription ? `<p class="mb-row">${esc(t.packageDescription)}</p>` : ''}
+          <ul>
+            <li class="${t.unlocksFarmerDirectContact ? '' : 'no'}">Xem SĐT/Email nông trại</li>
+            <li class="${t.canDownloadContractTemplate ? '' : 'no'}">Tải mẫu hợp đồng bao tiêu</li>
+            <li>Hạn mức: ${t.transactionLimit != null ? `${t.transactionLimit} giao dịch/kỳ` : 'không giới hạn'}</li>
+          </ul>
+          <button type="button" class="${disabled ? '' : 'primary'}" data-id="${t.packageId}" data-action="${t.action}" ${disabled ? 'disabled' : ''}>
+            ${ACTION_LABEL[t.action] || 'Chọn gói'}</button>
+        </article>`;
+      }).join('');
+    }
+
+    async function load() {
+      const res = await API.request('/b2b/subscription', { suppressErrorToast: true });
+      if (!res.success) {
+        alertBox($('mb-alert'), res.error, 'error');
+        $('mb-current').innerHTML = ''; $('mb-tiers').innerHTML = '';
+        if (res.status === 403) $('mb-alert').innerHTML += ' <a href="profile.html">Đi tới Hồ sơ doanh nghiệp →</a>';
+        return;
+      }
+      overview = res.data;
+      alertBox($('mb-alert'), overview.message, 'warn'); // AF11: MSG37
+      renderCurrent();
+      renderTiers();
+    }
+
+    async function purchase(packageId, confirmDowngrade) {
+      const autoRenew = overview.current ? overview.current.autoRenew : false;
+      const res = await API.request('/b2b/subscription/purchase', {
+        method: 'POST', body: { packageId: Number(packageId), autoRenew, confirmDowngrade: !!confirmDowngrade },
+        suppressErrorToast: true
+      });
+      if (!res.success) {
+        if (res.code === 'DOWNGRADE_CONFIRM_REQUIRED') {
+          $('mb-confirm-msg').textContent = res.error + ' Gói hiện tại vẫn giữ nguyên đến hết hạn.';
+          $('mb-confirm-yes').onclick = () => { $('mb-confirm').classList.remove('open'); purchase(packageId, true); };
+          $('mb-confirm').classList.add('open');
+          return;
+        }
+        alertBox($('mb-alert'), res.error, 'error');
+        if (res.code === 'TIER_UNAVAILABLE') load(); // AF2: refresh the tier list
+        return;
+      }
+      const d = res.data;
+      if (d.status === 'PaymentRequired') { openPayment(d.payment, d.message, packageId); return; }
+      Utils.showToast(d.message, 'success');
+      alertBox($('mb-alert'), d.message, 'info');
+      load();
+    }
+
+    function openPayment(p, msg, packageId) {
+      pending = { ...p, packageId };
+      $('mb-pay-msg').textContent = msg;
+      $('mb-qr-img').src = p.qrUrl;
+      $('mb-bank').textContent = p.bankName;
+      $('mb-acc').textContent = p.accountNumber;
+      $('mb-owner').textContent = p.accountName;
+      $('mb-amount').textContent = money(p.amount);
+      $('mb-ref').textContent = p.reference;
+      $('mb-pay-retry').style.display = 'none';
+      alertBox($('mb-pay-status'), 'Đang chờ xác nhận thanh toán từ ngân hàng...', 'info');
+      $('mb-pay').classList.add('open');
+      startTimers();
+    }
+
+    function stopTimers() { clearInterval(pollTimer); clearInterval(tickTimer); pollTimer = tickTimer = null; }
+
+    function startTimers() {
+      stopTimers();
+      const end = new Date(pending.expiresAt.endsWith('Z') ? pending.expiresAt : pending.expiresAt + 'Z').getTime();
+      const tick = () => {
+        const left = Math.max(0, Math.floor((end - Date.now()) / 1000));
+        $('mb-timer').textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+      };
+      tick();
+      tickTimer = setInterval(tick, 1000);
+      pollTimer = setInterval(poll, 4000);
+    }
+
+    // Step 9: only the server (webhook) confirms the payment; the screen polls its status.
+    async function poll() {
+      if (!pending) return;
+      const res = await API.request(`/b2b/subscription/payments/${encodeURIComponent(pending.reference)}`, { suppressErrorToast: true });
+      if (!res.success) return;
+      const d = res.data;
+      if (d.status === 'Pending') return;
+      stopTimers();
+      if (d.status === 'Success') {
+        alertBox($('mb-pay-status'), d.message, 'info');
+        Utils.showToast(d.message, 'success'); // MSG36
+        setTimeout(() => { $('mb-pay').classList.remove('open'); load(); }, 1500);
+        return;
+      }
+      alertBox($('mb-pay-status'), d.message, 'error'); // MSG112-115
+      $('mb-pay-retry').style.display = d.status === 'Expired' ? '' : 'none';
+    }
+
+    async function setAutoRenew(value) {
+      const res = await API.request('/b2b/subscription/auto-renew', { method: 'PUT', body: { autoRenew: value }, suppressErrorToast: true });
+      if (!res.success) { alertBox($('mb-alert'), res.error, 'error'); $('mb-auto').checked = !value; return; }
+      overview.current = res.data;
+      Utils.showToast(value ? 'Đã bật nhắc gia hạn: email sẽ gửi 7 ngày và 1 ngày trước khi hết hạn.'
+        : 'Đã tắt nhắc gia hạn. Gói hiện tại vẫn hiệu lực đến ngày hết hạn.', 'success');
+    }
+
+    async function cancelScheduled() {
+      const res = await API.request('/b2b/subscription/scheduled', { method: 'DELETE', suppressErrorToast: true });
+      if (!res.success) { alertBox($('mb-alert'), res.error, 'error'); return; }
+      overview = res.data;
+      Utils.showToast('Đã hủy thay đổi gói.', 'success');
+      renderCurrent(); renderTiers();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      $('mb-tiers').addEventListener('click', e => {
+        const b = e.target.closest('button[data-id]');
+        if (b && !b.disabled) purchase(b.dataset.id, false);
+      });
+      $('mb-confirm-no').onclick = () => $('mb-confirm').classList.remove('open');
+      $('mb-pay-close').onclick = () => { stopTimers(); $('mb-pay').classList.remove('open'); load(); };
+      $('mb-pay-retry').onclick = () => { stopTimers(); $('mb-pay').classList.remove('open'); purchase(pending.packageId, true); };
+      load();
+    });
+  })();
+  </script>
+</body>
+</html>

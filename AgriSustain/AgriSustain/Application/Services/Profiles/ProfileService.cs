@@ -141,22 +141,18 @@ public sealed class ProfileService(
             return Result<UserProfileResponse>.FailureResult(error);
         }
 
-        // UC-RC-02 Step 5: the farm's pickup address uses the same Goship catalog as checkout.
-        if (!string.IsNullOrWhiteSpace(request.PickupProvinceCode) || !string.IsNullOrWhiteSpace(request.PickupDistrictCode))
+        // UC-AUTH-03 Step 3 / UC-RC-02 Step 5: the pickup address (required by the validator above)
+        // must exist in the same Goship catalogue as checkout.
         {
-            var pickup = string.IsNullOrWhiteSpace(request.PickupProvinceCode) || string.IsNullOrWhiteSpace(request.PickupDistrictCode)
-                ? null
-                : await addressCatalog.NormalizeAsync(new CheckoutAddress(request.FullName, request.PhoneNumber,
+            var pickup = await addressCatalog.NormalizeAsync(new CheckoutAddress(request.FullName, request.PhoneNumber,
                     request.PickupProvinceCode, "", request.PickupDistrictCode, "", request.PickupWardCode ?? "", "",
                     request.Address), cancellationToken);
             if (pickup == null)
             {
-                return Result<UserProfileResponse>.FailureResult(new Error("PICKUP_ADDRESS_INVALID",
-                    "Địa chỉ lấy hàng không hợp lệ. Vui lòng chọn lại tỉnh/thành, quận/huyện và phường/xã.",
-                    Fields: new Dictionary<string, string[]>
-                    {
-                        ["PickupDistrictCode"] = ["Hãy chọn tỉnh/thành và quận/huyện lấy hàng."]
-                    }));
+                // MSG-CO-01
+                const string invalidPickup = "Tỉnh/thành, quận/huyện hoặc phường/xã đã chọn không hợp lệ. Vui lòng chọn lại địa chỉ.";
+                return Result<UserProfileResponse>.FailureResult(new Error("PICKUP_ADDRESS_INVALID", invalidPickup,
+                    Fields: new Dictionary<string, string[]> { ["pickupAddress"] = [invalidPickup] }));
             }
             request = request with
             {

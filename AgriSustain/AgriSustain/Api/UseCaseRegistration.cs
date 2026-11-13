@@ -79,6 +79,7 @@ public static class UseCaseRegistration
         services.AddScoped<IOrderFeeService, AgriSustain.Application.Services.Finance.OrderFeeService>();
         services.AddScoped<IKycVerificationService, KycVerificationService>();
         services.AddScoped<ICheckoutService, CheckoutService>();
+        services.AddScoped<IOfftakeService, OfftakeService>();
         services.AddScoped<ReservationExpiryService>();
         services.AddScoped<IAuthorizationHandler, ActiveAccountHandler>();
         services.AddAuthorization(options =>
@@ -88,6 +89,10 @@ public static class UseCaseRegistration
                 .AddRequirements(new ActiveAccountRequirement()));
             options.AddPolicy("RetailCustomer", policy => policy.RequireAuthenticatedUser()
                 .RequireRole("RetailCustomer").AddRequirements(new ActiveAccountRequirement()));
+            options.AddPolicy("WholesaleBuyer", policy => policy.RequireAuthenticatedUser()
+                .RequireRole("WholesaleBuyer").AddRequirements(new ActiveAccountRequirement()));
+            options.AddPolicy("FarmerOfftake", policy => policy.RequireAuthenticatedUser()
+                .RequireRole("Farmer").AddRequirements(new ActiveAccountRequirement()));
         });
         if (configuration.GetValue<bool>("Checkout:EnableExpiryWorker"))
         {

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản lý hợp đồng Offtake - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/offtake.css">
+</head>
+<body class="offtake offtake-tracking">
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+    <div class="workspace">
+      <header id="app-header"></header>
+      <main class="offtake-main">
+        <nav class="offtake-crumb" aria-label="Đường dẫn"><a href="dashboard.html">Trang chủ</a> › B2B › Hợp đồng Offtake</nav>
+        <div class="offtake-heading">
+          <div>
+            <h1>Quản lý hợp đồng Offtake</h1>
+            <p class="muted">Theo dõi tiến độ hợp đồng Offtake, các mốc giao hàng và hóa đơn.</p>
+          </div>
+          <a class="offtake-button" href="offtake-proposal.html">＋ Tạo hợp đồng mới</a>
+        </div>
+        <p id="tracking-notice" class="offtake-notice" role="status" hidden></p>
+        <div class="offtake-stats" id="tracking-stats"></div>
+        <section class="panel offtake-card">
+          <div class="offtake-heading">
+            <h2>Bộ lọc tìm kiếm</h2>
+            <button type="button" id="export-list" disabled>Xuất danh sách CSV</button>
+          </div>
+          <form id="tracking-filters" class="offtake-filters">
+            <label>Tìm kiếm <input name="keyword" type="search" maxlength="100" placeholder="Mã hồ sơ, tên đối tác"></label>
+            <label>Trạng thái <select name="status" id="tracking-status"><option value="">Tất cả</option></select></label>
+            <label>Sản phẩm <input name="product" type="search" maxlength="100" placeholder="Tên sản phẩm"></label>
+            <label>Tạo từ ngày <input type="date" name="from"></label>
+            <label>Đến ngày <input type="date" name="to"></label>
+            <button class="primary" type="submit">Tìm kiếm</button>
+          </form>
+        </section>
+        <section class="panel offtake-card">
+          <h2>Danh sách hợp đồng Offtake</h2>
+          <p id="tracking-result" role="status"></p>
+          <button type="button" id="tracking-retry" hidden>Thử lại</button>
+          <div class="offtake-table-wrap" id="tracking-list" hidden>
+            <table>
+              <thead><tr>
+                <th>#</th><th>Mã hợp đồng</th><th>Đối tác</th><th>Sản phẩm</th>
+                <th>Khối lượng</th><th>Giá trị</th><th>Ngày tạo</th><th>Thời gian giao hàng</th>
+                <th>Trạng thái</th><th class="offtake-action-cell" scope="col">Thao tác</th>
+              </tr></thead>
+              <tbody id="tracking-rows"></tbody>
+            </table>
+          </div>
+          <div class="offtake-pagination" id="tracking-pagination" hidden>
+            <nav id="tracking-pages" aria-label="Phân trang"></nav>
+            <label>Số hồ sơ mỗi trang <select id="tracking-page-size">
+              <option value="10">10 / trang</option><option value="20">20 / trang</option><option value="50">50 / trang</option>
+            </select></label>
+          </div>
+        </section>
+        <dialog class="offtake-detail" id="tracking-detail" aria-labelledby="tracking-detail-title">
+          <div class="offtake-heading offtake-detail-toolbar">
+            <h2 id="tracking-detail-title">Chi tiết theo dõi</h2>
+            <div class="offtake-actions">
+              <a id="revision-offtake" class="offtake-button" hidden>Xem đề xuất sửa đổi</a>
+              <button type="button" id="download-offtake" hidden>Tải xuống PDF</button>
+              <form method="dialog"><button type="submit" aria-label="Đóng chi tiết">Đóng</button></form>
+            </div>
+          </div>
+          <p id="tracking-pdf-notice" class="offtake-notice" role="status" hidden></p>
+          <div id="tracking-detail-content"></div>
+        </dialog>
+        <dialog class="offtake-detail offtake-cancel-dialog" id="contract-cancel"
+          aria-labelledby="contract-cancel-title" aria-describedby="contract-cancel-description">
+          <h2 id="contract-cancel-title">Hủy hợp đồng</h2>
+          <p id="contract-cancel-description"></p>
+          <p id="contract-cancel-notice" class="offtake-notice" role="status" hidden></p>
+          <form method="dialog" class="offtake-actions">
+            <button type="submit" id="contract-cancel-back" autofocus>Quay lại</button>
+            <button type="button" id="contract-cancel-confirm" class="offtake-danger">
+              Xác nhận hủy
+            </button>
+          </form>
+        </dialog>
+      </main>
+    </div>
+  </div>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script type="module" src="../js/offtake-tracking.js"></script>
+</body>
+</html>

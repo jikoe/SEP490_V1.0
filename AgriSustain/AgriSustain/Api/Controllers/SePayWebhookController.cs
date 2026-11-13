@@ -1,8 +1,10 @@
+using AgriSustain.Application.Services;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AgriSustain.Application.Interfaces;
 using AgriSustain.Infrastructure.Payments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,8 +19,10 @@ namespace AgriSustain.Api.Controllers;
 [AllowAnonymous]
 public sealed class SePayWebhookController(
     BankTransferReconciler reconciler,
+    IEnumerable<IBankTransferHandler> transferHandlers,
     IConfiguration configuration,
-    ILogger<SePayWebhookController> logger) : ControllerBase
+    ILogger<SePayWebhookController> logger,
+    FinanceFarmerPayoutService? payoutService = null) : ControllerBase
 {
     private const string Gateway = "SePay";
     private static readonly TimeSpan VietnamOffset = TimeSpan.FromHours(7);
@@ -59,9 +63,36 @@ public sealed class SePayWebhookController(
             return BadRequest(new { success = false, message = "Invalid payload" });
         }
 
+        if (string.Equals(payload.TransferType, "out", StringComparison.OrdinalIgnoreCase))
+        {
+            // Outgoing payouts require a configured key even when legacy checkout uses development fallback.
+            if (payoutService == null || !payoutService.AuthenticateWebhook(
+                Request.Headers.Authorization.ToString(), Request.Headers["x-api-key"].ToString())) return Unauthorized();
+            var transfer = PayoutWebhookReader.Read(payload);
+            if (transfer == null) return BadRequest(new { success = false });
+            await payoutService.RecordOutgoingAsync(transfer, cancellationToken);
+            return Ok(new { success = true });
+        }
         if (!string.Equals(payload.TransferType, "in", StringComparison.OrdinalIgnoreCase))
         {
             return Ok(new { success = true });
+        }
+
+        // B2B payments (UC-WB-08 "SUB...", UC-FIN-06 "HD...") are claimed by their own handlers first.
+        var incoming = new IncomingBankTransfer(
+            Gateway,
+            $"SEPAY-{id}",
+            payload.TransferAmount,
+            ParseVietnamTime(payload.TransactionDate),
+            payload.ReferenceCode,
+            JsonSerializer.Serialize(payload),
+            [payload.Code, payload.Content, payload.Description]);
+        foreach (var handler in transferHandlers)
+        {
+            if (await handler.TryHandleAsync(incoming, cancellationToken))
+            {
+                return Ok(new { success = true });
+            }
         }
 
         await reconciler.RecordAsync(new BankTransfer(
@@ -166,4 +197,3 @@ public sealed class SePayWebhookPayload
     [JsonPropertyName("referenceCode")]
     public string? ReferenceCode { get; set; }
 }
-
