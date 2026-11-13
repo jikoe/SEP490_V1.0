@@ -7,6 +7,10 @@ namespace AgriSustain.Application.Validators.Administration;
 /// <summary>BR-ST-01: MSG02 for a missing value, MSG08 for a value over its maximum length.</summary>
 public sealed class SubscriptionTierValidator : AbstractValidator<SubscriptionTierRequest>
 {
+    /// <summary>
+    /// BR-ST-01: name required and at most 100 characters (MSG02 / MSG08); description at most 500; duration 1–3650
+    /// days; price a whole VND amount from 0 up to below 10 billion; transaction limit empty (unlimited) or above 0.
+    /// </summary>
     public SubscriptionTierValidator()
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Trường Tên gói là bắt buộc.")
