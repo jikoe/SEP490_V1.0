@@ -9,6 +9,9 @@ namespace AgriSustain.Infrastructure.Repositories;
 
 public sealed class RefundRepository : IRefundRepository
 {
+    /// <summary>
+    /// RequestKey prefix of a refund created because a Farmer rejected a paid order: "farmer-reject:{sellerOrderId}:…".
+    /// </summary>
     private const string FarmerRejectKeyPrefix = "farmer-reject:";
 
     /// <summary>Refund states that hold part of a payment or seller order (BR-CS-04).</summary>
@@ -18,15 +21,30 @@ public sealed class RefundRepository : IRefundRepository
         RefundTransaction.StatusFailed, RefundTransaction.StatusNeedsReconciliation, "Success", "Succeeded"
     ];
 
+    /// <summary>
+    /// Date filters are entered in Vietnam time (UTC+7) and converted to UTC for the query.
+    /// </summary>
     private static readonly TimeSpan s_vietnamOffset = TimeSpan.FromHours(7);
 
     private readonly AgriSustainContext _context;
 
+    /// <summary>
+    /// Receives the EF Core context of the current request.
+    /// </summary>
+    /// <param name="context">Database context.</param>
     public RefundRepository(AgriSustainContext context)
     {
         _context = context;
     }
 
+    /// <summary>
+    /// Builds the list query: status and method are exact matches; the keyword is contained in the refund code,
+    /// payment code, order code or seller-order code, or equals the complaint id; the date range is applied to the
+    /// creation time in Vietnam days. No tracking; one COUNT and one page query.
+    /// </summary>
+    /// <param name="query">Normalized filters and paging.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Total matches and the page.</returns>
     public async Task<(int Total, IReadOnlyList<RefundListItemDto> Items)> SearchAsync(
         RefundQuery query,
         CancellationToken cancellationToken)
@@ -104,6 +122,14 @@ public sealed class RefundRepository : IRefundRepository
         return (total, items);
     }
 
+    /// <summary>
+    /// Loads the refund with its payment, complaint or rejected seller order and customer, works out the refund type
+    /// (Full / Partial / Cancellation), the remaining balances, the readiness flags (can start transfer, needs customer
+    /// account, last reminder) and merges the source events with the history rows.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The detail, or null when the refund does not exist.</returns>
     public async Task<RefundDetailDto?> GetDetailAsync(
         long refundId,
         CancellationToken cancellationToken)
@@ -215,9 +241,22 @@ public sealed class RefundRepository : IRefundRepository
             LastAt(history, RefundProcessingActions.AccountReminder));
     }
 
+    /// <summary>
+    /// Latest time of a given action in the history.
+    /// </summary>
+    /// <param name="history">History rows.</param>
+    /// <param name="action">Action name.</param>
+    /// <returns>The time, or null when it never happened.</returns>
     private static DateTime? LastAt(IEnumerable<RefundAttemptDto> history, string action) =>
         history.Where(entry => entry.Action == action).Select(entry => (DateTime?)entry.OccurredAt).Max();
 
+    /// <summary>
+    /// Time of the latest history row with this action for the refund, or null.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="action">History action name.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Latest OccurredAt, or null.</returns>
     public Task<DateTime?> GetLastActionAtAsync(
         long refundId,
         string action,
@@ -230,6 +269,8 @@ public sealed class RefundRepository : IRefundRepository
     /// BR-RF-04 rows recorded on the complaint rather than the refund: the request created by the
     /// decision and the receiving account snapshotted at that time (actor shown as System).
     /// </summary>
+    /// <param name="refund">Refund with its complaint loaded.</param>
+    /// <returns>Zero, one or two synthetic history rows.</returns>
     private static IEnumerable<RefundAttemptDto> SourceEvents(RefundTransaction refund)
     {
         var ticket = refund.DisputeTicket;
@@ -248,6 +289,12 @@ public sealed class RefundRepository : IRefundRepository
         }
     }
 
+    /// <summary>
+    /// Read-only lookup of the seller order named in a "farmer-reject:" RequestKey, for the detail view.
+    /// </summary>
+    /// <param name="refund">Refund to inspect.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The seller order, or null for other refund sources.</returns>
     private Task<SellerOrder?> FarmerRejectedSellerOrderAsync(
         RefundTransaction refund,
         CancellationToken cancellationToken)
@@ -264,6 +311,14 @@ public sealed class RefundRepository : IRefundRepository
             : Task.FromResult<SellerOrder?>(null);
     }
 
+    /// <summary>
+    /// Loads the tracked graph an action changes: the refund, its payment with all refunds, and for a complaint the
+    /// ticket, seller order, farm, sibling complaints, parent order with its seller orders and payments. Split queries
+    /// keep the joins small.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Tracked refund, or null.</returns>
     public Task<RefundTransaction?> GetForProcessingAsync(
         long refundId,
         CancellationToken cancellationToken)
@@ -291,6 +346,12 @@ public sealed class RefundRepository : IRefundRepository
             .SingleOrDefaultAsync(refund => refund.RefundTransactionId == refundId, cancellationToken);
     }
 
+    /// <summary>
+    /// Tracked seller order (with order and farm) of a Farmer-rejection refund; null for complaint refunds.
+    /// </summary>
+    /// <param name="refund">Refund whose RequestKey names the seller order.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The seller order, or null.</returns>
     public Task<SellerOrder?> GetFarmerRejectedSellerOrderAsync(
         RefundTransaction refund,
         CancellationToken cancellationToken)
@@ -309,6 +370,12 @@ public sealed class RefundRepository : IRefundRepository
             .SingleOrDefaultAsync(sellerOrder => sellerOrder.SellerOrderId == sellerOrderId, cancellationToken);
     }
 
+    /// <summary>
+    /// Checks GatewayReference across all refunds.
+    /// </summary>
+    /// <param name="transferReference">Bank transaction ID.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>True when already used.</returns>
     public Task<bool> TransferReferenceExistsAsync(
         string transferReference,
         CancellationToken cancellationToken)
@@ -317,16 +384,28 @@ public sealed class RefundRepository : IRefundRepository
             .AnyAsync(refund => refund.GatewayReference == transferReference, cancellationToken);
     }
 
+    /// <summary>
+    /// Adds the history row to the context.
+    /// </summary>
+    /// <param name="audit">New row.</param>
     public void AddAudit(AuditLog audit)
     {
         _context.AuditLogs.Add(audit);
     }
 
+    /// <summary>
+    /// Adds the notification row to the context.
+    /// </summary>
+    /// <param name="notification">New row.</param>
     public void AddNotification(Notification notification)
     {
         _context.Notifications.Add(notification);
     }
 
+    /// <summary>
+    /// Runs EF Core SaveChanges: all pending inserts and updates in one transaction.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return _context.SaveChangesAsync(cancellationToken);

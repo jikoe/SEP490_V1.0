@@ -9,8 +9,17 @@ namespace AgriSustain.Infrastructure.BackgroundWorkers;
 public sealed class ComplaintEvidenceTimeoutWorker(IServiceScopeFactory scopes,
     ILogger<ComplaintEvidenceTimeoutWorker> logger) : BackgroundService
 {
+    /// <summary>
+    /// How often the job looks for expired information requests.
+    /// </summary>
     private static readonly TimeSpan s_interval = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// Hosted-service loop (JOB-11): every 5 minutes opens a new DI scope, runs
+    /// <see cref="IComplaintEvidenceTimeoutProcessor.ResolveOverdueAsync"/> and logs how many complaints were decided.
+    /// An error is logged and the next tick retries; the loop only ends when the application stops.
+    /// </summary>
+    /// <param name="stoppingToken">Signalled when the host shuts down.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(s_interval);

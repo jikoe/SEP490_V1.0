@@ -18,11 +18,25 @@ public sealed class ComplaintRepository : IComplaintRepository
 
     private readonly AgriSustainContext _context;
 
+    /// <summary>
+    /// Receives the EF Core context of the current request.
+    /// </summary>
+    /// <param name="context">Database context.</param>
     public ComplaintRepository(AgriSustainContext context)
     {
         _context = context;
     }
 
+    /// <summary>
+    /// Builds the list query: status and reason are exact matches; the keyword matches the complaint id (a leading #
+    /// is ignored) or is contained in the seller-order or order code. Undecided complaints come first, then oldest
+    /// first. Each row also carries: overdue flag (an unanswered request past its deadline), the earliest open deadline,
+    /// and whether every request was answered. No tracking; one COUNT and one page query.
+    /// </summary>
+    /// <param name="query">Normalized filters and paging.</param>
+    /// <param name="now">Current UTC time.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Total matches and the page.</returns>
     public async Task<(int Total, IReadOnlyList<ComplaintListItemDto> Items)> SearchAsync(
         ComplaintQuery query,
         DateTime now,
@@ -84,6 +98,11 @@ public sealed class ComplaintRepository : IComplaintRepository
         return (total, items);
     }
 
+    /// <summary>
+    /// SELECT DISTINCT DisputeReason, ordered.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Reason texts.</returns>
     public async Task<IReadOnlyList<string>> GetReasonsAsync(CancellationToken cancellationToken)
     {
         return await _context.DisputeTickets.AsNoTracking()
@@ -93,6 +112,14 @@ public sealed class ComplaintRepository : IComplaintRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Loads the complaint read model: parties, seller order and order references, delivered time, paid and reserved
+    /// amounts, items with their paid value, evidence, evidence requests (with the overdue flag) and refunds.
+    /// </summary>
+    /// <param name="ticketId">Complaint id.</param>
+    /// <param name="now">Current UTC time.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The detail with MaxRefundAmount = 0, or null.</returns>
     public async Task<ComplaintDetailDto?> GetDetailAsync(
         long ticketId,
         DateTime now,
@@ -222,6 +249,12 @@ public sealed class ComplaintRepository : IComplaintRepository
             detail.Refunds);
     }
 
+    /// <summary>
+    /// Loads the tracked entity graph a decision changes, so the service can modify it and save once.
+    /// </summary>
+    /// <param name="ticketId">Complaint id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Tracked complaint, or null.</returns>
     public Task<DisputeTicket?> GetForDecisionAsync(
         long ticketId,
         CancellationToken cancellationToken)
@@ -245,6 +278,15 @@ public sealed class ComplaintRepository : IComplaintRepository
             .SingleOrDefaultAsync(ticket => ticket.DisputeTicketId == ticketId, cancellationToken);
     }
 
+    /// <summary>
+    /// Ids of WaitingCustomerInfo complaints of a seller order that have at least one open request and whose open
+    /// requests are all overdue (DueAt earlier than now, or RequestedAt older than the window when DueAt is missing).
+    /// </summary>
+    /// <param name="now">Current UTC time.</param>
+    /// <param name="responseWindow">Fallback window.</param>
+    /// <param name="take">Batch size.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Ids ordered by the earliest deadline.</returns>
     public async Task<IReadOnlyList<long>> GetOverdueTicketIdsAsync(
         DateTime now,
         TimeSpan responseWindow,
@@ -273,6 +315,13 @@ public sealed class ComplaintRepository : IComplaintRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Reads FileUrl of the evidence only when it belongs to the complaint, so an id from another complaint returns null.
+    /// </summary>
+    /// <param name="ticketId">Complaint id.</param>
+    /// <param name="evidenceId">Evidence id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>URL or null.</returns>
     public Task<string?> GetEvidenceFileUrlAsync(
         long ticketId,
         long evidenceId,
@@ -285,6 +334,12 @@ public sealed class ComplaintRepository : IComplaintRepository
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Active users whose role is in the list.
+    /// </summary>
+    /// <param name="roles">Role names.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>User ids.</returns>
     public async Task<IReadOnlyList<long>> GetActiveUserIdsByRolesAsync(
         IReadOnlyCollection<string> roles,
         CancellationToken cancellationToken)
@@ -295,6 +350,12 @@ public sealed class ComplaintRepository : IComplaintRepository
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// The user's default bank account.
+    /// </summary>
+    /// <param name="userId">User id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Account or null.</returns>
     public Task<UserBankAccount?> GetDefaultBankAccountAsync(
         long userId,
         CancellationToken cancellationToken)
@@ -303,21 +364,37 @@ public sealed class ComplaintRepository : IComplaintRepository
             .FirstOrDefaultAsync(account => account.UserId == userId && account.IsDefault, cancellationToken);
     }
 
+    /// <summary>
+    /// Adds the refund to the context (inserted on save).
+    /// </summary>
+    /// <param name="refund">New refund.</param>
     public void AddRefund(RefundTransaction refund)
     {
         _context.RefundTransactions.Add(refund);
     }
 
+    /// <summary>
+    /// Adds the audit row to the context.
+    /// </summary>
+    /// <param name="audit">New audit row.</param>
     public void AddAudit(AuditLog audit)
     {
         _context.AuditLogs.Add(audit);
     }
 
+    /// <summary>
+    /// Adds the notification row to the context.
+    /// </summary>
+    /// <param name="notification">New notification.</param>
     public void AddNotification(Notification notification)
     {
         _context.Notifications.Add(notification);
     }
 
+    /// <summary>
+    /// Runs EF Core SaveChanges: all pending inserts and updates in one transaction.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         return _context.SaveChangesAsync(cancellationToken);

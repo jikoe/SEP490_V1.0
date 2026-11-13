@@ -10,10 +10,16 @@ public partial class SellerOrder
     public const string StatusRefunded = "Refunded";
     public const string StatusPartiallyRefunded = "PartiallyRefunded";
 
+    /// <summary>
+    /// Refunds of this seller order that still hold money: requested, in transfer or completed (BR-CS-04).
+    /// </summary>
     public decimal ReservedRefundAmount => ComplaintRefunds()
         .Where(refund => refund.ReservesPayment)
         .Sum(refund => refund.Amount);
 
+    /// <summary>
+    /// Refunds of this seller order already transferred; decides Refunded vs Partially Refunded.
+    /// </summary>
     public decimal CompletedRefundAmount => ComplaintRefunds()
         .Where(refund => refund.RefundStatus == RefundTransaction.StatusCompleted)
         .Sum(refund => refund.Amount);
@@ -21,6 +27,13 @@ public partial class SellerOrder
     /// <summary>What the buyer paid for one line: its subtotal less its share of the seller order's discount.</summary>
     public decimal PaidValueOf(OrderItem item) => PaidValue(item.SubTotal, Subtotal, DiscountShare);
 
+    /// <summary>
+    /// Paid value of a line = its subtotal minus its proportional share of the seller order's discount.
+    /// </summary>
+    /// <param name="lineSubtotal">Line subtotal.</param>
+    /// <param name="sellerSubtotal">Seller order subtotal.</param>
+    /// <param name="discountShare">Discount carried by this seller order.</param>
+    /// <returns>Rounded VND amount; the plain subtotal when the seller subtotal is 0.</returns>
     public static decimal PaidValue(decimal lineSubtotal, decimal sellerSubtotal, decimal discountShare) =>
         sellerSubtotal <= 0
             ? lineSubtotal

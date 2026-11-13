@@ -22,6 +22,16 @@ public partial class DisputeTicket
     public bool IsAwaitingDecision =>
         TicketStatus is StatusOpen or StatusUnderReview or StatusWaitingInfo;
 
+    /// <summary>
+    /// Writes the decision on the complaint and closes its open information requests. Throws when the complaint is
+    /// already decided; callers check <see cref="IsAwaitingDecision"/> first, so the exception only guards against bugs.
+    /// </summary>
+    /// <param name="newStatus">Rejected or RefundPending.</param>
+    /// <param name="faultParty">Seller, Buyer or NotDetermined.</param>
+    /// <param name="refundAmount">Approved amount, or null for a rejection.</param>
+    /// <param name="notes">Decision reason.</param>
+    /// <param name="staffUserId">Deciding staff (or the staff of the expired request).</param>
+    /// <param name="now">Decision time (UTC).</param>
     public void RecordDecision(
         string newStatus, string faultParty, decimal? refundAmount, string notes,
         long staffUserId, DateTime now)
@@ -41,6 +51,16 @@ public partial class DisputeTicket
         CloseOpenEvidenceRequests();
     }
 
+    /// <summary>
+    /// Adds an information request for one party with DueAt = now + response window, sets the complaint to
+    /// WaitingCustomerInfo and assigns the staff member.
+    /// </summary>
+    /// <param name="partyUserId">User who must answer.</param>
+    /// <param name="instructions">What to provide.</param>
+    /// <param name="staffUserId">Requesting staff.</param>
+    /// <param name="now">Request time (UTC).</param>
+    /// <param name="responseWindow">Time allowed (48 hours).</param>
+    /// <returns>The new request, already attached to the complaint.</returns>
     public DisputeEvidenceRequest RequestInformation(
         long partyUserId, string instructions, long staffUserId, DateTime now, TimeSpan responseWindow)
     {
@@ -75,12 +95,21 @@ public partial class DisputeTicket
         TicketStatus = StatusClosed;
     }
 
+    /// <summary>
+    /// BR-CS-02 "one open request per party": true while the party has a Pending, unanswered request that is not yet due.
+    /// </summary>
+    /// <param name="partyUserId">Party to check.</param>
+    /// <param name="now">Current UTC time.</param>
+    /// <returns>True when a new request must be refused.</returns>
     public bool HasOpenRequestFor(long partyUserId, DateTime now) =>
         DisputeEvidenceRequests.Any(request => request.RequestedPartyUserId == partyUserId
             && request.RequestStatus == EvidenceRequestPending
             && request.RespondedAt == null
             && (request.DueAt == null || request.DueAt > now));
 
+    /// <summary>
+    /// Marks every still-open request Closed once the complaint is decided.
+    /// </summary>
     private void CloseOpenEvidenceRequests()
     {
         foreach (var request in DisputeEvidenceRequests.Where(request =>

@@ -269,6 +269,10 @@ public sealed class ComplaintResolutionServiceTests
         // MSG182 is sent in-app and by email.
         Assert.All(_store.Notifications, n => Assert.Equal(FarmerUserId, n.UserId));
         Assert.Equal(["Email", "InApp"], _store.Notifications.Select(n => n.DeliveryChannel).Order().ToArray());
+        // The deadline in the message is Vietnam time (UTC+7), not UTC.
+        string dueVietnam = T0.UtcDateTime.AddHours(48 + 7).ToString("dd/MM/yyyy HH:mm");
+        Assert.All(_store.Notifications, n => Assert.Contains($"(hạn {dueVietnam})", n.Content));
+        Assert.All(_store.Notifications, n => Assert.DoesNotContain("UTC", n.Content));
     }
 
     [Fact(DisplayName = "UTC-CS01-10 A second open request to the same party is refused")]

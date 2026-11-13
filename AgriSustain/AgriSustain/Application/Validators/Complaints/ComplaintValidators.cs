@@ -7,6 +7,12 @@ public sealed class ResolveComplaintRequestValidator : AbstractValidator<Resolve
 {
     public const int MaxReasonLength = 1000;
 
+    /// <summary>
+    /// Rules of a decision (BR-CS-03): resolution is FullRefund, PartialRefund or RejectClaim; fault party is Seller,
+    /// Buyer or NotDetermined; reason is required and at most 1,000 characters (MSG-CS-03). Partial refund: at least one
+    /// item, no item twice, each quantity > 0 with at most 3 decimals (MSG-CS-04). Full refund and rejection must not
+    /// send items. Quantity against the delivered quantity is checked later in the service, where the order is loaded.
+    /// </summary>
     public ResolveComplaintRequestValidator()
     {
         RuleFor(x => x.Resolution)
@@ -51,6 +57,9 @@ public sealed class RequestComplaintInfoRequestValidator : AbstractValidator<Req
 {
     public const int MaxInstructionsLength = 1000;
 
+    /// <summary>
+    /// Rules of an information request: party is Buyer or Seller; instructions are required and at most 1,000 characters.
+    /// </summary>
     public RequestComplaintInfoRequestValidator()
     {
         RuleFor(x => x.Party)
