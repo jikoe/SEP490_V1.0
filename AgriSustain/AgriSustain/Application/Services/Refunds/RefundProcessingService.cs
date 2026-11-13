@@ -25,15 +25,39 @@ public sealed class RefundProcessingService(
     TimeProvider timeProvider,
     IOrderFeeService? fees = null) : IRefundProcessingService
 {
+    /// <summary>
+    /// Seller-order status once completed refunds cover its whole paid amount.
+    /// </summary>
     public const string RefundedStatus = SellerOrder.StatusRefunded;
+    /// <summary>
+    /// Seller-order status while only part of its paid amount was refunded.
+    /// </summary>
     public const string PartiallyRefundedStatus = SellerOrder.StatusPartiallyRefunded;
+    /// <summary>
+    /// Notification type of refund emails; the email worker (JOB-09) sends and retries this type.
+    /// </summary>
     public const string EmailNotificationType = "RefundEmail";
     private const int MaximumPageSize = 100;
+    /// <summary>
+    /// History action written when a transfer fails; also read back to know when the last failure happened.
+    /// </summary>
     public const string TransferFailedAction = RefundProcessingActions.TransferFailed;
+    /// <summary>
+    /// History action written for each reminder; read back to enforce one reminder per 24 hours.
+    /// </summary>
     public const string AccountReminderAction = RefundProcessingActions.AccountReminder;
     /// <summary>One reminder per request every 24 hours, like the B2B payment reminder.</summary>
     public static readonly TimeSpan AccountReminderInterval = TimeSpan.FromHours(24);
 
+    /// <summary>
+    /// Constructor kept for older callers and tests that do not pass a reconciliation validator or the fee service;
+    /// it supplies the default reconciliation validator and no fee reversal.
+    /// </summary>
+    /// <param name="repository">Refund data access.</param>
+    /// <param name="actor">Current Finance Staff user and trace id.</param>
+    /// <param name="completeValidator">Rules of Record Success.</param>
+    /// <param name="failureValidator">Rules of Record Failure.</param>
+    /// <param name="timeProvider">Clock, replaceable in tests.</param>
     public RefundProcessingService(
         IRefundRepository repository,
         IActorContext actor,
@@ -74,6 +98,13 @@ public sealed class RefundProcessingService(
         "Số tiền hoàn vượt quá số dư còn hoàn được của đơn nông trại hoặc giao dịch thanh toán gốc.",
         "Conflict");
 
+    /// <summary>
+    /// Screen (1)–(5). Refuses FromDate after ToDate, then trims the filters, turns blanks into "no filter",
+    /// forces Page ≥ 1 and PageSize into 1..100 and returns the page. Read-only.
+    /// </summary>
+    /// <param name="query">Raw filters and paging.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Items, total, effective page and page size; or INVALID_INPUT on the fromDate field.</returns>
     public async Task<Result<RefundListDto>> SearchAsync(
         RefundQuery query,
         CancellationToken cancellationToken)
@@ -98,6 +129,12 @@ public sealed class RefundProcessingService(
             new RefundListDto(items, total, normalized.Page, normalized.PageSize));
     }
 
+    /// <summary>
+    /// Screen (6)–(17). Returns the read model built by the repository. Read-only.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The detail, or 404 REFUND_NOT_FOUND.</returns>
     public async Task<Result<RefundDetailDto>> GetDetailAsync(
         long refundId,
         CancellationToken cancellationToken)
@@ -108,6 +145,17 @@ public sealed class RefundProcessingService(
             : Result<RefundDetailDto>.SuccessResult(detail);
     }
 
+    /// <summary>
+    /// Button (16). Checks, in order: 1) the refund exists; 2) it is not stale — status equals the one the screen
+    /// showed, is Pending or Failed, and a complaint source is still RefundPending (MSG-RF-04); 3) a receiving account
+    /// exists (otherwise Finance must wait for UC-FIN-08); 4) for Transfer Again, the customer confirmed the account
+    /// after the last failure; 5) the reserved refunds still fit the payment and the seller order (BR-CS-04).
+    /// Then sets Processing, writes the StartTransfer or TransferAgain history row and saves. No money moves here.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="request">ExpectedStatus from the screen.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Message telling Finance to transfer the amount with the RefundCode as content, or the blocking error.</returns>
     public async Task<Result<RefundActionResponse>> StartTransferAsync(
         long refundId,
         RefundTransferRequest request,
@@ -158,6 +206,16 @@ public sealed class RefundProcessingService(
                 + $"{refund.RefundCode}, sau đó ghi nhận kết quả."));
     }
 
+    /// <summary>
+    /// Button "Nhắc khách hàng". Allowed only while the customer still has to act: the request is Pending or Failed and
+    /// either has no account or the account was not re-checked since the last failure. At most one reminder per
+    /// 24 hours (read from the history). Finds the buyer through the complaint's seller order or, for a Farmer-rejection
+    /// refund, through the rejected seller order. Queues MSG-RF-07 in-app and by email, writes the reminder history
+    /// row and saves.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Confirmation, or REFUND_ACCOUNT_NOT_NEEDED / REFUND_REMINDER_TOO_SOON / REFUND_CUSTOMER_UNKNOWN / REFUND_NOT_FOUND.</returns>
     public async Task<Result<RefundActionResponse>> RemindAccountAsync(
         long refundId,
         CancellationToken cancellationToken)
@@ -211,6 +269,14 @@ public sealed class RefundProcessingService(
             "Đã nhắc khách hàng cung cấp hoặc kiểm tra tài khoản nhận hoàn tiền qua thông báo và email."));
     }
 
+    /// <summary>
+    /// Button (23). Only a Processing request that still matches the screen can be cancelled; it returns to Pending
+    /// with a CancelTransfer history row. Used when Finance opened the transfer view but sent nothing.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="request">ExpectedStatus from the screen.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Status Pending, or REFUND_NOT_PENDING / REFUND_NOT_FOUND.</returns>
     public async Task<Result<RefundActionResponse>> CancelTransferAsync(
         long refundId,
         RefundTransferRequest request,
@@ -236,6 +302,19 @@ public sealed class RefundProcessingService(
             $"Đã huỷ lượt chuyển khoản {refund.RefundCode}. Yêu cầu trở lại trạng thái Chờ chuyển."));
     }
 
+    /// <summary>
+    /// Button (20). Steps: 1) validate method, bank transaction ID and note (MSG-RF-02); 2) load the refund; it must
+    /// be Processing or NeedsReconciliation; 3) the bank transaction ID must not be used by another refund (MSG-RF-03);
+    /// 4) <c>refund.Complete</c> sets Completed and marks the payment Refunded when fully covered;
+    /// 5) complaint source: close the complaint, set the seller order to Refunded or PartiallyRefunded, notify buyer and
+    /// farmer, and reverse the refunded share of the seller order's platform fees (BR-FEE-08);
+    /// Farmer-rejection source: the order stays Cancelled, both parties are only notified;
+    /// 6) write the CompleteRefund history row and save everything in one SaveChanges.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="request">RefundMethod, TransferReference and optional Note.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Status Completed with MSG-RF-01, or the validation / conflict error.</returns>
     public async Task<Result<RefundActionResponse>> CompleteAsync(
         long refundId,
         CompleteRefundRequest request,
@@ -312,6 +391,15 @@ public sealed class RefundProcessingService(
                 + "Đã thông báo cho khách hàng và nông dân."));
     }
 
+    /// <summary>
+    /// Button (21). Validates the reason, requires a transfer that awaits its result (Processing or
+    /// NeedsReconciliation), sets Failed, tells the buyer in-app and by email to check the receiving account, writes
+    /// the RefundTransferFailed history row and saves. A later Transfer Again needs the customer to re-confirm the account.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="request">Failure reason.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Status Failed, or the validation / conflict error.</returns>
     public async Task<Result<RefundActionResponse>> RecordTransferFailureAsync(
         long refundId,
         RefundTransferFailedRequest request,
@@ -354,6 +442,14 @@ public sealed class RefundProcessingService(
                 + "kiểm tra tài khoản nhận hoàn tiền."));
     }
 
+    /// <summary>
+    /// Button (22). Only from Processing: sets NeedsReconciliation with the note in the history. The amount stays
+    /// reserved, and the request can later end only as Completed or Failed.
+    /// </summary>
+    /// <param name="refundId">Refund request (RefundTransaction) id.</param>
+    /// <param name="request">Reconciliation note.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Status NeedsReconciliation, or the validation / conflict error.</returns>
     public async Task<Result<RefundActionResponse>> MarkNeedsReconciliationAsync(
         long refundId,
         RefundReconciliationRequest request,
@@ -387,10 +483,20 @@ public sealed class RefundProcessingService(
                 + "ghi nhận thành công hoặc thất bại."));
     }
 
+    /// <summary>
+    /// Optimistic check against a stale screen: true when the caller sent a status and it differs from the stored one.
+    /// </summary>
+    /// <param name="refund">Loaded refund.</param>
+    /// <param name="expectedStatus">Status the screen showed; blank skips the check.</param>
+    /// <returns>True when the action must be refused with MSG-RF-04.</returns>
     private static bool IsStale(RefundTransaction refund, string? expectedStatus) =>
         !string.IsNullOrWhiteSpace(expectedStatus) && expectedStatus.Trim() != refund.RefundStatus;
 
-    /// <summary>The BR-RF-04 history fields; the account number is always masked.</summary>
+    /// <summary>
+    /// The BR-RF-04 history fields; the account number is always masked.
+    /// </summary>
+    /// <param name="refund">Refund after the change.</param>
+    /// <returns>Anonymous object serialized into the history row.</returns>
     private static object HistoryEntry(RefundTransaction refund) => new
     {
         refund.RefundStatus, refund.Amount, Account = RefundTransaction.Mask(refund.ReceiverAccountNumber)
@@ -401,6 +507,9 @@ public sealed class RefundProcessingService(
     /// otherwise PartiallyRefunded, so the seller is still paid the remainder. The parent order
     /// status is then derived from all of its seller orders.
     /// </summary>
+    /// <param name="sellerOrder">Seller order of the complaint.</param>
+    /// <param name="refund">Refund just completed.</param>
+    /// <param name="now">Current UTC time.</param>
     private void MarkRefunded(SellerOrder sellerOrder, RefundTransaction refund, DateTime now)
     {
         var order = sellerOrder.Order;
@@ -423,7 +532,12 @@ public sealed class RefundProcessingService(
         order.SyncRefundStatus();
     }
 
-    /// <summary>BR-RF-07: buyer in-app and by email (MSG-RF-09); the Farmer in-app only.</summary>
+    /// <summary>
+    /// BR-RF-07: buyer in-app and by email (MSG-RF-09); the Farmer in-app only.
+    /// </summary>
+    /// <param name="sellerOrder">Gives the buyer, the farmer and the order code.</param>
+    /// <param name="refund">Completed refund.</param>
+    /// <param name="now">Current UTC time.</param>
     private void NotifyRefunded(SellerOrder sellerOrder, RefundTransaction refund, DateTime now)
     {
         long buyerId = sellerOrder.Order.BuyerUserId;
@@ -440,7 +554,13 @@ public sealed class RefundProcessingService(
                 + $"{now.AddHours(7):dd/MM/yyyy HH:mm}. Mã giao dịch ngân hàng: {refund.GatewayReference}.", now);
     }
 
-    /// <summary>BR-RF-07: buyer in-app (MSG-RF-06) and by email (MSG-RF-08).</summary>
+    /// <summary>
+    /// BR-RF-07: buyer in-app (MSG-RF-06) and by email (MSG-RF-08).
+    /// </summary>
+    /// <param name="buyerId">Customer to notify.</param>
+    /// <param name="refund">Failed refund.</param>
+    /// <param name="reason">Failure reason entered by Finance.</param>
+    /// <param name="now">Current UTC time.</param>
     private void NotifyTransferFailed(long buyerId, RefundTransaction refund, string reason, DateTime now)
     {
         AddInApp(buyerId, refund, "Hoàn tiền chưa chuyển được",
@@ -451,9 +571,22 @@ public sealed class RefundProcessingService(
                 + "Vui lòng đăng nhập AgriSustain và kiểm tra tài khoản nhận hoàn tiền.", now);
     }
 
+    /// <summary>
+    /// Last four digits of the receiving account for messages; "----" when there is no account.
+    /// </summary>
+    /// <param name="refund">Refund with the account snapshot.</param>
+    /// <returns>Digits without the mask characters.</returns>
     private static string Last4(RefundTransaction refund) =>
         RefundTransaction.Mask(refund.ReceiverAccountNumber)?.TrimStart('*') ?? "----";
 
+    /// <summary>
+    /// Queues an in-app notification, stored as already Sent.
+    /// </summary>
+    /// <param name="userId">Recipient.</param>
+    /// <param name="refund">Related refund.</param>
+    /// <param name="title">Title.</param>
+    /// <param name="content">Body.</param>
+    /// <param name="now">Current UTC time.</param>
     private void AddInApp(long userId, RefundTransaction refund, string title, string content, DateTime now)
     {
         repository.AddNotification(new Notification
@@ -471,7 +604,16 @@ public sealed class RefundProcessingService(
         });
     }
 
-    /// <summary>Queued for the email worker, which retries only this channel (JOB-09).</summary>
+    /// <summary>
+    /// Queued for the email worker, which retries only this channel (JOB-09). The PayloadJson key
+    /// "refund:{id}:{event}:{ticks}" identifies the email so a retry never sends it twice.
+    /// </summary>
+    /// <param name="userId">Recipient.</param>
+    /// <param name="refund">Related refund.</param>
+    /// <param name="eventName">completed, failed or account-reminder.</param>
+    /// <param name="subject">Email subject.</param>
+    /// <param name="body">Email body.</param>
+    /// <param name="now">Current UTC time.</param>
     private void AddEmail(long userId, RefundTransaction refund, string eventName, string subject, string body,
         DateTime now)
     {
@@ -491,6 +633,15 @@ public sealed class RefundProcessingService(
         });
     }
 
+    /// <summary>
+    /// Queues one append-only history row of the refund (BR-RF-04).
+    /// </summary>
+    /// <param name="refund">Refund acted on.</param>
+    /// <param name="action">History action name.</param>
+    /// <param name="oldValue">Status before the action.</param>
+    /// <param name="newValue">Object serialized to JSON as the new value.</param>
+    /// <param name="reason">Reason or note, when there is one.</param>
+    /// <param name="now">Current UTC time.</param>
     private void AddAudit(RefundTransaction refund, string action, string oldValue, object newValue,
         string? reason, DateTime now)
     {
@@ -508,5 +659,8 @@ public sealed class RefundProcessingService(
         });
     }
 
+    /// <summary>
+    /// Current UTC time from the injected TimeProvider, so tests can control the clock.
+    /// </summary>
     private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;
 }

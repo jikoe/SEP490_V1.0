@@ -22,6 +22,9 @@ public partial class RefundTransaction
     public bool ReservesPayment => RefundStatus is StatusPending or StatusProcessing or StatusCompleted
         or StatusFailed or StatusNeedsReconciliation or "Success" or "Succeeded";
 
+    /// <summary>
+    /// The request waits for Finance to start the transfer.
+    /// </summary>
     public bool IsPending => RefundStatus == StatusPending;
 
     /// <summary>The customer-confirmed receiving account snapshot (BR-RF-05).</summary>
@@ -55,6 +58,9 @@ public partial class RefundTransaction
     /// <summary>A transfer was started and its bank result is not recorded yet.</summary>
     public bool AwaitsTransferResult => RefundStatus is StatusProcessing or StatusNeedsReconciliation;
 
+    /// <summary>
+    /// Pending or Failed → Processing. Throws when not allowed; the service checks first, so this only guards against bugs.
+    /// </summary>
     public void StartTransfer()
     {
         if (!CanStartTransfer)
@@ -76,6 +82,9 @@ public partial class RefundTransaction
         RefundStatus = StatusPending;
     }
 
+    /// <summary>
+    /// Processing → NeedsReconciliation, when the bank result is unknown.
+    /// </summary>
     public void MarkNeedsReconciliation()
     {
         if (RefundStatus != StatusProcessing)
@@ -86,6 +95,9 @@ public partial class RefundTransaction
         RefundStatus = StatusNeedsReconciliation;
     }
 
+    /// <summary>
+    /// Processing or NeedsReconciliation → Failed.
+    /// </summary>
     public void Fail()
     {
         if (!AwaitsTransferResult)
@@ -96,7 +108,13 @@ public partial class RefundTransaction
         RefundStatus = StatusFailed;
     }
 
-    /// <summary>Records the confirmed transfer; the payment becomes Refunded once fully covered.</summary>
+    /// <summary>
+    /// Records the confirmed transfer; the payment becomes Refunded once fully covered.
+    /// </summary>
+    /// <param name="financeUserId">Finance Staff who recorded the result.</param>
+    /// <param name="refundMethod">BankTransfer or GatewayRefund.</param>
+    /// <param name="transferReference">Bank transaction ID.</param>
+    /// <param name="now">Completion time (UTC).</param>
     public void Complete(long financeUserId, string refundMethod, string transferReference, DateTime now)
     {
         if (!AwaitsTransferResult)

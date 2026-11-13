@@ -6,9 +6,19 @@ namespace AgriSustain.Application.Validators.Refunds;
 /// <summary>BR-RF-02; messages follow MSG-RF-02 ("Vui lòng sửa {Field}: {ValidationReason}.").</summary>
 public sealed class CompleteRefundRequestValidator : AbstractValidator<CompleteRefundRequest>
 {
+    /// <summary>
+    /// Longest bank transaction ID accepted (BR-RF-02).
+    /// </summary>
     public const int MaxReferenceLength = 150;
+    /// <summary>
+    /// Longest note, failure reason or reconciliation note.
+    /// </summary>
     public const int MaxNoteLength = 500;
 
+    /// <summary>
+    /// Record Success rules: method is BankTransfer or GatewayRefund; the bank transaction ID is required, at most
+    /// 150 characters and uses only letters, digits, spaces and . _ - /; the note is optional, at most 500 characters.
+    /// </summary>
     public CompleteRefundRequestValidator()
     {
         RuleFor(x => x.RefundMethod)
@@ -32,6 +42,9 @@ public sealed class CompleteRefundRequestValidator : AbstractValidator<CompleteR
 
 public sealed class RefundTransferFailedRequestValidator : AbstractValidator<RefundTransferFailedRequest>
 {
+    /// <summary>
+    /// Record Failure rule: the reason is required and at most 500 characters.
+    /// </summary>
     public RefundTransferFailedRequestValidator()
     {
         RuleFor(x => x.Reason)
@@ -44,6 +57,9 @@ public sealed class RefundTransferFailedRequestValidator : AbstractValidator<Ref
 
 public sealed class RefundReconciliationRequestValidator : AbstractValidator<RefundReconciliationRequest>
 {
+    /// <summary>
+    /// Needs Reconciliation rule: the note is required and at most 500 characters.
+    /// </summary>
     public RefundReconciliationRequestValidator()
     {
         RuleFor(x => x.Note)
