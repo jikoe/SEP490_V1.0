@@ -20,6 +20,13 @@ public sealed class CheckoutService(
     IShippingRateProvider shippingRates,
     IOrderFeeService? fees = null) : ICheckoutService
 {
+    /// <summary>
+    /// Opens the checkout screen: the selected cart lines with their current unit price, the customer's active
+    /// delivery addresses (default first), the reward point balance and the vouchers the customer may pick. A farm voucher
+    /// is offered only when that farm is in the cart; each voucher says whether it applies to the current lines.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The checkout context, or 403 FORBIDDEN when the caller is not an active, unlocked Retail Customer.</returns>
     public async Task<UseCaseResult<CheckoutContextDto>> GetContextAsync(
         CancellationToken cancellationToken)
     {
@@ -43,6 +50,14 @@ public sealed class CheckoutService(
                 .Select(x => VoucherOption(x, lines, uses.GetValueOrDefault(x.VoucherId))).ToList()));
     }
 
+    /// <summary>
+    /// Maps a voucher for the picker. Uses the same base as the quote: a farm voucher only counts that farm's lines.
+    /// Applicable = the base is above 0, reaches the minimum order amount and the customer still has a use left.
+    /// </summary>
+    /// <param name="voucher">Active voucher.</param>
+    /// <param name="lines">Selected cart lines.</param>
+    /// <param name="customerUses">Uses of this voucher by the customer that still count.</param>
+    /// <returns>Picker option.</returns>
     private static VoucherOption VoucherOption(Voucher voucher, IReadOnlyList<CheckoutLine> lines,
         int customerUses)
     {
@@ -58,8 +73,20 @@ public sealed class CheckoutService(
                 && customerUses < voucher.PerCustomerLimit);
     }
 
+    /// <summary>
+    /// Delivery areas configured by the owner (CheckoutPolicy.Areas); never taken from the browser.
+    /// </summary>
+    /// <returns>Configured areas.</returns>
     public IReadOnlyList<DeliveryArea> GetAreas() => policy.Areas;
 
+    /// <summary>
+    /// Step 4–7 (POST api/checkout/quotes). Runs the full calculation (<c>CalculateAsync</c>) and stores the result as a
+    /// RetailCheckoutQuote owned by the customer: a JSON snapshot, its SHA-256 fingerprint and an expiry of
+    /// QuoteMinutes (5). Nothing is reserved yet: no stock, voucher or points are held by a quote.
+    /// </summary>
+    /// <param name="request">Address, delivery method, payment method, voucher code, points and notes.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The quote (id, lines, delivery fee per farm, discounts, total, expiry, warning), or the first rule that failed.</returns>
     public async Task<UseCaseResult<CheckoutQuoteDto>> QuoteAsync(CheckoutRequest request,
         CancellationToken cancellationToken)
     {
@@ -84,6 +111,19 @@ public sealed class CheckoutService(
         return calculated;
     }
 
+    /// <summary>
+    /// Step 8–11 (POST api/checkout/orders). Steps: 1) the request must be confirmed, carry a quote id and a GUID
+    /// request key; 2) before any transaction, ask Goship again for each farm's fee (<c>CurrentDeliveryFeesAsync</c>)
+    /// so the external call never holds database locks — a changed fee is MSG118; 3) open a transaction; 4) the same
+    /// request key or quote already placed returns that order (MSG119), a key reused for another quote is 409;
+    /// 5) load the customer's own quote (404 otherwise), refuse it when expired (MSG-CO-04); 6) recalculate with the
+    /// accepted fees and refuse when any commercial term changed (MSG118); 7) build the order and one seller order per
+    /// farm, reserve the batches, reserve the voucher, record the platform fee lines (BR-FEE-05), hold the points, remove
+    /// the cart lines and write the audit row; 8) save and commit. The order is PendingPayment until SePay confirms it.
+    /// </summary>
+    /// <param name="request">QuoteId, RequestKey (GUID) and Confirmed.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The new order (201), the existing order for a retry (200 MSG119), or the error to show.</returns>
     public async Task<UseCaseResult<OrderDto>> PlaceAsync(PlaceOrderRequest request,
         CancellationToken cancellationToken)
     {
@@ -190,6 +230,9 @@ public sealed class CheckoutService(
     /// (already placed, missing or expired quote, no access); the transaction reports those cases.
     /// A changed fee is MSG118; no service is MSG117; an unavailable fee is MSG-CO-02.
     /// </summary>
+    /// <param name="request">Place request (quote id and key).</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Farm id → fee when unchanged, null to let the transaction decide, or the Goship error.</returns>
     private async Task<UseCaseResult<IReadOnlyDictionary<long, decimal>?>> CurrentDeliveryFeesAsync(
         PlaceOrderRequest request, CancellationToken cancellationToken)
     {
@@ -226,9 +269,19 @@ public sealed class CheckoutService(
     }
 
     // MSG-CO-04: the screen recalculates the summary when it receives this code.
+    /// <summary>
+    /// 409 QUOTE_EXPIRED (MSG-CO-04): the screen recalculates the summary when it receives this code.
+    /// </summary>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<OrderDto> QuoteExpired() => UseCaseResult<OrderDto>.Failure("QUOTE_EXPIRED",
         "Bản tóm tắt đơn hàng đã hết hạn và đã được tính lại. Vui lòng xem lại trước khi đặt hàng.", "Conflict");
 
+    /// <summary>
+    /// Reads one retail order of the current customer (used after placement and by the payment page).
+    /// </summary>
+    /// <param name="orderId">Order id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The order, or 403 / 404.</returns>
     public async Task<UseCaseResult<OrderDto>> GetOrderAsync(long orderId,
         CancellationToken cancellationToken)
     {
@@ -241,6 +294,24 @@ public sealed class CheckoutService(
             "Không tìm thấy đơn hàng.", "NotFound") : UseCaseResult<OrderDto>.Success(ToOrderDto(order));
     }
 
+    /// <summary>
+    /// The whole price calculation, shared by quote and placement. Order of checks:
+    /// 1) CheckoutValidator (address fields, phone, delivery method, SePay, points ≥ 0, note and voucher lengths);
+    /// 2) the address is normalised against the Goship catalogue (ADDRESS_INVALID);
+    /// 3) the cart has selected lines (CART_EMPTY);
+    /// 4) every line: product approved, published, category active and not archived, farm Active and KYC approved, a
+    /// primary image, and enough reservable batch stock that does not expire before delivery — explicit batches first,
+    /// then earliest expiry (FEFO); price above 0 and not above the base price (otherwise MSG88);
+    /// 5) delivery fee per farm: fixed fees from the accepted quote, or Goship with the farm's pickup address
+    /// (PICKUP_ADDRESS_MISSING / MSG-CO-05, SHIPPING_RATE_UNAVAILABLE / MSG-CO-02, MSG117);
+    /// 6) voucher: an invalid one is dropped with warning MSG116 instead of failing; the discount is capped by the base
+    /// and the maximum discount;
+    /// 7) points: need a configured policy, must fit the balance and the cap on the subtotal after voucher (MSG-CO-03).
+    /// </summary>
+    /// <param name="request">Checkout values.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <param name="fixedSellerDeliveryFees">Fees accepted on the quote; when given, Goship is not called and the farms must match.</param>
+    /// <returns>The quote with total = subtotal + delivery − voucher − points, or the first failure.</returns>
     private async Task<UseCaseResult<CheckoutQuoteDto>> CalculateAsync(CheckoutRequest request,
         CancellationToken cancellationToken,
         IReadOnlyDictionary<long, decimal>? fixedSellerDeliveryFees = null)
@@ -442,6 +513,14 @@ public sealed class CheckoutService(
             voucher?.FarmerProfileId, warning, sellerDeliveryFees));
     }
 
+    /// <summary>
+    /// Creates the order (code RC-{guid}, PendingPayment, reservation expiry = now + ReservationMinutes) with an address
+    /// snapshot, and one seller order per farm. The voucher discount is split by farm subtotal (a farm voucher goes to
+    /// that farm only); points are split by what is left after the voucher; each seller order keeps its own delivery fee.
+    /// </summary>
+    /// <param name="quote">Recalculated quote.</param>
+    /// <param name="request">Place request (quote id and key).</param>
+    /// <returns>The order, not yet added.</returns>
     private Order BuildOrder(CheckoutQuoteDto quote, PlaceOrderRequest request)
     {
         var now = clock.GetUtcNow();
@@ -496,6 +575,16 @@ public sealed class CheckoutService(
         return order;
     }
 
+    /// <summary>
+    /// Adds an order item and reserves each allocated batch quantity: the batch reserved quantity grows, an allocation
+    /// row is created (Reserved, expires with the order) and an inventory movement "Reserve" is logged with an
+    /// idempotency key.
+    /// </summary>
+    /// <param name="seller">Seller order receiving the item.</param>
+    /// <param name="line">Calculated line with its batch allocations.</param>
+    /// <param name="batches">Tracked batches of the products.</param>
+    /// <param name="order">Parent order (code and expiry).</param>
+    /// <param name="key">Checkout request key.</param>
     private void AddOrderLine(SellerOrder seller, CheckoutLine line,
         IReadOnlyList<HarvestBatch> batches, Order order, string key)
     {
@@ -530,6 +619,12 @@ public sealed class CheckoutService(
         }
     }
 
+    /// <summary>
+    /// Holds one use of the voucher (Reserved until payment or expiry). A farm voucher is linked to that farm's seller
+    /// order so the platform fee base can deduct it (BR-FEE-06).
+    /// </summary>
+    /// <param name="order">New order.</param>
+    /// <param name="quote">Quote with the chosen voucher.</param>
     private void AddVoucherReservation(Order order, CheckoutQuoteDto quote)
     {
         if (quote.VoucherId is not long voucherId)
@@ -545,6 +640,11 @@ public sealed class CheckoutService(
         });
     }
 
+    /// <summary>
+    /// Reads the caller from the database: role RetailCustomer, Active and not temporarily locked.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>True when the caller may check out.</returns>
     private async Task<bool> IsRetailCustomerAsync(CancellationToken cancellationToken)
     {
         var user = await accounts.FindActorAsync(actor.UserId, cancellationToken);
@@ -552,6 +652,13 @@ public sealed class CheckoutService(
             && !user.IsTemporarilyLocked(clock.GetUtcNow());
     }
 
+    /// <summary>
+    /// Maps a cart item to a checkout line with its price, subtotal, primary image and batch allocations.
+    /// </summary>
+    /// <param name="item">Cart item with product and farm.</param>
+    /// <param name="allocations">Batches chosen for it.</param>
+    /// <param name="price">Unit price.</param>
+    /// <returns>The line.</returns>
     private static CheckoutLine Line(CartItem item, IReadOnlyList<BatchAllocation> allocations,
         decimal price)
     {
@@ -562,6 +669,13 @@ public sealed class CheckoutService(
             allocations);
     }
 
+    /// <summary>
+    /// True when the recalculated quote keeps every commercial term of the accepted one: subtotal, total, delivery
+    /// fees per farm, voucher and discounts, input and lines. A different batch allocation is allowed.
+    /// </summary>
+    /// <param name="accepted">Quote the customer accepted.</param>
+    /// <param name="current">Quote recalculated now.</param>
+    /// <returns>True when the order may be placed.</returns>
     private static bool SameCommercialTerms(CheckoutQuoteDto accepted, CheckoutQuoteDto current)
     {
         // A new FEFO allocation is allowed when commercial terms stay unchanged and stock exists.
@@ -580,6 +694,12 @@ public sealed class CheckoutService(
                         x.Quantity, x.UnitPrice, x.Subtotal)));
     }
 
+    /// <summary>
+    /// Maps the order for the payment page, with MSG119 for a repeated request.
+    /// </summary>
+    /// <param name="order">Order.</param>
+    /// <param name="duplicate">True when the request was already processed.</param>
+    /// <returns>The DTO.</returns>
     private static OrderDto ToOrderDto(Order order, bool duplicate = false)
     {
         return new OrderDto(order.OrderId, order.OrderCode, order.OrderStatus, order.FinalAmount,
@@ -589,9 +709,19 @@ public sealed class CheckoutService(
                 : "Checkout đã hoàn tất. Vui lòng chuyển khoản đúng tổng tiền hiển thị trong thông tin đơn hàng.");
     }
 
+    /// <summary>
+    /// 403 FORBIDDEN: only an active Retail Customer may check out.
+    /// </summary>
+    /// <typeparam name="T">Result payload type.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Denied<T>() => UseCaseResult<T>.Failure("FORBIDDEN",
         "Chỉ khách hàng bán lẻ có tài khoản hoạt động được thanh toán.", "Forbidden");
 
+    /// <summary>
+    /// 409 MSG88: the product cannot be delivered (not sellable or not enough valid stock).
+    /// </summary>
+    /// <param name="productName">Product to name in the message.</param>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<CheckoutQuoteDto> StockFailure(string productName)
     {
         return UseCaseResult<CheckoutQuoteDto>.Failure("MSG88",

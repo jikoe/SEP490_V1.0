@@ -5,6 +5,11 @@ namespace AgriSustain.Application.Validators.Checkout;
 
 public sealed class CheckoutValidator : AbstractValidator<CheckoutRequest>
 {
+    /// <summary>
+    /// Form rules: recipient 2–100 characters; Vietnamese mobile phone (0 or +84 followed by 3/5/7/8/9 and 8 digits);
+    /// address detail up to 255; province, district and ward codes required; delivery method Standard or FreshExpress;
+    /// payment method SePay only; points not negative; notes up to 300; voucher code up to 100.
+    /// </summary>
     public CheckoutValidator()
     {
         RuleFor(x => x.Address).NotNull();

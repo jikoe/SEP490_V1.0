@@ -7,6 +7,14 @@ public sealed class ReservationExpiryService(ICheckoutRepository repository,
     IAdministrationRepository audit, IUseCaseUnitOfWork unitOfWork, TimeProvider clock,
     IOrderFeeService? fees = null)
 {
+    /// <summary>
+    /// Cancels up to 25 unpaid checkout orders whose 15-minute reservation expired, in one transaction: releases each
+    /// reserved batch quantity with a "Release" movement, cancels items and seller orders with a status-history row,
+    /// reverses their platform fees (BR-FEE-08), releases the voucher holds and the held points, sets the order
+    /// Cancelled and writes an audit row.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Number of orders cancelled.</returns>
     public async Task<int> ExpireAsync(CancellationToken cancellationToken)
     {
         await using var transaction = await unitOfWork.BeginAsync(cancellationToken);

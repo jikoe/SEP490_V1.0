@@ -8,6 +8,11 @@ namespace AgriSustain.Infrastructure.BackgroundWorkers;
 public sealed class ReservationExpiryWorker(IServiceScopeFactory scopes,
     ILogger<ReservationExpiryWorker> logger) : BackgroundService
 {
+    /// <summary>
+    /// Hosted-service loop: every 30 seconds runs <see cref="AgriSustain.Application.Services.Checkout.ReservationExpiryService.ExpireAsync"/>
+    /// in a new scope; an error is logged and the next tick retries.
+    /// </summary>
+    /// <param name="stoppingToken">Signalled when the host shuts down.</param>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
