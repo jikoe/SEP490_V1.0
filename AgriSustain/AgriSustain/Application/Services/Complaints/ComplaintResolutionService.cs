@@ -19,11 +19,25 @@ public sealed class ComplaintResolutionService(
     IValidator<RequestComplaintInfoRequest> requestInfoValidator,
     TimeProvider timeProvider) : IComplaintResolutionService, IComplaintEvidenceTimeoutProcessor
 {
+    /// <summary>
+    /// Seller-order status set when a refund is approved and waits for Finance.
+    /// </summary>
     public const string RefundPendingStatus = SellerOrder.StatusRefundPending;
+    /// <summary>
+    /// BR-CS-02: time a party has to answer an information request. The deadline is stored on each request
+    /// (DueAt = request time + this window), so changing the value only affects requests created afterwards.
+    /// </summary>
     public static readonly TimeSpan EvidenceResponseWindow = TimeSpan.FromHours(48);
     private const int MaximumPageSize = 100;
     private static readonly string[] s_financeRoles = ["FinanceStaff", "Finance Staff"];
 
+    /// <summary>
+    /// Screen (1)–(9). Trims the filters, turns blanks into "no filter", forces Page ≥ 1 and PageSize into 1..100,
+    /// then asks the repository for the page and for the reason list. Read-only.
+    /// </summary>
+    /// <param name="query">Raw filters and paging from the query string.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Always success: items, total, effective page, page size and reasons.</returns>
     public async Task<Result<ComplaintListDto>> SearchAsync(
         ComplaintQuery query,
         CancellationToken cancellationToken)
@@ -42,6 +56,13 @@ public sealed class ComplaintResolutionService(
             items, total, normalized.Page, normalized.PageSize, reasons));
     }
 
+    /// <summary>
+    /// Screen (10)–(14). Loads the read model and fills MaxRefundAmount (BR-CS-04):
+    /// min(seller order amount − refunds already reserved for it, captured payment − refunds reserved on it), never below 0.
+    /// </summary>
+    /// <param name="ticketId">Complaint id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The detail with the refundable ceiling, or 404 COMPLAINT_NOT_FOUND.</returns>
     public async Task<Result<ComplaintDetailDto>> GetDetailAsync(
         long ticketId,
         CancellationToken cancellationToken)
@@ -62,6 +83,16 @@ public sealed class ComplaintResolutionService(
         });
     }
 
+    /// <summary>
+    /// Button (19). Steps: 1) validate the request (MSG-CS-03 / MSG-CS-04); 2) load the tracked complaint;
+    /// 3) stop if it is missing, already decided or not a retail complaint; 4) apply the decision
+    /// (<see cref="ApplyDecisionAsync"/>); 5) save everything in one SaveChanges, so the complaint, refund request,
+    /// order status, notifications and audit row are committed together or not at all.
+    /// </summary>
+    /// <param name="ticketId">Complaint id.</param>
+    /// <param name="request">Resolution, fault party, reason and optional items.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>TicketStatus Rejected or RefundPending with the refund code; otherwise the error to show.</returns>
     public async Task<Result<ComplaintActionResponse>> ResolveAsync(
         long ticketId,
         ResolveComplaintRequest request,
@@ -95,6 +126,17 @@ public sealed class ComplaintResolutionService(
                 : "Đã ghi nhận quyết định hoàn tiền và chuyển yêu cầu sang bộ phận Tài chính."));
     }
 
+    /// <summary>
+    /// Button (20). Steps: 1) validate party and instructions; 2) load the complaint and apply the same blockers as a
+    /// decision; 3) map the party to its user (buyer of the order, or the farm owner); 4) refuse when that user still
+    /// has an unanswered, unexpired request (MSG-CS-02); 5) create the request with DueAt = now + 48 h and move the
+    /// complaint to WaitingCustomerInfo; 6) notify the party in-app and by email with the deadline in Vietnam time;
+    /// 7) write the audit row and save.
+    /// </summary>
+    /// <param name="ticketId">Complaint id.</param>
+    /// <param name="request">Party (Buyer / Seller) and instructions.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Success message with the 48-hour notice, or INFO_REQUEST_PENDING / validation / not-found errors.</returns>
     public async Task<Result<ComplaintActionResponse>> RequestInformationAsync(
         long ticketId,
         RequestComplaintInfoRequest request,
@@ -144,6 +186,13 @@ public sealed class ComplaintResolutionService(
             "Đã gửi yêu cầu bổ sung thông tin. Bên liên quan có 48 giờ để phản hồi."));
     }
 
+    /// <summary>
+    /// Pass-through to the repository; the controller turns the URL into a file on disk.
+    /// </summary>
+    /// <param name="ticketId">Complaint id.</param>
+    /// <param name="evidenceId">Evidence id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Stored URL or null.</returns>
     public Task<string?> GetEvidenceFileUrlAsync(
         long ticketId,
         long evidenceId,
@@ -151,10 +200,15 @@ public sealed class ComplaintResolutionService(
         repository.GetEvidenceFileUrlAsync(ticketId, evidenceId, cancellationToken);
 
     /// <summary>
-    /// SRS UC-ADM-06: a party that ignores an information request for 48 hours loses the case
-    /// (buyer → claim rejected, seller → full refund); if both were asked and neither answered,
-    /// the claim is rejected and the order stays Delivered. Each decision is logged as Evidence Overdue.
+    /// JOB-11 (run by <c>ComplaintEvidenceTimeoutWorker</c> every 5 minutes). For up to 25 complaints whose every open
+    /// request is overdue: mark those requests Expired and apply the automatic decision of BR-CS-02
+    /// (only buyer silent → reject; only farmer silent → full refund; both silent → reject).
+    /// When the refund cannot be created (for example no captured payment) Customer Support is notified to decide
+    /// manually; the requests stay Expired so the complaint is not picked up again. Each complaint is saved on its own,
+    /// so one failure does not undo the others.
     /// </summary>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Number of complaints decided automatically.</returns>
     public async Task<int> ResolveOverdueAsync(CancellationToken cancellationToken)
     {
         var now = Now();
@@ -196,18 +250,37 @@ public sealed class ComplaintResolutionService(
         return resolved;
     }
 
+    /// <summary>
+    /// Complaints handled per run of the timeout job.
+    /// </summary>
     private const int OverdueBatchSize = 25;
+    /// <summary>
+    /// Prefix of the reason recorded on an automatic decision.
+    /// </summary>
     private const string EvidenceOverdue = "Evidence Overdue";
     private static readonly string[] s_supportRoles = ["CustomerSupport", "Customer Support"];
 
     private static readonly Error s_notFound = new(
         "COMPLAINT_NOT_FOUND", "Không tìm thấy khiếu nại.", "NotFound");
 
+    /// <summary>
+    /// The automatic decision for one complaint.
+    /// </summary>
+    /// <param name="Request">Decision to apply, built as if staff had entered it.</param>
+    /// <param name="StaffUserId">Staff member who sent the latest overdue request; recorded as the assigned staff.</param>
+    /// <param name="OverdueRequests">Requests to mark Expired.</param>
     private sealed record OverdueOutcome(
         ResolveComplaintRequest Request,
         long StaffUserId,
         IReadOnlyList<DisputeEvidenceRequest> OverdueRequests);
 
+    /// <summary>
+    /// Works out the BR-CS-02 outcome. Returns null (wait) unless at least one request is open and all open requests
+    /// are overdue, so a party that still has time is never decided against.
+    /// </summary>
+    /// <param name="ticket">Complaint with its evidence requests and seller order loaded.</param>
+    /// <param name="now">Current UTC time.</param>
+    /// <returns>Reject (buyer or both silent) or Full Refund (farmer silent), or null when nothing should be decided yet.</returns>
     private static OverdueOutcome? OverdueDecision(DisputeTicket ticket, DateTime now)
     {
         var open = ticket.DisputeEvidenceRequests
@@ -247,6 +320,21 @@ public sealed class ComplaintResolutionService(
         return request is null ? null : new OverdueOutcome(request, staffUserId, overdue);
     }
 
+    /// <summary>
+    /// Shared by staff decisions and the timeout job. Reject: record the decision only. Refund: read the buyer's default
+    /// bank account, create the refund request (<see cref="CreateRefund"/>), record the decision, move the seller order
+    /// to RefundPending, notify Finance and ask the buyer for the receiving account. In both cases the buyer and the
+    /// farmer are told the outcome and one audit row is written. Nothing is saved here; the caller saves.
+    /// </summary>
+    /// <param name="ticket">Tracked complaint.</param>
+    /// <param name="request">Decision to apply.</param>
+    /// <param name="reason">Trimmed reason text.</param>
+    /// <param name="staffUserId">Staff recorded on the complaint and the refund.</param>
+    /// <param name="auditUserId">Who performed it; null for the timeout job (System).</param>
+    /// <param name="auditAction">ResolveComplaint or AutoResolveComplaint.</param>
+    /// <param name="now">Current UTC time.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The created refund, null for a rejection, or the error that stopped the refund.</returns>
     private async Task<Result<RefundTransaction?>> ApplyDecisionAsync(DisputeTicket ticket,
         ResolveComplaintRequest request, string reason, long staffUserId, long? auditUserId,
         string auditAction, DateTime now, CancellationToken cancellationToken)
@@ -286,6 +374,12 @@ public sealed class ComplaintResolutionService(
         return Result<RefundTransaction?>.SuccessResult(refund);
     }
 
+    /// <summary>
+    /// Tells every active Customer Support user that an overdue complaint needs a manual decision.
+    /// </summary>
+    /// <param name="ticket">Complaint concerned.</param>
+    /// <param name="content">Message text.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
     private async Task NotifySupportAsync(DisputeTicket ticket, string content,
         CancellationToken cancellationToken)
     {
@@ -297,6 +391,11 @@ public sealed class ComplaintResolutionService(
         }
     }
 
+    /// <summary>
+    /// Common guard for a decision or an information request.
+    /// </summary>
+    /// <param name="ticket">Loaded complaint, or null.</param>
+    /// <returns>404 COMPLAINT_NOT_FOUND, 409 COMPLAINT_ALREADY_DECIDED (status no longer Open / UnderReview / WaitingCustomerInfo),</returns>
     private static Error? DecisionBlocker(DisputeTicket? ticket)
     {
         if (ticket is null)
@@ -318,6 +417,21 @@ public sealed class ComplaintResolutionService(
             : null;
     }
 
+    /// <summary>
+    /// Builds the Pending refund request for Finance. Picks the captured payment with the most refundable money;
+    /// limit = min(seller order final amount − refunds reserved for it, payment refundable amount) (BR-CS-04).
+    /// Full Refund uses the whole limit; Partial Refund uses <see cref="PartialRefundAmount"/> and must fit the limit
+    /// (MSG-CS-04). RequestKey "complaint:{id}" lets the unique index reject a concurrent duplicate. The buyer's default
+    /// bank account is copied as the first receiving account (UC-FIN-08 can change it).
+    /// </summary>
+    /// <param name="ticket">Complaint being decided.</param>
+    /// <param name="sellerOrder">Farm part of the order the complaint is about.</param>
+    /// <param name="request">Decision (Full or Partial Refund).</param>
+    /// <param name="reason">Decision reason; stored cut to 500 characters.</param>
+    /// <param name="staffUserId">Staff recorded on the refund.</param>
+    /// <param name="account">Buyer's default bank account, or null.</param>
+    /// <param name="now">Current UTC time; also part of the RefundCode.</param>
+    /// <returns>The refund already added to the unit of work, or NO_REFUNDABLE_PAYMENT (MSG-CS-06) /</returns>
     private Result<RefundTransaction> CreateRefund(DisputeTicket ticket, SellerOrder sellerOrder,
         ResolveComplaintRequest request, string reason, long staffUserId, UserBankAccount? account,
         DateTime now)
@@ -393,6 +507,9 @@ public sealed class ComplaintResolutionService(
     /// BR-CS-03: the refund is the paid value of the selected quantities; each line must belong to
     /// the seller order and no quantity may exceed what was delivered.
     /// </summary>
+    /// <param name="sellerOrder">Seller order whose lines may be refunded.</param>
+    /// <param name="items">Selected lines and quantities.</param>
+    /// <returns>Sum of paid value × quantity ÷ delivered quantity per line, or REFUND_ITEMS_INVALID when a line is foreign,</returns>
     private static Result<decimal> PartialRefundAmount(SellerOrder sellerOrder,
         IReadOnlyList<RefundItemRequest> items)
     {
@@ -424,6 +541,14 @@ public sealed class ComplaintResolutionService(
         return Result<decimal>.SuccessResult(amount);
     }
 
+    /// <summary>
+    /// Sets the seller order to RefundPending, lets the parent order recompute its own refund status and appends
+    /// one status-history row with the reason.
+    /// </summary>
+    /// <param name="sellerOrder">Seller order to update.</param>
+    /// <param name="reason">Decision reason.</param>
+    /// <param name="staffUserId">Staff recorded in the history.</param>
+    /// <param name="now">Current UTC time.</param>
     private static void MoveToRefundPending(SellerOrder sellerOrder, string reason, long staffUserId,
         DateTime now)
     {
@@ -440,6 +565,12 @@ public sealed class ComplaintResolutionService(
         });
     }
 
+    /// <summary>
+    /// Tells every active Finance Staff user, in-app and by email, that a new refund request waits in UC-FIN-03.
+    /// </summary>
+    /// <param name="sellerOrder">Seller order being refunded.</param>
+    /// <param name="refund">New refund request.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
     private async Task NotifyFinanceAsync(SellerOrder sellerOrder, RefundTransaction refund,
         CancellationToken cancellationToken)
     {
@@ -453,7 +584,13 @@ public sealed class ComplaintResolutionService(
         }
     }
 
-    /// <summary>BR-RF-07 / MSG-RF-07: the buyer is asked by email to provide or confirm the account.</summary>
+    /// <summary>
+    /// BR-RF-07 / MSG-RF-07: the buyer is asked by email to provide or confirm the account.
+    /// </summary>
+    /// <param name="ticket">Complaint the refund belongs to.</param>
+    /// <param name="sellerOrder">Seller order; gives the buyer and order code.</param>
+    /// <param name="refund">Refund request with the amount and reason.</param>
+    /// <param name="now">Current UTC time.</param>
     private void RequestRefundAccount(DisputeTicket ticket, SellerOrder sellerOrder, RefundTransaction refund,
         DateTime now)
     {
@@ -474,6 +611,12 @@ public sealed class ComplaintResolutionService(
         });
     }
 
+    /// <summary>
+    /// Sends the outcome to the buyer and the farmer (once each), in-app and by email.
+    /// </summary>
+    /// <param name="ticket">Decided complaint.</param>
+    /// <param name="sellerOrder">Gives both parties and the order code.</param>
+    /// <param name="content">Outcome sentence from <see cref="DecisionMessage"/>.</param>
     private void NotifyParties(DisputeTicket ticket, SellerOrder sellerOrder, string content)
     {
         foreach (long userId in new[] { sellerOrder.Order.BuyerUserId, sellerOrder.FarmerProfile.UserId }
@@ -485,6 +628,13 @@ public sealed class ComplaintResolutionService(
         }
     }
 
+    /// <summary>
+    /// Vietnamese outcome sentence for the notification.
+    /// </summary>
+    /// <param name="resolution">FullRefund, PartialRefund or RejectClaim.</param>
+    /// <param name="refund">Refund request; required for the two refund outcomes.</param>
+    /// <param name="reason">Decision reason.</param>
+    /// <returns>The sentence, including the refund amount when there is one.</returns>
     private static string DecisionMessage(string resolution, RefundTransaction? refund, string reason) =>
         resolution switch
         {
@@ -500,14 +650,28 @@ public sealed class ComplaintResolutionService(
 
     /// <summary>
     /// UC-CS-01 Step 9 / alternative flows: parties, Customer Support and Finance Staff are notified
-    /// in-app and by email through the Gmail Notification Service.
+    /// in-app and by email through the Gmail Notification Service. Queues two Notification rows per recipient.
     /// </summary>
+    /// <param name="userId">Recipient.</param>
+    /// <param name="title">Notification title.</param>
+    /// <param name="content">Notification body.</param>
+    /// <param name="ticketId">Related complaint id.</param>
     private void AddNotice(long userId, string title, string content, long ticketId)
     {
         repository.AddNotification(Notice(userId, title, content, ticketId, "InApp"));
         repository.AddNotification(Notice(userId, title, content, ticketId, "Email"));
     }
 
+    /// <summary>
+    /// Builds one Notification row. In-app rows are Sent at once; email rows are Pending for the notification
+    /// worker and carry a unique PayloadJson key so a retry never sends the same email twice.
+    /// </summary>
+    /// <param name="userId">Recipient.</param>
+    /// <param name="title">Title.</param>
+    /// <param name="content">Body.</param>
+    /// <param name="ticketId">Related complaint id.</param>
+    /// <param name="channel">"InApp" or "Email".</param>
+    /// <returns>The row, not yet added to the unit of work.</returns>
     private Notification Notice(long userId, string title, string content, long ticketId, string channel) => new()
     {
         UserId = userId,
@@ -523,6 +687,16 @@ public sealed class ComplaintResolutionService(
         PayloadJson = channel == "Email" ? $"complaint:{ticketId}:{Guid.NewGuid():N}" : null
     };
 
+    /// <summary>
+    /// Queues the audit row of a complaint action (BR-CS: every decision and request is traceable).
+    /// </summary>
+    /// <param name="ticket">Complaint acted on.</param>
+    /// <param name="action">ResolveComplaint, AutoResolveComplaint or RequestComplaintInformation.</param>
+    /// <param name="previousStatus">Status before the action (OldValue).</param>
+    /// <param name="newValue">Object serialized to JSON as NewValue.</param>
+    /// <param name="reason">Reason or instructions; cut to 500 characters.</param>
+    /// <param name="performedByUserId">Acting user, or null for the system job.</param>
+    /// <param name="now">Current UTC time.</param>
     private void AddAudit(DisputeTicket ticket, string action, string previousStatus, object newValue,
         string reason, long? performedByUserId, DateTime now)
     {
@@ -540,8 +714,17 @@ public sealed class ComplaintResolutionService(
         });
     }
 
+    /// <summary>
+    /// Current UTC time from the injected TimeProvider, so tests can control the clock.
+    /// </summary>
     private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;
 
+    /// <summary>
+    /// Cuts text to the column length.
+    /// </summary>
+    /// <param name="value">Text.</param>
+    /// <param name="length">Maximum characters.</param>
+    /// <returns>The text, shortened when longer than <paramref name="length"/>.</returns>
     private static string Truncate(string value, int length) =>
         value.Length > length ? value[..length] : value;
 }
