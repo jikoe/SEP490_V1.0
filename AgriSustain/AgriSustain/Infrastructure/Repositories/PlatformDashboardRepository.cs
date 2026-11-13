@@ -25,6 +25,15 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
         RefundTransaction.StatusNeedsReconciliation
     ];
 
+    /// <summary>
+    /// Cancellation rate: seller orders whose parent order was placed in the period, Cancelled or Rejected among them.
+    /// Delivery-success rate: seller orders whose first final delivery status (Delivered, DeliveryFailed, Returned)
+    /// happened in the period, Delivered among them. Untracked queries.
+    /// </summary>
+    /// <param name="from">Start of the period (UTC, inclusive).</param>
+    /// <param name="until">End of the period (UTC, exclusive).</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Counts and rates.</returns>
     public async Task<OrderStatsDto> OrderStatsAsync(DateTime from, DateTime until,
         CancellationToken cancellationToken)
     {
@@ -50,6 +59,13 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
             Rate(cancelled, total));
     }
 
+    /// <summary>
+    /// Counts Retail Customer, Farmer and Wholesale Buyer accounts created in the period, grouped by role.
+    /// </summary>
+    /// <param name="from">Start of the period (UTC, inclusive).</param>
+    /// <param name="until">End of the period (UTC, exclusive).</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Counts per role.</returns>
     public async Task<NewUsersDto> NewUsersAsync(DateTime from, DateTime until,
         CancellationToken cancellationToken)
     {
@@ -63,6 +79,11 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
         return new NewUsersDto(Count("RetailCustomer"), Count("Farmer"), Count("WholesaleBuyer"));
     }
 
+    /// <summary>
+    /// Concatenates the four queues: KYC, listings, complaints and refunds.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>All pending rows.</returns>
     public async Task<IReadOnlyList<PendingWorkRow>> PendingWorkAsync(CancellationToken cancellationToken)
     {
         var rows = new List<PendingWorkRow>();
@@ -73,6 +94,13 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
         return rows;
     }
 
+    /// <summary>
+    /// Runs the query of the given type for one id.
+    /// </summary>
+    /// <param name="type">Kyc, Listing, Complaint or Refund.</param>
+    /// <param name="referenceId">Item id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The row when still pending, else null.</returns>
     public async Task<PendingWorkRow?> PendingWorkItemAsync(string type, long referenceId,
         CancellationToken cancellationToken)
     {
@@ -87,9 +115,14 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
         return rows.FirstOrDefault();
     }
 
-    // KYC dossiers awaiting a Verification Officer (UC-VO-01). BR-DB-03: the submission time is the
-    // latest "SubmitForVerification" audit of the profile; the account creation time is only used
-    // for older data without that audit.
+    /// <summary>
+    /// KYC dossiers awaiting a Verification Officer (UC-VO-01), for Farmers and Wholesale Buyers. BR-DB-03: the submission
+    /// time is the latest "SubmitForVerification" audit of the profile; the account creation time is only used for older
+    /// data without that audit.
+    /// </summary>
+    /// <param name="userId">Limit to this one item; null for the whole queue.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Pending KYC rows.</returns>
     private async Task<List<PendingWorkRow>> KycAsync(long? userId, CancellationToken cancellationToken)
     {
         var farmers = await db.FarmerProfiles.AsNoTracking()
@@ -115,8 +148,13 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
         return [.. farmers, .. buyers];
     }
 
-    // Listings waiting for a Content Moderator (UC-CM-01). BR-DB-03: submitted at the latest
-    // submit / resubmit / reviewed-update audit, so a resubmitted listing starts a new wait.
+    /// <summary>
+    /// Listings waiting for a Content Moderator (UC-CM-01). BR-DB-03: submitted at the latest
+    /// submit / resubmit / reviewed-update audit, so a resubmitted listing starts a new wait.
+    /// </summary>
+    /// <param name="productId">Limit to this one item; null for the whole queue.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Pending listing rows.</returns>
     private Task<List<PendingWorkRow>> ListingsAsync(long? productId, CancellationToken cancellationToken)
     {
         return db.Products.AsNoTracking()
@@ -131,7 +169,13 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
             .ToListAsync(cancellationToken);
     }
 
-    // Complaints not yet decided by Customer Support (UC-CS-01).
+    /// <summary>
+    /// Complaints not yet decided by Customer Support (UC-CS-01): Open, UnderReview or WaitingCustomerInfo, waiting since
+    /// they were created.
+    /// </summary>
+    /// <param name="ticketId">Limit to this one item; null for the whole queue.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Pending complaint rows.</returns>
     private Task<List<PendingWorkRow>> ComplaintsAsync(long? ticketId, CancellationToken cancellationToken)
     {
         return db.DisputeTickets.AsNoTracking()
@@ -143,8 +187,14 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
             .ToListAsync(cancellationToken);
     }
 
-    // Refund requests Finance Staff have not finished transferring (UC-FIN-03). A complaint refund
-    // waits from its decision; a Farmer-rejection refund from the seller order's last status change.
+    /// <summary>
+    /// Refund requests Finance Staff have not finished transferring (UC-FIN-03): Pending, Processing, Failed or
+    /// NeedsReconciliation. A complaint refund waits from its decision; a Farmer-rejection refund from the seller
+    /// order's last status change; otherwise from its first refund audit or the payment time.
+    /// </summary>
+    /// <param name="refundId">Limit to this one item; null for the whole queue.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Pending refund rows.</returns>
     private async Task<List<PendingWorkRow>> RefundsAsync(long? refundId, CancellationToken cancellationToken)
     {
         var refunds = await db.RefundTransactions.AsNoTracking()
@@ -185,6 +235,12 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
         }).ToList();
     }
 
+    /// <summary>
+    /// Percentage rounded to 1 decimal, or null when the divisor is 0 (BR-DB-02: never shown as 0 %).
+    /// </summary>
+    /// <param name="part">Numerator.</param>
+    /// <param name="whole">Divisor.</param>
+    /// <returns>Rate or null.</returns>
     private static decimal? Rate(int part, int whole) =>
         whole == 0 ? null : Math.Round(part * 100m / whole, 1);
 }
