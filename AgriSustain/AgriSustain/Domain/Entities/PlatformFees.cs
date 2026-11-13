@@ -35,6 +35,11 @@ public sealed class FeeType
     public DateTime CreatedAt { get; set; }
     public ICollection<FeePolicy> Policies { get; set; } = new List<FeePolicy>();
 
+    /// <summary>
+    /// Fee code format: 3–30 characters A–Z, 0–9 or underscore.
+    /// </summary>
+    /// <param name="code">Code to check.</param>
+    /// <returns>True when valid.</returns>
     public static bool IsValidCode(string? code) => code is not null && s_code.IsMatch(code);
 
     /// <summary>BR-FEE-03: only commission and service fees may differ by product category.</summary>
@@ -100,6 +105,8 @@ public sealed class FeePolicy
     /// The lifecycle shown to staff. Scheduled / Active / Expired are derived from the approved
     /// dates, so a policy takes effect on its date without a background job.
     /// </summary>
+    /// <param name="today">Current date in Vietnam.</param>
+    /// <returns>Draft, PendingApproval, Rejected, Scheduled, Active or Expired.</returns>
     public string State(DateOnly today) => ApprovalStatus switch
     {
         ApprovalDraft => StateDraft,
@@ -110,13 +117,28 @@ public sealed class FeePolicy
         _ => StateActive
     };
 
+    /// <summary>
+    /// Whether the policy is approved and its period contains the date.
+    /// </summary>
+    /// <param name="date">Day to evaluate.</param>
+    /// <returns>True when it applies to orders of that day.</returns>
     public bool IsActiveOn(DateOnly date) => ApprovalStatus == ApprovalApproved && EffectiveFrom <= date
         && (EffectiveTo is null || EffectiveTo >= date);
 
-    /// <summary>True when both periods share at least one day.</summary>
+    /// <summary>
+    /// True when both periods share at least one day.
+    /// </summary>
+    /// <param name="from">Start of the other period.</param>
+    /// <param name="to">End of the other period, or null for open-ended.</param>
+    /// <returns>True on overlap.</returns>
     public bool Overlaps(DateOnly from, DateOnly? to) =>
         EffectiveFrom <= (to ?? DateOnly.MaxValue) && from <= (EffectiveTo ?? DateOnly.MaxValue);
 
+    /// <summary>
+    /// Whether the policy applies to a category: always for an all-categories policy, otherwise only for its linked categories.
+    /// </summary>
+    /// <param name="categoryId">Category of the item, or null.</param>
+    /// <returns>True when covered.</returns>
     public bool Covers(long? categoryId) => AppliesToAllCategories
         || categoryId is long id && Categories.Any(category => category.CategoryId == id);
 }
@@ -145,6 +167,9 @@ public sealed class OrderItemFee
     public decimal Amount { get; set; }
     public decimal ReversedAmount { get; set; }
 
+    /// <summary>
+    /// Fee still charged to the Farmer after reversals.
+    /// </summary>
     public decimal NetAmount => Amount - ReversedAmount;
 
     /// <summary>BR-FEE-08: a cancelled seller order carries no fee.</summary>
@@ -153,7 +178,9 @@ public sealed class OrderItemFee
     /// <summary>
     /// BR-FEE-08: after a refund of <paramref name="refundedShare"/> (0..1) of the seller order,
     /// Full fees are reversed, Proportional fees are reversed for that share, Non-refundable fees stay.
+    /// A reversal never decreases, so repeated refunds only add to it.
     /// </summary>
+    /// <param name="refundedShare">Refunded part of the seller order, clamped to 0..1.</param>
     public void ReverseForRefund(decimal refundedShare)
     {
         decimal share = Math.Clamp(refundedShare, 0, 1);

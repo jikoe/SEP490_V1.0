@@ -18,11 +18,25 @@ public sealed class PlatformFeeService(
     IActorContext actor,
     TimeProvider clock) : IPlatformFeeService
 {
+    /// <summary>
+    /// EntityType of audit rows about a fee type.
+    /// </summary>
     public const string AuditFeeType = "FeeType";
+    /// <summary>
+    /// EntityType of audit rows and notifications about a fee policy.
+    /// </summary>
     public const string AuditFeePolicy = "FeePolicy";
     private static readonly string[] s_financeRoles = ["FinanceStaff", "Finance Staff"];
     private static readonly string[] s_adminRoles = ["SystemAdmin", "Administrator", "Admin"];
 
+    /// <summary>
+    /// Fee list (screen filters and table). Allowed for Finance Staff and Administrators. Filters by keyword (code or
+    /// name), group, order type, category and policy state; each row shows the Active and Scheduled policies and how
+    /// many policies wait for approval. Filtering and paging run in memory because the fee catalogue is small.
+    /// </summary>
+    /// <param name="search">Keyword, Group, OrderType, CategoryId, State, Page and PageSize.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The page; 403 FORBIDDEN for other roles; 400 when Page, PageSize (1..100) or Keyword (100 chars) is invalid.</returns>
     public async Task<UseCaseResult<Page<FeeTypeRow>>> SearchAsync(FeeSearch search, CancellationToken cancellationToken)
     {
         if (await RoleAsync(cancellationToken) is null)
@@ -62,6 +76,12 @@ public sealed class PlatformFeeService(
             search.PageSize));
     }
 
+    /// <summary>
+    /// Fee detail: the fee type with every policy version, its state, dates, approver and version token.
+    /// </summary>
+    /// <param name="id">Fee type id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The fee type; 403 FORBIDDEN; 404 NOT_FOUND.</returns>
     public async Task<UseCaseResult<FeeTypeDto>> GetAsync(long id, CancellationToken cancellationToken)
     {
         if (await RoleAsync(cancellationToken) is null)
@@ -73,6 +93,16 @@ public sealed class PlatformFeeService(
             : UseCaseResult<FeeTypeDto>.Success(await ToDtoAsync(type, cancellationToken));
     }
 
+    /// <summary>
+    /// Finance Staff creates a fee type together with its first policy. Steps: 1) role check; 2) idempotency — a
+    /// RequestKey already used returns what it created; 3) validate name, description, group, refund mode and code
+    /// (3–30 chars A–Z, 0–9, _); 4) inside a transaction: the code must be unique (MSG195) and the policy must pass
+    /// <c>CheckPolicyAsync</c>; 5) save the type and policy, write two audit rows, notify Administrators when it is
+    /// submitted, commit.
+    /// </summary>
+    /// <param name="request">Fee type fields, the first policy, Submit flag and RequestKey.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>MSG-FEE-01 (saved as Draft) or MSG193 (sent for approval) with the new fee; or 403, validation or FEE_OVERLAP.</returns>
     public async Task<UseCaseResult<FeeResultDto>> CreateAsync(CreateFeeRequest request, CancellationToken cancellationToken)
     {
         if (await RoleAsync(cancellationToken) != Role.Finance)
@@ -134,6 +164,14 @@ public sealed class PlatformFeeService(
         return await ResultAsync(type.FeeTypeId, SavedMessage(type, policy), cancellationToken);
     }
 
+    /// <summary>
+    /// Finance Staff edits a fee type. Name and description can always change; group and refund mode are locked
+    /// once the type is no longer Draft or has been applied to an order (MSG190).
+    /// </summary>
+    /// <param name="id">Fee type id.</param>
+    /// <param name="request">New name, description, group and refund mode.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The refreshed fee type with a message, or the error to show.</returns>
     public async Task<UseCaseResult<FeeResultDto>> UpdateTypeAsync(long id, UpdateFeeTypeRequest request,
         CancellationToken cancellationToken)
     {
@@ -171,6 +209,13 @@ public sealed class PlatformFeeService(
         return await ResultAsync(id, $"Đã lưu phí {type.FeeCode}.", cancellationToken);
     }
 
+    /// <summary>
+    /// Finance Staff deletes a fee type. BR-FEE-07: only a Draft, non-mandatory type with no approved policy that was
+    /// never applied to an order can be deleted; otherwise FEE_APPLIED (MSG190).
+    /// </summary>
+    /// <param name="id">Fee type id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Confirmation without a fee, or 403 / 404 / 409.</returns>
     public async Task<UseCaseResult<FeeResultDto>> DeleteTypeAsync(long id, CancellationToken cancellationToken)
     {
         if (await RoleAsync(cancellationToken) != Role.Finance)
@@ -197,6 +242,14 @@ public sealed class PlatformFeeService(
         return UseCaseResult<FeeResultDto>.Success(new FeeResultDto($"Đã xóa phí {type.FeeCode}.", null));
     }
 
+    /// <summary>
+    /// Finance Staff adds a new policy version to an existing fee type (same checks and idempotency as create).
+    /// The policy code is {FeeCode}-{ORDERTYPE}-V{n}.
+    /// </summary>
+    /// <param name="feeTypeId">Fee type that receives the policy.</param>
+    /// <param name="request">Policy, Submit flag and RequestKey.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The refreshed fee type with a message, or the error to show.</returns>
     public async Task<UseCaseResult<FeeResultDto>> AddPolicyAsync(long feeTypeId, NewPolicyRequest request,
         CancellationToken cancellationToken)
     {
@@ -234,6 +287,14 @@ public sealed class PlatformFeeService(
         return await ResultAsync(type.FeeTypeId, SavedMessage(type, policy), cancellationToken);
     }
 
+    /// <summary>
+    /// Finance Staff edits a policy that is still Draft or Rejected (BR-FEE-07). The version token must match the
+    /// one the form was opened with (MSG122). Saving clears the review note; Submit sends it for approval.
+    /// </summary>
+    /// <param name="policyId">Policy id.</param>
+    /// <param name="request">New policy values, Submit flag and Version.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The refreshed fee type with a message, or the error to show.</returns>
     public async Task<UseCaseResult<FeeResultDto>> EditPolicyAsync(long policyId, EditPolicyRequest request,
         CancellationToken cancellationToken)
     {
@@ -276,6 +337,14 @@ public sealed class PlatformFeeService(
         return await ResultAsync(policy.FeeTypeId, SavedMessage(policy.FeeType, policy), cancellationToken);
     }
 
+    /// <summary>
+    /// Finance Staff sends a Draft or Rejected policy for approval. The policy is validated again because dates and
+    /// other policies may have changed since it was saved; Administrators are notified in-app.
+    /// </summary>
+    /// <param name="policyId">Policy id.</param>
+    /// <param name="request">Version shown on the screen.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The refreshed fee type with a message, or the error to show.</returns>
     public async Task<UseCaseResult<FeeResultDto>> SubmitPolicyAsync(long policyId, PolicyActionRequest request,
         CancellationToken cancellationToken)
     {
@@ -308,6 +377,18 @@ public sealed class PlatformFeeService(
         return await ResultAsync(policy.FeeTypeId, SavedMessage(policy.FeeType, policy), cancellationToken);
     }
 
+    /// <summary>
+    /// Administrator approves a pending request. The creator cannot approve their own policy (four-eyes rule).
+    /// Two cases: (a) an end-date request on an approved policy — the end date is applied if the fee stays covered
+    /// (BR-FEE-07 / BR-FEE-10); (b) a new policy — its start date must not be in the past, it must not overlap another
+    /// approved policy, a category-specific policy needs an all-categories policy of the same order type, and the
+    /// previous version of the same scope is end-dated the day before. The fee type becomes Active and the creator is
+    /// notified (MSG194).
+    /// </summary>
+    /// <param name="policyId">Policy id.</param>
+    /// <param name="request">Version and optional note.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The refreshed fee type with a message, or the error to show.</returns>
     public async Task<UseCaseResult<FeeResultDto>> ApprovePolicyAsync(long policyId, PolicyActionRequest request,
         CancellationToken cancellationToken)
     {
@@ -389,6 +470,14 @@ public sealed class PlatformFeeService(
         return await ResultAsync(type.FeeTypeId, message, cancellationToken);
     }
 
+    /// <summary>
+    /// Administrator rejects a pending request with a required reason (at most 500 characters). A new policy goes
+    /// back to Draft; an end-date request is simply dropped. The creator is notified (MSG191).
+    /// </summary>
+    /// <param name="policyId">Policy id.</param>
+    /// <param name="request">Version and the rejection reason in Note.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The refreshed fee type with a message, or the error to show.</returns>
     public async Task<UseCaseResult<FeeResultDto>> RejectPolicyAsync(long policyId, PolicyActionRequest request,
         CancellationToken cancellationToken)
     {
@@ -438,6 +527,15 @@ public sealed class PlatformFeeService(
         return await ResultAsync(policy.FeeTypeId, $"Đã từ chối chính sách {policy.PolicyCode}.", cancellationToken);
     }
 
+    /// <summary>
+    /// Finance Staff asks to end an Active or Scheduled policy on a date. The date must be today or later, inside the
+    /// current validity, and must not leave a mandatory or all-categories scope uncovered (MSG192). The end date is
+    /// stored as PendingEffectiveTo and only takes effect after an Administrator approves it.
+    /// </summary>
+    /// <param name="policyId">Policy id.</param>
+    /// <param name="request">EffectiveTo, Reason and Version.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The refreshed fee type with a message, or the error to show.</returns>
     public async Task<UseCaseResult<FeeResultDto>> EndDatePolicyAsync(long policyId, EndDatePolicyRequest request,
         CancellationToken cancellationToken)
     {
@@ -505,6 +603,13 @@ public sealed class PlatformFeeService(
             cancellationToken);
     }
 
+    /// <summary>
+    /// Calculates the fees of a sample seller order without saving anything. Uses the policies active on the chosen
+    /// date; an optional draft policy replaces the policies of the same fee type and scope so its effect can be seen.
+    /// </summary>
+    /// <param name="request">Order type, 1–20 lines (category, subtotal), delivery fee, date and optional draft policy.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Fees by type, total fees, net amount for the Farmer and tax withheld; 400 for an invalid sample order.</returns>
     public async Task<UseCaseResult<FeePreviewDto>> PreviewAsync(FeePreviewRequest request, CancellationToken cancellationToken)
     {
         if (await RoleAsync(cancellationToken) is null)
@@ -545,6 +650,11 @@ public sealed class PlatformFeeService(
             sellerTotal - total, tax));
     }
 
+    /// <summary>
+    /// Categories a policy may target (Active or Inactive, never Archived — BR-FEE-11).
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Category options; 403 for other roles.</returns>
     public async Task<UseCaseResult<IReadOnlyList<FeeCategoryOption>>> CategoriesAsync(CancellationToken cancellationToken)
     {
         if (await RoleAsync(cancellationToken) is null)
@@ -557,6 +667,15 @@ public sealed class PlatformFeeService(
 
     // ---- rules ------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Field rules of a fee type: name required, at most 100 characters; description at most 500; group and refund
+    /// mode from the allowed lists. Errors are added per field so the form can show them together.
+    /// </summary>
+    /// <param name="fields">Receives field → messages.</param>
+    /// <param name="name">Fee name.</param>
+    /// <param name="description">Optional description.</param>
+    /// <param name="group">Fee group.</param>
+    /// <param name="refundMode">Full, Proportional or NonRefundable.</param>
     private static void CheckType(Dictionary<string, string[]> fields, string? name, string? description,
         string? group, string? refundMode)
     {
@@ -582,7 +701,18 @@ public sealed class PlatformFeeService(
         }
     }
 
-    /// <summary>BR-FEE-02, BR-FEE-03, BR-FEE-04, BR-FEE-11 and the overlap check (MSG189).</summary>
+    /// <summary>
+    /// BR-FEE-02, BR-FEE-03, BR-FEE-04, BR-FEE-11 and the overlap check (MSG189).
+    /// Field rules: method, base and order type from the allowed lists; percentage above 0 and at most 100, or a
+    /// whole-VND fixed amount above 0; min and max not negative and min not above max; start date today or later; end
+    /// date after the start; reason required, at most 500 characters. Category scope: only commission and service
+    /// fees, never a fixed per-order fee, at least one category, none archived or missing.
+    /// </summary>
+    /// <param name="type">Fee type the policy belongs to.</param>
+    /// <param name="input">Policy values to check.</param>
+    /// <param name="exceptPolicyId">Policy being edited, ignored in the overlap check.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Null when valid; otherwise the validation error or FEE_OVERLAP.</returns>
     private async Task<UseCaseResult<FeeResultDto>?> CheckPolicyAsync(FeeType type, FeePolicyInput? input,
         long? exceptPolicyId, CancellationToken cancellationToken)
     {
@@ -675,6 +805,12 @@ public sealed class PlatformFeeService(
     /// A policy of the same fee type, order type and overlapping scope whose period overlaps. An approved
     /// policy that starts earlier is the previous version: it is end-dated on approval, not a conflict.
     /// </summary>
+    /// <param name="type">Fee type with all its policies.</param>
+    /// <param name="self">Policy being approved, skipped.</param>
+    /// <param name="input">Values of the policy being checked.</param>
+    /// <param name="exceptPolicyId">Policy being edited, skipped.</param>
+    /// <param name="approving">True on approval: other Pending policies are ignored, only Approved ones block.</param>
+    /// <returns>The conflicting policy, or null.</returns>
     private static FeePolicy? Conflict(FeeType type, FeePolicy? self, FeePolicyInput input, long? exceptPolicyId,
         bool approving)
     {
@@ -705,6 +841,13 @@ public sealed class PlatformFeeService(
         return null;
     }
 
+    /// <summary>
+    /// Approved policies of the same order type and scope that started earlier and still overlap the new one; they
+    /// are end-dated when the new policy is approved.
+    /// </summary>
+    /// <param name="type">Fee type.</param>
+    /// <param name="policy">Policy being approved.</param>
+    /// <returns>Previous versions to close.</returns>
     private static IEnumerable<FeePolicy> Previous(FeeType type, FeePolicy policy) => type.Policies
         .Where(other => other != policy && other.ApprovalStatus == FeePolicy.ApprovalApproved
             && other.OrderType == policy.OrderType && other.EffectiveFrom < policy.EffectiveFrom
@@ -719,6 +862,10 @@ public sealed class PlatformFeeService(
     /// must be followed by another approved policy starting no later than the day after it ends.
     /// Returns the scope that would be left uncovered.
     /// </summary>
+    /// <param name="type">Fee type.</param>
+    /// <param name="policy">Policy to end.</param>
+    /// <param name="endDate">Requested last day.</param>
+    /// <returns>Null when coverage continues; otherwise the scope text for MSG192.</returns>
     private static string? MissingRequiredCover(FeeType type, FeePolicy policy, DateOnly endDate)
     {
         bool required = type.IsMandatory || type.AllowsCategoryScope && policy.AppliesToAllCategories;
@@ -734,6 +881,14 @@ public sealed class PlatformFeeService(
 
     // ---- mapping and helpers ------------------------------------------------------------------
 
+    /// <summary>
+    /// Builds a new policy version with its code {FeeCode}-{ORDERTYPE}-V{n}, creator and idempotency key.
+    /// </summary>
+    /// <param name="type">Fee type.</param>
+    /// <param name="input">Policy values.</param>
+    /// <param name="submit">True → PendingApproval, false → Draft.</param>
+    /// <param name="requestKey">Idempotency key.</param>
+    /// <returns>The policy, not yet attached to the type.</returns>
     private FeePolicy NewPolicy(FeeType type, FeePolicyInput input, bool submit, string requestKey)
     {
         int version = type.Policies.Count(policy => policy.OrderType == input.OrderType) + 1;
@@ -748,6 +903,12 @@ public sealed class PlatformFeeService(
         return policy;
     }
 
+    /// <summary>
+    /// Copies the input onto the policy: rate or fixed amount according to the method (the other is cleared), limits,
+    /// order type, dates, reason, and synchronises the category links (removes missing ones, adds new ones).
+    /// </summary>
+    /// <param name="policy">Policy to fill.</param>
+    /// <param name="input">Values from the form.</param>
     private void Apply(FeePolicy policy, FeePolicyInput input)
     {
         policy.Method = input.Method;
@@ -777,11 +938,23 @@ public sealed class PlatformFeeService(
         }
     }
 
+    /// <summary>
+    /// Reads a stored policy back into the input shape, to re-run the checks on submit and approval.
+    /// </summary>
+    /// <param name="policy">Stored policy.</param>
+    /// <returns>Equivalent input.</returns>
     private static FeePolicyInput InputOf(FeePolicy policy) => new(policy.Method, policy.CalculationBase, policy.Rate,
         policy.FixedAmount, policy.MinAmount, policy.MaxAmount, policy.OrderType, policy.AppliesToAllCategories,
         policy.Categories.Select(category => category.CategoryId).ToList(), policy.EffectiveFrom, policy.EffectiveTo,
         policy.Reason);
 
+    /// <summary>
+    /// Reloads the fee type after a change so the screen receives fresh states and version tokens.
+    /// </summary>
+    /// <param name="feeTypeId">Fee type to reload.</param>
+    /// <param name="message">Message to show.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Success result with the message and fee type.</returns>
     private async Task<UseCaseResult<FeeResultDto>> ResultAsync(long feeTypeId, string message,
         CancellationToken cancellationToken)
     {
@@ -790,6 +963,12 @@ public sealed class PlatformFeeService(
             type is null ? null : await ToDtoAsync(type, cancellationToken)));
     }
 
+    /// <summary>
+    /// Maps a fee type with its policies (newest first per order type) and the "already applied" flag.
+    /// </summary>
+    /// <param name="type">Fee type.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The DTO.</returns>
     private async Task<FeeTypeDto> ToDtoAsync(FeeType type, CancellationToken cancellationToken)
     {
         var today = Today();
@@ -799,6 +978,12 @@ public sealed class PlatformFeeService(
                 .ThenByDescending(policy => policy.FeePolicyId).Select(policy => ToDto(policy, today)).ToList());
     }
 
+    /// <summary>
+    /// Maps a policy; State is derived from the approval status and dates for the given day.
+    /// </summary>
+    /// <param name="policy">Policy.</param>
+    /// <param name="today">Current date in Vietnam.</param>
+    /// <returns>The DTO with its version token.</returns>
     public static FeePolicyDto ToDto(FeePolicy policy, DateOnly today) => new(policy.FeePolicyId, policy.PolicyCode,
         policy.Method, policy.CalculationBase, policy.Rate, policy.FixedAmount, policy.MinAmount, policy.MaxAmount,
         policy.OrderType, policy.AppliesToAllCategories, policy.Categories.Select(c => c.CategoryId).OrderBy(id => id).ToList(),
@@ -806,19 +991,42 @@ public sealed class PlatformFeeService(
         policy.ReviewNote, policy.CreatedByUserId, policy.ApprovedByUserId, policy.CreatedAt, policy.ApprovedAt,
         VersionOf(policy));
 
+    /// <summary>
+    /// Concurrency token of a policy: the SQL rowversion, or a status-and-dates text when the row has none (tests).
+    /// </summary>
+    /// <param name="policy">Policy.</param>
+    /// <returns>Opaque version string.</returns>
     public static string VersionOf(FeePolicy policy) => policy.RowVersion is { Length: > 0 } rowVersion
         ? Convert.ToBase64String(rowVersion)
         : $"{policy.ApprovalStatus}:{policy.EffectiveFrom:yyyyMMdd}:{policy.EffectiveTo:yyyyMMdd}:{policy.PendingEffectiveTo:yyyyMMdd}";
 
+    /// <summary>
+    /// True when the caller acts on the version currently stored (otherwise MSG122).
+    /// </summary>
+    /// <param name="policy">Stored policy.</param>
+    /// <param name="version">Version sent by the screen.</param>
+    /// <returns>True when they match.</returns>
     private static bool SameVersion(FeePolicy policy, string? version) =>
         !string.IsNullOrWhiteSpace(version) && version == VersionOf(policy);
 
+    /// <summary>
+    /// MSG193 when the policy was sent for approval, MSG-FEE-01 when saved as Draft.
+    /// </summary>
+    /// <param name="type">Fee type.</param>
+    /// <param name="policy">Saved policy.</param>
+    /// <returns>Message text.</returns>
     private static string SavedMessage(FeeType type, FeePolicy policy) => policy.ApprovalStatus == FeePolicy.ApprovalPending
         // MSG193
         ? $"Chính sách phí {policy.PolicyCode} đã được gửi duyệt. Chính sách chỉ áp dụng sau khi được duyệt và tới ngày hiệu lực."
         // MSG-FEE-01
         : $"Đã lưu phí {type.FeeCode}. Trạng thái: Nháp.";
 
+    /// <summary>
+    /// Queues an in-app "waiting for approval" notification for every active Administrator.
+    /// </summary>
+    /// <param name="type">Fee type.</param>
+    /// <param name="policy">Policy waiting for approval.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
     private async Task NotifyAdministratorsAsync(FeeType type, FeePolicy policy, CancellationToken cancellationToken)
     {
         foreach (long admin in await repository.AdministratorIdsAsync(cancellationToken))
@@ -828,6 +1036,13 @@ public sealed class PlatformFeeService(
         }
     }
 
+    /// <summary>
+    /// Queues one in-app notification about a policy.
+    /// </summary>
+    /// <param name="userId">Recipient.</param>
+    /// <param name="title">Title.</param>
+    /// <param name="content">Body.</param>
+    /// <param name="policy">Related policy.</param>
     private void Notify(long userId, string title, string content, FeePolicy policy) => repository.AddNotification(
         new Notification
         {
@@ -836,20 +1051,47 @@ public sealed class PlatformFeeService(
             RelatedRecordType = AuditFeePolicy, RelatedRecordId = policy.FeePolicyId
         });
 
+    /// <summary>
+    /// Queues an audit row.
+    /// </summary>
+    /// <param name="type">FeeType or FeePolicy.</param>
+    /// <param name="id">Entity id.</param>
+    /// <param name="action">Action name.</param>
+    /// <param name="before">JSON snapshot before, or null.</param>
+    /// <param name="after">JSON snapshot after, or null.</param>
     private void Audit(string type, long id, string action, string? before, string? after) =>
         repository.AddAudit(NewAudit(type, id, action, before, after));
 
+    /// <summary>
+    /// Builds an audit row with the current user, time and trace id.
+    /// </summary>
+    /// <param name="type">FeeType or FeePolicy.</param>
+    /// <param name="id">Entity id.</param>
+    /// <param name="action">Action name.</param>
+    /// <param name="before">Snapshot before.</param>
+    /// <param name="after">Snapshot after.</param>
+    /// <returns>The row, not yet staged.</returns>
     private AuditLog NewAudit(string type, long id, string action, string? before, string? after) => new()
     {
         EntityType = type, EntityId = id, Action = action, OldValue = before, NewValue = after,
         PerformedByUserId = actor.UserId, OccurredAt = Now(), TraceId = actor.TraceId
     };
 
+    /// <summary>
+    /// JSON of the audited fee type fields.
+    /// </summary>
+    /// <param name="type">Fee type.</param>
+    /// <returns>JSON text.</returns>
     private static string Snapshot(FeeType type) => JsonSerializer.Serialize(new
     {
         type.FeeCode, type.FeeName, type.Description, type.FeeGroup, type.RefundMode, type.IsMandatory, type.Status
     });
 
+    /// <summary>
+    /// JSON of the audited policy fields, including categories and the pending end date.
+    /// </summary>
+    /// <param name="policy">Policy.</param>
+    /// <returns>JSON text.</returns>
     private static string Snapshot(FeePolicy policy) => JsonSerializer.Serialize(new
     {
         policy.PolicyCode, policy.Method, policy.CalculationBase, policy.Rate, policy.FixedAmount, policy.MinAmount,
@@ -858,15 +1100,34 @@ public sealed class PlatformFeeService(
         policy.PendingEffectiveTo, policy.ApprovalStatus, policy.Reason
     });
 
+    /// <summary>
+    /// Idempotency key: the caller's key cut to 100 characters, or a new GUID when none was sent.
+    /// </summary>
+    /// <param name="key">Key from the request.</param>
+    /// <returns>Key to store on the policy.</returns>
     private static string RequestKeyOf(string? key) =>
         string.IsNullOrWhiteSpace(key) ? Guid.NewGuid().ToString("N") : key.Trim()[..Math.Min(100, key.Trim().Length)];
 
+    /// <summary>
+    /// Current UTC time from the injected clock.
+    /// </summary>
     private DateTime Now() => clock.GetUtcNow().UtcDateTime;
 
+    /// <summary>
+    /// Current date in Vietnam (UTC+7); effective dates are compared with this day.
+    /// </summary>
     private DateOnly Today() => DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime.AddHours(7));
 
+    /// <summary>
+    /// Which of the two roles of this use case the caller has.
+    /// </summary>
     private enum Role { Finance, Administrator }
 
+    /// <summary>
+    /// Reads the caller from the database (not only the token): the account must be Active and not locked.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Finance, Administrator, or null when the caller may not use this use case.</returns>
     private async Task<Role?> RoleAsync(CancellationToken cancellationToken)
     {
         var user = await accounts.FindActorAsync(actor.UserId, cancellationToken);
@@ -878,30 +1139,71 @@ public sealed class PlatformFeeService(
             : s_adminRoles.Contains(user.Role) ? Role.Administrator : null;
     }
 
+    /// <summary>
+    /// 403 FORBIDDEN.
+    /// </summary>
+    /// <typeparam name="T">Result payload type of the calling action.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Denied<T>() => UseCaseResult<T>.Failure("FORBIDDEN",
         "Bạn không có quyền thực hiện thao tác này.", "Forbidden");
 
+    /// <summary>
+    /// 404 NOT_FOUND.
+    /// </summary>
+    /// <typeparam name="T">Result payload type of the calling action.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Missing<T>() => UseCaseResult<T>.Failure("NOT_FOUND",
         "Không tìm thấy phí hoặc chính sách phí.", "NotFound");
 
+    /// <summary>
+    /// 400 VALIDATION with a general message.
+    /// </summary>
+    /// <typeparam name="T">Result payload type of the calling action.</typeparam>
+    /// <param name="message">Message to show.</param>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Invalid<T>(string message) => UseCaseResult<T>.Failure("VALIDATION", message);
 
     // MSG122
+    /// <summary>
+    /// 409 FEE_CHANGED (MSG122): the policy changed or was already processed.
+    /// </summary>
+    /// <typeparam name="T">Result payload type of the calling action.</typeparam>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Changed<T>() => UseCaseResult<T>.Failure("FEE_CHANGED",
         "Chính sách phí đã thay đổi hoặc đã được xử lý. Hãy tải lại để xem thông tin hiện tại.", "Conflict");
 
     // MSG189
+    /// <summary>
+    /// 409 FEE_OVERLAP (MSG189) naming the conflicting policy and its period.
+    /// </summary>
+    /// <typeparam name="T">Result payload type of the calling action.</typeparam>
+    /// <param name="other">Conflicting policy.</param>
+    /// <param name="feeCode">Fee code.</param>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Overlap<T>(FeePolicy other, string feeCode) => UseCaseResult<T>.Failure("FEE_OVERLAP",
         $"Thời gian hiệu lực trùng với chính sách {other.PolicyCode} ({other.EffectiveFrom:dd/MM/yyyy} – "
             + $"{(other.EffectiveTo is { } to ? to.ToString("dd/MM/yyyy") : "không thời hạn")}) của phí {feeCode} cho cùng "
             + "loại đơn và danh mục. Hãy chỉnh thời gian hoặc tạo phiên bản mới.", "Conflict");
 
     // MSG190
+    /// <summary>
+    /// 409 FEE_APPLIED (MSG190): approved or applied fees cannot be edited or deleted.
+    /// </summary>
+    /// <typeparam name="T">Result payload type of the calling action.</typeparam>
+    /// <param name="feeCode">Fee code.</param>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> Applied<T>(string feeCode) => UseCaseResult<T>.Failure("FEE_APPLIED",
         $"Phí {feeCode} đã được áp dụng hoặc đã duyệt nên không thể sửa hoặc xóa. Hãy kết thúc hoặc tạo phiên bản mới.",
         "Conflict");
 
     // MSG192
+    /// <summary>
+    /// 409 FEE_POLICY_REQUIRED (MSG192): the scope would be left without an active policy.
+    /// </summary>
+    /// <typeparam name="T">Result payload type of the calling action.</typeparam>
+    /// <param name="feeCode">Fee code.</param>
+    /// <param name="scope">Uncovered scope text.</param>
+    /// <returns>Failure result.</returns>
     private static UseCaseResult<T> RequiredPolicy<T>(string feeCode, string scope) => UseCaseResult<T>.Failure(
         "FEE_POLICY_REQUIRED",
         $"Phí {feeCode} luôn phải có chính sách đang áp dụng cho {scope}. Hãy tạo chính sách thay thế trước khi kết thúc.",

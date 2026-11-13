@@ -3,6 +3,13 @@ namespace AgriSustain.Domain.Entities;
 /// <summary>One item of a seller order, as seen by the fee calculation.</summary>
 public sealed record FeeItemInput(int Index, long? CategoryId, decimal Subtotal);
 
+/// <summary>
+/// One calculated fee of one item.
+/// </summary>
+/// <param name="ItemIndex">Index of the item in the input list.</param>
+/// <param name="Policy">Policy that produced the fee.</param>
+/// <param name="BaseAmount">Amount the fee was calculated on.</param>
+/// <param name="Amount">Fee in whole VND.</param>
 public sealed record FeeLineResult(int ItemIndex, FeePolicy Policy, decimal BaseAmount, decimal Amount);
 
 /// <summary>
@@ -12,6 +19,17 @@ public sealed record FeeLineResult(int ItemIndex, FeePolicy Policy, decimal Base
 /// </summary>
 public static class FeeCalculator
 {
+    /// <summary>
+    /// For each fee type: every item uses the category-specific policy that covers its category, otherwise the
+    /// all-categories policy. Percentage = base × rate; fixed per item = the amount for each item; fixed per order = the
+    /// amount shared by item subtotal. The base is the item subtotal, or its share of the seller order total when the
+    /// policy is based on the seller order total. The group total is rounded, clamped to the policy minimum and
+    /// maximum, then allocated back to the items. Finally all fees together are capped at the seller order total.
+    /// </summary>
+    /// <param name="items">Items of one seller order.</param>
+    /// <param name="sellerOrderTotal">Seller order amount including delivery, after the seller discount.</param>
+    /// <param name="activePolicies">Policies active on the order date.</param>
+    /// <returns>One line per item and applicable policy.</returns>
     public static IReadOnlyList<FeeLineResult> Calculate(IReadOnlyList<FeeItemInput> items,
         decimal sellerOrderTotal, IEnumerable<FeePolicy> activePolicies)
     {
@@ -80,9 +98,19 @@ public static class FeeCalculator
         return results;
     }
 
+    /// <summary>
+    /// Rounds to whole VND, half away from zero.
+    /// </summary>
+    /// <param name="value">Amount.</param>
+    /// <returns>Rounded amount.</returns>
     public static decimal Money(decimal value) => decimal.Round(value, 0, MidpointRounding.AwayFromZero);
 
-    /// <summary>Splits a whole-VND total by weight; the rounding remainder goes to the largest share.</summary>
+    /// <summary>
+    /// Splits a whole-VND total by weight; the rounding remainder goes to the largest share.
+    /// </summary>
+    /// <param name="total">Amount to split.</param>
+    /// <param name="weights">Relative weights; equal shares when they sum to 0.</param>
+    /// <returns>Shares that add up exactly to the total.</returns>
     public static IReadOnlyList<decimal> Allocate(decimal total, IReadOnlyList<decimal> weights)
     {
         if (weights.Count == 0)
