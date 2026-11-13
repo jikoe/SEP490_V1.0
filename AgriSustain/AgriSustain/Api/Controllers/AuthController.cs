@@ -125,18 +125,36 @@ public sealed class AuthController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// POST api/auth/register — UC-AUTH-01 step 1: validate and e-mail the Registration code (UC-AUTH-08), anonymous.
+    /// </summary>
+    /// <param name="request">Registration form.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>200 with MSG14; 400 / 409 / 429 / 503.</returns>
     [AllowAnonymous]
     [HttpPost("register")]
     public async Task<IActionResult> Register(
         [FromBody] RegisterRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _registrationService.InitiateRegistrationAsync(request, cancellationToken), HttpContext);
 
+    /// <summary>
+    /// POST api/auth/verify-otp — UC-AUTH-01 step 2: verify the code and create the account.
+    /// </summary>
+    /// <param name="request">E-mail and code.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>200 with the account; 400 / 404 / 409.</returns>
     [AllowAnonymous]
     [HttpPost("verify-otp")]
     public async Task<IActionResult> VerifyOtp(
         [FromBody] VerifyOtpRequest request, CancellationToken cancellationToken) =>
         ApiResults.From(await _registrationService.VerifyOtpAndCompleteRegistrationAsync(request, cancellationToken), HttpContext);
 
+    /// <summary>
+    /// POST api/auth/resend-otp — resend the Registration code.
+    /// </summary>
+    /// <param name="request">E-mail.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>200 with MSG14; 400 / 404 / 429 / 503.</returns>
     [AllowAnonymous]
     [HttpPost("resend-otp")]
     public async Task<IActionResult> ResendOtp(

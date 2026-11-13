@@ -16,6 +16,16 @@ public sealed class GmailEmailService(IOptions<GmailOptions> options, ILogger<Gm
 {
     private readonly GmailOptions _options = options.Value;
 
+    /// <summary>
+    /// Sends an HTML e-mail through Gmail SMTP (SSL, App Password from configuration) whose subject and text name the
+    /// purpose. SMTP, configuration and address errors are logged without the code and reported as false (UC-AUTH-08
+    /// Email Delivery Failure).
+    /// </summary>
+    /// <param name="email">Normalised e-mail address (the caller trims and lower-cases it).</param>
+    /// <param name="otpCode">Code to send.</param>
+    /// <param name="purpose">Calling use case: Registration, PasswordReset or BankAccount; each purpose has its own code.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>True when sent.</returns>
     public async Task<bool> SendOtpEmailAsync(
         string email, string otpCode, string purpose, CancellationToken cancellationToken)
     {
