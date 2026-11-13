@@ -19,6 +19,12 @@ public sealed class SaveVoucherRequestValidator : AbstractValidator<SaveVoucherR
     public const string LimitMessage = "Giới hạn lượt dùng phải là số dương và lượt mỗi khách không vượt quá tổng lượt dùng.";
     public const string PeriodMessage = "Thời gian kết thúc phải sau thời gian bắt đầu và thời gian bắt đầu không được ở quá khứ.";
 
+    /// <summary>
+    /// BR-PV-01..04: name required, at most 150; code 4–20 letters or digits (stored upper-case); description at most 500;
+    /// type Percentage (1–100) or FixedAmount (above 0); a percentage voucher needs a maximum discount above 0; amounts
+    /// with at most 2 decimals; minimum order not negative; total and per-customer limits at least 1 and per-customer not
+    /// above total; end after start. "Start not in the past" depends on the clock and is checked in the service.
+    /// </summary>
     public SaveVoucherRequestValidator()
     {
         RuleFor(x => x.VoucherName)
