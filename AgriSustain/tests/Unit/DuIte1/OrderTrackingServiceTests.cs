@@ -169,12 +169,12 @@ public sealed class OrderTrackingServiceTests
         Assert.Empty(OrderTrackingService.ResolveActions(order, Now));
     }
 
-    [Fact(DisplayName = "UTC-RC04-B6 Fully reviewed order hides Review")]
+    [Fact(DisplayName = "UTC-RC04-B6 Fully reviewed order hides Review and offers Edit Review")]
     public void UTC_B6_AllReviewed_NoReview()
     {
         var order = Detail(1, "Completed", "Paid", deliveredAt: Now.AddDays(-5), reviewed: true);
 
-        Assert.Empty(OrderTrackingService.ResolveActions(order, Now));
+        Assert.Equal(new[] { OrderActions.EditReview }, OrderTrackingService.ResolveActions(order, Now));
     }
 
     [Theory(DisplayName = "UTC-RC04-B8 Non-completed orders never offer a complaint (MSG181)")]

@@ -1,6 +1,6 @@
-using System.Text.RegularExpressions;
 using AgriSustain.Application.DTOs.Complaints;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Validators;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,10 +10,10 @@ namespace AgriSustain.Api.Controllers;
 [ApiController]
 [Authorize(Roles = "CustomerSupport,Customer Support,DisputeOfficer")]
 [Route("api/support/complaints")]
-public sealed partial class ComplaintsController : ControllerBase
+public sealed class ComplaintsController : ControllerBase
 {
     private readonly IComplaintResolutionService _complaintService;
-    private readonly IWebHostEnvironment _environment;
+    private readonly IFarmerComplaintFiles _files;
 
     /// <summary>
     /// Receives the complaint service and the hosting environment from dependency injection.
@@ -22,10 +22,10 @@ public sealed partial class ComplaintsController : ControllerBase
     /// <param name="environment">Gives the content root, used to locate private evidence files on disk.</param>
     public ComplaintsController(
         IComplaintResolutionService complaintService,
-        IWebHostEnvironment environment)
+        IFarmerComplaintFiles files)
     {
         _complaintService = complaintService;
-        _environment = environment;
+        _files = files;
     }
 
     /// <summary>
@@ -109,29 +109,22 @@ public sealed partial class ComplaintsController : ControllerBase
             ticketId,
             evidenceId,
             cancellationToken);
-        var match = fileUrl is null ? null : EvidenceUrl().Match(fileUrl);
-        if (match is null || !match.Success)
+        if (fileUrl is null || fileUrl.Split('/') is not { Length: 6 } segments
+            || !long.TryParse(segments[4], out long owner))
         {
             return NotFound();
         }
 
-        string file = Path.Combine(
-            _environment.ContentRootPath,
-            "private-files",
-            match.Groups["owner"].Value,
-            match.Groups["key"].Value);
-        if (!System.IO.File.Exists(file))
+        string? file = _files.Resolve(owner, fileUrl);
+        if (file is null)
         {
             return NotFound();
         }
 
-        string contentType = Path.GetExtension(file).ToLowerInvariant() switch
-        {
-            ".pdf" => "application/pdf",
-            ".png" => "image/png",
-            _ => "image/jpeg"
-        };
-        return PhysicalFile(file, contentType);
+        Response.Headers.CacheControl = "private, no-store";
+        string contentType = OrderFeedbackValidator.EvidenceContentType(file) ?? "application/pdf";
+        return PhysicalFile(file, contentType,
+            enableRangeProcessing: contentType == OrderFeedbackValidator.VideoContentType);
     }
 
     /// <summary>

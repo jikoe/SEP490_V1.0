@@ -42,6 +42,18 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
             return await Abort("CONFLICT", ProductListingMessages.MSG122, ct);
         if (!await repository.IsCategoryActiveAsync(request.CategoryId, ct))
             return await Abort("VALIDATION", ProductListingMessages.Field("danh mục", "danh mục không hoạt động"), ct);
+        FarmCertificate? selectedCertificate = null;
+        if (request.FarmCertificateId.HasValue)
+        {
+            selectedCertificate = await repository.GetCertificateAsync(userId, request.FarmCertificateId.Value, ct);
+            var today = DateOnly.FromDateTime(clock.GetUtcNow().AddHours(7).DateTime);
+            if (!rules.ValidateCertificate(selectedCertificate, farmer!.FarmerProfileId, today))
+            {
+                await unitOfWork.RollbackAsync(ct);
+                return Invalid<ProductResponse>(new ValidationResult([
+                    new ValidationFailure(nameof(request.FarmCertificateId), ProductListingMessages.InvalidCertificate)]));
+            }
+        }
         if (product is not null && !rules.EnsureUnitUnchanged(product, request,
             await repository.IsUnitLockedAsync(product.ProductId, ct)))
             return await Abort("CONFLICT", ProductListingMessages.MSG79, ct);
@@ -57,18 +69,29 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
         bool contentChanged = product is null || rules.HasContentChanged(product, request);
         bool reviewRequired = newProduct || resubmission || contentChanged;
         var before = product is null ? null : JsonSerializer.Serialize(repository.Map(product));
-        product ??= new Product { FarmerProfileId = farmer!.FarmerProfileId,
-            FarmerProfile = farmer, CreatedAt = clock.GetUtcNow().UtcDateTime };
+        product ??= new Product
+        {
+            FarmerProfileId = farmer!.FarmerProfileId,
+            FarmerProfile = farmer,
+            CreatedAt = clock.GetUtcNow().UtcDateTime
+        };
         product.ProductName = request.ProductName.Trim(); product.CategoryId = request.CategoryId;
         product.Unit = request.Unit.Trim(); product.Description = request.Description.Trim();
+        product.FarmCertificateId = request.FarmCertificateId;
+        product.FarmCertificate = selectedCertificate;
         product.UpdatePrices(request.BaseRetailPrice, request.WholesaleMinQuantity, request.WholesalePrice);
         if (contentChanged)
         {
             repository.RemoveImages(product);
             if (id.HasValue) await unitOfWork.FlushAsync(ct);
             foreach (var image in request.Images)
-                product.ProductImages.Add(new ProductImage { ImageUrl = image.ImageUrl,
-                    IsPrimary = image.IsPrimary, AltText = image.AltText, DisplayOrder = product.ProductImages.Count });
+                product.ProductImages.Add(new ProductImage
+                {
+                    ImageUrl = image.ImageUrl,
+                    IsPrimary = image.IsPrimary,
+                    AltText = image.AltText,
+                    DisplayOrder = product.ProductImages.Count
+                });
         }
         if (reviewRequired) product.SubmitForApproval();
         if (newProduct) { repository.Add(product); await unitOfWork.FlushAsync(ct); }
@@ -110,6 +133,10 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
             var validation = await validator.ValidateAsync(input, ct);
             if (!validation.IsValid) { await unitOfWork.RollbackAsync(ct); return Invalid<ProductResponse>(validation); }
         }
+        if (published && product.FarmCertificateId.HasValue
+            && !rules.ValidateCertificate(product.FarmCertificate, product.FarmerProfileId,
+                DateOnly.FromDateTime(clock.GetUtcNow().AddHours(7).DateTime)))
+            return await Abort("VALIDATION", ProductListingMessages.InvalidCertificate, ct);
         product.SetVisibility(published);
         repository.Audit(userId, published ? "PublishListing" : "HideListing", id, null, published.ToString());
         await repository.SaveListingAsync(product, unitOfWork, ct);

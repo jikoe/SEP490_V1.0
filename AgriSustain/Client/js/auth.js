@@ -66,6 +66,10 @@ const Auth = {
     return this.getUserInfo();
   },
 
+  getCurrentUser() {
+    return this.getUserInfo();
+  },
+
   getUserInfo() {
     const raw = sessionStorage.getItem(CONFIG.STORAGE_KEYS.USER_INFO);
     try {

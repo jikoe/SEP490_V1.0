@@ -69,6 +69,17 @@ public sealed class GoshipShippingTests
         Assert.Null(handler.Request);
     }
 
+    [Theory(DisplayName = "[UC-RC-02 Step 5] A farm has a pickup address from its profile or the configured fallback (MSG-CO-05 otherwise)")]
+    [InlineData(99, true, true)]
+    [InlineData(7, false, true)]
+    [InlineData(99, false, false)]
+    public void HasPickupAddress_ProfileOrFallback(long farmerProfileId, bool profilePickup, bool expected)
+    {
+        var provider = Provider(new StubHandler(HttpStatusCode.OK, Rates));
+        Assert.Equal(expected, provider.HasPickupAddress(farmerProfileId,
+            profilePickup ? new ShippingPickup("100000", "100100") : null));
+    }
+
     [Fact(DisplayName = "[UC-RC-02 Step 5] The farm's pickup address from its profile is sent to Goship")]
     public async Task GetRate_UsesFarmerProfilePickup()
     {

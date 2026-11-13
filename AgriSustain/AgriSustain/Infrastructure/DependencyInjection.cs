@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<IFeeRepository, FeeRepository>();
         services.AddScoped<ICheckoutRepository, CheckoutRepository>();
         services.AddScoped<IKycVerificationRepository, KycVerificationRepository>();
+        services.AddScoped<IOfftakeRepository, OfftakeRepository>();
         services.AddScoped<IUseCaseUnitOfWork, SqlUnitOfWork>();
         services.AddSingleton<IPersistenceErrorClassifier, PersistenceErrorClassifier>();
         return services;

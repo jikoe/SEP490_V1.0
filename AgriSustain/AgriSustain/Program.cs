@@ -29,6 +29,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using AgriSustain.Api;
 using AgriSustain.Infrastructure.Auth;
 
@@ -44,6 +47,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 
 // Existing team auth services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
@@ -93,7 +97,6 @@ builder.Services.AddScoped<IOrderFeedbackRepository, OrderFeedbackRepository>();
 builder.Services.AddScoped<IOrderFeedbackStorage, OrderFeedbackStorage>();
 builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
 builder.Services.AddScoped<IFinanceService, AgriSustain.Application.Services.Finance.FinanceService>();
-builder.Services.AddScoped<AgriSustain.Application.Services.Finance.FinanceSampleService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddCors(options =>
@@ -142,7 +145,7 @@ builder.Services.AddScoped<FarmerProductService>();
 builder.Services.AddScoped<ProductListingRules>();
 builder.Services.AddScoped<ProductNotificationService>();
 builder.Services.AddScoped<IProductNotificationRepository, ProductNotificationRepository>();
-// Review links only; NotificationGateway uses the shared GmailOptions registered below.
+// Email links and Gmail transport are configured separately.
 builder.Services.Configure<AgriSustain.Infrastructure.Email.EmailSettings>(
     builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<INotificationGateway, AgriSustain.Infrastructure.Email.NotificationGateway>();
@@ -212,7 +215,39 @@ builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.IRefundAccou
     AgriSustain.Infrastructure.Repositories.RefundAccountRepository>();
 builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.IRefundAccountService,
     AgriSustain.Application.Services.Refunds.RefundAccountService>();
+// DuND ITE3: UC-WB-01 Search Suppliers
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.ISupplierDirectoryRepository,
+    AgriSustain.Infrastructure.Repositories.SupplierDirectoryRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.ISupplierDirectoryService,
+    AgriSustain.Application.Services.B2B.SupplierDirectoryService>();
+// DuND ITE3: UC-WB-08 Manage Buyer Subscription
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.IBuyerSubscriptionRepository,
+    AgriSustain.Infrastructure.Repositories.BuyerSubscriptionRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.BuyerSubscriptionService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.B2B.IBuyerSubscriptionService>(services =>
+    services.GetRequiredService<AgriSustain.Application.Services.B2B.BuyerSubscriptionService>());
+builder.Services.AddSingleton<IPaymentQrProvider, AgriSustain.Infrastructure.Payments.SePayQrProvider>();
+// DuND ITE3: UC-FIN-06 Track B2B Contract Payments
+builder.Services.AddScoped<AgriSustain.Application.Services.Finance.IContractPaymentRepository,
+    AgriSustain.Infrastructure.Repositories.ContractPaymentRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Finance.ContractPaymentService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Finance.IContractPaymentService>(services =>
+    services.GetRequiredService<AgriSustain.Application.Services.Finance.ContractPaymentService>());
+// SePay credits carrying "SUB..." (subscription) or "CTP..." (contract line) references.
+builder.Services.AddScoped<IBankTransferHandler>(services =>
+    services.GetRequiredService<AgriSustain.Application.Services.B2B.BuyerSubscriptionService>());
+builder.Services.AddScoped<IBankTransferHandler>(services =>
+    services.GetRequiredService<AgriSustain.Application.Services.Finance.ContractPaymentService>());
+if (builder.Configuration.GetValue("B2B:EnableReminderWorkers", true))
+{
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.SubscriptionReminderWorker>();
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.ContractPaymentOverdueWorker>();
+}
 builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
+builder.Services.AddScoped<ISupplierCapacityRepository, SupplierCapacityRepository>();
+builder.Services.AddScoped<ISupplierCapacityService, AgriSustain.Application.Services.B2B.SupplierCapacityService>();
+builder.Services.AddScoped<IWholesaleOrderRepository, WholesaleOrderRepository>();
+builder.Services.AddScoped<IWholesaleOrderService, AgriSustain.Application.Services.B2B.WholesaleOrderService>();
 
 // DuND Validators
 builder.Services.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>();
@@ -224,6 +259,9 @@ builder.Services.AddScoped<IValidator<ChangePasswordRequest>, ChangePasswordRequ
 builder.Services.AddScoped<IValidator<UpdateConsumerProfileRequest>, UpdateConsumerProfileValidator>();
 builder.Services.AddScoped<IValidator<UpdateFarmerProfileRequest>, UpdateFarmerProfileValidator>();
 builder.Services.AddScoped<IValidator<OrderQuery>, OrderQueryValidator>();
+
+builder.Services.AddMemoryCache();
+builder.Services.AddHostedService<RevokedTokenCleanupHostedService>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -244,22 +282,75 @@ builder.Services.AddAuthentication(options =>
     };
     options.Events = new JwtBearerEvents
     {
-        OnTokenValidated = context =>
+        OnTokenValidated = async context =>
         {
+            var services = context.HttpContext.RequestServices;
+
             var tokenId = context.SecurityToken.Id;
             if (!string.IsNullOrEmpty(tokenId)
-                && context.HttpContext.RequestServices
-                    .GetRequiredService<RevokedTokenStore>()
-                    .IsRevoked(tokenId))
+                && await services.GetRequiredService<RevokedTokenStore>().IsRevokedAsync(tokenId, context.HttpContext.RequestAborted))
             {
                 context.Fail("This session has been terminated.");
+                return;
             }
 
-            return Task.CompletedTask;
+            var principal = context.Principal;
+            var userIdStr = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+            var role = principal?.FindFirstValue(ClaimTypes.Role);
+
+            if (!long.TryParse(userIdStr, out var userId))
+            {
+                context.Fail("Invalid user token identity.");
+                return;
+            }
+
+            var cache = services.GetRequiredService<IMemoryCache>();
+            var cacheKey = $"user-auth-status:{userId}:{role}";
+
+            bool isUserValid = await cache.GetOrCreateAsync(cacheKey, async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(10);
+                var db = services.GetRequiredService<AgriSustainContext>();
+                return await db.Users.AsNoTracking().AnyAsync(u =>
+                    u.UserId == userId &&
+                    u.Status == "Active" &&
+                    u.IsEmailVerified &&
+                    u.Role == role,
+                    context.HttpContext.RequestAborted);
+            });
+
+            if (!isUserValid)
+            {
+                context.Fail("Tài khoản không còn đủ điều kiện truy cập hoặc đã bị tạm ngưng.");
+            }
         }
     };
 });
 builder.Services.AddAuthorization();
+
+// UC-FAR-08 / UC-FAR-09: farmer contract coordination and read-only financial projections.
+builder.Services.AddScoped<IFarmerOfftakeContractRepository, FarmerOfftakeContractRepository>();
+builder.Services.AddScoped<FarmerOfftakeContractService>();
+builder.Services.AddScoped<OfftakeContractRules>();
+builder.Services.AddScoped<IFarmerRevenueRepository, FarmerRevenueRepository>();
+builder.Services.AddScoped<FarmerRevenueService>();
+builder.Services.AddScoped<RevenueAggregationRules>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmerBusinessInputFilter>();
+if (builder.Configuration.GetValue("OfftakeContracts:EnableNotificationWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.OfftakeContractNotificationWorker>();
+
+// UC-FIN-04: manual bank QR with verified SePay source-debit reconciliation.
+builder.Services.AddScoped<IFinanceFarmerPayoutRepository, FinanceFarmerPayoutRepository>();
+builder.Services.AddScoped<FinanceFarmerPayoutService>();
+builder.Services.AddScoped<FarmerPayoutRules>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.FinancePayoutInputFilter>();
+builder.Services.AddHttpClient<IPayoutGateway, AgriSustain.Infrastructure.Payments.SePayPayoutGateway>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+if (builder.Configuration.GetValue("Payouts:EnableNotificationWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.FarmerPayoutNotificationWorker>();
+
+if (builder.Configuration.GetValue("Payouts:EnableReconciliationWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.FarmerPayoutReconciliationWorker>();
 
 var app = builder.Build();
 
@@ -303,7 +394,6 @@ app.UseWhen(context => context.Request.Path.StartsWithSegments("/api/users")
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<ActiveFeatureAccountMiddleware>();
 app.MapControllers();
 
 app.Run();

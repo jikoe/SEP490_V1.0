@@ -24,8 +24,17 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
             .OrderBy(x => x.CategoryName).ThenBy(x => x.CategoryId)
             .Select(x => new CategoryOption(x.CategoryId, x.CategoryName))
             .ToListAsync(cancellationToken);
+        var today = DateOnly.FromDateTime(clock.GetUtcNow().AddHours(7).DateTime);
+        var certificates = await context.FarmCertificates.AsNoTracking()
+            .Where(x => x.FarmerProfile.UserId == userId)
+            .Where(MarketplaceRules.ValidCertificate(today))
+            .OrderBy(x => x.CertificateType).ThenBy(x => x.CertificateNumber)
+            .Select(x => new ProductCertificateOption(x.FarmCertificateId, x.CertificateType,
+                x.CertificateNumber, x.IssuedBy, x.IssueDate, x.ExpiryDate, x.VerificationStatus, true))
+            .ToListAsync(cancellationToken);
         return new ProductOptions(farm?.VerificationStatus == "Approved" && farm.User.Status == "Active",
-            farm?.VerificationStatus ?? "NotSubmitted", categories);
+            farm?.VerificationStatus ?? "NotSubmitted", categories)
+        { Certificates = certificates };
     }
 
     public async Task<PageResult<ProductResponse>> SearchAsync(long userId, ProductQuery query,
@@ -53,7 +62,7 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
         }
 
         int total = await rows.CountAsync(cancellationToken);
-        var products = await rows.Include(x => x.Category).Include(x => x.ProductImages)
+        var products = await rows.Include(x => x.Category).Include(x => x.FarmCertificate).Include(x => x.ProductImages)
             .Include(x => x.HarvestBatches).Include(x => x.OrderItems)
             .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.ProductId)
             .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
@@ -64,7 +73,7 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
 
     public Task<Product?> GetOwnedAsync(long userId, long id,
         CancellationToken cancellationToken) => context.Products
-        .Include(x => x.Category).Include(x => x.ProductImages)
+        .Include(x => x.Category).Include(x => x.FarmCertificate).Include(x => x.ProductImages)
         .Include(x => x.FarmerProfile).Include(x => x.HarvestBatches).Include(x => x.OrderItems)
         .AsSplitQuery().SingleOrDefaultAsync(x => x.ProductId == id
             && x.FarmerProfile.UserId == userId, cancellationToken);
@@ -75,6 +84,10 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
     public Task<bool> IsUnitLockedAsync(long id, CancellationToken cancellationToken) =>
         context.Products.AnyAsync(x => x.ProductId == id
             && (x.HarvestBatches.Any() || x.OrderItems.Any()), cancellationToken);
+
+    public Task<FarmCertificate?> GetCertificateAsync(long userId, long certificateId, CancellationToken ct) =>
+        context.FarmCertificates.SingleOrDefaultAsync(x => x.FarmCertificateId == certificateId
+            && x.FarmerProfile.UserId == userId, ct);
 
     public void RemoveImages(Product product)
     {
@@ -87,8 +100,12 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
     public void Audit(long userId, string action, long? id, string? before, string after) =>
         context.AuditLogs.Add(new AuditLog
         {
-            PerformedByUserId = userId, EntityType = "Product", EntityId = id,
-            Action = action, OldValue = before, NewValue = after,
+            PerformedByUserId = userId,
+            EntityType = "Product",
+            EntityId = id,
+            Action = action,
+            OldValue = before,
+            NewValue = after,
             OccurredAt = clock.GetUtcNow().UtcDateTime
         });
 
@@ -99,9 +116,17 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
             .Select(x => new ProductImageInput(x.ImageUrl, x.IsPrimary, x.AltText)).ToList();
         var fingerprint = JsonSerializer.Serialize(new
         {
-            product.ProductName, product.CategoryId, product.Unit,
-            product.Description, product.BaseRetailPrice, product.WholesaleMinQuantity,
-            product.WholesalePrice, product.ApprovalStatus, product.IsPublished, Images = images
+            product.ProductName,
+            product.CategoryId,
+            product.Unit,
+            product.Description,
+            product.FarmCertificateId,
+            product.BaseRetailPrice,
+            product.WholesaleMinQuantity,
+            product.WholesalePrice,
+            product.ApprovalStatus,
+            product.IsPublished,
+            Images = images
         });
         string version = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint)));
         var deliveryStates = context.Notifications.AsNoTracking()
@@ -117,6 +142,12 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
                 .Sum(x => x.AvailableQuantity), product.HarvestBatches.Count,
             product.HarvestBatches.Count > 0 || product.OrderItems.Count > 0, version, images)
         {
+            FarmCertificateId = product.FarmCertificateId,
+            Certificate = product.FarmCertificate is { } certificate
+                ? new ProductCertificateOption(certificate.FarmCertificateId, certificate.CertificateType,
+                    certificate.CertificateNumber, certificate.IssuedBy, certificate.IssueDate,
+                    certificate.ExpiryDate, certificate.VerificationStatus,
+                    MarketplaceRules.ValidCertificate(today).Compile()(certificate)) : null,
             NotificationPending = pending,
             NotificationMessage = failed ? ProductListingMessages.MSG187 : pending
                 ? "Email thông báo đang được xử lý; không cần gửi duyệt lại." : null,

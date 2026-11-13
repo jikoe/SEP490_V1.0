@@ -6,6 +6,8 @@ namespace AgriSustain.Infrastructure.Data;
 public partial class AgriSustainContext
 {
     public DbSet<CategorySettings> CategorySettings => Set<CategorySettings>();
+    public DbSet<RevokedToken> RevokedTokens => Set<RevokedToken>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<FeeType> FeeTypes => Set<FeeType>();
     public DbSet<FeePolicy> FeePolicies => Set<FeePolicy>();
     public DbSet<FeePolicyCategory> FeePolicyCategories => Set<FeePolicyCategory>();
@@ -13,6 +15,31 @@ public partial class AgriSustainContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Product>()
+            .HasOne(x => x.FarmCertificate).WithMany()
+            .HasForeignKey(x => x.FarmCertificateId)
+            .OnDelete(DeleteBehavior.NoAction)
+            .HasConstraintName("FK_Product_FarmCertificate");
+        modelBuilder.Entity<Product>()
+            .HasIndex(x => x.FarmCertificateId, "IX_Product_FarmCertificateId");
+        modelBuilder.Entity<RevokedToken>(entity =>
+        {
+            entity.ToTable("RevokedTokens");
+            entity.HasKey(x => x.TokenId);
+            entity.Property(x => x.TokenId).HasMaxLength(64).IsUnicode(false);
+            entity.HasIndex(x => x.ExpiresAt);
+        });
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshToken");
+            entity.HasKey(x => x.RefreshTokenId);
+            entity.Property(x => x.TokenHash).HasMaxLength(128).IsUnicode(false);
+            entity.Property(x => x.ReplacedByHash).HasMaxLength(128).IsUnicode(false);
+            entity.HasIndex(x => x.TokenHash, "UQ_RefreshToken_TokenHash").IsUnique();
+            entity.HasIndex(x => x.UserId, "IX_RefreshToken_UserId");
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         // The deployed schema links order items to batches through allocations only.
         modelBuilder.Entity<OrderItem>().Ignore(x => x.HarvestBatch);
         modelBuilder.Entity<HarvestBatch>().Ignore(x => x.OrderItems);

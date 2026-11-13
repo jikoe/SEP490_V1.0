@@ -1,0 +1,1679 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Khởi Tạo Đơn Hàng Sỉ (Wholesale B2B) - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .order-container { max-width: 1560px; margin: 0 auto; padding: 20px 24px; }
+    
+    /* Breadcrumb & Navigation */
+    .nav-bar-b2b { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; text-decoration: none; padding: 8px 14px; border-radius: 8px; background: white; border: 1px solid #cbd5e1; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .back-link:hover { background: #f8fafc; color: #0f172a; border-color: #94a3b8; }
+    
+    /* Layout Grids: Main Form + Checkout Summary */
+    .order-layout-grid { display: grid; grid-template-columns: 1.65fr 1.15fr; gap: 24px; align-items: start; }
+    @media (max-width: 1024px) {
+      .order-layout-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Cards */
+    .b2b-card { background: white; border-radius: 14px; border: 1px solid #e2e8f0; padding: 22px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+    .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
+    .card-head h3 { margin: 0; font-size: 16.5px; font-weight: 750; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+
+    /* Product Header Card */
+    .prod-hero { display: flex; gap: 18px; align-items: flex-start; }
+    .prod-thumb { width: 118px; height: 118px; border-radius: 12px; object-fit: cover; background: #f1f5f9; border: 1px solid #e2e8f0; flex-shrink: 0; }
+    .prod-meta { flex: 1; }
+    .prod-category { display: inline-block; padding: 3px 10px; border-radius: 6px; background: #ecfdf5; color: #065f46; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+    .prod-name { font-size: 21px; font-weight: 800; color: #064e3b; margin: 0 0 6px; }
+    .prod-supplier { font-size: 13.5px; color: #475569; margin: 0 0 10px; }
+    .supplier-link { color: #047857; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+    .supplier-link:hover { text-decoration: underline; }
+
+    /* Badges */
+    .cert-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; margin-right: 6px; margin-bottom: 4px; }
+
+    /* Tier Matrix */
+    .tier-matrix-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+    @media (max-width: 640px) {
+      .tier-matrix-grid { grid-template-columns: 1fr; }
+    }
+    .tier-card { border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px 14px; background: #f8fafc; transition: all 0.2s; position: relative; cursor: pointer; }
+    .tier-card.active { border-color: #059669; background: #ecfdf5; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15); }
+    .tier-badge-applied { display: none; position: absolute; top: -10px; right: 10px; background: #059669; color: white; font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .tier-card.active .tier-badge-applied { display: inline-block; }
+    .tier-name { font-size: 12.5px; font-weight: 700; color: #475569; margin: 0 0 4px; }
+    .tier-card.active .tier-name { color: #065f46; }
+    .tier-price { font-size: 17px; font-weight: 800; color: #0f172a; margin: 0 0 4px; }
+    .tier-card.active .tier-price { color: #047857; }
+    .tier-vol { font-size: 12px; color: #64748b; margin: 0; }
+    .tier-discount { display: inline-block; padding: 2px 6px; border-radius: 4px; background: #fef2f2; color: #dc2626; font-size: 11px; font-weight: 700; margin-top: 6px; }
+
+    /* Incentive Banner */
+    .tier-incentive-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #1e40af; margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+
+    /* Quantity Controls */
+    .qty-control-wrapper { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+    .qty-btn { width: 42px; height: 42px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; font-size: 20px; font-weight: 700; color: #1e293b; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
+    .qty-btn:hover { background: #f1f5f9; border-color: #94a3b8; }
+    .qty-input { width: 150px; height: 42px; text-align: center; font-size: 18px; font-weight: 700; border: 2px solid #cbd5e1; border-radius: 8px; padding: 4px 10px; color: #0f172a; }
+    .qty-input:focus { border-color: #059669; outline: none; }
+    .qty-input.error { border-color: #dc2626; background: #fff5f5; }
+    .qty-unit { font-size: 15px; font-weight: 600; color: #475569; }
+
+    /* Error and Warning Messages */
+    .inline-error { color: #dc2626; font-size: 12.5px; font-weight: 600; margin-top: 6px; display: none; }
+    .alert-banner { padding: 14px 18px; border-radius: 10px; margin-bottom: 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; }
+    .alert-danger { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+    .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+
+    /* Form Styles */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px; }
+    @media (max-width: 640px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+    .form-group { margin-bottom: 12px; }
+    .form-label { display: block; font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; }
+    .form-label .req { color: #dc2626; margin-left: 2px; }
+    .form-ctrl { width: 100%; padding: 10px 13px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13.5px; color: #0f172a; transition: border-color 0.15s; }
+    .form-ctrl:focus { border-color: #059669; outline: none; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12); }
+    .form-ctrl.invalid { border-color: #dc2626; background: #fff5f5; }
+
+    /* Financial Summary Sidebar */
+    .summary-card { background: white; border-radius: 14px; border: 1px solid #cbd5e1; padding: 22px; position: sticky; top: 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+    .summary-title { font-size: 17px; font-weight: 800; color: #0f172a; margin: 0 0 14px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; }
+    .summary-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; font-size: 13.5px; color: #475569; }
+    .summary-line strong { color: #0f172a; font-weight: 700; }
+    .summary-line.savings { color: #059669; font-weight: 600; }
+    .summary-divider { height: 1px; background: #e2e8f0; margin: 14px 0; }
+    .summary-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; }
+    .total-val { font-size: 24px; font-weight: 900; color: #047857; }
+
+    /* Checkout-Style SePay Payment Option (like Retail Add-to-Cart Checkout) */
+    .sepay-choice-card { border: 2px solid #1e6546; background: #f2f9f5; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s; position: relative; }
+    .sepay-choice-card.selected { border-color: #059669; background: #ecfdf5; box-shadow: 0 3px 10px rgba(5, 150, 105, 0.12); }
+    .sepay-choice-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .sepay-choice-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 800; color: #064e3b; }
+    .sepay-badge-auto { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #059669; color: #fff; }
+    .sepay-choice-desc { font-size: 12.5px; color: #334155; line-height: 1.45; margin: 0; }
+    .sepay-bank-Strip { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #a7f3d0; font-size: 11.5px; color: #047857; font-weight: 600; }
+
+    .terms-option { display: flex; align-items: flex-start; gap: 10px; padding: 11px 13px; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 9px; cursor: pointer; transition: all 0.15s; background: #fff; }
+    .terms-option:hover { border-color: #cbd5e1; background: #f8fafc; }
+    .terms-option.selected { border-color: #059669; background: #ecfdf5; }
+    .terms-option input[type="radio"] { margin-top: 3px; accent-color: #059669; }
+    .terms-info h4 { margin: 0 0 3px; font-size: 13.5px; font-weight: 750; color: #0f172a; }
+    .terms-info p { margin: 0; font-size: 12px; color: #64748b; line-height: 1.4; }
+
+    /* Action Buttons */
+    .btn-submit-order { width: 100%; padding: 14px 18px; border-radius: 9px; font-size: 15.5px; font-weight: 800; background: #1e6546; color: white; border: none; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(30, 101, 70, 0.25); display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; }
+    .btn-submit-order:hover:not(:disabled) { background: #047857; }
+    .btn-submit-order:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
+    .btn-cancel-order { width: 100%; padding: 9px; border-radius: 8px; font-size: 13px; font-weight: 600; background: transparent; color: #64748b; border: 1px solid transparent; cursor: pointer; text-align: center; margin-top: 6px; }
+    .btn-cancel-order:hover { color: #dc2626; background: #fef2f2; }
+
+    /* WHOLESALE ORDERS SIDEBAR PANEL */
+    .ws-orders-sidebar { background: white; border-radius: 14px; border: 1px solid #cbd5e1; padding: 18px; position: sticky; top: 20px; max-height: calc(100vh - 40px); display: flex; flex-direction: column; box-shadow: 0 4px 16px rgba(0,0,0,0.04); }
+    .ws-sidebar-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 2px solid #f1f5f9; margin-bottom: 12px; }
+    .ws-sidebar-title { font-size: 15.5px; font-weight: 800; color: #064e3b; margin: 0; display: flex; align-items: center; gap: 7px; }
+    .ws-count-pill { background: #064e3b; color: white; font-size: 11.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; }
+    .ws-sidebar-search { width: 100%; padding: 8px 11px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 12.5px; margin-bottom: 12px; }
+    .ws-orders-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; padding-right: 2px; max-height: 640px; }
+    .ws-order-item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 13px; background: #f8fafc; cursor: pointer; transition: all 0.18s; text-align: left; }
+    .ws-order-item:hover { border-color: #059669; background: #ecfdf5; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(5, 150, 105, 0.1); }
+    .ws-order-item.active-item { border-color: #059669; background: #ecfdf5; box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2); }
+    .ws-item-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 5px; }
+    .ws-item-code { font-family: monospace; font-weight: 800; font-size: 12.5px; color: #047857; background: #e6f4ea; padding: 2px 6px; border-radius: 4px; }
+    .ws-pay-badge { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+    .ws-pay-badge.paid { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .ws-pay-badge.unpaid { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .ws-item-prod { font-size: 13.5px; font-weight: 750; color: #0f172a; margin: 0 0 4px; line-height: 1.3; }
+    .ws-item-seller { font-size: 12px; color: #475569; margin: 0 0 6px; display: flex; align-items: center; gap: 4px; }
+    .ws-item-foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 4px; font-size: 12px; }
+    .ws-item-amount { font-weight: 800; color: #047857; font-size: 13px; }
+
+    /* Batch Allocation Table */
+    .batch-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+    .batch-table th { background: #f8fafc; color: #475569; font-weight: 700; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    .batch-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
+
+    /* Modals */
+    .order-modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 18px; }
+    .order-modal-content { background: white; border-radius: 16px; max-width: 720px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); position: relative; animation: modalPop 0.22s ease-out; }
+    .qr-modal-content { max-width: 820px; text-align: left; }
+    @keyframes modalPop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+    .modal-close-x { position: absolute; top: 16px; right: 18px; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #475569; }
+    .modal-close-x:hover { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+
+    /* SePay QR Modal Grid */
+    .sepay-qr-grid { display: grid; grid-template-columns: 280px 1fr; gap: 22px; align-items: start; margin-top: 16px; }
+    @media (max-width: 720px) {
+      .sepay-qr-grid { grid-template-columns: 1fr; }
+    }
+    .sepay-qr-box { border: 1px solid #cfe5d7; background: #f5faf6; border-radius: 14px; padding: 18px; text-align: center; }
+    .sepay-qr-box img { width: 220px; height: 220px; object-fit: contain; border-radius: 10px; border: 1px solid #dce5da; background: white; padding: 6px; margin: 10px auto; display: block; }
+    .sepay-info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 9px; margin-bottom: 8px; background: #fff; }
+    .sepay-info-row .lbl { font-size: 11.5px; color: #64748b; }
+    .sepay-info-row .val { font-size: 14px; font-weight: 700; color: #0f172a; }
+    .btn-copy-mini { padding: 5px 10px; font-size: 12px; font-weight: 700; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; cursor: pointer; color: #0f172a; }
+    .btn-copy-mini:hover { background: #e2e8f0; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+
+    <div class="workspace">
+      <header id="app-header"></header>
+
+      <main>
+        <div class="order-container">
+          
+          <!-- NAVIGATION & BREADCRUMB (AF7) -->
+          <div class="nav-bar-b2b">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button id="btn-back-nav" class="back-link" type="button">
+                ← Quay lại chi tiết sản phẩm
+              </button>
+              <a href="orders.html" class="back-link" style="color:#064e3b; border-color:#a7f3d0; background:#ecfdf5;">
+                📦 Danh sách đơn hàng mua sỉ
+              </a>
+              <a href="cart.html" class="back-link" style="color:#92400e; border-color:#fde68a; background:#fffbeb;">
+                🛒 Đơn sỉ chờ thanh toán
+              </a>
+            </div>
+            <div style="font-size: 13px; color: #64748b;">
+              B2B Wholesale / Đặt hàng sỉ / <strong id="breadcrumb-product-name" style="color: #0f172a;">Đang tải...</strong>
+            </div>
+          </div>
+
+          <!-- LOADING STATE -->
+          <div id="order-loading" style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 36px; animation: spin 1s infinite linear; display: inline-block;">⏳</div>
+            <p style="margin-top: 14px; font-weight: 600; color: #475569; font-size: 15px;">Đang nạp dữ liệu định giá sỉ &amp; kiểm tra hạn ngạch tồn kho lô hàng...</p>
+          </div>
+
+          <!-- SYSTEM / NETWORK FAILURE NOTICE (AF6) -->
+          <div id="system-error-banner" class="alert-banner alert-danger" style="display: none;">
+            <span style="font-size: 24px;">⚠️</span>
+            <div>
+              <strong id="system-error-title">Lỗi hệ thống</strong>
+              <p id="system-error-msg" style="margin: 4px 0 0;"></p>
+            </div>
+            <button id="btn-retry-load" type="button" class="back-link" style="margin-left: auto;">Thử lại</button>
+          </div>
+
+          <!-- STOCK OUT / PRODUCT UNAVAILABLE ALERT (AF3) -->
+          <div id="stockout-alert" class="alert-banner alert-warning" style="display: none;">
+            <span style="font-size: 24px;">🚫</span>
+            <div style="flex: 1;">
+              <strong>Sản phẩm không khả dụng để đặt hàng sỉ</strong>
+              <p id="stockout-msg" style="margin: 4px 0 0;">Lô hàng nông sản đã hết tồn kho hoặc số lượng khả dụng nhỏ hơn Khối lượng đặt tối thiểu (MOQ).</p>
+            </div>
+            <a href="../RetailCustomer/index.html" class="back-link" style="background: #064e3b; color: white; border: none;">
+              Xem sản phẩm khác →
+            </a>
+          </div>
+
+          <!-- MAIN ORDER FORM CONTENT (Step 3 to 11) -->
+          <div id="order-main-content" style="display: none;">
+            
+            <div style="margin-bottom: 20px;">
+              <div>
+                <h1 style="font-size: 25px; font-weight: 850; color: #064e3b; margin: 0 0 4px;">📦 Khởi Tạo Đơn Hàng Mua Buôn Nông Sản B2B</h1>
+                <p class="muted" style="margin:0;">Thanh toán tự động qua mã QR SePay Napas 247, khóa giữ lô thu hoạch trực tiếp và xuất hóa đơn VAT doanh nghiệp.</p>
+              </div>
+            </div>
+
+            <div class="order-layout-grid">
+              
+              <!-- COLUMN 1: PRODUCT INFO, TIERS, FORM -->
+              <div>
+                
+                <!-- CARD 1: PRODUCT & SUPPLIER PROFILE (Step 4) -->
+                <div class="b2b-card">
+                  <div class="card-head">
+                    <h3>🌾 Thông Tin Nông Sản &amp; Nhà Cung Cấp</h3>
+                    <span id="badge-active-season" class="badge Active" style="display: inline-block;">Chính vụ thu hoạch</span>
+                  </div>
+
+                  <div class="prod-hero">
+                    <img id="prod-image" src="" alt="Nông sản" class="prod-thumb">
+                    <div class="prod-meta">
+                      <span id="prod-category" class="prod-category">--</span>
+                      <h2 id="prod-title" class="prod-name">--</h2>
+                      <p class="prod-supplier">
+                        🏢 Cung ứng bởi: <strong id="supplier-farm-name" style="color:#064e3b;">--</strong>
+                        <span style="margin: 0 4px;">•</span>
+                        <a id="supplier-capacity-link" href="#" class="supplier-link" target="_blank">
+                          Xem hồ sơ năng lực B2B →
+                        </a>
+                      </p>
+                      <div id="certifications-list"></div>
+                      <div style="margin-top: 8px; font-size: 13px; color: #475569;">
+                        📍 Địa chỉ nông trại: <span id="supplier-farm-address">--</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Available Stock & MOQ Notice -->
+                  <div style="margin-top: 16px; padding-top: 14px; border-top: 1px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                      <span style="font-size: 12.5px; color: #64748b;">Tổng tồn kho sẵn sàng xuất:</span>
+                      <div style="font-size: 17px; font-weight: 800; color: #047857;">
+                        <span id="stat-available-stock">--</span> <span class="unit-label">kg</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span style="font-size: 12.5px; color: #64748b;">Khối lượng mua tối thiểu (MOQ):</span>
+                      <div style="font-size: 17px; font-weight: 800; color: #0f172a;">
+                        <span id="stat-moq">--</span> <span class="unit-label">kg</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span style="font-size: 12.5px; color: #64748b;">Giá bán lẻ thị trường:</span>
+                      <div style="font-size: 15px; font-weight: 600; color: #64748b; text-decoration: line-through;">
+                        <span id="stat-retail-price">--</span> ₫/<span class="unit-label">kg</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Harvest Batches Collapsible View -->
+                  <div style="margin-top: 14px;">
+                    <details style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 13px;">
+                      <summary style="font-weight: 700; color: #334155; cursor: pointer; font-size: 12.5px;">
+                        🔍 Chi tiết các lô thu hoạch liên kết (<span id="batch-count">0</span> lô)
+                      </summary>
+                      <table class="batch-table">
+                        <thead>
+                          <tr>
+                            <th>Mã lô</th>
+                            <th>Ngày thu hoạch</th>
+                            <th>Tồn kho khả dụng</th>
+                            <th>Trạng thái</th>
+                          </tr>
+                        </thead>
+                        <tbody id="batch-table-body"></tbody>
+                      </table>
+                    </details>
+                  </div>
+                </div>
+
+                <!-- CARD 2: QUANTITY & DYNAMIC WHOLESALE PRICE TIERS -->
+                <div class="b2b-card">
+                  <div class="card-head">
+                    <h3>📊 Bảng Giá Bán Buôn Theo Khối Lượng (Wholesale Tiers)</h3>
+                    <span style="font-size: 12px; color: #059669; font-weight: 600;">⚡ Tự động tính giá bậc thang</span>
+                  </div>
+
+                  <p class="section-desc" style="font-size: 13px; color: #64748b; margin: 0 0 10px;">
+                    Chọn bậc khối lượng hoặc nhập số lượng đặt mua để áp dụng mức chiết khấu sỉ:
+                  </p>
+
+                  <!-- 3 TIER MATRIX CARDS (AF2) -->
+                  <div id="tier-matrix-cards" class="tier-matrix-grid"></div>
+
+                  <!-- Next Tier Incentive Alert (AF2) -->
+                  <div id="tier-incentive-msg" class="tier-incentive-box" style="display: none;">
+                    <span>💡</span>
+                    <span id="tier-incentive-text">--</span>
+                  </div>
+
+                  <!-- Quantity Controls (Step 5 & AF1) -->
+                  <div style="margin-top: 18px;">
+                    <label class="form-label" for="input-order-quantity" style="font-size: 13.5px;">
+                      Số lượng đặt mua sỉ <span class="req">*</span>:
+                    </label>
+                    <div class="qty-control-wrapper">
+                      <button id="btn-qty-minus" type="button" class="qty-btn" title="Giảm số lượng">−</button>
+                      <input id="input-order-quantity" type="number" class="qty-input" min="1" step="1">
+                      <button id="btn-qty-plus" type="button" class="qty-btn" title="Tăng số lượng">+</button>
+                      <span class="qty-unit unit-label">kg</span>
+                    </div>
+
+                    <!-- AF1: Inline Error Notice -->
+                    <div id="qty-error-msg" class="inline-error">
+                      ⚠️ Số lượng đặt mua phải từ <span id="err-moq">--</span> trở lên và không vượt quá số lượng tồn kho khả dụng (<span id="err-stock">--</span>).
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CARD 3: DELIVERY DETAILS & CORPORATE TAX INVOICE (Step 6 & AF4) -->
+                <div class="b2b-card">
+                  <div class="card-head">
+                    <h3>🏢 Thông Tin Giao Nhận &amp; Xuất Hóa Đơn Doanh Nghiệp (VAT)</h3>
+                    <span style="font-size: 12px; color: #047857; font-weight: 600;">✓ Đồng bộ từ hồ sơ B2B KYC</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" for="input-delivery-address">
+                      Địa chỉ kho đích / Điểm giao hàng <span class="req">*</span>:
+                    </label>
+                    <input id="input-delivery-address" type="text" class="form-ctrl" placeholder="Ví dụ: Kho Tổng AgriSustain Tân Bình, 120 Hoàng Hoa Thám, P.12, Q.Tân Bình, TP.HCM">
+                    <div id="err-delivery-address" class="inline-error">Vui lòng cung cấp địa chỉ kho giao hàng đích.</div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label" for="input-recipient-name">
+                        Người đại diện nhận hàng <span class="req">*</span>:
+                      </label>
+                      <input id="input-recipient-name" type="text" class="form-ctrl" placeholder="Họ và tên thủ kho / cán bộ nhận hàng">
+                      <div id="err-recipient-name" class="inline-error">Vui lòng nhập tên người nhận hàng.</div>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="input-recipient-phone">
+                        Số điện thoại liên hệ nhận hàng <span class="req">*</span>:
+                      </label>
+                      <input id="input-recipient-phone" type="tel" class="form-ctrl" placeholder="09xxxxxxxx">
+                      <div id="err-recipient-phone" class="inline-error">Vui lòng nhập số điện thoại hợp lệ.</div>
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label" for="input-company-name">
+                        Tên công ty / Đơn vị mua hàng (xuất hóa đơn) <span class="req">*</span>:
+                      </label>
+                      <input id="input-company-name" type="text" class="form-ctrl" placeholder="Công ty TNHH / Cổ phần...">
+                      <div id="err-company-name" class="inline-error">Vui lòng nhập tên công ty xuất hóa đơn.</div>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="input-tax-code">
+                        Mã số thuế doanh nghiệp (MST) <span class="req">*</span>:
+                      </label>
+                      <input id="input-tax-code" type="text" class="form-ctrl" placeholder="03xxxxxxxx hoặc 01xxxxxxxx">
+                      <div id="err-tax-code" class="inline-error">Vui lòng nhập mã số thuế hợp lệ.</div>
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label class="form-label" for="input-expected-date">
+                        Ngày mong muốn nhận hàng:
+                      </label>
+                      <input id="input-expected-date" type="date" class="form-ctrl">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="input-notes">
+                        Ghi chú đóng gói / Yêu cầu bảo quản:
+                      </label>
+                      <input id="input-notes" type="text" class="form-ctrl" placeholder="Ví dụ: Đóng thùng carton 20kg, bảo quản mát">
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- COLUMN 2: FINANCIAL BREAKDOWN & SEPAY PAYMENT (Step 9, 10, 11) -->
+              <div>
+                <div class="summary-card">
+                  <h3 class="summary-title">🧾 Thanh Toán &amp; Tóm Tắt Đơn Sỉ</h3>
+
+                  <div class="summary-line">
+                    <span>Nhà bán (Nông hộ):</span>
+                    <strong id="summary-seller-name" style="color:#064e3b;">--</strong>
+                  </div>
+
+                  <div class="summary-line">
+                    <span>Khối lượng đặt:</span>
+                    <strong><span id="summary-quantity">0</span> <span class="unit-label">kg</span></strong>
+                  </div>
+
+                  <div class="summary-line">
+                    <span>Đơn giá sỉ áp dụng:</span>
+                    <strong><span id="summary-unit-price">0</span> ₫/<span class="unit-label">kg</span></strong>
+                  </div>
+
+                  <div class="summary-line">
+                    <span>Mức chiết khấu theo tier:</span>
+                    <strong id="summary-discount-pct" style="color: #059669;">0%</strong>
+                  </div>
+
+                  <div class="summary-line">
+                    <span>Tiền hàng (Subtotal):</span>
+                    <strong><span id="summary-subtotal">0</span> ₫</strong>
+                  </div>
+
+                  <div class="summary-line savings">
+                    <span>Tiết kiệm so với giá lẻ:</span>
+                    <strong>−<span id="summary-savings">0</span> ₫</strong>
+                  </div>
+
+                  <div class="summary-line">
+                    <span>Thuế VAT nông sản (0%):</span>
+                    <span>0 ₫</span>
+                  </div>
+
+                  <div class="summary-line">
+                    <span>Phí vận chuyển logistics:</span>
+                    <strong><span id="summary-shipping">0</span> ₫</strong>
+                  </div>
+
+                  <div class="summary-divider"></div>
+
+                  <div class="summary-total">
+                    <span style="font-size: 14.5px; font-weight: 750; color: #0f172a;">TỔNG THANH TOÁN:</span>
+                    <span class="total-val"><span id="summary-total">0</span> ₫</span>
+                  </div>
+
+                  <!-- Step 10: Payment Method Selector (SePay Only) -->
+                  <div style="margin-top: 20px;">
+                    <label class="form-label" style="font-size: 13px;">
+                      Phương thức thanh toán <span class="req">*</span>:
+                    </label>
+
+                    <label class="sepay-choice-card selected" id="term-label-sepay" style="display:block; cursor:default;">
+                      <input type="radio" name="paymentTerms" value="SePay" checked style="display:none;">
+                      <div class="sepay-choice-row">
+                        <span class="sepay-choice-title">
+                          <span style="display:inline-block; width:14px; height:14px; border-radius:50%; border:4px solid #059669; background:#fff;"></span>
+                          💳 Chuyển khoản ngân hàng (SePay QR)
+                        </span>
+                        <span class="sepay-badge-auto">Tự động duyệt</span>
+                      </div>
+                      <p class="sepay-choice-desc">
+                        Quét mã QR VietQR (Napas 247) bằng ứng dụng ngân hàng hoặc ví điện tử. SePay tự động xác nhận ngay khi tiền về tài khoản.
+                      </p>
+                      <div class="sepay-bank-Strip">
+                        <span>✓ MB Bank</span> · <span>Vietcombank</span> · <span>BIDV</span> · <span>Techcombank</span> · <span>QR Napas 247</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  <!-- Step 11: Confirmation and Submission Buttons -->
+                  <button id="btn-submit-wholesale-order" type="button" class="btn-submit-order" onclick="handleSubmitWholesaleOrder(true)">
+                    💳 Đặt hàng sỉ &amp; Thanh toán QR SePay
+                  </button>
+
+                  <button id="btn-add-wholesale-cart" type="button" class="back-link" style="width:100%; justify-content:center; margin-top:10px; padding:12px 16px; border-color:#059669; color:#065f46; background:#ecfdf5; font-size:14.5px; font-weight:800;" onclick="handleSubmitWholesaleOrder(false)">
+                    🛒 Lưu vào Đơn sỉ chờ thanh toán (Thanh toán sau)
+                  </button>
+
+                  <!-- AF5: Cancel Action -->
+                  <button id="btn-cancel-wholesale-order" type="button" class="btn-cancel-order">
+                    ✕ Hủy tạo đơn hàng &amp; Quay lại
+                  </button>
+
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      </main>
+
+      <footer>
+        Nền tảng AgriSustain · Hệ thống B2B Wholesale Procurement · Đảm bảo quyền lợi Nông hộ &amp; Doanh nghiệp
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL 1: CHI TIẾT ĐƠN HÀNG SỈ (WHOLESALE ORDER DETAIL MODAL) -->
+  <div id="modal-wholesale-order-detail" class="order-modal-backdrop" onclick="if(event.target===this) closeOrderDetailModal()">
+    <div class="order-modal-content" style="text-align:left;">
+      <button type="button" class="modal-close-x" onclick="closeOrderDetailModal()">&times;</button>
+
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+        <span style="font-size:24px;">📦</span>
+        <div>
+          <span style="font-size:11.5px; font-weight:700; text-transform:uppercase; color:#059669; letter-spacing:0.5px;">CHI TIẾT ĐƠN HÀNG MUA SỈ B2B</span>
+          <h2 id="detail-modal-title" style="font-size:20px; font-weight:850; color:#064e3b; margin:0;">Đơn hàng #WS---</h2>
+        </div>
+      </div>
+
+      <!-- Callout SePay Payment Box (shown if PendingPayment) -->
+      <div id="detail-sepay-callout" style="background: #eaf5ee; border: 1px solid #a7f3d0; border-radius: 10px; padding: 14px 16px; margin: 14px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <div style="font-weight: 800; color: #064e3b; font-size: 14.5px; margin-bottom: 3px;">
+            ⏳ Đơn hàng đang chờ thanh toán qua SePay QR
+          </div>
+          <div style="color: #334155; font-size: 12.5px;">
+            Quét mã QR chuyển khoản ngân hàng để hệ thống SePay tự động xác nhận đơn hàng ngay lập tức.
+          </div>
+        </div>
+        <button type="button" id="btn-detail-open-sepay" class="btn primary" style="background: #1e6546; color: #fff; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer;">
+          💳 Thanh toán ngay bằng mã QR SePay
+        </button>
+      </div>
+
+      <!-- Order & Seller Info Grid -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin: 14px 0;">
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <div style="font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px;">🌾 Thông tin Nhà bán (Nông hộ)</div>
+          <div style="font-size:15px; font-weight:800; color:#064e3b; margin-bottom:4px;" id="detail-seller-name">--</div>
+          <div style="font-size:12.5px; color:#475569; margin-bottom:6px;">📍 <span id="detail-seller-address">--</span></div>
+          <div style="font-size:12px; color:#64748b;">Mã vận đơn NCC: <code id="detail-seller-code" style="font-weight:700; color:#0f172a;">--</code></div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px;">
+          <div style="font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px;">📊 Trạng thái &amp; Thời gian</div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
+            <span style="color:#64748b;">Trạng thái đơn:</span>
+            <span id="detail-order-status" class="badge Pending">--</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
+            <span style="color:#64748b;">Thanh toán:</span>
+            <span id="detail-payment-status" class="ws-pay-badge unpaid">--</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:12.5px; color:#475569;">
+            <span>Ngày đặt: <strong id="detail-order-date">--</strong></span>
+            <span>Giao dự kiến: <strong id="detail-expected-date">--</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product & Financial Breakdown -->
+      <div style="background:#fff; border:1px solid #cbd5e1; border-radius:10px; padding:14px; margin-bottom:14px;">
+        <div style="font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:10px;">🛒 Chi tiết mặt hàng &amp; Giá trị thanh toán</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:10px; border-bottom:1px dashed #e2e8f0; margin-bottom:10px;">
+          <div>
+            <div id="detail-product-name" style="font-size:15.5px; font-weight:800; color:#0f172a;">--</div>
+            <div style="font-size:13px; color:#475569; margin-top:2px;">
+              Số lượng đặt sỉ: <strong id="detail-quantity">--</strong> × Đơn giá sỉ: <strong id="detail-unit-price">--</strong>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:12px; color:#64748b;">Thành tiền hàng</div>
+            <div id="detail-subtotal" style="font-size:15px; font-weight:800; color:#0f172a;">--</div>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#475569; margin-bottom:6px;">
+          <span>Phí vận chuyển logistics B2B:</span>
+          <strong id="detail-delivery-fee">--</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; color:#475569; margin-bottom:8px;">
+          <span>Phương thức thanh toán:</span>
+          <strong id="detail-payment-method">--</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; padding-top:8px; border-top:1px solid #e2e8f0;">
+          <span style="font-weight:800; color:#0f172a; font-size:14px;">TỔNG THANH TOÁN ĐƠN SỈ:</span>
+          <span id="detail-final-amount" style="font-size:20px; font-weight:900; color:#047857;">--</span>
+        </div>
+      </div>
+
+      <!-- Delivery & Corporate Invoice Info -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; margin-bottom:14px; font-size:13px;">
+        <div style="font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; margin-bottom:8px;">🏢 Thông tin Giao nhận kho &amp; Hóa đơn Doanh nghiệp</div>
+        <div style="display:grid; grid-template-columns: 140px 1fr; gap:6px 12px;">
+          <span style="color:#64748b;">Đơn vị xuất HĐ:</span><strong id="detail-company-name">--</strong>
+          <span style="color:#64748b;">Mã số thuế:</span><strong id="detail-tax-code">--</strong>
+          <span style="color:#64748b;">Người nhận hàng:</span><span id="detail-recipient">--</span>
+          <span style="color:#64748b;">Kho nhận hàng:</span><span id="detail-shipping-address">--</span>
+          <span style="color:#64748b;">Lô hàng giữ chỗ:</span><span id="detail-batches" style="font-weight:600; color:#047857;">--</span>
+          <span style="color:#64748b;">Ghi chú đơn sỉ:</span><span id="detail-notes">--</span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button type="button" class="back-link" onclick="window.print()">🖨️ In phiếu đơn sỉ</button>
+        <button type="button" class="back-link" style="background:#064e3b; color:white; border:none;" onclick="closeOrderDetailModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: GIAO DIỆN THANH TOÁN QR SEPAY (GIỐNG ADD-TO-CART CHECKOUT PAYMENT) -->
+  <div id="modal-sepay-qr-payment" class="order-modal-backdrop" onclick="if(event.target===this) closeSePayQrModal()">
+    <div class="order-modal-content qr-modal-content">
+      <button type="button" class="modal-close-x" onclick="closeSePayQrModal()">&times;</button>
+
+      <!-- Header -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; padding-bottom:14px; border-bottom:1px solid #e2e8f0;">
+        <div>
+          <span id="sepay-header-status-pill" style="display:inline-block; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-size:12px; font-weight:800; padding:3px 10px; border-radius:999px; margin-bottom:6px;">
+            ⏳ Chờ thanh toán SePay · Mã đơn #<span id="sepay-badge-code">WS---</span>
+          </span>
+          <h2 style="font-size:22px; font-weight:850; color:#064e3b; margin:0 0 4px;">Thanh toán đơn hàng sỉ qua SePay</h2>
+          <p style="margin:0; font-size:13px; color:#475569;">
+            Quét mã QR bằng ứng dụng ngân hàng hoặc ví điện tử. SePay tự động xác nhận ngay khi tiền về tài khoản.
+          </p>
+        </div>
+        <div id="sepay-timer-box" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:8px 14px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">⏱️</span>
+          <div>
+            <div id="sepay-timer-label" style="font-size:10.5px; text-transform:uppercase; font-weight:700; color:#64748b;">Thời gian giữ lô</div>
+            <div id="sepay-timer-digits" style="font-size:17px; font-weight:900; color:#047857; font-family:monospace;">15:00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success State Inside QR Modal -->
+      <div id="sepay-paid-success-box" style="display:none; text-align:center; padding:28px 16px;">
+        <div style="width:68px; height:68px; border-radius:50%; background:#dcfce7; color:#15803d; font-size:36px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">✓</div>
+        <h3 style="font-size:22px; font-weight:850; color:#064e3b; margin:0 0 6px;">Đã thanh toán SePay thành công!</h3>
+        <p style="font-size:14px; color:#475569; max-width:520px; margin:0 auto 18px;">
+          Giao dịch chuyển khoản <strong id="sepay-succ-amount" style="color:#047857;">0 ₫</strong> cho đơn hàng sỉ <strong id="sepay-succ-code">#WS---</strong> đã được hệ thống SePay xác nhận.
+        </p>
+        <div style="display:flex; justify-content:center; gap:12px;">
+          <button type="button" class="btn primary" style="background:#064e3b; color:#fff; padding:10px 22px; border-radius:8px; font-weight:700; border:none; cursor:pointer;" onclick="viewCurrentPaidOrderDetail()">
+            📦 Xem chi tiết đơn hàng sỉ
+          </button>
+          <a href="dashboard.html" class="back-link" style="padding:10px 20px;">
+            📊 Về bảng điều khiển mua buôn
+          </a>
+        </div>
+      </div>
+
+      <!-- Expired & Auto-Cancelled State Inside QR Modal -->
+      <div id="sepay-expired-cancelled-box" style="display:none; text-align:center; padding:28px 16px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; margin-top:16px;">
+        <div style="width:68px; height:68px; border-radius:50%; background:#fee2e2; color:#dc2626; font-size:34px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">🚫</div>
+        <h3 style="font-size:21px; font-weight:850; color:#991b1b; margin:0 0 6px;">Đơn hàng đã tự động hủy do hết thời gian thanh toán!</h3>
+        <p style="font-size:14px; color:#7f1d1d; max-width:560px; margin:0 auto 18px; line-height:1.5;">
+          Thời gian giữ hàng thanh toán (15 phút) cho đơn hàng sỉ <strong id="sepay-exp-code">#WS---</strong> đã kết thúc mà hệ thống chưa ghi nhận giao dịch chuyển khoản. Đơn hàng đã tự động chuyển sang trạng thái <strong>Đã hủy</strong> và hoàn trả lại tồn kho lô thu hoạch.
+        </p>
+        <div style="display:flex; justify-content:center; gap:12px;">
+          <button type="button" onclick="closeSePayQrModal()" style="background:#dc2626; color:#fff; padding:10px 22px; border-radius:8px; font-weight:700; border:none; cursor:pointer;">
+            Đóng &amp; Đặt lại đơn sỉ mới
+          </button>
+          <a href="orders.html" class="back-link" style="padding:10px 20px;">
+            📦 Xem danh sách đơn hàng sỉ
+          </a>
+        </div>
+      </div>
+
+      <!-- Active QR & Bank Transfer Info Grid -->
+      <div id="sepay-active-qr-body" class="sepay-qr-grid">
+        <!-- Left: VietQR Image -->
+        <div class="sepay-qr-box">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="font-size:14px; color:#064e3b;">Quét mã QR (<span id="sepay-qr-bank-short">MB</span>)</strong>
+            <span style="font-size:10.5px; font-weight:800; background:#dcfce7; color:#166534; padding:2px 7px; border-radius:6px;">✓ NAPAS 247</span>
+          </div>
+          <img id="sepay-qr-img" src="" alt="Mã QR thanh toán SePay">
+          <p style="font-size:12px; color:#475569; margin:8px 0 4px; line-height:1.4;">
+            Mở App <strong>Ngân hàng</strong> hoặc <strong>MoMo / ViettelPay</strong> quét mã để điền sẵn số tiền &amp; nội dung.
+          </p>
+          <div style="font-size:11px; color:#047857; font-weight:700;">
+            Vietcombank · MB · BIDV · Techcombank · ACB
+          </div>
+        </div>
+
+        <!-- Right: Bank Account Details -->
+        <div>
+          <h4 style="margin:0 0 10px; font-size:15px; font-weight:800; color:#064e3b;">Thông tin chuyển khoản ngân hàng</h4>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Kênh thanh toán</div>
+              <div class="val" style="color:#047857;">SePay · Chuyển khoản Napas 247 (Tự động xác nhận)</div>
+            </div>
+          </div>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Ngân hàng thụ hưởng</div>
+              <div class="val" id="sepay-bank-name">MB Bank (Ngân hàng TMCP Quân Đội)</div>
+            </div>
+          </div>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Chủ tài khoản</div>
+              <div class="val" id="sepay-account-name">CONG TY CP NONG SAN VIET</div>
+            </div>
+          </div>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Số tài khoản</div>
+              <div class="val" id="sepay-account-number" style="font-family:monospace; letter-spacing:0.8px;">0000499456980</div>
+            </div>
+            <button type="button" class="btn-copy-mini" id="btn-copy-sepay-acc" onclick="copySePayField('acc', sePayBeneficiary.accountNumber)">Sao chép</button>
+          </div>
+
+          <div class="sepay-info-row">
+            <div>
+              <div class="lbl">Số tiền cần thanh toán</div>
+              <div class="val" id="sepay-amount-display" style="color:#047857; font-size:16px; font-weight:900;">0 ₫</div>
+            </div>
+            <button type="button" class="btn-copy-mini" id="btn-copy-sepay-amt" onclick="copySePayField('amt', String(activeSePayOrder?.finalAmount || 0))">Sao chép</button>
+          </div>
+
+          <div class="sepay-info-row" style="background:#ecfdf5; border-color:#6ee7b7;">
+            <div>
+              <div class="lbl" style="color:#065f46; font-weight:700;">Nội dung chuyển khoản (bắt buộc)</div>
+              <div class="val" id="sepay-transfer-content" style="color:#047857; font-family:monospace; font-size:15px; font-weight:900;">WS---</div>
+            </div>
+            <button type="button" class="btn-copy-mini" id="btn-copy-sepay-content" onclick="copySePayField('content', activeSePayOrder?.transferContent || '')">Sao chép</button>
+          </div>
+
+          <div style="font-size:12px; color:#475569; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:9px 12px; margin-top:10px;">
+            💡 <em>Hệ thống đang tự động kiểm tra giao dịch SePay mỗi 3 giây. Ngay khi chuyển khoản đúng nội dung, đơn hàng sỉ sẽ tự động chuyển sang trạng thái <strong>Đã thanh toán</strong>.</em>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+
+  <script>
+    let productInfo = null;
+    let selectedQuantity = 0;
+    let priceCalculation = null;
+    let isSubmitting = false;
+
+    // Wholesale Orders Sidebar & Detail State
+    let buyerOrdersList = [];
+    let selectedDetailOrder = null;
+
+    // SePay Payment State
+    let sePayBeneficiary = {
+      bankName: 'MB Bank (Ngân hàng TMCP Quân Đội)',
+      bankBin: '970422',
+      bankShortName: 'MB',
+      accountNumber: '0000499456980',
+      accountName: 'CONG TY CP NONG SAN VIET'
+    };
+    let activeSePayOrder = null;
+    let sePayPollingTimer = null;
+    let sePayCountdownTimer = null;
+    let sePaySecondsLeft = 900;
+
+    function scrollToTop() {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      document.body.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      const workspace = document.querySelector('.workspace');
+      if (workspace) workspace.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      scrollToTop();
+
+      if (typeof Components !== 'undefined' && Components.init) {
+        Components.init();
+      }
+
+      document.getElementById('btn-back-nav')?.addEventListener('click', handleBackNavigation);
+      document.getElementById('btn-cancel-wholesale-order')?.addEventListener('click', handleCancelOrderCreation);
+      document.getElementById('btn-retry-load')?.addEventListener('click', loadProductData);
+
+      // Quick product switcher
+      const quickSelect = document.getElementById('quick-product-select');
+      if (quickSelect) {
+        quickSelect.addEventListener('change', (e) => {
+          const newPid = e.target.value;
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('productId', newPid);
+          window.history.pushState({}, '', newUrl);
+          loadProductData();
+        });
+      }
+
+      // Payment Terms radio toggle styling
+      document.querySelectorAll('input[name="paymentTerms"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          document.querySelectorAll('.terms-option, .sepay-choice-card').forEach(opt => opt.classList.remove('selected'));
+          e.target.closest('.terms-option, .sepay-choice-card')?.classList.add('selected');
+        });
+      });
+
+      // Quantity controls
+      const qtyInput = document.getElementById('input-order-quantity');
+      if (qtyInput) {
+        qtyInput.addEventListener('input', onQuantityInputChange);
+      }
+      document.getElementById('btn-qty-minus')?.addEventListener('click', () => adjustQuantity(-10));
+      document.getElementById('btn-qty-plus')?.addEventListener('click', () => adjustQuantity(10));
+
+      // Prefill expected date (+3 days)
+      const dateInput = document.getElementById('input-expected-date');
+      if (dateInput) {
+        const minDate = new Date();
+        minDate.setDate(minDate.getDate() + 1);
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() + 3);
+        dateInput.min = minDate.toISOString().split('T')[0];
+        dateInput.value = defaultDate.toISOString().split('T')[0];
+      }
+
+      // Load payment config, product data, and sidebar wholesale orders in parallel
+      loadSePayBeneficiaryConfig();
+      await Promise.all([
+        loadProductData(),
+        loadBuyerWholesaleOrders()
+      ]);
+    });
+
+    async function loadSePayBeneficiaryConfig() {
+      try {
+        const res = await API.getPaymentConfig();
+        const cfg = res?.data || res;
+        if (cfg && cfg.accountNumber) {
+          sePayBeneficiary = {
+            bankName: cfg.bankName || sePayBeneficiary.bankName,
+            bankBin: cfg.bankBin || sePayBeneficiary.bankBin,
+            bankShortName: cfg.bankShortName || sePayBeneficiary.bankShortName,
+            accountNumber: cfg.accountNumber || sePayBeneficiary.accountNumber,
+            accountName: cfg.accountName || sePayBeneficiary.accountName
+          };
+        }
+      } catch (_) {}
+    }
+
+    function handleBackNavigation() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const productId = urlParams.get('productId') || urlParams.get('id');
+      if (productId) {
+        window.location.href = `../RetailCustomer/product-detail.html?id=${productId}`;
+      } else {
+        window.history.back();
+      }
+    }
+
+    function handleCancelOrderCreation() {
+      const confirmed = confirm('Bạn có chắc chắn muốn hủy tạo đơn hàng sỉ? Các thông tin đã nhập sẽ không được lưu.');
+      if (confirmed) {
+        handleBackNavigation();
+      }
+    }
+
+    // Load Wholesale Product Info
+    async function loadProductData() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let productId = urlParams.get('productId') || urlParams.get('id');
+
+      if (!productId) {
+        productId = '1';
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('productId', productId);
+        window.history.replaceState({}, '', newUrl);
+      }
+
+      const quickSelect = document.getElementById('quick-product-select');
+      if (quickSelect) quickSelect.value = String(productId);
+
+      showLoading(true);
+      hideSystemError();
+      document.getElementById('stockout-alert').style.display = 'none';
+      document.getElementById('order-main-content').style.display = 'none';
+
+      try {
+        const response = await API.getWholesaleProductInfo(productId);
+        if (response && response.success && response.data) {
+          productInfo = response.data;
+          renderProductDetails(response.data);
+        } else {
+          showSystemError('Không thể tải thông tin đặt sỉ', response?.message || 'Sản phẩm không hỗ trợ đặt sỉ hoặc không tìm thấy dữ liệu.');
+        }
+      } catch (err) {
+        showSystemError('Lỗi kết nối máy chủ (AF6)', err.message || 'Không thể liên lạc với máy chủ lúc này. Vui lòng kiểm tra kết nối mạng và thử lại.');
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // Render Product & KYC Details
+    function renderProductDetails(data) {
+      document.getElementById('order-main-content').style.display = 'block';
+
+      const minQty = Number(data.wholesaleMinQuantity ?? data.minQuantity ?? 1);
+      const availStock = Number(data.availableStock ?? 0);
+      data.minQuantity = Number.isFinite(minQty) && minQty > 0 ? minQty : 1;
+      data.wholesaleMinQuantity = data.minQuantity;
+      data.availableStock = Number.isFinite(availStock) ? availStock : 0;
+
+      const farmName = data.farmName || data.farmerFarmName || data.representativeName || data.farmerName || 'Nông trại đối tác';
+      const farmAddress = data.farmAddress || data.farmerAddress || 'Việt Nam';
+
+      if (data.availableStock < data.minQuantity || data.availableStock <= 0) {
+        document.getElementById('stockout-alert').style.display = 'flex';
+        document.getElementById('stockout-msg').textContent = 
+          `Sản phẩm hiện chỉ còn tồn ${data.availableStock.toLocaleString('vi-VN')} ${data.unit}, không đủ khối lượng tối thiểu (MOQ: ${data.minQuantity.toLocaleString('vi-VN')} ${data.unit}). Vui lòng chọn sản phẩm khác hoặc liên hệ nhà cung cấp.`;
+        document.getElementById('btn-submit-wholesale-order').disabled = true;
+      } else {
+        document.getElementById('btn-submit-wholesale-order').disabled = false;
+      }
+
+      document.getElementById('breadcrumb-product-name').textContent = data.productName;
+      document.getElementById('prod-title').textContent = data.productName;
+      document.getElementById('prod-category').textContent = data.categoryName || 'Nông sản';
+      document.getElementById('supplier-farm-name').textContent = farmName;
+      document.getElementById('summary-seller-name').textContent = farmName;
+      document.getElementById('supplier-farm-address').textContent = farmAddress;
+
+      const thumbEl = document.getElementById('prod-image');
+      thumbEl.src = data.primaryImageUrl || 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&auto=format&fit=crop&q=80';
+
+      const capLink = document.getElementById('supplier-capacity-link');
+      if (data.farmerProfileId) {
+        capLink.href = `supplier-capacity.html?farmerProfileId=${data.farmerProfileId}`;
+        capLink.style.display = 'inline-flex';
+      } else {
+        capLink.style.display = 'none';
+      }
+
+      const certContainer = document.getElementById('certifications-list');
+      if (data.certifications && data.certifications.length > 0) {
+        certContainer.innerHTML = data.certifications.map(c => `<span class="cert-badge">🏅 ${c}</span>`).join('');
+      } else {
+        certContainer.innerHTML = '<span class="cert-badge" style="background:#f1f5f9; color:#64748b; border-color:#cbd5e1;">Nông nghiệp sạch tiêu chuẩn</span>';
+      }
+
+      document.querySelectorAll('.unit-label').forEach(el => el.textContent = data.unit);
+
+      document.getElementById('stat-available-stock').textContent = Number(data.availableStock).toLocaleString('vi-VN');
+      document.getElementById('stat-moq').textContent = Number(data.minQuantity).toLocaleString('vi-VN');
+      document.getElementById('stat-retail-price').textContent = Number(data.baseRetailPrice).toLocaleString('vi-VN');
+      document.getElementById('err-moq').textContent = `${Number(data.minQuantity).toLocaleString('vi-VN')} ${data.unit}`;
+      document.getElementById('err-stock').textContent = `${Number(data.availableStock).toLocaleString('vi-VN')} ${data.unit}`;
+
+      // Batches
+      document.getElementById('batch-count').textContent = data.availableBatches ? data.availableBatches.length : 0;
+      const batchBody = document.getElementById('batch-table-body');
+      if (data.availableBatches && data.availableBatches.length > 0) {
+        batchBody.innerHTML = data.availableBatches.map(b => `
+          <tr>
+            <td><code style="font-weight:700; color:#047857;">${b.batchCode}</code></td>
+            <td>${b.actualHarvestDate || 'Vừa thu hoạch'}</td>
+            <td><strong>${Number(b.availableQuantity).toLocaleString('vi-VN')}</strong> ${data.unit}</td>
+            <td><span class="badge Active">Khả dụng</span></td>
+          </tr>
+        `).join('');
+      } else {
+        batchBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Không có dữ liệu lô thu hoạch</td></tr>';
+      }
+
+      // Prefill Corporate KYC
+      if (data.buyerKyc) {
+        if (data.buyerKyc.companyName) document.getElementById('input-company-name').value = data.buyerKyc.companyName;
+        if (data.buyerKyc.taxCode) document.getElementById('input-tax-code').value = data.buyerKyc.taxCode;
+        if (data.buyerKyc.businessAddress) document.getElementById('input-delivery-address').value = data.buyerKyc.businessAddress;
+        if (data.buyerKyc.representativeName) document.getElementById('input-recipient-name').value = data.buyerKyc.representativeName;
+        if (data.buyerKyc.phoneNumber) document.getElementById('input-recipient-phone').value = data.buyerKyc.phoneNumber;
+      }
+
+      const initialQty = Math.max(Number(data.minQuantity) || 1, 1);
+      selectedQuantity = initialQty;
+      const qtyInput = document.getElementById('input-order-quantity');
+      qtyInput.value = initialQty;
+      qtyInput.min = data.minQuantity;
+      qtyInput.max = data.availableStock;
+
+      renderTierMatrix(data.priceTiers, selectedQuantity);
+      calculatePrice(selectedQuantity);
+    }
+
+    function renderTierMatrix(tiers, activeQty) {
+      const container = document.getElementById('tier-matrix-cards');
+      if (!tiers || tiers.length === 0) {
+        container.innerHTML = '<p style="color:#64748b;">Không có cấu hình bậc giá sỉ.</p>';
+        return;
+      }
+
+      let activeTierIndex = 0;
+      for (let i = 0; i < tiers.length; i++) {
+        if (activeQty >= tiers[i].minQuantity) {
+          activeTierIndex = i;
+        }
+      }
+
+      container.innerHTML = tiers.map((tier, idx) => {
+        const isActive = (idx === activeTierIndex);
+        return `
+          <div class="tier-card ${isActive ? 'active' : ''}" onclick="selectTierQuantity(${tier.minQuantity})">
+            <span class="tier-badge-applied">✓ Đang áp dụng</span>
+            <p class="tier-name">${tier.tierName}</p>
+            <div class="tier-price">${Number(tier.unitPrice).toLocaleString('vi-VN')} ₫</div>
+            <p class="tier-vol">Từ <strong>${Number(tier.minQuantity).toLocaleString('vi-VN')} ${productInfo.unit}</strong></p>
+            ${tier.discountPercent > 0 ? `<span class="tier-discount">Giảm ${tier.discountPercent}% so với giá sỉ gốc</span>` : '<span style="font-size:11px; color:#64748b; margin-top:6px; display:inline-block;">Giá sỉ khởi điểm</span>'}
+          </div>
+        `;
+      }).join('');
+
+      const incentiveEl = document.getElementById('tier-incentive-msg');
+      const incentiveText = document.getElementById('tier-incentive-text');
+      if (activeTierIndex < tiers.length - 1) {
+        const nextTier = tiers[activeTierIndex + 1];
+        const needed = nextTier.minQuantity - activeQty;
+        if (needed > 0 && nextTier.minQuantity <= productInfo.availableStock) {
+          incentiveEl.style.display = 'flex';
+          incentiveText.innerHTML = `Đặt thêm <strong>${Number(needed).toLocaleString('vi-VN')} ${productInfo.unit}</strong> nữa để đạt <strong>${nextTier.tierName}</strong> (giảm thêm ${nextTier.discountPercent}%, đơn giá chỉ còn ${Number(nextTier.unitPrice).toLocaleString('vi-VN')} ₫)!`;
+        } else {
+          incentiveEl.style.display = 'none';
+        }
+      } else {
+        incentiveEl.style.display = 'flex';
+        incentiveText.innerHTML = `🎉 Bạn đang hưởng <strong>mức chiết khấu cao nhất (${tiers[activeTierIndex].discountPercent}%)</strong> cho đơn hàng khối lượng lớn!`;
+      }
+    }
+
+    function selectTierQuantity(qty) {
+      if (productInfo && qty > productInfo.availableStock) {
+        alert(`Số lượng của mức giá này (${qty} ${productInfo.unit}) vượt quá số lượng tồn kho khả dụng hiện tại (${productInfo.availableStock} ${productInfo.unit}).`);
+        return;
+      }
+      const qtyInput = document.getElementById('input-order-quantity');
+      qtyInput.value = qty;
+      selectedQuantity = qty;
+      onQuantityChanged();
+    }
+
+    function adjustQuantity(delta) {
+      const qtyInput = document.getElementById('input-order-quantity');
+      let currentVal = parseInt(qtyInput.value) || (productInfo ? productInfo.minQuantity : 1);
+      let newVal = currentVal + delta;
+      if (productInfo) {
+        if (newVal < productInfo.minQuantity) newVal = productInfo.minQuantity;
+        if (newVal > productInfo.availableStock) newVal = productInfo.availableStock;
+      }
+      qtyInput.value = newVal;
+      selectedQuantity = newVal;
+      onQuantityChanged();
+    }
+
+    let debounceTimer = null;
+    function onQuantityInputChange(e) {
+      selectedQuantity = parseInt(e.target.value) || 0;
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        onQuantityChanged();
+      }, 250);
+    }
+
+    function onQuantityChanged() {
+      if (!productInfo) return;
+
+      const qty = selectedQuantity;
+      const qtyInput = document.getElementById('input-order-quantity');
+      const errorMsg = document.getElementById('qty-error-msg');
+      const submitBtn = document.getElementById('btn-submit-wholesale-order');
+
+      if (qty < productInfo.minQuantity || qty > productInfo.availableStock) {
+        qtyInput.classList.add('error');
+        errorMsg.style.display = 'block';
+        submitBtn.disabled = true;
+      } else {
+        qtyInput.classList.remove('error');
+        errorMsg.style.display = 'none';
+        submitBtn.disabled = false;
+        renderTierMatrix(productInfo.priceTiers, qty);
+        calculatePrice(qty);
+      }
+    }
+
+    async function calculatePrice(quantity) {
+      const qty = Number(quantity);
+      if (!productInfo || !Number.isFinite(qty) || qty <= 0) return;
+
+      try {
+        const res = await API.calculateWholesalePrice({
+          productId: Number(productInfo.productId),
+          quantity: qty
+        });
+        if (res && res.success && res.data) {
+          priceCalculation = res.data;
+          renderPriceSummary(res.data);
+        }
+      } catch (err) {
+        console.error('Calculation error:', err);
+      }
+    }
+
+    function renderPriceSummary(calc) {
+      const qty = calc.quantity || selectedQuantity;
+      const unitPrice = calc.appliedUnitPrice ?? calc.unitPrice ?? 0;
+      const discPct = calc.tierDiscountPercent ?? calc.discountPercent ?? 0;
+      const subtotal = calc.lineSubtotal ?? calc.subtotal ?? 0;
+      const savings = calc.totalSavings ?? calc.savingsVsRetail ?? 0;
+      const shipping = calc.logisticsFee ?? calc.estimatedShippingFee ?? 0;
+      const total = calc.finalTotal ?? calc.totalAmount ?? (subtotal + shipping);
+
+      document.getElementById('summary-quantity').textContent = Number(qty).toLocaleString('vi-VN');
+      document.getElementById('summary-unit-price').textContent = Number(unitPrice).toLocaleString('vi-VN');
+      document.getElementById('summary-discount-pct').textContent = `-${discPct}% (${calc.activeTierName || 'Bậc giá'})`;
+      document.getElementById('summary-subtotal').textContent = Number(subtotal).toLocaleString('vi-VN');
+      document.getElementById('summary-savings').textContent = Number(savings).toLocaleString('vi-VN');
+      document.getElementById('summary-shipping').textContent = Number(shipping).toLocaleString('vi-VN');
+      document.getElementById('summary-total').textContent = Number(total).toLocaleString('vi-VN');
+    }
+
+    /* ==========================================================================
+       SIDEBAR TABLE & MODAL CHI TIẾT ĐƠN SỈ
+       ========================================================================== */
+    let activeSidebarTab = 'all';
+
+    async function loadBuyerWholesaleOrders() {
+      try {
+        const res = await API.getMyWholesaleOrders();
+        if (res && res.success && res.data) {
+          buyerOrdersList = res.data.orders || [];
+          const unpaidCount = buyerOrdersList.filter(o => o.paymentStatus !== 'Paid').length;
+
+          const countEl = document.getElementById('sidebar-orders-count');
+          if (countEl) countEl.textContent = `${buyerOrdersList.length} đơn`;
+
+          const allCountEl = document.getElementById('sidebar-tab-all-count');
+          if (allCountEl) allCountEl.textContent = buyerOrdersList.length;
+
+          const unpaidCountEl = document.getElementById('sidebar-tab-unpaid-count');
+          if (unpaidCountEl) unpaidCountEl.textContent = unpaidCount;
+
+          renderSidebarOrders();
+        }
+      } catch (_) {}
+    }
+
+    function switchSidebarOrderTab(tab) {
+      activeSidebarTab = tab;
+      const btnAll = document.getElementById('sidebar-tab-all');
+      const btnUnpaid = document.getElementById('sidebar-tab-unpaid');
+      if (btnAll && btnUnpaid) {
+        if (tab === 'all') {
+          btnAll.style.background = '#064e3b';
+          btnAll.style.color = '#fff';
+          btnUnpaid.style.background = '#fffbeb';
+          btnUnpaid.style.color = '#92400e';
+        } else {
+          btnUnpaid.style.background = '#92400e';
+          btnUnpaid.style.color = '#fff';
+          btnAll.style.background = '#f8fafc';
+          btnAll.style.color = '#334155';
+        }
+      }
+      renderSidebarOrders();
+    }
+
+    function filterSidebarOrders(keyword) {
+      renderSidebarOrders(keyword);
+    }
+
+    function renderSidebarOrders(keyword) {
+      const tbody = document.getElementById('sidebar-orders-tbody');
+      if (!tbody) return;
+
+      const q = (keyword !== undefined ? keyword : (document.getElementById('sidebar-order-search')?.value || '')).trim().toLowerCase();
+      let list = activeSidebarTab === 'unpaid'
+        ? buyerOrdersList.filter(o => o.paymentStatus !== 'Paid')
+        : buyerOrdersList;
+
+      if (q) {
+        list = list.filter(o =>
+          (o.orderCode || '').toLowerCase().includes(q) ||
+          (o.sellerName || '').toLowerCase().includes(q) ||
+          (o.productName || '').toLowerCase().includes(q)
+        );
+      }
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="3" style="text-align:center; padding:24px 8px; color:#64748b;">
+              ${activeSidebarTab === 'unpaid' ? 'Không có đơn sỉ nào đang chờ thanh toán.' : 'Chưa có đơn hàng mua sỉ nào.'}
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = list.map(o => {
+        const isPaid = o.paymentStatus === 'Paid';
+        return `
+          <tr onclick="openWholesaleOrderDetail('${o.orderCode}')" style="cursor:pointer; border-bottom:1px solid #f1f5f9; transition:background 0.15s;" onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='transparent'" title="Bấm để xem chi tiết đơn sỉ #${o.orderCode}">
+            <td style="padding:8px 6px; vertical-align:top;">
+              <code style="font-weight:800; color:#047857; background:#e6f4ea; padding:2px 5px; border-radius:4px; font-size:11px; display:inline-block; margin-bottom:4px;">#${o.orderCode}</code>
+              <div>
+                <span class="ws-pay-badge ${isPaid ? 'paid' : 'unpaid'}" style="font-size:10px; padding:1px 6px;">
+                  ${isPaid ? '✓ Đã TT' : '⏳ Chờ TT'}
+                </span>
+              </div>
+            </td>
+            <td style="padding:8px 6px; vertical-align:top;">
+              <div style="font-weight:750; color:#0f172a; line-height:1.25; margin-bottom:2px;">${o.productName}</div>
+              <div style="font-size:11px; color:#475569;">🏢 ${o.sellerName}</div>
+              <div style="font-size:11px; color:#64748b;">SL: <strong>${Number(o.quantity).toLocaleString('vi-VN')} ${o.unit}</strong></div>
+            </td>
+            <td style="padding:8px 6px; text-align:right; vertical-align:top; white-space:nowrap;">
+              <strong style="color:#047857; font-size:12.5px;">${Number(o.finalAmount).toLocaleString('vi-VN')} ₫</strong>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function openWholesaleOrderDetail(orderCode) {
+      let order = buyerOrdersList.find(o => o.orderCode === orderCode);
+      try {
+        const res = await API.getWholesaleOrderDetail(orderCode, { suppressErrorToast: true });
+        if (res && res.success && res.data) {
+          order = res.data;
+        }
+      } catch (_) {}
+
+      if (!order) return;
+      selectedDetailOrder = order;
+
+      const isPaid = order.paymentStatus === 'Paid';
+      document.getElementById('detail-modal-title').textContent = `Đơn hàng sỉ #${order.orderCode}`;
+      document.getElementById('detail-seller-name').textContent = order.sellerName || 'Nông trại đối tác';
+      document.getElementById('detail-seller-address').textContent = order.farmAddress || 'Việt Nam';
+      document.getElementById('detail-seller-code').textContent = order.sellerOrderCode || `${order.orderCode}-1`;
+
+      const statusEl = document.getElementById('detail-order-status');
+      statusEl.textContent = isPaid ? 'Đã xác nhận (Confirmed)' : 'Chờ xác nhận (Pending)';
+      statusEl.className = `badge ${isPaid ? 'Active' : 'Pending'}`;
+
+      const payEl = document.getElementById('detail-payment-status');
+      payEl.textContent = isPaid ? '✓ Đã thanh toán qua SePay' : '⏳ Chờ thanh toán QR SePay';
+      payEl.className = `ws-pay-badge ${isPaid ? 'paid' : 'unpaid'}`;
+
+      document.getElementById('detail-order-date').textContent = order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : '--';
+      document.getElementById('detail-expected-date').textContent = order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('vi-VN') : '--';
+
+      document.getElementById('detail-product-name').textContent = order.productName;
+      document.getElementById('detail-quantity').textContent = `${Number(order.quantity).toLocaleString('vi-VN')} ${order.unit}`;
+      document.getElementById('detail-unit-price').textContent = `${Number(order.unitPrice).toLocaleString('vi-VN')} ₫/${order.unit}`;
+      document.getElementById('detail-subtotal').textContent = `${Number(order.subtotal).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('detail-delivery-fee').textContent = `${Number(order.deliveryFee).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('detail-final-amount').textContent = `${Number(order.finalAmount).toLocaleString('vi-VN')} ₫`;
+
+      document.getElementById('detail-payment-method').textContent = 'Chuyển khoản ngân hàng (SePay QR)';
+
+      document.getElementById('detail-company-name').textContent = order.companyName || '--';
+      document.getElementById('detail-tax-code').textContent = order.taxCode || '--';
+      document.getElementById('detail-recipient').textContent = `${order.recipientName || '--'} (${order.recipientPhone || '--'})`;
+      document.getElementById('detail-shipping-address').textContent = order.shippingAddress || '--';
+      document.getElementById('detail-notes').textContent = order.orderNotes || 'Không có ghi chú thêm';
+
+      const batches = order.batchAllocations || [];
+      document.getElementById('detail-batches').textContent = batches.length > 0
+        ? batches.map(b => `${b.batchCode} (${Number(b.allocatedQuantity).toLocaleString('vi-VN')} ${b.unit || order.unit})`).join(', ')
+        : 'Đã khóa giữ tự động từ lô chính vụ';
+
+      const sepayCallout = document.getElementById('detail-sepay-callout');
+      const btnPayNow = document.getElementById('btn-detail-open-sepay');
+      if (isPaid) {
+        sepayCallout.style.display = 'none';
+      } else {
+        sepayCallout.style.display = 'flex';
+        btnPayNow.onclick = () => {
+          closeOrderDetailModal();
+          openSePayQrPaymentModal(order);
+        };
+      }
+
+      document.getElementById('modal-wholesale-order-detail').style.display = 'flex';
+    }
+
+    function closeOrderDetailModal() {
+      document.getElementById('modal-wholesale-order-detail').style.display = 'none';
+    }
+
+    /* ==========================================================================
+       SUBMIT WHOLESALE ORDER & OPEN SEPAY QR PAYMENT
+       ========================================================================== */
+
+    async function handleSubmitWholesaleOrder(payImmediately = true) {
+      if (isSubmitting || !productInfo) return;
+
+      const qty = Number(selectedQuantity || document.getElementById('input-order-quantity')?.value || 0);
+      selectedQuantity = qty;
+
+      if (!Number.isFinite(qty) || qty < productInfo.minQuantity || qty > productInfo.availableStock) {
+        alert(`Số lượng đặt mua phải từ ${Number(productInfo.minQuantity).toLocaleString('vi-VN')} ${productInfo.unit} đến ${Number(productInfo.availableStock).toLocaleString('vi-VN')} ${productInfo.unit}.`);
+        document.getElementById('input-order-quantity').focus();
+        return;
+      }
+
+      let hasError = false;
+      const address = document.getElementById('input-delivery-address').value.trim();
+      const recipientName = document.getElementById('input-recipient-name').value.trim();
+      const recipientPhone = document.getElementById('input-recipient-phone').value.trim();
+      const companyName = document.getElementById('input-company-name').value.trim();
+      const taxCode = document.getElementById('input-tax-code').value.trim();
+      const expectedDate = document.getElementById('input-expected-date').value;
+      const notes = document.getElementById('input-notes').value.trim();
+
+      const selectedPaymentEl = document.querySelector('input[name="paymentTerms"]:checked');
+      const paymentTerms = selectedPaymentEl ? selectedPaymentEl.value : 'SePay';
+
+      const validateField = (val, inputId, errId) => {
+        const input = document.getElementById(inputId);
+        const err = document.getElementById(errId);
+        if (!val) {
+          input.classList.add('invalid');
+          err.style.display = 'block';
+          hasError = true;
+        } else {
+          input.classList.remove('invalid');
+          err.style.display = 'none';
+        }
+      };
+
+      validateField(address, 'input-delivery-address', 'err-delivery-address');
+      validateField(recipientName, 'input-recipient-name', 'err-recipient-name');
+      validateField(recipientPhone, 'input-recipient-phone', 'err-recipient-phone');
+      validateField(companyName, 'input-company-name', 'err-company-name');
+      validateField(taxCode, 'input-tax-code', 'err-tax-code');
+
+      if (hasError) {
+        alert('Vui lòng điền đầy đủ các trường thông tin kho giao hàng và hóa đơn doanh nghiệp bắt buộc (AF4).');
+        return;
+      }
+
+      isSubmitting = true;
+      const submitBtn = document.getElementById('btn-submit-wholesale-order');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '⏳ Đang khóa giữ lô hàng &amp; tạo mã thanh toán SePay...';
+
+      try {
+        const payload = {
+          productId: Number(productInfo.productId),
+          quantity: Number(qty),
+          warehouseAddress: address,
+          deliveryAddress: address,
+          recipientPhone: recipientPhone,
+          recipientName: recipientName,
+          companyName: companyName,
+          taxCode: taxCode,
+          paymentMethod: paymentTerms,
+          paymentTerms: paymentTerms,
+          orderNotes: notes || null,
+          notes: notes || null,
+          expectedDeliveryDate: expectedDate ? new Date(expectedDate).toISOString() : null,
+          requestKey: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : String(Date.now())
+        };
+
+        const res = await API.createWholesaleOrder(payload);
+        if (res && res.success && res.data) {
+          const created = res.data;
+          if (!payImmediately) {
+            window.location.href = 'cart.html';
+            return;
+          }
+
+          await Promise.all([
+            loadProductData(),
+            loadBuyerWholesaleOrders()
+          ]);
+
+          // Open SePay QR Payment screen immediately
+          const transferContent = (created.orderCode || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 18);
+          openSePayQrPaymentModal({
+            orderId: created.orderId,
+            orderCode: created.orderCode,
+            orderDate: created.orderDate,
+            reservationExpiresAt: created.reservationExpiresAt,
+            finalAmount: created.finalAmount ?? created.totalAmount ?? 0,
+            quantity: created.quantity ?? created.totalQuantity ?? qty,
+            unit: created.unit || productInfo.unit,
+            productName: created.productName || productInfo.productName,
+            transferContent: transferContent,
+            paymentStatus: 'PendingPayment'
+          });
+        } else {
+          alert(`Không thể tạo đơn hàng lúc này: ${res?.message || 'Lỗi không xác định'}. Vui lòng thử lại.`);
+        }
+      } catch (err) {
+        alert(`Không thể tạo đơn hàng lúc này (AF6): ${err.message || 'Lỗi kết nối mạng'}. Toàn bộ thông tin bạn đã nhập được giữ nguyên, vui lòng thử lại.`);
+      } finally {
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '💳 Đặt hàng sỉ &amp; Thanh toán QR SePay';
+      }
+    }
+
+    /* ==========================================================================
+       SEPAY QR PAYMENT CONTROLLER (REAL-TIME TIMER & AUTO CANCEL ON EXPIRY)
+       ========================================================================== */
+    let sePayTargetExpiryMs = 0;
+
+    function resolveOrderExpiryMs(order) {
+      const code = order?.orderCode || '';
+      if (order?.reservationExpiresAt) {
+        const parsed = new Date(order.reservationExpiresAt).getTime();
+        if (!isNaN(parsed) && parsed > 0) {
+          try { localStorage.setItem(`ws_order_expiry_${code}`, String(parsed)); } catch (_) {}
+          return parsed;
+        }
+      }
+
+      if (code) {
+        try {
+          const saved = Number(localStorage.getItem(`ws_order_expiry_${code}`));
+          if (!isNaN(saved) && saved > 0) return saved;
+        } catch (_) {}
+      }
+
+      if (order?.orderDate) {
+        const orderTime = new Date(order.orderDate).getTime();
+        if (!isNaN(orderTime) && orderTime > 0) {
+          const exp = orderTime + 15 * 60 * 1000;
+          try { if (code) localStorage.setItem(`ws_order_expiry_${code}`, String(exp)); } catch (_) {}
+          return exp;
+        }
+      }
+
+      const fallback = Date.now() + 15 * 60 * 1000;
+      try { if (code) localStorage.setItem(`ws_order_expiry_${code}`, String(fallback)); } catch (_) {}
+      return fallback;
+    }
+
+    function openSePayQrPaymentModal(order) {
+      activeSePayOrder = {
+        ...order,
+        transferContent: order.transferContent || (order.orderCode || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 18)
+      };
+
+      sePayTargetExpiryMs = resolveOrderExpiryMs(activeSePayOrder);
+
+      document.getElementById('sepay-paid-success-box').style.display = 'none';
+      const expBox = document.getElementById('sepay-expired-cancelled-box');
+      if (expBox) expBox.style.display = 'none';
+      document.getElementById('sepay-active-qr-body').style.display = 'grid';
+
+      const pillEl = document.getElementById('sepay-header-status-pill');
+      if (pillEl) {
+        pillEl.style.background = '#ecfdf5';
+        pillEl.style.color = '#047857';
+        pillEl.style.borderColor = '#a7f3d0';
+        pillEl.innerHTML = `⏳ Chờ thanh toán SePay · Mã đơn #<span id="sepay-badge-code">${activeSePayOrder.orderCode}</span>`;
+      } else {
+        document.getElementById('sepay-badge-code').textContent = activeSePayOrder.orderCode;
+      }
+
+      document.getElementById('sepay-qr-bank-short').textContent = sePayBeneficiary.bankShortName;
+      document.getElementById('sepay-bank-name').textContent = sePayBeneficiary.bankName;
+      document.getElementById('sepay-account-name').textContent = sePayBeneficiary.accountName;
+      document.getElementById('sepay-account-number').textContent = sePayBeneficiary.accountNumber;
+      document.getElementById('sepay-amount-display').textContent = `${Number(activeSePayOrder.finalAmount || 0).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('sepay-transfer-content').textContent = activeSePayOrder.transferContent;
+
+      const qrParams = new URLSearchParams({
+        acc: sePayBeneficiary.accountNumber,
+        bank: sePayBeneficiary.bankShortName,
+        amount: String(Math.round(Number(activeSePayOrder.finalAmount || 0))),
+        des: activeSePayOrder.transferContent,
+        template: 'compact'
+      });
+      document.getElementById('sepay-qr-img').src = `https://qr.sepay.vn/img?${qrParams.toString()}`;
+
+      document.getElementById('modal-sepay-qr-payment').style.display = 'flex';
+
+      startSePayTimer();
+      startSePayPolling(activeSePayOrder.orderCode);
+    }
+
+    function closeSePayQrModal() {
+      if (sePayPollingTimer) clearInterval(sePayPollingTimer);
+      if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
+      document.getElementById('modal-sepay-qr-payment').style.display = 'none';
+    }
+
+    function startSePayTimer() {
+      if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
+      const digitsEl = document.getElementById('sepay-timer-digits');
+      const timerBoxEl = document.getElementById('sepay-timer-box');
+
+      const tick = () => {
+        sePaySecondsLeft = Math.max(0, Math.ceil((sePayTargetExpiryMs - Date.now()) / 1000));
+        const m = String(Math.floor(sePaySecondsLeft / 60)).padStart(2, '0');
+        const s = String(sePaySecondsLeft % 60).padStart(2, '0');
+        digitsEl.textContent = `${m}:${s}`;
+
+        if (sePaySecondsLeft <= 120) {
+          digitsEl.style.color = '#dc2626';
+          if (timerBoxEl) timerBoxEl.style.borderColor = '#fca5a5';
+        } else {
+          digitsEl.style.color = '#047857';
+          if (timerBoxEl) timerBoxEl.style.borderColor = '#cbd5e1';
+        }
+
+        if (sePaySecondsLeft <= 0) {
+          clearInterval(sePayCountdownTimer);
+          onSePayOrderExpired();
+        }
+      };
+
+      tick();
+      sePayCountdownTimer = setInterval(tick, 1000);
+    }
+
+    async function onSePayOrderExpired() {
+      if (sePayPollingTimer) clearInterval(sePayPollingTimer);
+      if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
+
+      const code = activeSePayOrder?.orderCode;
+      if (code) {
+        try {
+          await API.cancelExpiredWholesaleOrder(code);
+        } catch (_) {}
+      }
+
+      document.getElementById('sepay-active-qr-body').style.display = 'none';
+      document.getElementById('sepay-paid-success-box').style.display = 'none';
+      const expCodeEl = document.getElementById('sepay-exp-code');
+      if (expCodeEl && code) expCodeEl.textContent = `#${code}`;
+
+      const expBox = document.getElementById('sepay-expired-cancelled-box');
+      if (expBox) expBox.style.display = 'block';
+
+      const pillEl = document.getElementById('sepay-header-status-pill');
+      if (pillEl) {
+        pillEl.style.background = '#fee2e2';
+        pillEl.style.color = '#991b1b';
+        pillEl.style.borderColor = '#fecaca';
+        pillEl.innerHTML = `🚫 Đã tự động hủy (Hết thời gian thanh toán) · Mã đơn #${code || '---'}`;
+      }
+
+      await Promise.all([
+        loadProductData(),
+        loadBuyerWholesaleOrders()
+      ]);
+    }
+
+    function startSePayPolling(orderCode) {
+      if (sePayPollingTimer) clearInterval(sePayPollingTimer);
+      if (!orderCode) return;
+
+      sePayPollingTimer = setInterval(async () => {
+        try {
+          const res = await API.getWholesaleOrderDetail(orderCode, { suppressErrorToast: true });
+          if (res && res.success && res.data) {
+            if (res.data.reservationExpiresAt) {
+              const srvExp = new Date(res.data.reservationExpiresAt).getTime();
+              if (!isNaN(srvExp) && srvExp > 0) {
+                sePayTargetExpiryMs = srvExp;
+              }
+            }
+            if (res.data.paymentStatus === 'Paid' || res.data.orderStatus === 'Confirmed') {
+              onSePayPaymentConfirmed(res.data);
+            } else if (res.data.paymentStatus === 'Cancelled' || res.data.orderStatus === 'Cancelled') {
+              onSePayOrderExpired();
+            }
+          }
+        } catch (_) {}
+      }, 3000);
+    }
+
+    async function handleConfirmSePayTransfer() {
+      if (!activeSePayOrder || !activeSePayOrder.orderCode) return;
+      const btn = document.getElementById('btn-confirm-sepay-now');
+      btn.disabled = true;
+      btn.textContent = '⏳ Đang đối soát giao dịch SePay...';
+
+      try {
+        const res = await API.confirmSePayWholesaleOrder(activeSePayOrder.orderCode);
+        if (res && res.success && res.data) {
+          onSePayPaymentConfirmed(res.data);
+        }
+      } catch (err) {
+        alert('Không thể xác nhận thanh toán lúc này: ' + (err.message || 'Lỗi kết nối'));
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✓ Tôi đã chuyển khoản SePay (Xác nhận ngay)';
+      }
+    }
+
+    async function onSePayPaymentConfirmed(orderData) {
+      if (sePayPollingTimer) clearInterval(sePayPollingTimer);
+      if (sePayCountdownTimer) clearInterval(sePayCountdownTimer);
+
+      activeSePayOrder = orderData;
+      document.getElementById('sepay-active-qr-body').style.display = 'none';
+      document.getElementById('sepay-succ-amount').textContent = `${Number(orderData.finalAmount || 0).toLocaleString('vi-VN')} ₫`;
+      document.getElementById('sepay-succ-code').textContent = `#${orderData.orderCode}`;
+      document.getElementById('sepay-paid-success-box').style.display = 'block';
+
+      await loadBuyerWholesaleOrders();
+    }
+
+    function viewCurrentPaidOrderDetail() {
+      const code = activeSePayOrder?.orderCode;
+      closeSePayQrModal();
+      if (code) {
+        openWholesaleOrderDetail(code);
+      }
+    }
+
+    function openStandaloneSePayPage() {
+      if (!activeSePayOrder) return;
+      const code = encodeURIComponent(activeSePayOrder.orderCode);
+      const amt = encodeURIComponent(activeSePayOrder.finalAmount || 0);
+      window.location.href = `../RetailCustomer/payment.html?orderCode=${code}&amount=${amt}&method=SePay&orderId=${code}`;
+    }
+
+    function copySePayField(type, text) {
+      if (navigator.clipboard && text) {
+        navigator.clipboard.writeText(String(text));
+      }
+      const btn = document.getElementById(`btn-copy-sepay-${type}`);
+      if (btn) {
+        const old = btn.textContent;
+        btn.textContent = '✓ Đã chép';
+        setTimeout(() => { btn.textContent = old; }, 2000);
+      }
+    }
+
+    function showLoading(show) {
+      document.getElementById('order-loading').style.display = show ? 'block' : 'none';
+    }
+
+    function showSystemError(title, msg) {
+      showLoading(false);
+      const banner = document.getElementById('system-error-banner');
+      document.getElementById('system-error-title').textContent = title;
+      document.getElementById('system-error-msg').textContent = msg;
+      banner.style.display = 'flex';
+      scrollToTop();
+    }
+
+    function hideSystemError() {
+      document.getElementById('system-error-banner').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

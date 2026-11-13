@@ -47,6 +47,8 @@ const ROLE_CONFIGS = {
       { key: 'farmer-batches', label: 'Quản lý lô thu hoạch', icon: '▦', path: 'Farmer/harvest-batches.html' },
       { key: 'farmer-products', label: 'Quản lý sản phẩm', icon: '🌾', path: 'Farmer/products.html' },
       { key: 'farmer-orders', label: 'Xử lý đơn hàng', icon: '📦', path: 'Farmer/orders.html' },
+      { key: 'farmer-contracts', label: 'Hợp đồng bao tiêu', icon: '📑', path: 'Farmer/offtake-contracts.html' },
+      { key: 'farmer-revenue', label: 'Doanh thu và dòng tiền', icon: '📊', path: 'Farmer/revenue.html' },
       { key: 'farmer-complaints', label: 'Phản hồi khiếu nại', icon: '⚖️', path: 'Farmer/complaints.html' },
       { key: 'farmer-profile', label: 'Hồ sơ nông hộ & KYC', icon: '🌾', path: 'Farmer/profile.html' },
       { key: 'farmer-certificates', label: 'Chứng nhận chất lượng', icon: '🏅', path: 'Farmer/certificates.html' },
@@ -62,7 +64,12 @@ const ROLE_CONFIGS = {
     landingRoute: 'WholesaleBuyer/dashboard.html',
     navItems: [
       { key: 'wholesale-dash', label: 'Tổng quan mua buôn', icon: '📊', path: 'WholesaleBuyer/dashboard.html' },
+      { key: 'wholesale-orders', label: 'Đơn hàng mua sỉ', icon: '📦', path: 'WholesaleBuyer/orders.html' },
+      { key: 'supplier-capacity', label: 'Hồ sơ năng lực NCC', icon: '🏭', path: 'WholesaleBuyer/supplier-capacity.html' },
+      { key: 'wholesale-contracts', label: 'Hợp đồng Offtake', icon: '▤', path: 'WholesaleBuyer/contracts.html' },
       { key: 'marketplace', label: 'Khám phá nông sản', icon: '✦', path: 'RetailCustomer/index.html' },
+      { key: 'wholesale-suppliers', label: 'Tìm nông trại cung ứng', icon: '🔎', path: 'WholesaleBuyer/suppliers.html' },
+      { key: 'wholesale-membership', label: 'Gói hội viên B2B', icon: '⭐', path: 'WholesaleBuyer/membership.html' },
       { key: 'wholesale-profile', label: 'Hồ sơ & Tài khoản', icon: '👤', path: 'WholesaleBuyer/profile.html' },
       { key: 'wholesale-refunds', label: 'Hoàn tiền', icon: '↩', path: 'RetailCustomer/refunds.html' },
     ],
@@ -133,7 +140,9 @@ const ROLE_CONFIGS = {
     navItems: [
       { key: 'finance-dash', label: 'Tổng quan', icon: '▦', path: 'FinanceStaff/dashboard.html' },
       { key: 'finance-payments', label: 'Đối soát thanh toán', icon: '⇄', path: 'FinanceStaff/payments.html' },
+      { key: 'finance-payouts', label: 'Chi trả cho nông dân', icon: '💸', path: 'FinanceStaff/farmer-payouts.html' },
       { key: 'finance-refunds', label: 'Xử lý hoàn tiền', icon: '🔄', path: 'FinanceStaff/refunds.html' },
+      { key: 'finance-contracts', label: 'Thanh toán hợp đồng B2B', icon: '📑', path: 'FinanceStaff/contract-payments.html' },
       { key: 'finance-fees', label: 'Phí nền tảng', icon: '%', path: 'FinanceStaff/fees.html' },
     ],
   },
@@ -226,9 +235,14 @@ const Components = {
     const displayRole = user ? (user.role || config.title) : `Phiên demo (${config.title})`;
     const avatar = user ? (user.fullName || 'U').charAt(0).toUpperCase() : config.avatar;
 
-    const navButtons = config.navItems.map(item => {
+    const businessNavigation = Auth.isAuthenticated()
+      ? [...config.navItems, { key: 'business-notifications', label: 'Thông báo hệ thống', icon: '🔔', path: 'Guest/notifications.html' }]
+      : config.navItems;
+    const navButtons = businessNavigation.map(item => {
       const fullLink = `${root}${item.path}`;
-      const isSelected = currentPath.endsWith(item.path.split('/').pop().toLowerCase()) || (item.path.includes('dashboard.html') && currentPath.includes('kyc.html'));
+      const isSelected = currentPath.endsWith(item.path.split('/').pop().toLowerCase())
+        || (item.path.includes('dashboard.html') && currentPath.includes('kyc.html'))
+        || (item.key === 'wholesale-contracts' && currentPath.endsWith('/offtake-proposal.html'));
 
       return `
         <button type="button" class="${isSelected ? 'selected' : ''}" onclick="window.location.href='${fullLink}'">
@@ -293,7 +307,10 @@ const Components = {
       `;
     } else {
       const currentPath = window.location.pathname.replace(/\\/g, '/').toLowerCase();
-      const navButtons = config.navItems.map(item => {
+      const businessNavigation = Auth.isAuthenticated()
+      ? [...config.navItems, { key: 'business-notifications', label: 'Thông báo hệ thống', icon: '🔔', path: 'Guest/notifications.html' }]
+      : config.navItems;
+    const navButtons = businessNavigation.map(item => {
         const fullLink = `${root}${item.path}`;
         const itemFilename = item.path.split('/').pop().toLowerCase();
         const isSelected = currentPath.endsWith(itemFilename)

@@ -37,19 +37,25 @@ public sealed partial class FarmerComplaintFileStorage(IWebHostEnvironment envir
 
     public string? Resolve(long actor, string url)
     {
+        string? path = OrderFeedbackStorage.ResolveUrl(environment.ContentRootPath, actor, url)
+            ?? ResolveResponseEvidence(actor, url);
+        return File.Exists(path) ? path : null;
+    }
+
+    private string? ResolveResponseEvidence(long actor, string url)
+    {
         var match = EvidencePath().Match(url);
         if (!match.Success || match.Groups["owner"].Value != actor.ToString())
         {
             return null;
         }
-        string path = Path.Combine(environment.ContentRootPath, "private-files", actor.ToString(), match.Groups["key"].Value);
-        return File.Exists(path) ? path : null;
+        return Path.Combine(environment.ContentRootPath, "private-files", actor.ToString(), match.Groups["key"].Value);
     }
 
     public async Task<bool> IsValidOwnedAsync(long actor, string url, CancellationToken ct)
     {
-        string? path = Resolve(actor, url);
-        if (path is null || new FileInfo(path).Length is <= 0 or > MaximumBytes)
+        string? path = ResolveResponseEvidence(actor, url);
+        if (path is null || !File.Exists(path) || new FileInfo(path).Length is <= 0 or > MaximumBytes)
         {
             return false;
         }

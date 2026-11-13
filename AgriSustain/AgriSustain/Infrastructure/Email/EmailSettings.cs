@@ -1,6 +1,6 @@
 namespace AgriSustain.Infrastructure.Email;
 
-// Product review link configuration only. SMTP credentials come from the shared GmailOptions.
+// Base address for links in notification emails. SMTP credentials come from GmailOptions.
 public sealed class EmailSettings
 {
     public string FrontendBaseUrl { get; set; } = "http://localhost:5173";

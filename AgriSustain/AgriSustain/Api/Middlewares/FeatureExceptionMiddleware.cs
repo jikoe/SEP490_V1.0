@@ -24,6 +24,15 @@ public sealed class FeatureExceptionMiddleware(RequestDelegate next,
             bool conflict = exception is DbUpdateConcurrencyException
                 || (sqlEx != null && sqlEx.Number is 1205 or 2601 or 2627 or 3960);
 
+            bool farmerPayout = context.Request.Path.StartsWithSegments("/api/finance/farmer-payouts");
+            string? farmerPayoutMessage = farmerPayout ? FinancePayoutMessages.Text(conflict ? "MSG174"
+                : HttpMethods.IsGet(context.Request.Method) ? "MSG177" : "MSG178") : null;
+            bool farmerBusiness = context.Request.Path.StartsWithSegments("/api/farmer/offtake-contracts")
+                || context.Request.Path.StartsWithSegments("/api/farmer/revenue")
+                || context.Request.Path.StartsWithSegments("/api/business-notifications");
+            string? farmerBusinessMessage = farmerBusiness ? FarmerBusinessMessages.Text(conflict ? "MSG122"
+                : context.Request.Path.Value?.EndsWith("/export") == true ? "MSG125"
+                : HttpMethods.IsGet(context.Request.Method) ? "MSG126" : "MSG123") : null;
             bool farmManagement = context.Request.Path.StartsWithSegments("/api/farmer/crop-seasons")
                 || context.Request.Path.StartsWithSegments("/api/farmer/farming-logs")
                 || context.Request.Path.StartsWithSegments("/api/farmer/harvest-batches")
@@ -65,7 +74,7 @@ public sealed class FeatureExceptionMiddleware(RequestDelegate next,
             await context.Response.WriteAsJsonAsync(new ProblemDetails
             {
                 Status = context.Response.StatusCode,
-                Title = farmerComplaintMessage ?? farmMessage ?? productMessage ?? cartMessage ?? orderMessage ?? financeMessage ?? (context.Request.Path.StartsWithSegments("/api/farmer/orders")
+                Title = farmerPayoutMessage ?? farmerBusinessMessage ?? farmerComplaintMessage ?? farmMessage ?? productMessage ?? cartMessage ?? orderMessage ?? financeMessage ?? (context.Request.Path.StartsWithSegments("/api/farmer/orders")
                     || context.Request.Path.StartsWithSegments("/api/files/evidence")
                     ? conflict ? "Yêu cầu xung đột với dữ liệu hiện tại hoặc đã được xử lý. Vui lòng tải lại; không thực hiện thao tác trùng lặp."
                         : HttpMethods.IsGet(context.Request.Method)

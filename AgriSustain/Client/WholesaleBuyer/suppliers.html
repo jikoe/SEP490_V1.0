@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tìm nông trại cung ứng - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <style>
+    .sd-page { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+    .sd-sub { color: #6b7f72; margin: 4px 0 18px; }
+    .sd-filters { background: #fff; border: 1px solid #e0e7e0; border-radius: 12px; padding: 16px;
+      display: grid; grid-template-columns: 2fr repeat(4, 1fr); gap: 12px; align-items: start; }
+    .sd-filters label { display: grid; gap: 6px; font-size: 12px; color: #536f5d; font-weight: 600; }
+    .sd-filters input, .sd-filters select { border: 1px solid #d4dfd7; border-radius: 7px; padding: 9px 10px;
+      background: #fff; width: 100%; }
+    .sd-filters input.invalid { border-color: #c0392b; }
+    .sd-err { color: #c0392b; font-size: 12px; font-weight: 500; min-height: 0; }
+    .sd-actions { grid-column: 1 / -1; display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+    .sd-actions .sd-sort { margin-right: auto; display: flex; gap: 8px; align-items: center; font-size: 13px; }
+    .sd-actions .sd-sort select { width: auto; }
+    .sd-banner { margin: 16px 0 0; padding: 12px 14px; border-radius: 10px; font-size: 13px; display: none;
+      align-items: center; gap: 12px; justify-content: space-between; }
+    .sd-banner.lock { background: #fff8e6; border: 1px solid #f0d58a; color: #7a5b00; display: flex; }
+    .sd-banner.block { background: #fdecea; border: 1px solid #f3b8b1; color: #8e2a1f; display: flex; }
+    .sd-banner a { font-weight: 600; color: inherit; }
+    .sd-meta { margin: 16px 0 10px; color: #536f5d; font-size: 13px; }
+    .sd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .sd-card { background: #fff; border: 1px solid #e0e7e0; border-radius: 12px; padding: 16px;
+      display: flex; flex-direction: column; gap: 10px; }
+    .sd-card h3 { margin: 0; font-size: 16px; color: #18593e; }
+    .sd-row { font-size: 13px; color: #3c5a4a; }
+    .sd-row b { color: #213b32; font-weight: 600; }
+    .sd-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .sd-badge { background: #e8f1e9; color: #225d3e; border-radius: 999px; padding: 3px 9px; font-size: 11px;
+      font-weight: 600; }
+    .sd-rep { display: inline-flex; gap: 4px; align-items: center; background: #fff4d6; color: #8a6100;
+      border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
+    .sd-contact { border-top: 1px dashed #e0e7e0; padding-top: 8px; font-size: 13px; }
+    .sd-contact.locked { color: #8a8a8a; }
+    .sd-card button { margin-top: auto; }
+    .sd-empty { background: #fff; border: 1px dashed #cfdacf; border-radius: 12px; padding: 40px; text-align: center;
+      color: #536f5d; }
+    .sd-pager { display: flex; gap: 6px; justify-content: center; margin: 20px 0; align-items: center; }
+    .sd-pager button.current { background: #1e6546; color: #fff; border-color: #1e6546; }
+    .sd-modal { position: fixed; inset: 0; background: rgba(20, 40, 30, .45); display: none;
+      align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+    .sd-modal.open { display: flex; }
+    .sd-modal-box { background: #fff; border-radius: 14px; max-width: 520px; width: 100%; padding: 22px;
+      display: grid; gap: 10px; }
+    .sd-modal-box h2 { margin: 0; color: #18593e; }
+    @media (max-width: 1000px) { .sd-filters { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px) { .sd-page { padding: 16px; } .sd-filters { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+    <div class="workspace">
+      <header id="app-header"></header>
+      <main>
+        <div class="sd-page">
+          <p class="eyebrow">MUA BUÔN B2B</p>
+          <h1 style="margin:0;">Tìm nông trại cung ứng</h1>
+          <p class="sd-sub">Lọc nông trại đã được duyệt theo khu vực, cây trồng, chứng nhận và quy mô sản xuất.</p>
+
+          <!-- AF5: buyer profile not approved -->
+          <div id="sd-blocked" class="sd-banner">
+            <span id="sd-blocked-msg"></span>
+            <a href="profile.html">Đi tới Hồ sơ doanh nghiệp →</a>
+          </div>
+
+          <form id="sd-form" class="sd-filters" novalidate>
+            <label>Từ khóa (tên nông trại)
+              <input id="f-keyword" type="search" placeholder="Nhập tên nông trại..." autocomplete="off">
+              <small id="f-keyword-err" class="sd-err" data-error="keyword"></small>
+            </label>
+            <label>Tỉnh / Vùng
+              <select id="f-province"><option value="">Tất cả</option></select>
+            </label>
+            <label>Cây trồng / Danh mục
+              <select id="f-category"><option value="">Tất cả</option></select>
+            </label>
+            <label>Chứng nhận
+              <select id="f-cert"><option value="">Tất cả</option></select>
+            </label>
+            <label>Quy mô sản xuất
+              <select id="f-scale"><option value="">Tất cả</option></select>
+            </label>
+            <div class="sd-actions">
+              <div class="sd-sort">Sắp xếp
+                <select id="f-sort" aria-label="Sắp xếp"></select>
+              </div>
+              <button type="button" id="btn-clear">Xóa bộ lọc</button>
+              <button type="submit" class="primary">Tìm kiếm</button>
+            </div>
+          </form>
+
+          <!-- AF6: contact details locked -->
+          <div id="sd-lock" class="sd-banner">
+            <span id="sd-lock-msg"></span>
+            <a href="membership.html">Xem gói hội viên →</a>
+          </div>
+
+          <p id="sd-meta" class="sd-meta"></p>
+          <div id="sd-grid" class="sd-grid"></div>
+          <div id="sd-pager" class="sd-pager"></div>
+        </div>
+      </main>
+      <footer>Nền tảng AgriSustain · UC-WB-01 Tìm nông trại cung ứng</footer>
+    </div>
+  </div>
+
+  <div id="sd-modal" class="sd-modal" role="dialog" aria-modal="true" aria-labelledby="sd-modal-title">
+    <div class="sd-modal-box">
+      <h2 id="sd-modal-title"></h2>
+      <div id="sd-modal-body"></div>
+      <div style="display:flex; justify-content:flex-end;"><button type="button" id="sd-modal-close">Đóng</button></div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script>
+  (function () {
+    const STATE_KEY = 'agri.wb01.filters';
+    const MAX_KEYWORD = 100;
+    const $ = id => document.getElementById(id);
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let state = { keyword: '', provinceCode: '', categoryId: '', certificateType: '', productionScale: '', sort: 'Reputation', page: 1 };
+    let lastItems = [];
+
+    // Postcondition 3: filters survive while the buyer stays in the directory (also after a reload).
+    function loadState() {
+      try { const s = JSON.parse(sessionStorage.getItem(STATE_KEY) || 'null'); if (s) state = { ...state, ...s }; } catch (e) { /* ignore */ }
+    }
+    function saveState() { try { sessionStorage.setItem(STATE_KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
+
+    function fill(id, options, value) {
+      const el = $(id);
+      const first = el.querySelector('option[value=""]');
+      el.innerHTML = '';
+      if (first) el.appendChild(first);
+      options.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value; opt.textContent = o.label;
+        el.appendChild(opt);
+      });
+      el.value = value ?? '';
+    }
+
+    function readForm() {
+      state.keyword = $('f-keyword').value.trim();
+      state.provinceCode = $('f-province').value;
+      state.categoryId = $('f-category').value;
+      state.certificateType = $('f-cert').value;
+      state.productionScale = $('f-scale').value;
+      state.sort = $('f-sort').value || 'Reputation';
+    }
+
+    function writeForm() {
+      $('f-keyword').value = state.keyword;
+      $('f-province').value = state.provinceCode;
+      $('f-category').value = state.categoryId;
+      $('f-cert').value = state.certificateType;
+      $('f-scale').value = state.productionScale;
+      $('f-sort').value = state.sort;
+    }
+
+    function showKeywordError(msg) {
+      $('f-keyword-err').textContent = msg || '';
+      $('f-keyword').classList.toggle('invalid', !!msg);
+    }
+
+    function blocked(msg) {
+      $('sd-blocked-msg').textContent = msg;
+      $('sd-blocked').className = 'sd-banner block';
+      $('sd-form').style.display = 'none';
+      $('sd-grid').innerHTML = ''; $('sd-pager').innerHTML = ''; $('sd-meta').textContent = '';
+    }
+
+    async function loadFilters() {
+      const res = await API.request('/b2b/suppliers/filters', { suppressErrorToast: true });
+      if (!res.success) {
+        if (res.status === 403) { blocked(res.error); return false; }
+        Utils.showToast(res.error || 'Không tải được bộ lọc.', 'error');
+        return true;
+      }
+      const d = res.data;
+      fill('f-province', d.provinces.map(p => ({ value: p.value, label: p.label })), state.provinceCode);
+      fill('f-category', d.categories.map(c => ({ value: c.value, label: c.label })), state.categoryId);
+      fill('f-cert', d.certificateTypes.map(c => ({ value: c, label: c })), state.certificateType);
+      fill('f-scale', d.productionScales.map(s => ({ value: s, label: s })), state.productionScale);
+      $('f-sort').innerHTML = d.sorts.map(s => `<option value="${esc(s.value)}">${esc(s.label)}</option>`).join('');
+      writeForm();
+      return true;
+    }
+
+    function card(s) {
+      const area = s.cultivatedArea != null ? `${Number(s.cultivatedArea).toLocaleString('vi-VN')} ha` : '—';
+      const crops = s.mainCrops.length ? s.mainCrops.map(esc).join(', ') : '—';
+      const certs = s.certificates.length
+        ? `<div class="sd-badges">${s.certificates.map(c => `<span class="sd-badge">✓ ${esc(c)}</span>`).join('')}</div>`
+        : '<div class="sd-row" style="color:#8a8a8a;">Chưa có chứng nhận được xác minh</div>';
+      const contact = s.contactLocked
+        ? '<div class="sd-contact locked">🔒 SĐT / Email: ẩn</div>'
+        : `<div class="sd-contact">📞 ${esc(s.phone || '—')}<br>✉ ${esc(s.email || '—')}</div>`;
+      return `
+        <article class="sd-card">
+          <div style="display:flex; justify-content:space-between; gap:8px; align-items:start;">
+            <h3>${esc(s.farmName)}</h3>
+            <span class="sd-rep" title="Điểm uy tín">★ ${Number(s.reputationScore).toFixed(1)}</span>
+          </div>
+          <div class="sd-row">📍 ${esc(s.provinceName || 'Chưa cập nhật tỉnh')}</div>
+          <div class="sd-row">Đại diện: <b>${esc(s.representativeName)}</b> · Quy mô: <b>${esc(s.productionScale || '—')}</b> · <b>${area}</b></div>
+          <div class="sd-row">Cây trồng chính: <b>${crops}</b></div>
+          ${certs}
+          ${contact}
+          <button type="button" data-id="${s.farmerProfileId}">Xem thông tin</button>
+        </article>`;
+    }
+
+    function pager(total, page, size) {
+      const pages = Math.ceil(total / size);
+      if (pages <= 1) { $('sd-pager').innerHTML = ''; return; }
+      let html = `<button type="button" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>‹</button>`;
+      for (let i = 1; i <= pages; i++) {
+        if (i === 1 || i === pages || Math.abs(i - page) <= 2) {
+          html += `<button type="button" data-page="${i}" class="${i === page ? 'current' : ''}">${i}</button>`;
+        } else if (Math.abs(i - page) === 3) {
+          html += '<span>…</span>';
+        }
+      }
+      html += `<button type="button" data-page="${page + 1}" ${page >= pages ? 'disabled' : ''}>›</button>`;
+      $('sd-pager').innerHTML = html;
+    }
+
+    async function search() {
+      showKeywordError('');
+      // AF7: do not run the search with an over-long keyword.
+      if (state.keyword.length > MAX_KEYWORD) { showKeywordError('Từ khóa tối đa 100 ký tự.'); return; }
+      saveState();
+      const q = new URLSearchParams();
+      Object.entries(state).forEach(([k, v]) => { if (v !== '' && v != null) q.set(k, v); });
+      $('sd-meta').textContent = 'Đang tải...';
+      const res = await API.request(`/b2b/suppliers?${q.toString()}`, { suppressErrorToast: true });
+      if (!res.success) {
+        if (res.status === 403) { blocked(res.error); return; }
+        const fieldErr = res.data && res.data.errors && res.data.errors.keyword;
+        if (fieldErr) { showKeywordError(fieldErr[0]); $('sd-meta').textContent = ''; return; }
+        $('sd-meta').textContent = '';
+        Utils.showToast(res.error || 'Không tải được danh sách nông trại.', 'error');
+        return;
+      }
+      const d = res.data;
+      lastItems = d.items;
+      $('sd-lock-msg').textContent = d.contactLocked ? 'Nâng cấp gói hội viên để xem thông tin liên hệ.' : '';
+      $('sd-lock').className = d.contactLocked && d.total > 0 ? 'sd-banner lock' : 'sd-banner';
+      if (d.total === 0) {
+        $('sd-meta').textContent = '';
+        $('sd-grid').innerHTML = `<div class="sd-empty" style="grid-column:1/-1;">
+          <p style="font-weight:600;">${esc(d.message || 'Không tìm thấy nông trại phù hợp.')}</p>
+          <button type="button" id="btn-clear-empty">Xóa bộ lọc</button></div>`;
+        $('btn-clear-empty').onclick = clearFilters;
+        $('sd-pager').innerHTML = '';
+        return;
+      }
+      const from = (d.page - 1) * d.pageSize + 1;
+      $('sd-meta').textContent = `Hiển thị ${from}–${from + d.items.length - 1} trên ${d.total} nông trại`;
+      $('sd-grid').innerHTML = d.items.map(card).join('');
+      pager(d.total, d.page, d.pageSize);
+    }
+
+    function clearFilters() {
+      state = { keyword: '', provinceCode: '', categoryId: '', certificateType: '', productionScale: '', sort: 'Reputation', page: 1 };
+      writeForm();
+      search();
+    }
+
+    function openDetail(id) {
+      const s = lastItems.find(x => String(x.farmerProfileId) === String(id));
+      if (!s) return;
+      $('sd-modal-title').textContent = s.farmName;
+      const rows = [
+        ['Đại diện', s.representativeName], ['Tỉnh / Vùng', s.provinceName || '—'],
+        ['Quy mô sản xuất', s.productionScale || '—'],
+        ['Diện tích canh tác', s.cultivatedArea != null ? `${s.cultivatedArea} ha` : '—'],
+        ['Cây trồng chính', s.mainCrops.join(', ') || '—'],
+        ['Chứng nhận đã xác minh', s.certificates.join(', ') || '—'],
+        ['Điểm uy tín', Number(s.reputationScore).toFixed(1)],
+        ['Số điện thoại', s.contactLocked ? '🔒 Nâng cấp gói hội viên để xem' : (s.phone || '—')],
+        ['Email', s.contactLocked ? '🔒 Nâng cấp gói hội viên để xem' : (s.email || '—')]
+      ];
+      $('sd-modal-body').innerHTML = rows.map(([k, v]) => `<div class="sd-row" style="padding:4px 0;">${esc(k)}: <b>${esc(v)}</b></div>`).join('');
+      $('sd-modal').classList.add('open');
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      loadState();
+      $('sd-form').addEventListener('submit', e => { e.preventDefault(); readForm(); state.page = 1; search(); });
+      $('f-sort').addEventListener('change', () => { readForm(); state.page = 1; search(); });
+      $('btn-clear').addEventListener('click', clearFilters);
+      $('f-keyword').addEventListener('input', () => {
+        showKeywordError($('f-keyword').value.trim().length > MAX_KEYWORD ? 'Từ khóa tối đa 100 ký tự.' : '');
+      });
+      $('sd-pager').addEventListener('click', e => {
+        const b = e.target.closest('button[data-page]');
+        if (!b || b.disabled) return;
+        state.page = Number(b.dataset.page); search();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      $('sd-grid').addEventListener('click', e => {
+        const b = e.target.closest('button[data-id]');
+        if (b) openDetail(b.dataset.id);
+      });
+      $('sd-modal-close').addEventListener('click', () => $('sd-modal').classList.remove('open'));
+      $('sd-modal').addEventListener('click', e => { if (e.target.id === 'sd-modal') $('sd-modal').classList.remove('open'); });
+      if (await loadFilters()) search();
+    });
+  })();
+  </script>
+</body>
+</html>

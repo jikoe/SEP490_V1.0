@@ -47,6 +47,10 @@ public interface IAdministrationRepository
     Task EndCategoryFeePoliciesAsync(long categoryId, DateOnly archiveDate, CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
+    /// <summary>Revokes all active refresh tokens when an account is suspended.</summary>
+    Task RevokeRefreshTokensForUserAsync(long userId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
+
     void AddCategory(Category category, CategorySettings settings);
 
     void DeleteCategory(Category category, CategorySettings settings);
