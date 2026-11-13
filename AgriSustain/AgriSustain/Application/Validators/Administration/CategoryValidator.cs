@@ -7,6 +7,9 @@ namespace AgriSustain.Application.Validators.Administration;
 /// <summary>BR-CAT-02: MSG02 for a missing name, MSG08 for a value over its maximum length.</summary>
 public sealed class CategoryValidator : AbstractValidator<CategoryRequest>
 {
+    /// <summary>
+    /// BR-CAT-02: name required (MSG02) and at most 100 characters (MSG08); description at most 500 characters.
+    /// </summary>
     public CategoryValidator()
     {
         RuleFor(x => x.Name).NotEmpty().WithMessage("Trường Tên danh mục là bắt buộc.")

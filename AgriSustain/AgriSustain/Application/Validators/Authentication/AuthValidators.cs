@@ -44,6 +44,9 @@ public sealed partial class RegisterRequestValidator : AbstractValidator<Registe
 
 public sealed class VerifyOtpRequestValidator : AbstractValidator<VerifyOtpRequest>
 {
+    /// <summary>
+    /// E-mail required and valid; code exactly 6 digits.
+    /// </summary>
     public VerifyOtpRequestValidator()
     {
         RuleFor(x => x.Email)
@@ -59,6 +62,9 @@ public sealed class VerifyOtpRequestValidator : AbstractValidator<VerifyOtpReque
 
 public sealed class ResendOtpRequestValidator : AbstractValidator<ResendOtpRequest>
 {
+    /// <summary>
+    /// E-mail required and valid.
+    /// </summary>
     public ResendOtpRequestValidator()
     {
         RuleFor(x => x.Email)

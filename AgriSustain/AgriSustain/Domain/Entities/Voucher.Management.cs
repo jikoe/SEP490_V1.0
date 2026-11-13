@@ -19,6 +19,12 @@ public partial class Voucher
     public const string StatusExhausted = "Exhausted";
     public const string StatusDeactivated = "Deactivated";
 
+    /// <summary>
+    /// BR-PV-06: Deactivated when switched off; otherwise Expired after the end, Exhausted when the total limit is used,
+    /// Scheduled before the start, else Active.
+    /// </summary>
+    /// <param name="now">Current UTC time.</param>
+    /// <returns>Status name.</returns>
     public string LifecycleStatus(DateTime now)
     {
         if (!IsActive)
@@ -43,10 +49,23 @@ public partial class Voucher
     /// BR-PV-07: after the first use or reservation, or once the start time has passed, the
     /// economic terms are frozen so every customer gets the same conditions.
     /// </summary>
+    /// <param name="now">Current UTC time.</param>
+    /// <param name="redemptions">Redemption rows of the voucher.</param>
+    /// <returns>True when the terms may no longer change.</returns>
     public bool TermsLocked(DateTime now, int redemptions) =>
         UsedCount > 0 || redemptions > 0 || StartDate <= now;
 
-    /// <summary>Terms that BR-PV-07 locks: code, discount, maximum, minimum, per-customer limit and start.</summary>
+    /// <summary>
+    /// Terms that BR-PV-07 locks: code, discount, maximum, minimum, per-customer limit and start.
+    /// </summary>
+    /// <param name="code">Code.</param>
+    /// <param name="discountType">Type.</param>
+    /// <param name="discountValue">Value.</param>
+    /// <param name="maxDiscountAmount">Maximum discount.</param>
+    /// <param name="minOrderAmount">Minimum order.</param>
+    /// <param name="perCustomerLimit">Per-customer limit.</param>
+    /// <param name="startDate">Start (UTC).</param>
+    /// <returns>True when all locked terms are unchanged.</returns>
     public bool HasSameTerms(string code, string discountType, decimal discountValue,
         decimal? maxDiscountAmount, decimal minOrderAmount, int perCustomerLimit, DateTime startDate) =>
         VoucherCode == code
@@ -57,14 +76,19 @@ public partial class Voucher
         && PerCustomerLimit == perCustomerLimit
         && StartDate == startDate;
 
-    /// <summary>BR-PV-08: a deactivated voucher can come back only while it still has time and uses.</summary>
+    /// <summary>
+    /// BR-PV-08: a deactivated voucher can come back only while it still has time and uses.
+    /// </summary>
+    /// <param name="now">Current UTC time.</param>
+    /// <returns>True when it may be reactivated.</returns>
     public bool CanReactivate(DateTime now) =>
         EndDate > now && (!UsageLimit.HasValue || UsedCount < UsageLimit);
 
     /// <summary>
     /// Token of the values shown to Promotion Staff; a save sent with an older token was made on stale
-    /// data (MSG-PV-15).
+    /// data (MSG-PV-15). First 16 hex characters of the SHA-256 of every field, used count included.
     /// </summary>
+    /// <returns>Version string.</returns>
     public string Version()
     {
         string state = string.Join('|', VoucherCode, VoucherName, Description, DiscountType, DiscountValue,

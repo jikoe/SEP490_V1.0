@@ -43,6 +43,13 @@ public sealed class VoucherManagementService(
         "Voucher đã được người khác cập nhật. Dữ liệu đã được tải lại, vui lòng kiểm tra và thử lại.",
         "Conflict");
 
+    /// <summary>
+    /// Voucher list: keyword in code or name, discount type and lifecycle status, paged. Vouchers still running come
+    /// first, then by start date. Each row shows used, reserved and total redemptions. Read-only; bad paging is clamped.
+    /// </summary>
+    /// <param name="query">Search, Status, DiscountType, Page and PageSize.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Always success: items, total, page and page size.</returns>
     public async Task<Result<VoucherListDto>> SearchAsync(
         VoucherQuery query,
         CancellationToken cancellationToken = default)
@@ -60,6 +67,12 @@ public sealed class VoucherManagementService(
             new VoucherListDto(items, total, normalized.Page, normalized.PageSize));
     }
 
+    /// <summary>
+    /// One platform voucher with its derived status and counts.
+    /// </summary>
+    /// <param name="voucherId">Platform voucher id.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The voucher, or 404 VOUCHER_NOT_FOUND.</returns>
     public async Task<Result<VoucherDto>> GetAsync(
         long voucherId,
         CancellationToken cancellationToken = default)
@@ -70,6 +83,15 @@ public sealed class VoucherManagementService(
             : Result<VoucherDto>.SuccessResult(await ToDtoAsync(voucher, cancellationToken));
     }
 
+    /// <summary>
+    /// Steps: 1) SaveVoucherRequestValidator (BR-PV-01..04); 2) the start must not be in the past (one minute of
+    /// tolerance); 3) the upper-cased code must never have been used (MSG-PV-03); 4) the voucher is saved active — it
+    /// shows Scheduled or Active by its start time (BR-PV-06) — together with its CreateVoucher audit row in one
+    /// transaction (BR-PV-12).
+    /// </summary>
+    /// <param name="request">Name, code, description, discount, maximum, minimum, usage limits and validity period.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>MSG-PV-08 with the saved voucher, or the validation / conflict error.</returns>
     public async Task<Result<VoucherActionResponse>> CreateAsync(
         SaveVoucherRequest request,
         CancellationToken cancellationToken = default)
@@ -102,6 +124,17 @@ public sealed class VoucherManagementService(
         return await SavedAsync(voucher, cancellationToken);
     }
 
+    /// <summary>
+    /// Steps: 1) validate; 2) load the voucher (404) and compare the version (MSG-PV-15); 3) once the voucher was used,
+    /// reserved or has started, its terms are locked (BR-PV-07): code, discount, maximum, minimum, per-customer limit and
+    /// start must stay; the end may only move later and the total limit only grow (MSG-PV-07); otherwise a changed start
+    /// must not be in the past; 4) the total limit may not drop below used + reserved uses; 5) a changed code must be
+    /// new; 6) apply, audit old → new, save.
+    /// </summary>
+    /// <param name="voucherId">Platform voucher id.</param>
+    /// <param name="request">New values, with Version.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>MSG-PV-08 with the voucher, or the error.</returns>
     public async Task<Result<VoucherActionResponse>> UpdateAsync(
         long voucherId,
         SaveVoucherRequest request,
@@ -166,6 +199,15 @@ public sealed class VoucherManagementService(
         return await SavedAsync(voucher, cancellationToken);
     }
 
+    /// <summary>
+    /// Deactivate or reactivate (MSG-PV-09). Reactivation is refused once the voucher has ended or run out of uses
+    /// (BR-PV-08, MSG-PV-10). Nothing is written when the flag already has the requested value.
+    /// </summary>
+    /// <param name="voucherId">Platform voucher id.</param>
+    /// <param name="isActive">True to reactivate, false to deactivate.</param>
+    /// <param name="version">Version the screen showed; when sent and different, the action is refused (MSG-PV-15).</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Confirmation with the voucher, or the error.</returns>
     public async Task<Result<VoucherActionResponse>> SetActiveAsync(
         long voucherId,
         bool isActive,
@@ -207,6 +249,14 @@ public sealed class VoucherManagementService(
             await ToDtoAsync(voucher, cancellationToken)));
     }
 
+    /// <summary>
+    /// BR-PV-09: only a voucher never redeemed or reserved and not currently Active can be deleted; otherwise MSG-PV-11
+    /// asks to deactivate it instead. The audit row is written before the removal, so the code stays blocked for reuse.
+    /// </summary>
+    /// <param name="voucherId">Platform voucher id.</param>
+    /// <param name="version">Version the screen showed; when sent and different, the action is refused (MSG-PV-15).</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Confirmation without a voucher, or the error.</returns>
     public async Task<Result<VoucherActionResponse>> DeleteAsync(
         long voucherId,
         string? version,
@@ -242,6 +292,12 @@ public sealed class VoucherManagementService(
             voucherId, $"Đã xoá voucher {voucher.VoucherCode}.", null));
     }
 
+    /// <summary>
+    /// Copies the form values onto the voucher; dates are stored in UTC and an empty description as null.
+    /// </summary>
+    /// <param name="voucher">Voucher to fill.</param>
+    /// <param name="request">Form values.</param>
+    /// <param name="code">Normalised (upper-case) code.</param>
     private static void Apply(Voucher voucher, SaveVoucherRequest request, string code)
     {
         voucher.VoucherName = request.VoucherName.Trim();
@@ -257,6 +313,12 @@ public sealed class VoucherManagementService(
         voucher.EndDate = request.EndDate.UtcDateTime;
     }
 
+    /// <summary>
+    /// MSG-PV-08 "Đã lưu voucher … Trạng thái: …" with the refreshed voucher.
+    /// </summary>
+    /// <param name="voucher">Saved voucher.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>Success result.</returns>
     private async Task<Result<VoucherActionResponse>> SavedAsync(Voucher voucher,
         CancellationToken cancellationToken = default)
     {
@@ -268,6 +330,12 @@ public sealed class VoucherManagementService(
             dto));
     }
 
+    /// <summary>
+    /// Maps the voucher with its reserved and total redemption counts and the status at the current time.
+    /// </summary>
+    /// <param name="voucher">Voucher.</param>
+    /// <param name="cancellationToken">Cancels the work when the HTTP request is aborted.</param>
+    /// <returns>The DTO.</returns>
     private async Task<VoucherDto> ToDtoAsync(Voucher voucher, CancellationToken cancellationToken = default)
     {
         int reserved = voucher.VoucherId == 0
@@ -278,6 +346,13 @@ public sealed class VoucherManagementService(
     }
 
     // BR-PV-12: staff, time, action and the changed values (old → new).
+    /// <summary>
+    /// BR-PV-12: staff, time, action and the changed values (old → new). A delete keeps only the old value.
+    /// </summary>
+    /// <param name="voucher">Voucher acted on.</param>
+    /// <param name="action">CreateVoucher, UpdateVoucher, ReactivateVoucher, DeactivateVoucher or DeleteVoucher.</param>
+    /// <param name="oldValue">JSON snapshot before, or null.</param>
+    /// <param name="now">Current UTC time.</param>
     private void AddAudit(Voucher voucher, string action, string? oldValue, DateTime now)
     {
         repository.AddAudit(new AuditLog
@@ -293,6 +368,11 @@ public sealed class VoucherManagementService(
         });
     }
 
+    /// <summary>
+    /// JSON of every audited voucher field; its "VoucherCode" entry is also what blocks a code from being reused.
+    /// </summary>
+    /// <param name="voucher">Voucher.</param>
+    /// <returns>JSON text.</returns>
     private static string Snapshot(Voucher voucher) => JsonSerializer.Serialize(new
     {
         voucher.VoucherCode, voucher.VoucherName, voucher.Description, voucher.DiscountType,
@@ -300,8 +380,17 @@ public sealed class VoucherManagementService(
         voucher.PerCustomerLimit, voucher.UsedCount, voucher.StartDate, voucher.EndDate, voucher.IsActive
     });
 
+    /// <summary>
+    /// Codes are trimmed and stored upper-case (BR-PV-01).
+    /// </summary>
+    /// <param name="code">Code as typed.</param>
+    /// <returns>Normalised code.</returns>
     private static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
 
+    /// <summary>
+    /// 409 VOUCHER_CODE_EXISTS on the voucherCode field.
+    /// </summary>
+    /// <returns>The error.</returns>
     private static Error DuplicateCode()
     {
         const string message = "Mã voucher đã tồn tại.";
@@ -310,13 +399,27 @@ public sealed class VoucherManagementService(
     }
 
     // MSG-PV-07
+    /// <summary>
+    /// 409 VOUCHER_TERMS_LOCKED (MSG-PV-07).
+    /// </summary>
+    /// <returns>The error.</returns>
     private static Error TermsLocked() => new("VOUCHER_TERMS_LOCKED",
         "Voucher đã được sử dụng hoặc đã bắt đầu áp dụng. Chỉ được sửa tên, mô tả, gia hạn thời gian kết thúc "
             + "hoặc tăng tổng lượt dùng.",
         "Conflict");
 
+    /// <summary>
+    /// 400 error attached to one form field.
+    /// </summary>
+    /// <param name="code">Error code.</param>
+    /// <param name="field">Field name.</param>
+    /// <param name="message">Message.</param>
+    /// <returns>The error.</returns>
     private static Error FieldError(string code, string field, string message) =>
         new(code, message, Fields: new Dictionary<string, string[]> { [field] = [message] });
 
+    /// <summary>
+    /// Current UTC time from the injected clock.
+    /// </summary>
     private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;
 }
