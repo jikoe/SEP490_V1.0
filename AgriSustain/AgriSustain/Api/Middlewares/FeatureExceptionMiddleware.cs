@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using AgriSustain.Application.Common;
+using AgriSustain.Application.Services.Refunds;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,6 +65,11 @@ public sealed class FeatureExceptionMiddleware(RequestDelegate next,
                         ? "Không thể tải thông tin đơn hàng. Vui lòng thử lại."
                         : "Không thể gửi yêu cầu. Vui lòng thử lại sau."
                 : null;
+            // UC-FIN-03 Step 9: a refund action that cannot be saved shows MSG123; nothing was saved, so the
+            // request keeps its previous status (Processing). Conflicts and loads keep the finance messages below.
+            string? refundMessage = context.Request.Path.StartsWithSegments("/api/finance/refunds")
+                && !conflict && !HttpMethods.IsGet(context.Request.Method)
+                ? RefundProcessingService.SaveFailedMessage : null;
             string? financeMessage = context.Request.Path.StartsWithSegments("/api/finance")
                 ? conflict ? "Dữ liệu tài chính đã thay đổi. Vui lòng tải lại trước khi thử lại."
                     : HttpMethods.IsGet(context.Request.Method)
@@ -75,7 +81,7 @@ public sealed class FeatureExceptionMiddleware(RequestDelegate next,
             await context.Response.WriteAsJsonAsync(new ProblemDetails
             {
                 Status = context.Response.StatusCode,
-                Title = farmerPayoutMessage ?? farmerBusinessMessage ?? farmerComplaintMessage ?? farmMessage ?? productMessage ?? cartMessage ?? orderMessage ?? financeMessage ?? (context.Request.Path.StartsWithSegments("/api/farmer/orders")
+                Title = farmerPayoutMessage ?? farmerBusinessMessage ?? farmerComplaintMessage ?? farmMessage ?? productMessage ?? cartMessage ?? orderMessage ?? refundMessage ?? financeMessage ?? (context.Request.Path.StartsWithSegments("/api/farmer/orders")
                     || context.Request.Path.StartsWithSegments("/api/files/evidence")
                     ? conflict ? "Yêu cầu xung đột với dữ liệu hiện tại hoặc đã được xử lý. Vui lòng tải lại; không thực hiện thao tác trùng lặp."
                         : HttpMethods.IsGet(context.Request.Method)

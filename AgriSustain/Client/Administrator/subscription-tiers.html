@@ -161,6 +161,8 @@
       <div id="confirm-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
       <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" onclick="closeConfirmModal()">Hủy</button>
+        <!-- MSG-ST-05: a purchased tier cannot be deleted; offer Deactivate instead (BR-ST-04) -->
+        <button type="button" id="confirm-deactivate-btn" class="primary" style="display:none;" onclick="offerDeactivate()">Ngừng bán gói</button>
         <button type="button" id="confirm-btn" class="primary" onclick="executeConfirm()">Xác nhận</button>
       </div>
     </div>
@@ -343,8 +345,18 @@
         ? `Xóa gói ${t.name}? Thao tác này không thể hoàn tác.`
         : `${action === 'activate' ? 'Mở bán' : 'Ngừng bán'} gói ${t.name}? ${t.activeSubscriptions} thuê bao hiện tại giữ nguyên điều kiện đã mua cho tới khi hết hạn.`;
       document.getElementById('confirm-btn').className = action === 'delete' ? 'danger' : 'primary';
+      document.getElementById('confirm-btn').style.display = '';
+      document.getElementById('confirm-deactivate-btn').style.display = 'none';
       setBox('confirm-error', '');
       document.getElementById('confirm-modal').showModal();
+    }
+
+    // MSG-ST-05 → Deactivate: switch the dialog to the MSG-ST-03 confirmation of the same tier.
+    function offerDeactivate() {
+      if (!pendingConfirm) return;
+      const t = pendingConfirm.t;
+      saveAfterConfirm = null;
+      showConfirm(t, 'deactivate', false);
     }
 
     function closeConfirmModal() {
@@ -373,8 +385,10 @@
         });
         if (!res.success) {
           if (res.code === 'TIER_PURCHASED') {
-            // MSG-ST-05 stays in the dialog so the Administrator can deactivate instead.
+            // MSG-ST-05 stays in the dialog; delete is no longer offered, Deactivate is (when the tier is still Active).
             setBox('confirm-error', res.error);
+            document.getElementById('confirm-btn').style.display = 'none';
+            document.getElementById('confirm-deactivate-btn').style.display = t.isActive ? '' : 'none';
           } else if (res.status === 409 || res.status === 404) {
             closeConfirmModal();
             if (document.getElementById('tier-modal').open) closeTierModal();

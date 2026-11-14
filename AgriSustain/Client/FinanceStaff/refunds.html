@@ -38,6 +38,12 @@
                   <option value="Failed">Thất bại</option>
                   <option value="NeedsReconciliation">Cần đối soát</option>
                 </select></label>
+              <label><!-- (2a) -->Phương thức hoàn tiền
+                <select id="f-method" onchange="loadRefunds(1)">
+                  <option value="">Tất cả phương thức</option>
+                  <option value="BankTransfer">Chuyển khoản ngân hàng</option>
+                  <option value="GatewayRefund">Hoàn qua cổng thanh toán</option>
+                </select></label>
               <label><!-- (3) -->Thời gian tạo
                 <span class="rf-dates">
                   <input id="f-from" type="date" aria-label="Từ ngày" onchange="loadRefunds(1)">
@@ -187,6 +193,7 @@
       const res = await API.getRefunds({
         search: document.getElementById('f-search').value.trim(),
         status: document.getElementById('f-status').value,
+        refundMethod: document.getElementById('f-method').value,
         fromDate, toDate, page, pageSize
       }, { suppressErrorToast: true });
       const rows = document.getElementById('rf-rows');
