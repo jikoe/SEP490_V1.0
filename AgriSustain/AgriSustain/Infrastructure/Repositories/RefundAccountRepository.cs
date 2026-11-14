@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AgriSustain.Application.Common;
 using AgriSustain.Application.Services.Profiles;
 using AgriSustain.Application.Services.Refunds;
 using AgriSustain.Domain.Entities;
@@ -73,7 +74,7 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
         }
 
         var failure = await db.AuditLogs.AsNoTracking()
-            .Where(a => a.EntityType == EntityType && a.EntityId == refundId && a.Action == "RefundTransferFailed")
+            .Where(a => a.EntityType == EntityType && a.EntityId == refundId && a.Action == AuditActions.RefundTransferFailed)
             .OrderByDescending(a => a.OccurredAt)
             .Select(a => new { a.Reason, a.OccurredAt })
             .FirstOrDefaultAsync(cancellationToken);
@@ -97,7 +98,7 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
             .ToListAsync(cancellationToken);
 
         return rows.Select(a => new RefundHistoryDto(Label(a.Action), ActorLabel(a.Role),
-            a.Action is "RefundAccountProvided" or "RefundAccountChanged" ? MaskedFrom(a.NewValue) : a.Reason,
+            a.Action is AuditActions.RefundAccountProvided or AuditActions.RefundAccountChanged ? MaskedFrom(a.NewValue) : a.Reason,
             a.OccurredAt)).ToList();
     }
 
@@ -122,7 +123,7 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
             PerformedByUserId = userId,
             EntityType = EntityType,
             EntityId = refundId,
-            Action = changed ? "RefundAccountChanged" : "RefundAccountProvided",
+            Action = changed ? AuditActions.RefundAccountChanged : AuditActions.RefundAccountProvided,
             OldValue = before is null ? null : JsonSerializer.Serialize(new { Account = before }),
             NewValue = JsonSerializer.Serialize(new
             {
@@ -160,10 +161,10 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
 
     private static string Label(string action) => action switch
     {
-        "RefundAccountProvided" => "Cung cấp tài khoản nhận tiền",
-        "RefundAccountChanged" => "Đổi tài khoản nhận tiền",
-        "RefundTransferFailed" => "Chuyển khoản thất bại",
-        "RemindRefundAccount" => "Nhắc cung cấp tài khoản nhận tiền",
+        AuditActions.RefundAccountProvided => "Cung cấp tài khoản nhận tiền",
+        AuditActions.RefundAccountChanged => "Đổi tài khoản nhận tiền",
+        AuditActions.RefundTransferFailed => "Chuyển khoản thất bại",
+        AuditActions.RemindRefundAccount => "Nhắc cung cấp tài khoản nhận tiền",
         "CompleteRefund" => "Đã chuyển khoản hoàn tiền",
         _ => action
     };

@@ -17,8 +17,8 @@ public sealed class PlatformDashboardRepository(AgriSustainContext db) : IPlatfo
     private static readonly string[] s_complaintOpen =
         [DisputeTicket.StatusOpen, DisputeTicket.StatusUnderReview, DisputeTicket.StatusWaitingInfo];
     // Audit actions that (re)submit a listing for review (FarmerProductService).
-    private static readonly string[] s_listingSubmissions = ["SubmitListing", "ResubmitListing", "UpdateListing"];
-    private const string KycSubmission = "SubmitForVerification";
+    private static readonly string[] s_listingSubmissions = [AuditActions.SubmitListing, AuditActions.ResubmitListing, AuditActions.UpdateListing];
+    private const string KycSubmission = AuditActions.SubmitForVerification;
     private static readonly string[] s_refundOpen =
     [
         RefundTransaction.StatusPending, RefundTransaction.StatusProcessing, RefundTransaction.StatusFailed,

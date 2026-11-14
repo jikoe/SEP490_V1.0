@@ -110,4 +110,27 @@ public sealed partial class CommerceApiTests
         Assert.DoesNotContain("private test failure", body);
         Assert.DoesNotContain("System.IO", body);
     }
+
+    // UC-FIN-03 Step 9: a refund action that cannot be saved answers MSG123; loads and conflicts keep the finance texts.
+    [Theory]
+    [InlineData("/api/finance/refunds/41/complete", "POST", false, 500, true)]
+    [InlineData("/api/finance/refunds/41/transfer-failed", "POST", false, 500, true)]
+    [InlineData("/api/finance/refunds/41", "GET", false, 500, false)]
+    [InlineData("/api/finance/refunds/41/complete", "POST", true, 409, false)]
+    [InlineData("/api/finance/farmer-payouts/7/confirm", "POST", false, 500, false)]
+    public async Task ExceptionPipeline_RefundSaveFailure_ReturnsMsg123(
+        string path, string method, bool conflict, int status, bool msg123)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer(); builder.Logging.ClearProviders();
+        await using var app = builder.Build();
+        app.UseMiddleware<FeatureExceptionMiddleware>();
+        app.Run((HttpContext _) => Task.FromException(conflict ? new DbUpdateConcurrencyException("private test failure") : new IOException("private test failure")));
+        await app.StartAsync(); using var client = app.GetTestClient();
+        using var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), path));
+        Assert.Equal((HttpStatusCode)status, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+        Assert.Equal(msg123, problem!.Title == AgriSustain.Application.Services.Refunds.RefundProcessingService.SaveFailedMessage);
+        Assert.DoesNotContain("private test failure", problem.Title);
+    }
 }

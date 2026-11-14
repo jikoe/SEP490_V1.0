@@ -19,7 +19,7 @@
 .rf-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
 
 /* (1)–(5) list */
-.rf-filters { display: grid; grid-template-columns: 1fr 260px 316px; gap: 16px; }
+.rf-filters { display: grid; grid-template-columns: minmax(240px, 2fr) minmax(180px, 1fr) minmax(200px, 1fr); gap: 16px; }
 .rf-filters label { display: flex; flex-direction: column; gap: 10px; font-size: 16px; color: #2a3a31; margin: 0; }
 .rf-filters input, .rf-filters select { height: 40px; border: 1px solid #d9e2dc; border-radius: 6px;
   padding: 0 14px; font-size: 16px; color: #1f2b25; background: #fff; }

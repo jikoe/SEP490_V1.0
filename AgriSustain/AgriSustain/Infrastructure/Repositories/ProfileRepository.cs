@@ -255,7 +255,7 @@ public sealed class ProfileRepository(AgriSustainContext db) : IProfileRepositor
         string oldStatus = farm.VerificationStatus;
         farm.VerificationStatus = VerificationStatuses.PendingApproval;
         farm.RejectReason = null;
-        AddAudit(userId, "FarmerProfile", farm.FarmerProfileId, "SubmitForVerification",
+        AddAudit(userId, "FarmerProfile", farm.FarmerProfileId, AuditActions.SubmitForVerification,
             new { VerificationStatus = oldStatus },
             new { farm.VerificationStatus, Notes = request.Notes });
 

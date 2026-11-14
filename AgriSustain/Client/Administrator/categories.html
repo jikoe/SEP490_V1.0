@@ -115,6 +115,9 @@
       <div id="category-form-error" class="notice error" style="display:none; margin-top:12px;" role="alert"></div>
 
       <div class="modal-actions" style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+        <!-- (16)/(17) Activate or Deactivate, only the eligible one; (15) Delete. Shown for an editable category only. -->
+        <button type="button" id="cat-toggle-btn" style="display:none;" onclick="formAction('toggle')">Ngừng kích hoạt</button>
+        <button type="button" id="cat-delete-btn" class="danger-link" style="display:none; margin-right:auto;" onclick="formAction('delete')">Xóa danh mục</button>
         <button type="button" onclick="closeCategoryModal()">Hủy</button>
         <button type="submit" id="cat-save-btn" class="primary">Lưu danh mục</button>
       </div>
@@ -269,6 +272,11 @@
         document.getElementById(fieldId).disabled = readOnly;
       });
       document.getElementById('cat-save-btn').style.display = readOnly ? 'none' : '';
+      const editable = !!cat && !cat.isArchived;
+      const toggle = document.getElementById('cat-toggle-btn');
+      toggle.style.display = editable ? '' : 'none';
+      toggle.textContent = cat && cat.isActive ? 'Ngừng kích hoạt' : 'Kích hoạt';
+      document.getElementById('cat-delete-btn').style.display = editable ? '' : 'none';
       document.getElementById('modal-category-title').textContent = readOnly
         ? 'Danh mục đã lưu trữ (chỉ xem)'
         : cat ? 'Chi tiết danh mục' : 'Thêm danh mục sản phẩm';
@@ -279,6 +287,24 @@
 
     function closeCategoryModal() {
       document.getElementById('category-modal').close();
+    }
+
+    // Form buttons (15)–(17): the same confirmations and server calls as the row actions.
+    function formAction(kind) {
+      const id = Number(document.getElementById('cat-id').value);
+      const cat = categoriesCache.find(x => x.id === id);
+      if (!cat) return;
+      prepareConfirm(cat.id, kind === 'delete' ? 'delete' : cat.isActive ? 'deactivate' : 'activate');
+    }
+
+    // MSG122: the category changed or was archived elsewhere (business check or database concurrency conflict).
+    function isStale(res) {
+      return res.status === 409 && ['CATEGORY_CHANGED', 'ARCHIVED', 'CONCURRENCY_CONFLICT'].includes(res.code);
+    }
+    function staleText(res) {
+      return res.code === 'CONCURRENCY_CONFLICT'
+        ? 'Danh mục này đã thay đổi hoặc thao tác đã được xử lý. Hãy tải lại để xem kết quả hiện tại; chưa có thao tác nào được thực hiện thêm.'
+        : res.error;
     }
 
     function editCategory(id) {
@@ -297,15 +323,22 @@
       const description = document.getElementById('cat-description').value.trim();
       const isActive = document.getElementById('cat-isactive').value === 'true';
 
-      // Changing the status while editing needs the same MSG-CAT-03 confirmation as the row action.
+      // The version the form was opened with lets the server detect a concurrent change (MSG122).
       const original = id ? categoriesCache.find(x => String(x.id) === id) : null;
       const statusChanged = !!original && original.isActive !== isActive;
-      if (statusChanged && !window.confirm(statusConfirmText(original, isActive ? 'activate' : 'deactivate'))) {
+      const payload = { name, description, isActive, confirmed: statusChanged, version: original ? original.version : null };
+
+      // Changing the status while editing needs the same MSG-CAT-03 dialog as the row action; Save runs after Confirm.
+      if (statusChanged) {
+        prepareConfirm(original.id, isActive ? 'activate' : 'deactivate');
+        pendingConfirm.save = { id, payload };
         return;
       }
+      await saveCategory(id, payload);
+    }
 
-      // The version the form was opened with lets the server detect a concurrent change (MSG122).
-      const payload = { name, description, isActive, confirmed: statusChanged, version: original ? original.version : null };
+    async function saveCategory(id, payload) {
+      const name = payload.name;
       const btn = document.getElementById('cat-save-btn');
       btn.disabled = true;
       setBoxError('category-form-error', '');
@@ -314,9 +347,9 @@
           method: id ? 'PUT' : 'POST', body: payload, suppressErrorToast: true
         });
         if (!res.success) {
-          if (res.status === 409 && (res.code === 'CATEGORY_CHANGED' || res.code === 'ARCHIVED')) {
+          if (isStale(res)) {
             closeCategoryModal();
-            showAlert(res.error, 'error');
+            showAlert(staleText(res), 'error');
             await loadCategories(currentPage);
           } else if (res.status >= 500) {
             // MSG123
@@ -372,6 +405,13 @@
 
     async function executeConfirmAction() {
       if (!pendingConfirm) return;
+      if (pendingConfirm.save) {
+        // Status change made in the form: confirmed, now save the form.
+        const { id, payload } = pendingConfirm.save;
+        closeConfirmModal();
+        await saveCategory(id, payload);
+        return;
+      }
       const { cat, action } = pendingConfirm;
       const btn = document.getElementById('confirm-btn');
       btn.disabled = true;
@@ -382,10 +422,11 @@
           method: 'POST', body: { confirmed: true, version: cat.version }, suppressErrorToast: true
         });
         if (!res.success) {
-          if (res.status === 409 && (res.code === 'CATEGORY_CHANGED' || res.code === 'ARCHIVED')) {
+          if (isStale(res)) {
             // MSG122: reload the current state instead of retrying.
             closeConfirmModal();
-            showAlert(res.error, 'error');
+            closeCategoryModal();
+            showAlert(staleText(res), 'error');
             await loadCategories(currentPage);
           } else if (res.status >= 500) {
             setBoxError('confirm-error', 'Không thể lưu danh mục. Hãy tải lại để kiểm tra thông tin mới nhất trước khi thử lại.');
@@ -396,6 +437,7 @@
           return;
         }
         closeConfirmModal();
+        closeCategoryModal();
         // The server says whether a delete removed the category or archived it (BR-CAT-04).
         showAlert(res.data.message, 'success');
         await loadCategories(currentPage);

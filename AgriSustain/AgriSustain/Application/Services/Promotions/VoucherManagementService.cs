@@ -119,7 +119,7 @@ public sealed class VoucherManagementService(
         // BR-PV-06: saved as Scheduled or Active according to its start time.
         var voucher = new Voucher { UsedCount = 0, IsActive = true };
         Apply(voucher, request, code);
-        await repository.AddWithAuditAsync(voucher, () => AddAudit(voucher, "CreateVoucher", null, now),
+        await repository.AddWithAuditAsync(voucher, () => AddAudit(voucher, AuditActions.CreateVoucher, null, now),
             cancellationToken);
         return await SavedAsync(voucher, cancellationToken);
     }
@@ -194,7 +194,7 @@ public sealed class VoucherManagementService(
 
         var before = Snapshot(voucher);
         Apply(voucher, request, code);
-        AddAudit(voucher, "UpdateVoucher", before, now);
+        AddAudit(voucher, AuditActions.UpdateVoucher, before, now);
         await repository.SaveChangesAsync(cancellationToken);
         return await SavedAsync(voucher, cancellationToken);
     }
@@ -238,7 +238,7 @@ public sealed class VoucherManagementService(
         {
             var before = Snapshot(voucher);
             voucher.IsActive = isActive;
-            AddAudit(voucher, isActive ? "ReactivateVoucher" : "DeactivateVoucher", before, now);
+            AddAudit(voucher, isActive ? AuditActions.ReactivateVoucher : AuditActions.DeactivateVoucher, before, now);
             await repository.SaveChangesAsync(cancellationToken);
         }
 
@@ -285,7 +285,7 @@ public sealed class VoucherManagementService(
                 "Conflict"));
         }
 
-        AddAudit(voucher, "DeleteVoucher", Snapshot(voucher), now);
+        AddAudit(voucher, AuditActions.DeleteVoucher, Snapshot(voucher), now);
         repository.Remove(voucher);
         await repository.SaveChangesAsync(cancellationToken);
         return Result<VoucherActionResponse>.SuccessResult(new VoucherActionResponse(
@@ -362,7 +362,7 @@ public sealed class VoucherManagementService(
             EntityId = voucher.VoucherId,
             Action = action,
             OldValue = oldValue,
-            NewValue = action == "DeleteVoucher" ? null : Snapshot(voucher),
+            NewValue = action == AuditActions.DeleteVoucher ? null : Snapshot(voucher),
             TraceId = actor.TraceId,
             OccurredAt = now
         });
