@@ -137,6 +137,7 @@ window.FarmUI = class FarmUI {
       correctionReason: ["correctionReason"],
       batchCode: ["code"],
       expirationDate: ["expiry"],
+      actualHarvestDate: ["harvest"],
       quantity: ["affected", "adjustment"],
       qualityNotes: ["notes"],
       outcome: ["outcome"],

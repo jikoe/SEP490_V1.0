@@ -73,8 +73,9 @@ public sealed class FarmerOfftakeContractRepository(AgriSustainContext db) : IFa
         var seasons = await db.CropSeasons.Where(x => x.FarmerProfileId == farmer).ToListAsync(ct);
         var batches = update
             ? await db.HarvestBatches.FromSqlInterpolated($"SELECT h.* FROM dbo.HarvestBatch h WITH (UPDLOCK,HOLDLOCK) JOIN dbo.Product p ON p.ProductId=h.ProductId WHERE p.FarmerProfileId={farmer}")
-                .Include(x => x.TraceabilityQrcode).OrderBy(x => x.HarvestBatchId).ToListAsync(ct)
-            : await db.HarvestBatches.Where(x => x.Product.FarmerProfileId == farmer).Include(x => x.TraceabilityQrcode).ToListAsync(ct);
+                .Include(x => x.Product).Include(x => x.TraceabilityQrcode).OrderBy(x => x.HarvestBatchId).ToListAsync(ct)
+            : await db.HarvestBatches.Where(x => x.Product.FarmerProfileId == farmer)
+                .Include(x => x.Product).Include(x => x.TraceabilityQrcode).ToListAsync(ct);
         var others = await db.ContractLines.Where(x => x.B2bcontractId != id && x.B2bcontract.FarmerProfileId == farmer
             && x.ContractVersion.VersionNo == x.B2bcontract.CurrentVersionNo
             && (x.B2bcontract.Status == "Active" || x.B2bcontract.Status == "AwaitingDeposit"

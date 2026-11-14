@@ -55,8 +55,6 @@ public static class FarmManagementMessages
 
     public const string MSG133 = "Chỉ có thể ghi hoạt động mới cho mùa vụ đang trồng, sinh trưởng hoặc thu hoạch. Mùa vụ đã kết thúc chỉ cho phép đính chính bản gốc hiện có.";
 
-    public const string MSG134 = "Đã lưu lô kế hoạch. Chưa phát sinh hàng thực tế hoặc QR hoạt động.";
-
     public const string MSG135 = "Đã ghi nhận thu hoạch và nhập kho một lần; tồn khả dụng đã được tính lại.";
 
     public const string MSG136 = "Chưa thể cấp QR: cần ngày thu hoạch thực tế hợp lệ và ít nhất một nhật ký của mùa vụ.";
@@ -65,7 +63,7 @@ public static class FarmManagementMessages
 
     public const string MSG138 = "Đã ghi nhận vấn đề hoặc điều chỉnh có lý do và lưu lịch sử. Hàng nghi vấn không được phân bổ mới; chưa có quyết định phê duyệt thu hồi.";
 
-    public const string MSG139 = "Lô kế hoạch, hết hạn, bị thu hồi hoặc bị chặn không đủ điều kiện cấp/cung cấp nhãn QR hoặc phân bổ hàng mới.";
+    public const string MSG139 = "Lô hết hạn, bị thu hồi hoặc bị chặn không đủ điều kiện cấp/cung cấp nhãn QR hoặc phân bổ hàng mới.";
 
     public static string Field(string label)
     {
@@ -105,6 +103,8 @@ public static class FarmManagementMessages
     public const string StageDate = "Chưa đến ngày trồng đã lập trong kế hoạch.";
 
     public const string Completion = "Ngày hoàn thành phải từ ngày trồng đến hôm nay; sản lượng phải khớp tổng các lô đã thu hoạch. Hoàn thành thông thường yêu cầu sản lượng lớn hơn 0.";
+
+    public const string StockInReason = "Ghi nhận thu hoạch thực tế";
 
     public const string Immutable = "Thông tin định danh và sản lượng nhập kho ban đầu không thể bị ghi đè; hãy dùng thao tác điều chỉnh có lý do.";
 }

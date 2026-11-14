@@ -1,260 +1,223 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const ui = new FarmUI(),
-    $ = ui.$,
-    f = $("#batchForm"),
-    issue = $("#issueForm");
-  let current = null,
-    labelData = null,
-    saving = false;
+  const ui = new FarmUI();
+  const $ = ui.$;
+  const f = $("#batchForm");
+  const issue = $("#issueForm");
   const el = (form, name) => form.elements.namedItem(name);
+  let current = null;
+  let labelData = null;
+  let saving = false;
+  let loadVersion = 0;
+
   function productOptions() {
-    ui.options(
-      el(f, "product"),
-      ui.optionsData.products,
-      "productId",
-      (x) => x.productName,
-      "Chọn sản phẩm / cây trồng",
-    );
-    ui.options(
-      $("#filters").elements.filterProduct,
-      ui.optionsData.products,
-      "productId",
-      (x) => x.productName,
-      "Tất cả sản phẩm",
-    );
-    ui.options(
-      $("#filters").elements.filterSeason,
-      ui.optionsData.seasons,
-      "cropSeasonId",
-      (x) => x.seasonName,
-      "Tất cả mùa vụ",
-    );
+    ui.options(el(f, "product"), ui.optionsData.products, "productId",
+      (x) => x.productName, "Chọn sản phẩm / cây trồng");
+    ui.options(el($("#filters"), "filterProduct"), ui.optionsData.products,
+      "productId", (x) => x.productName, "Tất cả sản phẩm");
+    ui.options(el($("#filters"), "filterSeason"), ui.optionsData.seasons,
+      "cropSeasonId", (x) => x.seasonName, "Tất cả mùa vụ");
   }
+
   function seasonOptions(selected) {
     const productId = Number(ui.value(f, "product"));
-    ui.options(
-      el(f, "season"),
-      ui.optionsData.seasons.filter((x) => x.productId === productId),
-      "cropSeasonId",
-      (x) => x.seasonName,
-      "Chọn mùa vụ",
-    );
+    const seasons = ui.optionsData.seasons.filter((x) =>
+      x.productId === productId && (current || ["Planting", "Growing", "Harvesting"].includes(x.status)));
+    ui.options(el(f, "season"), seasons, "cropSeasonId", (x) => x.seasonName, "Chọn mùa vụ");
     if (selected) el(f, "season").value = selected;
     el(f, "unit").value = ui.optionsData.products.find((x) => x.productId === productId)?.unit || "";
-    el(f, "unit").readOnly = true;
     dates();
   }
+
   function dates() {
-    const s = ui.optionsData.seasons.find((x) => x.cropSeasonId === Number(ui.value(f, "season")));
-    el(f, "harvest").min = s?.plantingDate || "";
+    const season = ui.optionsData.seasons.find((x) => x.cropSeasonId === Number(ui.value(f, "season")));
+    el(f, "harvest").min = season?.plantingDate || "";
     el(f, "harvest").max = ui.optionsData.today;
-    el(f, "estimated").min = s?.plantingDate || "";
+    el(f, "expiry").min = ui.value(f, "harvest");
   }
+
   function sync() {
-    const actual = ui.value(f, "mode") === "Actual",
-      accepted = !!current && current.status !== "Planned";
-    for (const name of ["estimated", "estimatedYield"]) {
-      el(f, name).disabled = actual;
-      el(f, name).required = !actual;
-      el(f, name).closest(".field").hidden = actual;
-    }
-    for (const name of ["harvest", "expiry", "yield"]) {
-      el(f, name).disabled = !actual;
-      el(f, name).required = actual;
-      el(f, name).closest(".field").hidden = !actual;
-    }
-    for (const name of ["code", "harvest", "yield"]) el(f, name).readOnly = accepted;
-    for (const name of ["product", "season", "mode"]) el(f, name).disabled = accepted;
-    const reasonLabel = f.querySelector("label[for=changeReason]");
-    if (reasonLabel) reasonLabel.textContent = "Lý do thay đổi" + (accepted ? " *" : "");
-    el(f, "changeReason").required = accepted;
-    el(f, "changeReason").closest(".field").hidden = !accepted;
-    $("#generateQr").disabled = !current || current.status === "Planned";
-    el(f, "unit").readOnly = true;
+    for (const name of ["code", "harvest", "yield"]) el(f, name).readOnly = !!current;
+    for (const name of ["product", "season"]) el(f, name).disabled = !!current;
+    el(f, "changeReason").required = !!current;
+    el(f, "changeReason").closest(".field").hidden = !current;
+    $("#batchFormTitle").textContent = current ? ui.m.harvestDetailsTitle : ui.m.createHarvestTitle;
+    f.querySelector("[type=submit]").textContent = current ? ui.m.updateHarvest : ui.m.recordHarvest;
+    f.querySelector("[type=submit]").disabled = saving || ui.busy;
+    $("#generateQr").disabled = saving || ui.busy || !current?.qrEligible;
     const quality = ui.value(issue, "issueType") === "quality";
     el(issue, "affected").disabled = !quality;
     el(issue, "affected").required = quality;
     el(issue, "adjustment").disabled = quality;
     el(issue, "adjustment").required = !quality;
-    issue.querySelector("[type=submit]").disabled = !current || current.status === "Planned";
+    issue.querySelector("[type=submit]").disabled = saving || ui.busy || !current;
   }
-  function open(record, mode) {
+
+  function open(record) {
     current = record;
     labelData = null;
     f.reset();
     issue.reset();
     ui.clearErrors(f);
     ui.clearErrors(issue);
-    productOptions();
-    ui.fill(
-      f,
-      record
-        ? {
-            code: record.batchCode,
-            product: record.productId,
-            mode: record.status === "Planned" ? "Planned" : "Actual",
-            estimated: record.estimatedHarvestDate,
-            estimatedYield: record.estimatedYield || "",
-            harvest: record.actualHarvestDate,
-            expiry: record.expirationDate,
-            yield: record.harvestYield || "",
-            notes: record.qualityNotes,
-            changeReason: "",
-          }
-        : {
-            code: "",
-            product: "",
-            mode: mode || "Actual",
-            estimated: "",
-            estimatedYield: "",
-            harvest: "",
-            expiry: "",
-            yield: "",
-            notes: "",
-            changeReason: "",
-          },
-    );
+    ui.fill(f, record ? {
+      code: record.batchCode,
+      product: record.productId,
+      harvest: record.actualHarvestDate,
+      expiry: record.expirationDate,
+      yield: record.harvestYield,
+      notes: record.qualityNotes,
+    } : { code: "", product: "", harvest: "", expiry: "", yield: "", notes: "" });
     seasonOptions(record?.cropSeasonId);
-    if (record?.status === "Planned" && mode === "Actual")
-      ui.fill(f, { mode: "Actual", harvest: "", expiry: "", yield: "" });
-    el(f, "available").value =
-      record && record.status !== "Planned"
-        ? `${ui.number(record.availableQuantity)} ${record.unit}`
-        : "Chưa ghi nhận hàng thực tế";
+    el(f, "available").value = record
+      ? `${ui.number(record.availableQuantity)} ${record.unit}` : ui.m.noActualStock;
     $("#qrConditions").innerHTML = record
-      ? `Ngày thu hoạch: ${ui.date(record.actualHarvestDate)} · ${record.logCount} nhật ký mùa vụ · ${ui.escape(ui.m.batch[record.status])} · ${record.qrIdentity ? "Đã cấp QR" : "Chưa cấp QR"}<br>${ui.commitments(record.commitments)}`
-      : "Lưu thu hoạch hợp lệ trước khi cấp QR; yêu cầu có nhật ký canh tác.";
+      ? ui.escape(ui.m.qrContext(ui.date(record.actualHarvestDate), record.logCount,
+          ui.m.batch[record.status] || record.status, record.qrIdentity ? ui.m.qrPresent : ui.m.qrAbsent))
+          + "<br>" + ui.commitments(record.commitments)
+      : ui.escape(ui.m.qrPrerequisites);
     el(issue, "issueBatch").value = record?.batchCode || "";
     $("#issueHistory").innerHTML = ui.history(record?.history || []);
-    ui.$('[data-preview="issueEvidence"]').replaceChildren();
+    $('[data-preview="issueEvidence"]').replaceChildren();
     sync();
     ui.go("form");
   }
-  async function detail(id, mode, view = "form") {
+
+  async function detail(id, view = "form") {
+    if (saving || ui.busy) return;
+    saving = true;
     try {
-      open(await ui.request("/" + id), mode);
+      open(await ui.request("/" + id));
       ui.go(view);
     } catch (error) {
       ui.failure(error);
+    } finally {
+      saving = false;
+      sync();
     }
   }
+
   async function load(silent = false) {
+    const revision = ++loadVersion;
     try {
       const data = await ui.request("?" + API.toQueryString(ui.filter()));
+      if (revision !== loadVersion) return;
       ui.pager(data);
-      ui.table(
-        data.items
-          .map(
-            (b) =>
-              `<tr><td><strong>${ui.escape(b.batchCode)}</strong><br>${ui.escape(b.productName)}</td><td>${ui.escape(b.seasonName)}<br>Dự kiến ${ui.date(b.estimatedHarvestDate)}<br>Thực tế ${ui.date(b.actualHarvestDate)} · HSD ${ui.date(b.expirationDate)}</td><td>${b.status === "Planned" ? "Ước tính " + ui.number(b.estimatedYield) + " " + ui.escape(b.unit) + "<br>Chưa nhập kho" : "Thực tế " + ui.number(b.harvestYield) + " " + ui.escape(b.unit) + "<br>Điều chỉnh " + ui.number(b.adjustmentQuantity) + " · Giữ " + ui.number(b.reservedQuantity) + " · Đã xuất " + ui.number(b.shippedQuantity) + "<br><strong>Còn " + ui.number(b.availableQuantity) + " " + ui.escape(b.unit) + "</strong>"}</td><td><span class="pill">${ui.escape(ui.m.batch[b.status] || b.status)}</span></td><td><button class="btn" type="button" data-open="${b.harvestBatchId}" data-mode="${b.status === "Planned" ? "Actual" : ""}">${b.status === "Planned" ? "Ghi thu hoạch" : "Xem / ghi chú"}</button>${b.status === "Planned" ? '<button class="btn" type="button" data-plan="' + b.harvestBatchId + '">Xem / sửa kế hoạch</button>' : ""}<button class="btn" type="button" data-issue="${b.harvestBatchId}" ${b.status === "Planned" ? "disabled" : ""}>Ghi vấn đề</button></td></tr>`,
-          )
-          .join(""),
-        5,
-      );
+      ui.table(data.items.map((b) => `
+        <tr>
+          <td><strong>${ui.escape(b.batchCode)}</strong><br>${ui.escape(b.productName)}</td>
+          <td>${ui.escape(b.seasonName)}<br>Thu hoạch ${ui.date(b.actualHarvestDate)}<br>HSD ${ui.date(b.expirationDate)}</td>
+          <td>Thực tế ${ui.number(b.harvestYield)} ${ui.escape(b.unit)}<br>
+            Điều chỉnh ${ui.number(b.adjustmentQuantity)} · Giữ ${ui.number(b.reservedQuantity)} · Đã xuất ${ui.number(b.shippedQuantity)}<br>
+            <strong>Còn ${ui.number(b.availableQuantity)} ${ui.escape(b.unit)}</strong></td>
+          <td><span class="pill">${ui.escape(ui.m.batch[b.status] || b.status)}</span></td>
+          <td><button class="btn" type="button" data-open="${b.harvestBatchId}">Xem / ghi chú</button>
+            <button class="btn" type="button" data-issue="${b.harvestBatchId}">Ghi vấn đề</button></td>
+        </tr>`).join(""), 5);
     } catch (error) {
-      if (!silent) ui.failure(error);
+      if (!silent && revision === loadVersion) ui.failure(error);
     }
   }
+
   async function label(force = false) {
+    if (saving || ui.busy) return;
     labelData = null;
     if (!current) return ui.notice(ui.m.selectRecord, true);
+    saving = true;
+    sync();
     try {
-      const result =
-        !current.qrIdentity && !force
-          ? await ui.command("/" + current.harvestBatchId + "/qr", { version: current.version }, f)
-          : await ui.request("/" + current.harvestBatchId + "/label");
+      const id = current.harvestBatchId;
+      const result = !current.qrIdentity && !force
+        ? await ui.command("/" + id + "/qr", { version: current.version }, f)
+        : await ui.request("/" + id + "/label");
       if (!result) return;
+      const target = new URL(result.traceabilityUrl);
+      if (!["http:", "https:"].includes(target.protocol)) throw new Error(ui.m.MSG126);
       labelData = result;
       $("#qrProduct").textContent = result.productName;
       $("#qrBatch").textContent = result.batchCode;
-      $("#qrInfo").textContent =
-        `${result.farmName} · ${result.seasonName} · Thu hoạch ${ui.date(result.harvestDate)} · HSD ${ui.date(result.expirationDate)}`;
+      $("#qrInfo").textContent = `${result.farmName} · ${result.seasonName} · Thu hoạch ${ui.date(result.harvestDate)} · HSD ${ui.date(result.expirationDate)}`;
       let image = $("#qrImage");
       if (!image) {
-        const node = ui.$(".qr");
         image = document.createElement("img");
         image.id = "qrImage";
-        node.replaceWith(image);
+        $(".qr").replaceWith(image);
       }
       image.src = result.qrPng;
       image.alt = result.qrIdentity;
       $("#qrStatus").textContent = result.qrIdentity;
-      $("#traceInfo").textContent =
-        `Nguồn gốc: ${result.farmName} · ${result.seasonName}. Nhãn giữ nguyên mã truy xuất của lô.`;
+      $("#qrLookup").href = target.href;
+      $("#qrLookup").target = "_blank";
+      $("#qrLookup").rel = "noopener noreferrer";
+      $("#traceInfo").textContent = ui.m.labelContext(result.farmName, result.seasonName);
       ui.go("label");
       ui.notice(result.message);
-      current = await ui.request("/" + current.harvestBatchId);
+      current = await ui.request("/" + id);
     } catch (error) {
+      labelData = null;
       ui.failure(error);
+    } finally {
+      saving = false;
+      sync();
     }
   }
+
   ui.handlers = {
     load,
     sync,
     navigate: (view) => {
+      if (saving || ui.busy) return;
       if (view === "list") {
         ui.go("list");
         load();
       } else if (view === "label") label();
-      else if (!current && view === "form") open(null, "Actual");
-      else if (current && (view !== "issue" || current.status !== "Planned")) {
-        ui.go(view);
-        sync();
-      } else ui.notice(ui.m.selectRecord, true);
+      else if (view === "form" && !current) open(null);
+      else if (current) ui.go(view);
+      else ui.notice(ui.m.selectRecord, true);
     },
   };
-  $("#newPlan").onclick = () => open(null, "Planned");
-  $("#newActual").onclick = () => open(null, "Actual");
+  $("#newActual").onclick = () => {
+    if (!saving && !ui.busy) open(null);
+  };
   el(f, "product").onchange = () => seasonOptions();
   el(f, "season").onchange = dates;
-  el(f, "mode").onchange = sync;
+  el(f, "harvest").onchange = dates;
   el(issue, "issueType").onchange = sync;
   $("#rows").onclick = (e) => {
-    const b = e.target.closest("[data-open],[data-plan],[data-issue]");
-    if (b)
-      detail(
-        b.dataset.open || b.dataset.plan || b.dataset.issue,
-        b.dataset.mode,
-        b.dataset.issue ? "issue" : "form",
-      );
+    const button = e.target.closest("[data-open],[data-issue]");
+    if (button) detail(button.dataset.open || button.dataset.issue, button.dataset.issue ? "issue" : "form");
   };
+
   f.onsubmit = async (e) => {
     e.preventDefault();
-    if (saving || !ui.validate(f)) return;
-    const actual = ui.value(f, "mode") === "Actual",
-      existingActual = current && current.status !== "Planned";
+    if (saving || ui.busy || !ui.validate(f)) return;
+    const harvest = ui.value(f, "harvest");
+    const expiry = ui.value(f, "expiry");
+    if (!current && (harvest < el(f, "harvest").min || harvest > ui.optionsData.today)) {
+      ui.mark(f, "actualHarvestDate", ui.m.DateRange);
+      return ui.notice(ui.m.DateRange, true);
+    }
+    if (expiry <= harvest) {
+      ui.mark(f, "expirationDate", ui.m.MSG102);
+      return ui.notice(ui.m.MSG102, true);
+    }
     saving = true;
+    sync();
     try {
-      if (
-        (existingActual || actual) &&
-        !(await ui.confirm(existingActual ? ui.m.confirmUpdate : ui.m.confirmHarvest))
-      )
-        return;
+      if (!(await ui.confirm(current ? ui.m.confirmUpdate : ui.m.confirmHarvest))) return;
       const body = {
         productId: Number(ui.value(f, "product")),
         cropSeasonId: Number(ui.value(f, "season")),
         batchCode: ui.value(f, "code"),
         unit: ui.value(f, "unit"),
-        estimatedHarvestDate: ui.value(f, "estimated") || null,
-        estimatedYield: Number(ui.value(f, "estimatedYield")),
-        actualHarvestDate: actual ? ui.value(f, "harvest") || null : null,
-        actualYield: actual ? Number(ui.value(f, "yield")) : 0,
-        expirationDate: actual ? ui.value(f, "expiry") || null : null,
+        actualHarvestDate: harvest,
+        actualYield: Number(ui.value(f, "yield")),
+        expirationDate: expiry,
         qualityNotes: ui.value(f, "notes"),
         reason: ui.value(f, "changeReason"),
         version: current?.version,
+        _method: current ? "PUT" : "POST",
       };
-      const path = existingActual
-        ? "/" + current.harvestBatchId
-        : actual
-          ? current
-            ? "/" + current.harvestBatchId + "/harvest"
-            : "/harvest"
-          : current
-            ? "/" + current.harvestBatchId + "/plan"
-            : "/plans";
-      body._method = existingActual || (!actual && current) ? "PUT" : "POST";
-      const saved = await ui.command(path, body, f, "batch-save");
+      const saved = await ui.command(current ? "/" + current.harvestBatchId : "/harvest", body, f, "batch-save");
       if (saved) {
         open(saved);
         await load(true);
@@ -265,25 +228,28 @@ document.addEventListener("DOMContentLoaded", () => {
       sync();
     }
   };
+
   issue.onsubmit = async (e) => {
     e.preventDefault();
-    if (!current || current.status === "Planned" || saving || !ui.validate(issue)) return;
+    if (!current || saving || ui.busy || !ui.validate(issue)) return;
+    const quality = ui.value(issue, "issueType") === "quality";
+    const quantity = Number(ui.value(issue, quality ? "affected" : "adjustment"));
+    if (quantity === 0 || Math.abs(quantity * 1000 - Math.round(quantity * 1000)) > 0.0001) {
+      ui.mark(issue, "quantity", ui.m.MSG103);
+      return ui.notice(ui.m.MSG103, true);
+    }
     saving = true;
+    sync();
     try {
       if (!(await ui.confirm(ui.m.confirmIssue))) return;
       const evidence = await ui.upload(el(issue, "issueEvidence"), "batch");
-      const quality = ui.value(issue, "issueType") === "quality";
-      const saved = await ui.command(
-        "/" + current.harvestBatchId + "/issues",
-        {
-          issueType: ui.value(issue, "issueType"),
-          quantity: Number(ui.value(issue, quality ? "affected" : "adjustment")),
-          reason: ui.value(issue, "issueReason"),
-          evidenceUrls: evidence,
-          version: current.version,
-        },
-        issue,
-      );
+      const saved = await ui.command("/" + current.harvestBatchId + "/issues", {
+        issueType: ui.value(issue, "issueType"),
+        quantity,
+        reason: ui.value(issue, "issueReason"),
+        evidenceUrls: evidence,
+        version: current.version,
+      }, issue);
       if (saved) {
         open(saved);
         await load(true);
@@ -297,6 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sync();
     }
   };
+
   $("#generateQr").onclick = () => label();
   $("#printQr").onclick = async () => {
     await label(true);
@@ -352,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   ui.start(async () => {
     productOptions();
-    open(null, "Actual");
+    open(null);
     ui.go("list");
     await load();
     const id = new URLSearchParams(location.search).get("id");
