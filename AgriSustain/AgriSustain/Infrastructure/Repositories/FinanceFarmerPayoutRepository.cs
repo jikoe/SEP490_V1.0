@@ -22,7 +22,8 @@ public sealed class FinanceFarmerPayoutRepository(AgriSustainContext db) : IFina
 
     public async Task<object> SearchOwnedAsync(FarmerPayoutQuery query, CancellationToken ct)
     {
-        var rows = db.FarmerPayouts.AsNoTracking().AsQueryable();
+        var rows = db.FarmerPayouts.AsNoTracking().Where(p => db.AuditLogs.Any(a =>
+            a.EntityType == "FinanceFarmerPayout" && a.EntityId == p.FarmerPayoutId && a.Action == "Submitted"));
         if (query.FarmerId.HasValue) rows = rows.Where(x => x.FarmerProfileId == query.FarmerId);
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
@@ -32,8 +33,8 @@ public sealed class FinanceFarmerPayoutRepository(AgriSustainContext db) : IFina
         if (!string.IsNullOrWhiteSpace(query.Status))
             rows = query.Status == "Processed" ? rows.Where(x => x.PayoutStatus == "Processed" || x.PayoutStatus == "Paid"
                 || x.PayoutStatus == "Succeeded" || x.PayoutStatus == "Completed") : rows.Where(x => x.PayoutStatus == query.Status);
-        if (query.From.HasValue) rows = rows.Where(x => (x.ApprovedAt ?? x.ProcessedAt) >= query.From.Value.ToDateTime(TimeOnly.MinValue).AddHours(-7));
-        if (query.To.HasValue) rows = rows.Where(x => (x.ApprovedAt ?? x.ProcessedAt) < query.To.Value.AddDays(1).ToDateTime(TimeOnly.MinValue).AddHours(-7));
+        if (query.From.HasValue) rows = rows.Where(x => (db.AuditLogs.Where(a => a.EntityType == "FinanceFarmerPayout" && a.EntityId == x.FarmerPayoutId && a.Action == "Submitted").Select(a => (DateTime?)a.OccurredAt).Min()) >= query.From.Value.ToDateTime(TimeOnly.MinValue).AddHours(-7));
+        if (query.To.HasValue) rows = rows.Where(x => (db.AuditLogs.Where(a => a.EntityType == "FinanceFarmerPayout" && a.EntityId == x.FarmerPayoutId && a.Action == "Submitted").Select(a => (DateTime?)a.OccurredAt).Min()) < query.To.Value.AddDays(1).ToDateTime(TimeOnly.MinValue).AddHours(-7));
         int total = await rows.CountAsync(ct);
         var items = await rows.OrderByDescending(x => x.FarmerPayoutId).Skip((query.Page - 1) * 10).Take(10)
             .Select(x => new
@@ -46,7 +47,7 @@ public sealed class FinanceFarmerPayoutRepository(AgriSustainContext db) : IFina
                 deduction = x.Amount - x.DeductedCommission - x.NetAmount,
                 x.NetAmount,
                 x.PayoutStatus,
-                at = x.ApprovedAt ?? x.ProcessedAt
+                at = db.AuditLogs.Where(a => a.EntityType == "FinanceFarmerPayout" && a.EntityId == x.FarmerPayoutId && a.Action == "Submitted").Select(a => (DateTime?)a.OccurredAt).Min()
             }).ToListAsync(ct);
         return new { items, total, query.Page, pageSize = 10 };
     }
@@ -124,6 +125,11 @@ public sealed class FinanceFarmerPayoutRepository(AgriSustainContext db) : IFina
             command.CommandText = "DECLARE @r int; EXEC @r=sys.sp_getapplock @Resource=N'AgriSustain.FarmerPayout', @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=15000; SELECT @r;";
             int result = Convert.ToInt32(await command.ExecuteScalarAsync(ct));
             if (result < 0) throw new DbUpdateConcurrencyException("Payout lock unavailable.");
+            // Preview/probe reads may have tracked an older bank or request snapshot.
+            // Reload after acquiring the transaction lock before deciding whether funds may move.
+            if (db.ChangeTracker.Entries().Any(x => x.State is EntityState.Added or EntityState.Modified or EntityState.Deleted))
+                throw new InvalidOperationException("Payout actions require a clean unit of work.");
+            db.ChangeTracker.Clear();
             var value = await operation();
             await db.SaveChangesAsync(ct);
             if (outer == null) await transaction.CommitAsync(ct);

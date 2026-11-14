@@ -9,8 +9,18 @@ using Microsoft.EntityFrameworkCore;
 namespace AgriSustain.Infrastructure.Repositories;
 
 /// <summary>Read-only ledger. Invoice allocation and deposit application are references, not new receipts.</summary>
-public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguration configuration) : IFarmerRevenueRepository
+public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguration configuration,
+    IFinanceFarmerPayoutRepository? payouts = null, FarmerPayoutRules? payoutRules = null)
+    : IFarmerRevenueRepository, IFarmerPaymentRequestRepository
 {
+    public Task<long?> FarmerIdAsync(long actor, CancellationToken ct) => db.FarmerProfiles.AsNoTracking()
+        .Where(x => x.UserId == actor && x.User.Status == "Active" && x.User.Role == "Farmer")
+        .Select(x => (long?)x.FarmerProfileId).SingleOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyList<long>> FinanceRecipientsAsync(CancellationToken ct) => await db.Users.AsNoTracking()
+        .Where(x => x.Status == "Active" && (x.Role == "FinanceStaff" || x.Role == "Finance Staff"))
+        .Select(x => x.UserId).ToListAsync(ct);
+
     public Task<bool> CanReadAsync(long actor, CancellationToken ct) => db.FarmerProfiles.AsNoTracking()
         .AnyAsync(x => x.UserId == actor && x.User.Role == "Farmer" && x.User.Status == "Active", ct);
 
@@ -55,6 +65,10 @@ public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguratio
         var bank = await db.UserBankAccounts.AsNoTracking().Where(x => x.UserId == actor && x.IsDefault).SingleOrDefaultAsync(ct);
         var farmer = await db.FarmerProfiles.AsNoTracking().SingleAsync(x => x.UserId == actor, ct);
         var output = new List<FarmerRevenueEvent>();
+        // Request previews and dashboard balances use the same eligibility and historical fee rules.
+        var payoutContext = payouts == null ? null : await payouts.LoadContextAsync(farmer.FarmerProfileId, null, false, ct);
+        var available = payoutContext == null || payoutRules == null ? null
+            : payoutRules.ValidateEligibleProceeds(payoutContext, null, DateTime.UtcNow).ToDictionary(x => x.Id);
         var invoiceIds = invoiceLines.Select(x => x.InvoiceId).Distinct().ToList();
         var invoiceTotals = await db.InvoiceLines.AsNoTracking().Where(x => invoiceIds.Contains(x.InvoiceId))
             .GroupBy(x => x.InvoiceId).Select(g => new { Id = g.Key, Amount = g.Sum(x => x.LineAmount) })
@@ -83,7 +97,7 @@ public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguratio
                     && x.PaymentTransaction.PaidAt <= asOf && x.CreatedAt <= asOf).Sum(x => x.Amount) * fraction;
             decimal settled = line.PayoutItems.Where(x => OfftakeContractRules.IsProcessedPayout(x.FarmerPayout) && x.FarmerPayout.ProcessedAt <= asOf)
                 .Sum(x => x.SourceAmountSettled);
-            decimal prepared = line.PayoutItems.Where(x => !OfftakeContractRules.IsProcessedPayout(x.FarmerPayout) && x.FarmerPayout.PayoutStatus is not ("Cancelled" or "Failed"))
+            decimal prepared = line.PayoutItems.Where(x => !OfftakeContractRules.IsProcessedPayout(x.FarmerPayout) && x.FarmerPayout.PayoutStatus is not ("Cancelled" or "Failed" or "Rejected"))
                 .Sum(x => x.SourceAmountSettled > 0 ? x.SourceAmountSettled : x.GrossAmount);
             decimal refunds = line.Invoice.PaymentInvoiceAllocations.Sum(allocation =>
                 payments.Where(p => p.PaymentTransactionId == allocation.PaymentTransactionId).SelectMany(p => p.RefundTransactions)
@@ -108,9 +122,19 @@ public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguratio
                 reason ??= "Chưa hết thời gian chờ quyết toán";
             decimal held = reason != null ? remaining : Math.Min(remaining, prepared);
             decimal eligible = remaining - held;
+            decimal accruedCommission = 0;
+            if (available?.TryGetValue(line.InvoiceLineId, out var source) == true)
+            {
+                var reserved = line.PayoutItems.Where(x => !FarmerPayoutRules.Paid(x.FarmerPayout)
+                    && x.FarmerPayout.PayoutStatus is not ("Cancelled" or "Failed" or "Rejected")).ToList();
+                eligible = source.Eligible ? source.Net : 0;
+                held = (source.Eligible ? 0 : source.Net) + reserved.Sum(x => x.NetAmount);
+                accruedCommission = source.Commission + reserved.Sum(x => x.CommissionAmount);
+                reason = source.Eligible ? null : source.HoldReason;
+            }
             if (remaining > 0) output.Add(new("balance:" + line.InvoiceLineId, line.Invoice.IssuedAt, reference, "Proceeds", channel,
                 season?.CropSeasonId, season?.SeasonName ?? "Chưa liên kết mùa vụ", "Settlement", held > 0 ? "Held" : "Eligible",
-                Eligible: eligible, Held: held, HoldReason: reason ?? (prepared > 0 ? "Khoản đã được giữ cho phiếu chi, chưa chuyển thành công" : null)));
+                Commission: accruedCommission, Eligible: eligible, Held: held, HoldReason: reason ?? (prepared > 0 ? "Khoản đã được giữ cho phiếu chi, chưa chuyển thành công" : null)));
             foreach (var payoutItem in line.PayoutItems.Where(x => x.FarmerPayout.PayoutStatus == "Processed"
                 && x.FarmerPayout.ProcessedAt != null && x.FarmerPayout.ProcessedAt <= asOf))
             {
@@ -141,8 +165,7 @@ public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguratio
                 if (seasons.Count == 1) season = seasons[0];
             }
             decimal amount = payment.Amount;
-            string channel = payment.Order?.OrderType == "Retail" ? "Retail" : payment.Order?.IsPreOrder == true ? "PreOrder"
-                : payment.B2bcontractId.HasValue || payment.ContractMilestoneId.HasValue ? "Contract" : "Wholesale";
+            string channel = payment.Order?.OrderType == "Retail" ? "B2C" : "B2B";
             // Shared checkout receipts are split by the stored seller amounts, not attributed in full to every farm.
             if (payment.Order != null)
             {
@@ -158,7 +181,7 @@ public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguratio
                 * (payment.Amount > 0 ? amount / payment.Amount : 0) : 0;
             output.Add(new("receipt:" + payment.PaymentTransactionId, payment.PaidAt!.Value, payment.TransactionCode,
                 "Receipt", channel, season?.CropSeasonId, season?.SeasonName ?? "Chưa liên kết mùa vụ",
-                deposit ? "Deposit" : channel == "Contract" ? "Milestone" : "Goods", remainingDeposit > 0 ? "Held" : "Verified",
+                deposit ? "Deposit" : payment.B2bcontractId.HasValue || payment.ContractMilestoneId.HasValue ? "Milestone" : "Goods", remainingDeposit > 0 ? "Held" : "Verified",
                 Receipts: amount, Deposits: remainingDeposit,
                 TransferReference: payment.ProviderTransactionReference));
             if (!deposit)
@@ -175,7 +198,7 @@ public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguratio
             }
             foreach (var allocation in payment.ContractDepositAllocations.Where(x => x.CreatedAt <= asOf))
                 output.Add(new("deposit-applied:" + allocation.ContractDepositAllocationId, allocation.CreatedAt, payment.TransactionCode,
-                    "DepositApplied", "Contract", allocation.ContractMilestone.ContractLine?.CropSeasonId,
+                    "DepositApplied", "B2B", allocation.ContractMilestone.ContractLine?.CropSeasonId,
                     allocation.ContractMilestone.ContractLine?.CropSeason?.SeasonName ?? "Chưa liên kết mùa vụ", "Deposit", "Verified", EventAmount: allocation.Amount));
             foreach (var refund in payment.RefundTransactions.Where(x => OfftakeContractRules.Verified(x.RefundStatus) && x.ProcessedAt != null && x.ProcessedAt <= asOf))
             {
@@ -192,7 +215,6 @@ public sealed class FarmerRevenueRepository(AgriSustainContext db, IConfiguratio
         return output;
     }
 
-    private static string Channel(SellerOrder seller, OrderItem item) => seller.B2bcontractId.HasValue ? "Contract"
-        : item.PreOrderCampaignId.HasValue ? "PreOrder" : seller.Order.OrderType == "Retail" ? "Retail" : "Wholesale";
+    private static string Channel(SellerOrder seller, OrderItem item) => seller.Order.OrderType == "Retail" ? "B2C" : "B2B";
 }
 

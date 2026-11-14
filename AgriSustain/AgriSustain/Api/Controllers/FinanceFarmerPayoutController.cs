@@ -22,28 +22,20 @@ public sealed class FinanceFarmerPayoutController(FinanceFarmerPayoutService ser
     [HttpGet("farmers")]
     public async Task<IActionResult> Farmers(CancellationToken ct) => Respond(await service.FarmersAsync(actor.UserId, ct));
 
-    [HttpGet("creation-context/{farmerId:long}")]
-    public async Task<IActionResult> CreationContext(long farmerId, CancellationToken ct) =>
-        Respond(await service.GetCreationContextAsync(actor.UserId, farmerId, ct));
-
     [HttpGet("{id:long}")]
     public async Task<IActionResult> Detail(long id, CancellationToken ct) => Respond(await service.GetContextAsync(actor.UserId, id, ct));
 
-    [HttpPost("preview")]
-    public async Task<IActionResult> PreviewPayout(CreateFarmerPayoutRequest request, CancellationToken ct) =>
-        Respond(await service.PreviewPayoutAsync(actor.UserId, request, ct));
-
-    [HttpPost]
-    public async Task<IActionResult> CreatePayout(CreateFarmerPayoutRequest request, CancellationToken ct) =>
-        Respond(await service.CreatePayoutAsync(actor.UserId, request, ct));
+    [HttpGet("{id:long}/qr-preview")]
+    public async Task<IActionResult> PaymentQrPreview(long id, CancellationToken ct) =>
+        Respond(await service.GetPaymentQrPreviewAsync(actor.UserId, id, ct));
 
     [HttpPost("{id:long}/process")]
     public async Task<IActionResult> ProcessPayout(long id, ProcessFarmerPayoutRequest request, CancellationToken ct) =>
         Respond(await service.ProcessPayoutAsync(actor.UserId, id, request, ct));
 
-    [HttpPost("{id:long}/cancel")]
-    public async Task<IActionResult> CancelUnsubmitted(long id, PayoutActionRequest request, CancellationToken ct) =>
-        Respond(await service.CancelUnsubmittedAsync(actor.UserId, id, request, ct));
+    [HttpPost("{id:long}/reject")]
+    public async Task<IActionResult> RejectRequest(long id, RejectFarmerPayoutRequest request, CancellationToken ct) =>
+        Respond(await service.RejectRequestAsync(actor.UserId, id, request, ct));
 
     [HttpPost("{id:long}/reconcile")]
     public async Task<IActionResult> ReconcilePayout(long id, ReconcileFarmerPayoutRequest request, CancellationToken ct) =>

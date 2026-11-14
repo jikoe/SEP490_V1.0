@@ -332,8 +332,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IFarmerOfftakeContractRepository, FarmerOfftakeContractRepository>();
 builder.Services.AddScoped<FarmerOfftakeContractService>();
 builder.Services.AddScoped<OfftakeContractRules>();
-builder.Services.AddScoped<IFarmerRevenueRepository, FarmerRevenueRepository>();
+builder.Services.AddScoped<FarmerRevenueRepository>();
+builder.Services.AddScoped<IFarmerRevenueRepository>(sp => sp.GetRequiredService<FarmerRevenueRepository>());
 builder.Services.AddScoped<FarmerRevenueService>();
+builder.Services.AddScoped<IFarmerPaymentRequestRepository>(sp => sp.GetRequiredService<FarmerRevenueRepository>());
+builder.Services.AddScoped<FarmerPaymentRequestService>();
+builder.Services.AddScoped<PayoutNotificationService>();
 builder.Services.AddScoped<RevenueAggregationRules>();
 builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmerBusinessInputFilter>();
 if (builder.Configuration.GetValue("OfftakeContracts:EnableNotificationWorker", true))

@@ -18,112 +18,62 @@
       </div>
     </div>
     <template id="business-template">
-      <link href="../css/finance-farmer-payouts.css" rel="stylesheet" />
+      <link href="../css/finance-farmer-payouts.css" rel="stylesheet">
       <main>
         <div class="page-title">
-          <h1>Quản lý chi trả cho nông dân</h1>
-          <p>Chọn trang chức năng hoặc mở chi tiết từ danh sách để tiếp tục.</p>
+          <h1>Yêu cầu thanh toán của nông dân</h1>
+          <p>Kiểm tra yêu cầu, xử lý chi trả và theo dõi kết quả chuyển khoản.</p>
         </div>
-        <div
-          aria-label="Các trang chức năng"
-          class="screen-tabs"
-          role="tablist"
-        >
-          <button
-            aria-controls="screen-list"
-            data-screen-go="list"
-            id="tab-list"
-            role="tab"
-            type="button"
-          >
-            Danh sách chi trả
-          </button>
-          <button
-            aria-controls="screen-create"
-            data-screen-go="create"
-            id="tab-create"
-            role="tab"
-            type="button"
-          >
-            Tạo khoản chi trả
-          </button>
-          <button
-            aria-controls="screen-detail"
-            data-screen-go="detail"
-            id="tab-detail"
-            role="tab"
-            type="button"
-          >
-            Chi tiết / xử lý
-          </button>
+        <div class="screen-tabs" role="tablist" aria-label="Các trang chức năng">
+          <button type="button" role="tab" data-screen-go="list" aria-controls="screen-list" id="tab-list">Danh sách yêu cầu</button>
+          <button type="button" role="tab" data-screen-go="detail" aria-controls="screen-detail" id="tab-detail">Chi tiết / xử lý</button>
         </div>
-        <div
-          aria-live="polite"
-          class="notice feedback"
-          hidden=""
-          id="feedback"
-          role="status"
-        >
-          <span id="feedbackText"> </span>
+        <div id="feedback" class="notice feedback" role="status" aria-live="polite" hidden="">
+          <span id="feedbackText"></span>
         </div>
-        <section
-          aria-labelledby="tab-list"
-          class="screen"
-          data-screen="list"
-          hidden=""
-          id="screen-list"
-          role="tabpanel"
-        >
+        <section class="screen" data-screen="list" id="screen-list" role="tabpanel" aria-labelledby="tab-list" hidden="">
           <section class="panel">
             <div class="body toolbar">
               <div class="field">
-                <label for="payoutSearch"> Tìm kiếm </label>
-                <input
-                  id="payoutSearch"
-                  placeholder="Mã phiếu hoặc tên nông dân"
-                />
+                <label for="payoutSearch">Tìm kiếm</label>
+                <input id="payoutSearch" placeholder="Mã yêu cầu / phiếu chi / nông dân">
               </div>
               <div class="field">
-                <label> Nông dân </label>
+                <label for="payoutFarmerFilter">Nông dân</label>
                 <select id="payoutFarmerFilter"></select>
               </div>
               <div class="field">
-                <label> Trạng thái </label>
+                <label for="payoutStatusFilter">Trạng thái</label>
                 <select id="payoutStatusFilter">
                   <option value="">Tất cả</option>
-                  <option value="Prepared">Đã lập, chưa mở QR</option>
-                  <option value="Processing">Đang chờ tiền ra</option>
+                  <option value="Pending">Chờ xử lý</option>
+                  <option value="Processing">Đang xử lý</option>
                   <option value="NeedsReconciliation">Cần đối soát</option>
-                  <option value="Processed">Đã ghi nhận chi trả</option>
-                  <option value="Cancelled">Đã hủy</option>
+                  <option value="Processed">Đã thanh toán</option>
+                  <option value="Rejected">Đã từ chối</option>
                   <option value="Failed">Thất bại đã xác minh</option>
                 </select>
               </div>
               <div class="field">
-                <label> Từ ngày / Đến ngày </label>
-                <div class="grid two payout-local-0">
-                  <input aria-label="Từ ngày" id="payoutFrom" type="date" />
-                  <input aria-label="Đến ngày" id="payoutTo" type="date" />
+                <label for="payoutFrom">Ngày gửi từ / đến</label>
+                <div class="grid two">
+                  <input id="payoutFrom" type="date" aria-label="Ngày gửi từ">
+                  <input id="payoutTo" type="date" aria-label="Ngày gửi đến">
                 </div>
               </div>
               <div class="actions">
-                <button class="btn primary" id="applyPayoutFilter">
-                  Áp dụng
-                </button>
-                <button class="btn" id="resetPayoutFilter">Xóa lọc</button>
+                <button id="applyPayoutFilter" class="btn primary">Áp dụng</button>
+                <button id="resetPayoutFilter" class="btn">Xóa lọc</button>
               </div>
             </div>
             <div class="panel-title">
-              <h2>Danh sách khoản chi trả</h2>
-              <button class="btn primary" id="newPayout">
-                + Tạo khoản chi trả
-              </button>
+              <h2>Danh sách yêu cầu thanh toán</h2>
             </div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Mã phiếu / Ngày tạo</th>
+                    <th>Yêu cầu / Ngày gửi</th>
                     <th>Nông dân</th>
                     <th class="amount">Tổng gộp</th>
                     <th class="amount">Hoa hồng / Khấu trừ</th>
@@ -135,238 +85,147 @@
                 <tbody id="payoutRows"></tbody>
               </table>
             </div>
-            <div class="empty" hidden="" id="payoutEmpty">
-              Không có kết quả tìm kiếm.
-            </div>
+            <div id="payoutEmpty" class="empty" hidden>Không có kết quả tìm kiếm.</div>
             <div class="pagination">
-              <span id="payoutCount"> </span>
+              <span>
+                <span id="payoutCount"></span>
+              </span>
               <div>
-                <button class="btn" id="payoutPrev">‹</button>
-                <span id="payoutPage"> 1 </span>
-                <button class="btn" id="payoutNext">›</button>
+                <button id="payoutPrev" class="btn">‹</button>
+                <span id="payoutPage">1</span>
+                <button id="payoutNext" class="btn">›</button>
               </div>
             </div>
           </section>
         </section>
-        <section
-          aria-labelledby="tab-create"
-          class="screen"
-          data-screen="create"
-          hidden=""
-          id="screen-create"
-          role="tabpanel"
-        >
+        <section class="screen" data-screen="detail" id="screen-detail" role="tabpanel" aria-labelledby="tab-detail" hidden="">
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">
-              ← Danh sách chi trả
-            </button>
-            <h2>Tạo khoản chi trả</h2>
+            <button class="btn" data-screen-go="list">← Danh sách yêu cầu</button>
+            <h2>Chi tiết / xử lý</h2>
           </div>
-          <div class="notice warn">
-            Chỉ các khoản đã thu tiền, đã được chấp nhận, hết thời gian chờ và
-            chưa chi trả mới được chọn. Khoản đang có khiếu nại, hoàn tiền hoặc
-            chờ đối soát tiếp tục bị giữ; không được bỏ qua điều kiện giữ tiền.
-          </div>
-          <section class="panel" id="payoutCreate">
+          <section class="panel">
             <div class="panel-title">
-              <h2>Tạo khoản chi trả</h2>
+              <h2>Yêu cầu ·<span id="payoutCode"></span>
+              </h2>
+              <span id="payoutBadge" class="badge"></span>
             </div>
             <div class="body grid two">
-              <div class="field">
-                <label for="recipientFarmer"> Nông dân * </label>
-                <select id="recipientFarmer"></select>
+              <div>
+                <h3>Nông dân gửi yêu cầu</h3>
+                <dl id="savedPayoutDetails" class="kv"></dl>
               </div>
-              <div class="field">
-                <label> Kỳ nguồn chi trả </label>
-                <input
-                  readonly=""
-                  value="Các khoản đủ điều kiện đến 06/11/2026"
-                />
+              <div class="summary">
+                <h3>Tổng hợp yêu cầu</h3>
+                <div class="line">
+                  <span>Tổng gộp</span>
+                  <strong id="savedGross"></strong>
+                </div>
+                <div class="line">
+                  <span>Hoa hồng</span>
+                  <strong id="savedFee"></strong>
+                </div>
+                <div class="line">
+                  <span>Khấu trừ đã duyệt</span>
+                  <strong id="savedDeduction"></strong>
+                </div>
+                <div class="line total">
+                  <span>Thực trả</span>
+                  <strong id="savedNet"></strong>
+                </div>
               </div>
-              <div class="wide summary">
-                <strong> Tài khoản nhận tiền đã xác minh </strong>
-                <dl class="kv payout-local-1" id="recipientDetails"></dl>
+              <div class="wide notice">Chỉ thanh toán nguồn còn đủ điều kiện. Khoản đang có khiếu nại, hoàn tiền hoặc hạn giữ tài khoản không được chi trả.</div>
+              <div class="wide">
+                <h3>Tài khoản nhận tiền đã lưu</h3>
+                <dl id="savedRecipient" class="kv"></dl>
               </div>
+              <p class="wide muted">Thông tin và số tiền lấy từ yêu cầu của nông dân; không chỉnh sửa tại đây.</p>
             </div>
             <div class="panel-title">
-              <h2>Chọn nguồn đủ điều kiện</h2>
+              <h2>Nguồn đã được yêu cầu và giữ chỗ</h2>
             </div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Chọn</th>
                     <th>Nguồn / Tham chiếu</th>
-                    <th>Điều kiện / Lý do giữ</th>
-                    <th class="amount">Còn được chi</th>
+                    <th>Điều kiện hiện tại</th>
+                    <th class="amount">Tổng gộp</th>
                     <th class="amount">Hoa hồng</th>
-                    <th class="amount">Khấu trừ đã duyệt</th>
+                    <th class="amount">Khấu trừ</th>
                   </tr>
                 </thead>
                 <tbody id="sourceRows"></tbody>
               </table>
             </div>
             <div class="body grid two">
-              <div class="notice warn">
-                Loại phần đã hoàn, đã chi trả hoặc đang được giữ khỏi số tiền có
-                thể chọn. Tiền cọc áp dụng vào hóa đơn không tạo thêm quyền nhận
-                tiền. Chiết khấu do nền tảng tài trợ không trừ vào tiền hàng của
-                nông dân.
+              <div class="wide notice">Yêu cầu đã gửi hoặc QR đã mở chưa có nghĩa là đã thanh toán. Chỉ ghi nhận sau khi xác minh giao dịch tiền ra phù hợp.</div>
+              <div>
+                <h3>Kết quả chuyển khoản</h3>
+                <dl id="transferDetails" class="kv"></dl>
               </div>
-              <div class="summary">
-                <h3>Tổng hợp khoản chi trả</h3>
-                <div class="line">
-                  <span> Số nguồn được chọn </span>
-                  <strong id="sourceCount"> </strong>
-                </div>
-                <div class="line">
-                  <span> Tổng gộp </span>
-                  <strong id="sourceGross"> </strong>
-                </div>
-                <div class="line">
-                  <span> Hoa hồng </span>
-                  <strong id="sourceFee"> </strong>
-                </div>
-                <div class="line">
-                  <span> Khấu trừ đã duyệt </span>
-                  <strong id="sourceDeduction"> </strong>
-                </div>
-                <div class="line total">
-                  <span> Thực trả </span>
-                  <strong id="sourceNet"> </strong>
-                </div>
+              <div>
+                <h3>Đối soát giao dịch</h3>
+                <p id="reconciliationText"></p>
+                <button id="checkGateway" class="btn">Kiểm tra kết quả chuyển tiền</button>
+              </div>
+              <div>
+                <h3>Kết quả chưa hoàn tất</h3>
+                <p id="failureText"></p>
+              </div>
+              <div>
+                <h3>Thông báo kết quả</h3>
+                <p id="payoutNotification"></p>
               </div>
               <div class="actions end wide">
-                <button class="btn" id="discardPayout">Hủy nhập</button>
-                <button class="btn primary" id="createPayoutButton">
-                  Tạo khoản chi trả
-                </button>
+                <button id="rejectRequest" class="btn danger">Từ chối yêu cầu</button>
+                <button id="processPayout" class="btn primary">Mở QR chi trả</button>
               </div>
-            </div>
-          </section>
-        </section>
-        <section
-          aria-labelledby="tab-detail"
-          class="screen"
-          data-screen="detail"
-          hidden=""
-          id="screen-detail"
-          role="tabpanel"
-        >
-          <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">
-              ← Danh sách chi trả
-            </button>
-            <h2>Chi tiết / xử lý</h2>
-          </div>
-          <section class="panel" id="payoutDetail">
-            <div class="panel-title">
-              <h2>
-                Chi tiết ·
-                <span id="payoutCode"> </span>
-              </h2>
-              <span class="badge" id="payoutBadge"> </span>
-            </div>
-            <div class="body grid two">
-              <dl class="kv" id="savedPayoutDetails"></dl>
-              <div class="summary">
-                <div class="line">
-                  <span> Tổng gộp </span>
-                  <strong id="savedGross"> </strong>
-                </div>
-                <div class="line">
-                  <span> Hoa hồng </span>
-                  <strong id="savedFee"> </strong>
-                </div>
-                <div class="line">
-                  <span> Khấu trừ đã duyệt </span>
-                  <strong id="savedDeduction"> </strong>
-                </div>
-                <div class="line total">
-                  <span> Thực trả </span>
-                  <strong id="savedNet"> </strong>
-                </div>
-              </div>
-              <div class="wide notice">
-                Tạo phiếu hoặc mở QR chưa phải đã chi trả. Hệ thống chỉ ghi nhận
-                khi SePay xác minh tiền ra từ tài khoản nguồn, khớp mã phiếu và
-                số tiền.
-              </div>
-              <div class="wide grid two">
-                <div>
-                  <h3>Kết quả chuyển khoản</h3>
-                  <dl class="kv" id="transferDetails"></dl>
-                </div>
-                <div>
-                  <h3>Đối soát giao dịch đang chờ</h3>
-                  <p id="reconciliationText"></p>
-                  <button class="btn" id="checkGateway">
-                    Kiểm tra kết quả chuyển tiền
-                  </button>
-                </div>
-              </div>
-              <div class="wide grid two">
-                <div>
-                  <h3>Thất bại và kiểm tra lại</h3>
-                  <p id="failureText"></p>
-                </div>
-                <div>
-                  <h3>Thông báo kết quả</h3>
-                  <p id="payoutNotification"></p>
-                </div>
-              </div>
-              <div class="actions end wide">
-                <button class="btn danger" id="cancelPayout">
-                  Hủy khoản chưa gửi chuyển
-                </button>
-                <button class="btn primary" id="processPayout">
-                  Mở QR chi trả
-                </button>
-              </div>
-              <section class="wide summary" hidden="" id="qrPaymentBox">
+              <section id="qrPaymentBox" class="wide summary" hidden>
                 <h3>Chuyển khoản cho nông dân</h3>
-                <div class="grid two">
+                <div class="qr-layout">
                   <div>
-                    <img
-                      alt="Mã QR tài khoản nhận tiền của nông dân"
-                      class="payout-qr"
-                      id="payoutQrImage"
-                    />
+                    <img id="payoutQrImage" class="payout-qr" alt="Mã QR chuyển khoản cho nông dân">
                   </div>
                   <div>
-                    <dl class="kv" id="payoutQrDetails"></dl>
-                    <button class="btn" id="copyPayoutReference" type="button">
-                      Sao chép nội dung chuyển khoản
-                    </button>
+                    <dl id="payoutQrDetails" class="kv"></dl>
+                    <div class="actions end">
+                      <button id="copyPayoutReference" class="btn">Sao chép nội dung chuyển khoản</button>
+                    </div>
                   </div>
                 </div>
               </section>
             </div>
             <div class="panel-title">
-              <h2>Lịch sử xử lý</h2>
+              <h2>Trạng thái yêu cầu và lịch sử xử lý</h2>
             </div>
             <div class="body">
-              <ul class="history" id="payoutHistory"></ul>
+              <ul id="payoutHistory" class="history"></ul>
             </div>
           </section>
-          <p class="muted">
-            Đơn vị: VND · Thời gian Việt Nam. Finance Staff chuyển khoản bằng
-            ứng dụng ngân hàng; hệ thống đối soát tiền ra SePay và gửi thông báo
-            sau khi ghi nhận thành công.
-          </p>
         </section>
       </main>
       <dialog id="confirmDialog">
-        <h2>Xác nhận thao tác</h2>
+        <h2>Xác nhận mở QR</h2>
         <p id="confirmText"></p>
         <div class="actions end">
-          <button class="btn" id="confirmCancel" type="button">Quay lại</button>
-          <button class="btn primary" id="confirmOk" type="button">
-            Xác nhận
-          </button>
+          <button id="confirmCancel" class="btn">Quay lại</button>
+          <button id="confirmOk" class="btn primary">Xác nhận</button>
+        </div>
+      </dialog>
+      <dialog id="rejectDialog">
+        <h2>Từ chối yêu cầu thanh toán</h2>
+        <p>Yêu cầu chỉ được từ chối trước khi mở QR. Các khoản giữ cho yêu cầu này sẽ được giải phóng.</p>
+        <label for="rejectReason">Lý do từ chối *</label>
+        <textarea id="rejectReason" maxlength="500" placeholder="Nhập lý do từ chối, tối đa 500 ký tự"></textarea>
+        <p id="rejectError" class="muted" role="alert"></p>
+        <div class="actions end">
+          <button class="btn" id="closeReject">Quay lại</button>
+          <button class="btn danger" id="confirmReject">Xác nhận từ chối</button>
         </div>
       </dialog>
     </template>
+
+
     <script src="../js/config.js"></script>
     <script src="../js/utils.js"></script>
     <script src="../messages/common.js"></script>

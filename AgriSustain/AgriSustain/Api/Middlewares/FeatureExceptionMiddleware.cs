@@ -24,7 +24,8 @@ public sealed class FeatureExceptionMiddleware(RequestDelegate next,
             bool conflict = exception is DbUpdateConcurrencyException
                 || (sqlEx != null && sqlEx.Number is 1205 or 2601 or 2627 or 3960);
 
-            bool farmerPayout = context.Request.Path.StartsWithSegments("/api/finance/farmer-payouts");
+            bool farmerPayout = context.Request.Path.StartsWithSegments("/api/finance/farmer-payouts")
+                || context.Request.Path.StartsWithSegments("/api/farmer/revenue/payment-requests");
             string? farmerPayoutMessage = farmerPayout ? FinancePayoutMessages.Text(conflict ? "MSG174"
                 : HttpMethods.IsGet(context.Request.Method) ? "MSG177" : "MSG178") : null;
             bool farmerBusiness = context.Request.Path.StartsWithSegments("/api/farmer/offtake-contracts")

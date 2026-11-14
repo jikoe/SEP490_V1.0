@@ -497,3 +497,66 @@ main {
 .local-style-3 {
   width: 110px;
 }
+
+/* Payment requests and responsive financial filters. */
+.toolbar.revenue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+}
+
+.toolbar.revenue .field {
+  flex: 1 1 145px;
+  min-width: 135px;
+}
+
+.toolbar.revenue input[type="date"] {
+  max-width: 175px;
+}
+
+.toolbar.revenue .actions {
+  flex: 0 0 auto;
+}
+
+.dashboard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+
+.request-source input {
+  width: auto;
+}
+
+.summary .line {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 8px 0;
+}
+
+.summary .total {
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+}
+
+
+/* Keep payment actions visible inside screen-back and while disabled. */
+.screen-back .btn.primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.btn.primary:not(:disabled):hover {
+  background: #115438;
+  border-color: #115438;
+}
+.btn.primary:disabled {
+  background: #e1ece5;
+  border-color: #b8ccbf;
+  color: #405c4c;
+  opacity: 1;
+}

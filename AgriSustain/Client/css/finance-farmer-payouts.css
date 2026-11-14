@@ -492,3 +492,30 @@ main {
 .payout-local-1 {
   margin-top: 10px;
 }
+
+/* Request rejection and recipient QR layout. */
+#rejectReason {
+  width: 100%;
+  min-height: 110px;
+  margin: 12px 0;
+  resize: vertical;
+}
+
+.qr-preview img {
+  max-width: 100%;
+  width: 260px;
+}
+
+
+
+.qr-layout {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .qr-layout {
+    grid-template-columns: 1fr;
+  }
+}

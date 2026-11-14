@@ -4,11 +4,13 @@ using System.Text;
 using System.Xml;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Revenue;
+using AgriSustain.Application.DTOs.Payouts;
 using AgriSustain.Application.Interfaces;
 
 namespace AgriSustain.Application.Services;
 
-public sealed class FarmerRevenueService(IFarmerRevenueRepository repository, RevenueAggregationRules rules)
+public sealed class FarmerRevenueService(IFarmerRevenueRepository repository, RevenueAggregationRules rules,
+    FarmerPaymentRequestService? requests = null)
 {
     private static FeatureResult<T> Fail<T>(string code) => FeatureResult<T>.Fail(
         code == "MSG121" ? "FORBIDDEN" : code, FarmerBusinessMessages.Text(code));
@@ -122,4 +124,22 @@ public sealed class FarmerRevenueService(IFarmerRevenueRepository repository, Re
         }
         return output.ToArray();
     }
+
+    public Task<FeatureResult<object>> GetRequestsAsync(long actor, FarmerPayoutQuery query, CancellationToken ct) =>
+        PaymentRequests.ListAsync(actor, query, ct);
+
+    public Task<FeatureResult<PayoutPreview>> GetRequestContextAsync(long actor, CancellationToken ct) =>
+        PaymentRequests.ContextAsync(actor, ct);
+
+    public Task<FeatureResult<PayoutPreview>> PreviewPaymentRequestAsync(long actor, CreateFarmerPayoutRequest input, CancellationToken ct) =>
+        PaymentRequests.PreviewAsync(actor, input, ct);
+
+    public Task<FeatureResult<PayoutActionResult>> SubmitPaymentRequestAsync(long actor, CreateFarmerPayoutRequest input, CancellationToken ct) =>
+        PaymentRequests.SubmitAsync(actor, input, ct);
+
+    public Task<FeatureResult<object>> GetRequestAsync(long actor, long id, CancellationToken ct) =>
+        PaymentRequests.DetailAsync(actor, id, ct);
+
+    private FarmerPaymentRequestService PaymentRequests => requests
+        ?? throw new InvalidOperationException("Payment request service is not registered.");
 }

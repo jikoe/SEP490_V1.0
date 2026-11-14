@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!Auth.requireAuth("Farmer")) return;
   const ui = new FarmerBusinessUI();
   const $ = ui.$;
+  const payments = new FarmerPaymentRequestsUI(ui, load);
   let report = null;
   let selected = null;
   let filters = {};
@@ -36,6 +37,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       dateBasis: "EventDate",
     };
   }
+  function syncFilters() {
+    for (const suffix of ["Season", "Channel", "From", "To", "Stage", "Status"]) {
+      $("#history" + suffix).innerHTML = $("#revenue" + suffix).innerHTML;
+      $("#history" + suffix).value = $("#revenue" + suffix).value;
+    }
+  }
   function query() {
     return new URLSearchParams(
       Object.entries({ ...filters, page }).filter(([, value]) => value !== ""),
@@ -58,24 +65,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
   function chart(rows) {
-    const maximum = Math.max(
-      1,
-      ...rows.flatMap((row) => [row.sales, row.receipts, row.payout]),
-    );
-    $("#revenueChart").innerHTML = rows
-      .map((row, index) => {
-        const x = 80 + index * 225;
-        return (
-          [row.sales, row.receipts, row.payout]
-            .map((amount, bar) => {
-              const height = (Math.max(0, amount) / maximum) * 140;
-              return `<rect x="${x + bar * 38}" y="${165 - height}" width="30" height="${height}" fill="${["#26724a", "#70ad84", "#b5d6bd"][bar]}"><title>${ui.escape(ui.label(row.channel))}: ${ui.money(amount)}</title></rect>`;
-            })
-            .join("") +
-          `<text x="${x}" y="192" font-size="13">${ui.escape(ui.label(row.channel))}</text>`
+    const channels = ["B2C", "B2B"];
+    const series = [
+      { key: "sales", color: "#176a49", label: "Giá trị bán" },
+      { key: "receipts", color: "#6ea894", label: "Thu đã xác minh" },
+      { key: "payout", color: "#d6aa56", label: "Thực nhận" },
+    ];
+    const groups = channels.map((channel) => ({
+      channel,
+      values: series.map(({ key }) => rows
+        .filter((row) => row.channel === channel)
+        .reduce((total, row) => total + Math.max(0, Number(row[key]) || 0), 0)),
+    }));
+    const maximum = Math.max(1, ...groups.flatMap((group) => group.values));
+    const parts = [
+      '<text x="12" y="18" fill="#687c70" font-size="12">Triệu VND</text>',
+      '<line x1="75" y1="175" x2="950" y2="175" stroke="#dce6df"/>',
+    ];
+    groups.forEach((group, index) => {
+      group.values.forEach((value, bar) => {
+        const height = value / maximum * 130;
+        const x = 190 + index * 400 + bar * 70;
+        const label = (value / 1000000).toLocaleString("vi-VN", {
+          maximumFractionDigits: 6,
+        });
+        parts.push(
+          `<rect x="${x}" y="${175 - height}" width="48" height="${height}" rx="3" fill="${series[bar].color}">`
+          + `<title>${group.channel} · ${series[bar].label}: ${ui.money(value)}</title></rect>`,
+          `<text x="${x + 24}" y="${165 - height}" text-anchor="middle" font-size="11" fill="#405c4c">${label}</text>`,
         );
-      })
-      .join("");
+      });
+      parts.push(`<text x="${285 + index * 400}" y="202" text-anchor="middle" fill="#687c70">${group.channel}</text>`);
+    });
+    $("#revenueChart").innerHTML = parts.join("");
   }
   async function load() {
     const request = ++sequence;
@@ -91,6 +113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "Tất cả mùa vụ",
       );
       $("#revenueSeason").value = selectedSeason;
+      syncFilters();
       metrics(data.totals);
       chart(data.chart);
       $("#appliedFilterLabel").textContent =
@@ -153,10 +176,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (selected.state === "Held") ui.notice(ui.m.pending);
   }
   ui.navigate = (screen) => {
+    if (["requests", "request-create", "request-detail"].includes(screen)) {
+      payments.navigate(screen);
+      return;
+    }
+    if (payments.busy) return;
     if (screen === "detail" && !selected) {
       ui.notice(ui.m.selectTransaction, true);
       return;
     }
+    syncFilters();
     ui.go(screen);
   };
   $("#revenueRows").onclick = (event) => {
@@ -177,15 +206,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     filters = next;
+    syncFilters();
     page = 1;
     load();
   };
   $("#resetRevenue").onclick = () => {
     defaults();
     filters = applied();
+    syncFilters();
     page = 1;
     load();
   };
+  $("#applyHistory").onclick = () => {
+    for (const suffix of ["Season", "Channel", "From", "To", "Stage", "Status"]) {
+      $("#revenue" + suffix).value = $("#history" + suffix).value;
+    }
+    $("#applyRevenue").click();
+  };
+  $("#resetHistory").onclick = () => $("#resetRevenue").click();
   $("#revenuePrev").onclick = () => {
     if (page > 1) {
       page--;
@@ -224,6 +262,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   defaults();
   filters = applied();
+  syncFilters();
   ui.go("dashboard");
   await load();
 });

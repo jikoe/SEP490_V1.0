@@ -24,6 +24,11 @@ public class PayoutActionRequest
     public string RequestKey { get; set; } = "";
 }
 
+public sealed class RejectFarmerPayoutRequest : PayoutActionRequest
+{
+    public string Reason { get; set; } = "";
+}
+
 public sealed class ProcessFarmerPayoutRequest : PayoutActionRequest
 {
     public decimal ConfirmedNetAmount { get; set; }
@@ -37,7 +42,7 @@ public sealed class ReconcileFarmerPayoutRequest
 public sealed record PayoutSource(long Id, string Reference, string Product, DateTime At,
     decimal Gross, decimal Commission, decimal Deduction, decimal Net,
     decimal CommissionRate, long? CommissionPolicyId, bool Eligible, string? HoldReason,
-    decimal Settled, decimal Held, decimal Quantity, decimal UnitPrice);
+    decimal Settled, decimal Held, decimal Quantity, decimal UnitPrice, string Channel = "");
 
 public sealed record PayoutBank(string BankCode, string BankName, string ShortName,
     string AccountNumber, string AccountHolder, DateTime? VerifiedAt);

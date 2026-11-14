@@ -7,11 +7,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   let page = 1,
     total = 0,
     current = null,
-    preview = null,
     busy = false,
     generation = 0;
-  let selected = new Set();
-  const requests = new Map();
   const field = (id) => $(id).value.trim();
   const display = (id, text) => {
     $(id).textContent = text ?? "";
@@ -44,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         )
         .join("");
       $("#payoutEmpty").hidden = total > 0;
-      display("#payoutCount", `${total} khoản chi trả · 10 bản ghi/trang`);
+      display("#payoutCount", ui.m.requestCount(total));
       display("#payoutPage", page);
       $("#payoutPrev").disabled = page <= 1;
       $("#payoutNext").disabled = page * 10 >= total;
@@ -54,91 +51,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function totals(data) {
-    display("#sourceCount", selected.size);
-    for (const [selector, key] of [
-      ["#sourceGross", "gross"],
-      ["#sourceFee", "commission"],
-      ["#sourceDeduction", "deduction"],
-      ["#sourceNet", "net"],
-    ])
-      display(selector, data ? ui.money(data[key]) : "—");
-    $("#createPayoutButton").disabled = busy || !data?.canCreate;
-  }
-
-  function renderSources(data) {
-    ui.kv("#recipientDetails", [
-      ["Ngân hàng", data.recipient?.bankName],
-      ["Số tài khoản", data.recipient?.accountNumber],
-      ["Chủ tài khoản", data.recipient?.accountHolder],
-      ["Đã xác minh", ui.date(data.recipient?.verifiedAt)],
-    ]);
-    $("#sourceRows").innerHTML = data.sources
-      .map(
-        (row) => `<tr>
-      <td><input type="checkbox" aria-label="Chọn ${ui.escape(row.reference)}" data-source="${row.id}"
-        ${row.eligible ? "" : "disabled"} ${selected.has(row.id) ? "checked" : ""}></td>
-      <td>${ui.escape(row.reference)}<small>${ui.escape(row.product)} · ${ui.date(row.at)}</small></td>
-      <td>${ui.escape(row.holdReason || "Đủ điều kiện")}<small>Đã chi ${ui.money(row.settled)} · đang giữ ${ui.money(row.held)}</small></td>
-      <td class="amount">${ui.money(row.gross)}</td><td class="amount">${ui.money(row.commission)}</td>
-      <td class="amount">${ui.money(row.deduction)}</td></tr>`,
-      )
-      .join("");
-    if (data.message) ui.notice(data.message, true);
-  }
-
-  async function creationContext() {
-    selected = new Set();
-    preview = null;
-    totals(null);
-    $("#sourceRows").replaceChildren();
-    const farmer = Number(field("#recipientFarmer"));
-    if (!farmer) {
-      ui.kv("#recipientDetails", []);
-      return;
-    }
-    const requested = ++generation;
-    try {
-      const data = await ui.request(`${base}/creation-context/${farmer}`);
-      if (requested !== generation) return;
-      renderSources(data);
-      if (!data.sources.length) ui.notice(ui.m.noSources);
-    } catch (error) {
-      ui.notice(error.message, true);
-    }
-  }
-
-  async function previewSelection() {
-    preview = null;
-    totals(null);
-    if (!selected.size) return;
-    const requested = ++generation;
-    try {
-      const data = await ui.request(base + "/preview", {
-        method: "POST",
-        body: {
-          farmerId: Number(field("#recipientFarmer")),
-          selectedSourceIds: [...selected].sort((a, b) => a - b),
-        },
-      });
-      if (requested !== generation) return;
-      preview = data;
-      totals(data);
-    } catch (error) {
-      ui.notice(error.message, true);
-    }
-  }
-
   function renderDetail(data) {
     current = data;
+    ui.kv("#savedRecipient", [
+      ["Ngân hàng", data.recipient.bankCode], ["Số tài khoản", data.recipient.accountNumber],
+      ["Chủ tài khoản", data.recipient.accountHolder],
+      ["Xác minh", ui.label(data.recipient.verificationStatus)],
+      ["Giữ chi trả đến", ui.date(data.recipient.payoutHoldUntil)],
+    ]);
+    $("#sourceRows").innerHTML = data.sources.map(row => `<tr>
+      <td>${ui.escape(row.reference || row.id)}<small>${ui.escape(row.channel)}</small></td>
+      <td>${ui.escape(data.status === "Processed" ? ui.m.sourceSettled : data.status === "Rejected"
+        ? ui.m.sourceReleased : row.holdReason || ui.m.sourceReserved)}</td>
+      <td class="amount">${ui.money(row.gross)}</td>
+      <td class="amount">${ui.money(row.commission)}</td>
+      <td class="amount">${ui.money(row.deduction)}</td>
+    </tr>`).join("");
+
     display("#payoutCode", data.code);
     display("#payoutBadge", ui.label(data.status));
     ui.kv("#savedPayoutDetails", [
       ["Nông dân", data.farmer],
-      ["Ngân hàng nhận", data.recipient.bankCode],
-      ["Số tài khoản nhận", data.recipient.accountNumber],
-      ["Chủ tài khoản", data.recipient.accountHolder],
-      ["Ngày lập", ui.date(data.approvedAt)],
+      ["Ngày gửi", ui.date(data.submittedAt)],
       [
         "Nguồn chi trả",
         data.sources
@@ -169,18 +103,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     display(
       "#failureText",
-      data.status === "Failed" ? ui.m.failed : ui.m.noFailure,
+      data.rejectionReason || (data.status === "Failed" ? ui.m.failed : ui.m.noFailure),
     );
     display(
       "#payoutNotification",
-      data.notificationFailed ? ui.m.notificationFailed : ui.m.notifications,
+      data.notificationFailed ? ui.m.notificationFailed : data.status === "Pending" ? ui.m.submittedPending
+        : data.status === "Rejected" ? ui.m.notificationRejected : ui.m.notifications,
     );
     $("#processPayout").disabled =
       busy ||
       !data.canProcess ||
       !!data.holdReason ||
       !!data.integrationMessage;
-    $("#cancelPayout").disabled = busy || !data.canCancel;
+    $("#rejectRequest").disabled = busy || !data.canReject;
     $("#checkGateway").disabled = busy || !data.canReconcile;
     $("#qrPaymentBox").hidden = !data.plan || data.status !== "Processing";
     if (data.plan) {
@@ -214,74 +149,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!quiet) ui.go("detail");
   }
 
-  async function create() {
-    if (busy || !preview?.canCreate) return;
-    if (!(await ui.confirm(ui.m.confirmCreate))) return;
-    const body = {
-      farmerId: preview.farmerId,
-      selectedSourceIds: [...selected].sort((a, b) => a - b),
-      expectedBalance: preview.expectedBalance,
-    };
-    const key = JSON.stringify(body);
-    if (!requests.has(key)) requests.set(key, crypto.randomUUID());
-    busy = true;
-    totals(preview);
-    try {
-      const result = await ui.request(base, {
-        method: "POST",
-        body: { ...body, requestKey: requests.get(key) },
-      });
-      requests.delete(key);
-      selected.clear();
-      preview = null;
-      await detail(result.id);
-      ui.notice(result.message);
-    } catch (error) {
-      ui.notice(error.message || ui.m.saveFailed, true);
-    } finally {
-      busy = false;
-      totals(preview);
-      if (current) renderDetail(current);
-    }
-  }
 
   async function command(action) {
     if (!current || busy) return;
     const id = current.id;
-    if (action !== "reconcile") {
-      const message =
-        action === "process"
-          ? ui.m.confirmTransfer(
-              ui.money(current.net),
-              current.recipient.accountHolder,
-              current.recipient.bankCode,
-              current.recipient.accountNumber,
-            )
-          : ui.m.confirm;
-      if (!(await ui.confirm(message))) return;
-    }
+    let snapshot = current;
     busy = true;
     renderDetail(current);
     try {
-      const body =
-        action === "reconcile"
-          ? { existingOperationKey: current.plan.operationKey }
-          : {
-              expectedVersion: current.version,
-              confirmedNetAmount: current.net,
-              requestKey: crypto.randomUUID(),
-            };
-      const result = await ui.request(`${base}/${id}/${action}`, {
-        method: "POST",
-        body,
-      });
+      if (action === "process") {
+        snapshot = await ui.request(`${base}/${id}/qr-preview`);
+        if (current?.id !== id) return;
+        const confirmed = await ui.confirm(ui.m.confirmTransfer(ui.money(snapshot.net),
+          snapshot.recipient.accountHolder, snapshot.recipient.bankCode, snapshot.recipient.accountNumber));
+        if (!confirmed || current?.id !== id) return;
+      }
+      busy = true;
+      renderDetail(current);
+      const body = action === "reconcile"
+        ? { existingOperationKey: snapshot.plan.operationKey }
+        : { expectedVersion: snapshot.version, confirmedNetAmount: snapshot.net, requestKey: crypto.randomUUID() };
+      const result = await ui.request(`${base}/${id}/${action}`, { method: "POST", body });
       await detail(id);
       ui.notice(result.message);
-      if (action === "process" && current.plan)
-        $("#qrPaymentBox").scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+      if (action === "process" && current.plan) $("#qrPaymentBox").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       ui.notice(error.message || ui.m.saveFailed, true);
     } finally {
@@ -290,63 +181,66 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  ui.navigate = async (screen) => {
-    if (busy) return;
-    if (screen === "detail" && !current) {
-      ui.notice(ui.m.selectPayout, true);
+  let rejectSnapshot = null;
+  let rejection = null;
+  $("#rejectRequest").onclick = () => {
+    if (busy || !current?.canReject) return;
+    rejectSnapshot = { ...current };
+    rejection = null;
+    $("#rejectReason").value = "";
+    $("#rejectError").textContent = "";
+    $("#rejectDialog").showModal();
+  };
+  $("#closeReject").onclick = () => { if (!busy) $("#rejectDialog").close(); };
+  $("#rejectDialog").addEventListener("cancel", event => { if (busy) event.preventDefault(); });
+  $("#confirmReject").onclick = async () => {
+    if (busy || !rejectSnapshot) return;
+    const reason = $("#rejectReason").value.trim();
+    if (!reason || reason.length > 500) {
+      $("#rejectError").textContent = !reason ? ui.m.rejectionRequired : ui.m.rejectionTooLong;
       return;
     }
+    const signature = JSON.stringify({ id: rejectSnapshot.id, version: rejectSnapshot.version, reason });
+    if (rejection?.signature !== signature) rejection = { signature, key: crypto.randomUUID() };
+    busy = true;
+    $("#confirmReject").disabled = true;
+    $("#closeReject").disabled = true;
+    try {
+      const result = await ui.request(`${base}/${rejectSnapshot.id}/reject`, {
+        method: "POST", body: { expectedVersion: rejectSnapshot.version, requestKey: rejection.key, reason },
+      });
+      $("#rejectDialog").close();
+      await detail(result.id);
+      ui.notice(result.message);
+    } catch (error) {
+      $("#rejectError").textContent = error.message || ui.m.saveFailed;
+    } finally {
+      busy = false;
+      $("#confirmReject").disabled = false;
+      $("#closeReject").disabled = false;
+      if (current) renderDetail(current);
+    }
+  };
+  ui.navigate = async (screen) => {
+    if (busy) return;
+    if (screen === "detail" && !current) { ui.notice(ui.m.selectPayout, true); return; }
     ui.go(screen);
     if (screen === "list") await list();
   };
-  $("#newPayout").onclick = () => {
-    if (!busy) {
-      ui.go("create");
-      creationContext();
-    }
-  };
-  $("#recipientFarmer").onchange = creationContext;
-  $("#sourceRows").onchange = (event) => {
-    const checkbox = event.target.closest("[data-source]");
-    if (!checkbox || busy) return;
-    checkbox.checked
-      ? selected.add(Number(checkbox.dataset.source))
-      : selected.delete(Number(checkbox.dataset.source));
-    previewSelection();
-  };
-  $("#createPayoutButton").onclick = create;
-  $("#discardPayout").onclick = () => {
-    if (!busy) {
-      selected.clear();
-      preview = null;
-      ui.go("list");
-      list();
-    }
-  };
   $("#processPayout").onclick = () => command("process");
-  $("#cancelPayout").onclick = () => command("cancel");
   $("#checkGateway").onclick = () => command("reconcile");
   $("#copyPayoutReference").onclick = async () => {
     try {
       await navigator.clipboard.writeText(current.plan.operationKey);
       ui.notice(ui.m.copied);
-    } catch {
-      ui.notice(ui.m.copyFailed, true);
-    }
+    } catch { ui.notice(ui.m.copyFailed, true); }
   };
   $("#payoutRows").onclick = (event) => {
     const button = event.target.closest("[data-payout]");
-    if (button && !busy)
-      detail(Number(button.dataset.payout)).catch((error) =>
-        ui.notice(error.message, true),
-      );
+    if (button && !busy) detail(Number(button.dataset.payout)).catch(error => ui.notice(error.message, true));
   };
   $("#applyPayoutFilter").onclick = () => {
-    if (
-      field("#payoutFrom") &&
-      field("#payoutTo") &&
-      field("#payoutFrom") > field("#payoutTo")
-    ) {
+    if (field("#payoutFrom") && field("#payoutTo") && field("#payoutFrom") > field("#payoutTo")) {
       ui.notice(ui.m.dates, true);
       return;
     }
@@ -354,71 +248,35 @@ document.addEventListener("DOMContentLoaded", async () => {
     list();
   };
   $("#resetPayoutFilter").onclick = () => {
-    [
-      "#payoutSearch",
-      "#payoutFarmerFilter",
-      "#payoutStatusFilter",
-      "#payoutFrom",
-      "#payoutTo",
-    ].forEach((id) => {
-      $(id).value = "";
-    });
+    ["#payoutSearch", "#payoutFarmerFilter", "#payoutStatusFilter", "#payoutFrom", "#payoutTo"].forEach(id => { $(id).value = ""; });
     page = 1;
     list();
   };
-  $("#payoutPrev").onclick = () => {
-    if (page > 1) {
-      page--;
-      list();
-    }
-  };
-  $("#payoutNext").onclick = () => {
-    if (page * 10 < total) {
-      page++;
-      list();
-    }
-  };
+  $("#payoutPrev").onclick = () => { if (page > 1) { page--; list(); } };
+  $("#payoutNext").onclick = () => { if (page * 10 < total) { page++; list(); } };
   const timer = setInterval(async () => {
-    if (
-      busy ||
-      document.hidden ||
-      !current ||
-      $("#screen-detail").hidden ||
-      !current.canReconcile
-    )
-      return;
+    if (busy || document.hidden || !current?.canReconcile || $("#screen-detail").hidden
+      || $("#rejectDialog").open || $("#confirmDialog").open) return;
     const id = current.id;
     busy = true;
     try {
-      await ui.request(`${base}/${id}/reconcile`, {
-        method: "POST",
-        body: { existingOperationKey: current.plan.operationKey },
-      });
+      await ui.request(`${base}/${id}/reconcile`, { method: "POST", body: { existingOperationKey: current.plan.operationKey } });
       await detail(id, true);
-      if (current.status === "Processed") ui.notice(ui.m.sourceDebit);
+      if (current?.id === id && current.status === "Processed") ui.notice(ui.m.sourceDebit);
     } catch {
-      /* Retain previous values; unknown results never trigger a second transfer. */
+      // Unknown bank results retain the original request and its reservations.
     } finally {
       busy = false;
       if (current) renderDetail(current);
     }
   }, 15000);
-  window.addEventListener("pagehide", () => clearInterval(timer), {
-    once: true,
-  });
+  window.addEventListener("pagehide", () => clearInterval(timer), { once: true });
   ui.go("list");
-  totals(null);
   try {
     const farmers = await ui.request(base + "/farmers");
-    ui.options(
-      "#payoutFarmerFilter",
-      farmers,
-      (row) => row.name,
-      "Tất cả nông dân",
-    );
-    ui.options("#recipientFarmer", farmers, (row) => row.name, "Chọn nông dân");
+    ui.options("#payoutFarmerFilter", farmers, row => row.name, "Tất cả nông dân");
     await list();
-  } catch (error) {
-    ui.notice(error.message, true);
-  }
+    const requestId = new URLSearchParams(location.search).get("requestId");
+    if (/^[1-9]\d*$/.test(requestId || "")) await detail(Number(requestId));
+  } catch (error) { ui.notice(error.message || ui.m.loadFailed, true); }
 });
