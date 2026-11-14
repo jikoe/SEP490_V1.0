@@ -57,6 +57,8 @@ public sealed class FarmerOfftakeContractService(
         context.Contract.SignedDate = DateTime.UtcNow;
         version.VersionStatus = "Signed";
         context.Contract.Status = rules.CanExecute(context) ? "Active" : "AwaitingDeposit";
+        if (context.Contract.Status == "AwaitingDeposit")
+            OfftakeContractRules.PrepareDeposit(context.Contract, version, context.Contract.SignedDate.Value);
         return context.Contract.Status == "Active" ? "MSG153" : "MSG152";
     }, ct);
 
@@ -74,7 +76,7 @@ public sealed class FarmerOfftakeContractService(
     {
         if (!OfftakeContractRules.Feedback(input.Reason)) return "MSG109";
         if (!OfftakeContractRules.Text(input.ProposedChanges, 10000)) return "MSG02";
-        if (context.Contract.Status is "Rejected" or "Terminated" or "Completed") return "MSG131";
+        if (context.Contract.Status is "AwaitingDeposit" or "Rejected" or "Terminated" or "Completed") return "MSG131";
         if (!rules.PreserveAcceptedCommitments(context)) return "MSG130";
         var old = OfftakeContractRules.Current(context);
         var revision = new ContractVersion
@@ -84,7 +86,8 @@ public sealed class FarmerOfftakeContractService(
             CreatedAt = DateTime.UtcNow,
             VersionStatus = "Pending",
             FeedbackReason = input.Reason!.Trim(),
-            TermsAndConditions = old.TermsAndConditions + "\n\nĐề xuất sửa đổi:\n" + input.ProposedChanges.Trim(),
+            TermsAndConditions = OfftakeContractRules.SplitAmendment(old.TermsAndConditions).Terms
+                + OfftakeContractRules.AmendmentHeading + input.ProposedChanges.Trim(),
             LineSnapshotJson = JsonSerializer.Serialize(old.ContractLines.Select(x => new
             { x.ProductId, x.CommittedQuantity, x.UnitSnapshot, x.AgreedPrice, x.PriceFormula, x.CropSeasonId }))
         };
@@ -243,9 +246,11 @@ public sealed class FarmerOfftakeContractService(
             var item = context.Contract.SellerOrders.SelectMany(x => x.Shipments).SelectMany(x => x.ShipmentItems)
                 .SingleOrDefault(x => x.ShipmentItemId == input.ShipmentItemId);
             if (ticket == null || !OfftakeContractRules.OpenDispute(ticket) || item?.ReceivedQuantity == null
-                || (ticket.SellerOrderId.HasValue && item.Shipment.SellerOrderId != ticket.SellerOrderId)) return "MSG131";
+                || (ticket.SellerOrderId.HasValue && item.Shipment.SellerOrderId != ticket.SellerOrderId)
+                || (ticket.DisputeReason == "ContractDeliveryDiscrepancy" && item.ReconciliationStatus != "Disputed")) return "MSG131";
             if (!OfftakeContractRules.Text(input.Reason) || !OfftakeContractRules.Text(input.ProposedResolution, 500)
                 || input.ProposedQuantity < 0 || input.ProposedQuantity > item.ReceivedQuantity
+                || (input.ProposedQuantity is decimal proposed && decimal.Round(proposed, 3) != proposed)
                 || item.ReceivedQuantity > item.ShippedQuantity) return "MSG120";
             foreach (string url in input.Evidence)
                 ticket.DisputeEvidences.Add(new DisputeEvidence
@@ -264,7 +269,8 @@ public sealed class FarmerOfftakeContractService(
     {
         var ticket = context.Disputes.SingleOrDefault(x => x.DisputeTicketId == input.TicketId);
         if (ticket == null || !OfftakeContractRules.OpenDispute(ticket) || context.Reviewers.Count == 0) return "MSG131";
-        if (!context.History.Any(x => x.Action == "Discrepancy" && x.NewValue != null && x.NewValue.Contains("\"TicketId\":" + input.TicketId))) return "MSG131";
+        if (!context.History.Any(x => x.Action == "Discrepancy" && x.NewValue != null
+            && x.NewValue.Contains("\"TicketId\":" + input.TicketId + ",", StringComparison.Ordinal))) return "MSG131";
         ticket.TicketStatus = "UnderReview";
         return "MSG158";
     }, ct);
@@ -423,6 +429,7 @@ public sealed class FarmerOfftakeContractService(
     {
         var contract = context.Contract;
         var version = OfftakeContractRules.Current(context);
+        var (terms, proposedChanges) = OfftakeContractRules.SplitAmendment(version.TermsAndConditions);
         return new
         {
             notificationFailed = context.NotificationFailed,
@@ -436,7 +443,10 @@ public sealed class FarmerOfftakeContractService(
             depositPaid = OfftakeContractRules.DepositPaid(context),
             buyer = contract.WholesaleBuyerProfile.CompanyName,
             contract.PaymentTerms,
-            version.TermsAndConditions,
+            termsAndConditions = terms,
+            version.FeedbackReason,
+            proposedChanges = contract.Status == "Rejected" ? null : proposedChanges,
+            canConfirmTerms = OfftakeContractRules.CanConfirmProposal(version, contract.FarmerProfile.UserId),
             version = OfftakeContractRules.Version(context),
             signatures = version.ContractSignatures.Select(x => new { x.PartyRole, x.ConfirmationStatus, x.ConfirmedAt }),
             lines = version.ContractLines.Select(x => new
@@ -485,6 +495,7 @@ public sealed class FarmerOfftakeContractService(
             shipments = contract.SellerOrders.SelectMany(x => x.Shipments).Select(x => new
             {
                 id = x.ShipmentId,
+                x.SellerOrderId,
                 x.ContractMilestoneId,
                 x.ShipmentStatus,
                 x.ShippedAt,
@@ -502,6 +513,7 @@ public sealed class FarmerOfftakeContractService(
             disputes = context.Disputes.Select(x => new
             {
                 id = x.DisputeTicketId,
+                x.SellerOrderId,
                 x.DisputeReason,
                 x.Description,
                 x.TicketStatus,

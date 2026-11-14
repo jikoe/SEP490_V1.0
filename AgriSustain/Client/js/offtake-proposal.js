@@ -1,6 +1,6 @@
 import { esc, money, request } from './page-ui.js';
-import { byId, date, dateRange, detailMarkup, facts, hasBuyerParty, loadBuyerParty, notice, number, termsMarkup, thumbnail } from './offtake-ui.js';
-import { contractArticles, readContractTerms, writeContractTerms } from './offtake-terms.js';
+import { badge, byId, date, dateRange, facts, hasBuyerParty, loadBuyerParty, notice, number, termsMarkup, thumbnail } from './offtake-ui.js';
+import { readContractTerms, writeContractTerms } from './offtake-terms.js';
 
 const form = byId('proposal-form');
 const message = byId('proposal-notice');
@@ -12,12 +12,14 @@ const next = byId('proposal-next');
 const back = byId('proposal-back');
 const save = byId('proposal-save');
 const search = byId('catalog-search');
+const articles = byId('proposal-articles');
+const addArticle = byId('proposal-add-article');
 const panels = [...form.querySelectorAll('[data-step]')];
 const steps = [...document.querySelectorAll('.offtake-steps li')];
 const params = new URLSearchParams(location.search);
-const revision = params.get('revision');
-const edit = params.get('edit');
+const edit = params.get('edit') || params.get('revision');
 let draft;
+let editingRevision = false;
 let buyerParty;
 let catalog = [];
 let selected;
@@ -25,20 +27,27 @@ let step = 0;
 let submittedBody;
 let requestId;
 
-function renderArticleInputs() {
-  const extraFields = {
-    deliveryTerms: '<label>Ngày giao hàng dự kiến <input name="deliveryDate" type="date" required></label>',
-    paymentTerms: '<label>Tiền cọc dự kiến (VND) <input name="depositAmount" type="number" min="0" step="0.01" value="0" required></label>',
-    article7: '<div class="offtake-fields"><label>Hiệu lực từ ngày <input name="validFrom" type="date" required></label>'
-      + '<label>Hiệu lực đến ngày <input name="validUntil" type="date" required></label></div>',
-  };
-  byId('proposal-articles').innerHTML = contractArticles.map(([title, field, hint]) => `
+function appendArticle({ title = '', body = '' } = {}) {
+  articles.insertAdjacentHTML('beforeend', `
     <fieldset class="offtake-article-input">
-      <legend>${esc(title)}</legend>
-      ${extraFields[field] ?? ''}
-      <label>Nội dung <textarea name="${field}" rows="3" maxlength="${field === 'deliveryTerms' ? 2000 : 1000}"
-        placeholder="${esc(hint)}" required></textarea></label>
-    </fieldset>`).join('');
+      <legend>Điều ${articles.childElementCount + 1}</legend>
+      <label>Tiêu đề <input name="articleTitle" type="text" maxlength="10000" required></label>
+      <label>Nội dung <textarea name="articleBody" rows="3" maxlength="10000" required></textarea></label>
+      <button type="button" data-remove-article>Xóa điều khoản</button>
+    </fieldset>`);
+  const article = articles.lastElementChild;
+  article.querySelector('input').value = title;
+  article.querySelector('textarea').value = body;
+  return article;
+}
+
+function numberArticles() {
+  [...articles.children].forEach((article, index) => {
+    article.querySelector('legend').textContent = 'Điều ' + (index + 1);
+    const remove = article.querySelector('[data-remove-article]');
+    remove.hidden = articles.childElementCount === 1;
+    remove.setAttribute('aria-label', 'Xóa điều ' + (index + 1));
+  });
 }
 
 async function showBuyerParty() {
@@ -142,28 +151,31 @@ function showStep(index, focus = true) {
     if (i === step) item.setAttribute('aria-current', 'step');
     else item.removeAttribute('aria-current');
   });
-  next.textContent = step === 2 ? 'Xác nhận và gửi' : 'Tiếp theo →';
-  save.hidden = step !== 2;
+  next.textContent = step === 2
+    ? (editingRevision ? 'Xác nhận và gửi lại' : 'Xác nhận và gửi') : 'Tiếp theo →';
+  save.hidden = editingRevision || step !== 2;
   back.hidden = step === 0;
   if (focus) panels[step].querySelector('h2').focus();
 }
 
 function readProposal() {
-  const values = Object.fromEntries(new FormData(form));
+  const fields = new FormData(form);
+  const values = Object.fromEntries(fields);
+  const bodies = fields.getAll('articleBody');
   return {
     farmerId: selected.farmerId, productId: selected.id,
     quantity: Number((Number(values.quantity) * quantityFactor()).toFixed(3)),
     ...(unit.value !== selected.unit && { quantityUnit: unit.value }),
     unitPrice: Number(values.unitPrice),
     validFrom: values.validFrom, validUntil: values.validUntil, deliveryDate: values.deliveryDate,
-    deliveryTerms: values.deliveryTerms.trim() ? writeContractTerms(values) : '',
-    paymentTerms: values.paymentTerms.trim(),
+    deliveryTerms: writeContractTerms(fields.getAll('articleTitle').map((title, index) => ({ title, body: bodies[index] }))),
+    paymentTerms: null,
     depositAmount: Number(values.depositAmount),
   };
 }
 
 function missingArticle() {
-  return contractArticles.find(([, field]) => !form.elements.namedItem(field).value.trim());
+  return [...articles.querySelectorAll('input, textarea')].find(field => !field.value.trim());
 }
 
 async function advance(event) {
@@ -187,8 +199,8 @@ async function advance(event) {
   if (step === 1) {
     const empty = missingArticle();
     if (empty) {
-      notice(message, 'Vui lòng nhập nội dung cho ' + empty[0] + '.', true);
-      form.elements.namedItem(empty[1]).focus();
+      notice(message, 'Vui lòng nhập tiêu đề và nội dung cho từng điều khoản.', true);
+      empty.focus();
       return;
     }
     if (body.deliveryTerms.length > 10000) {
@@ -213,18 +225,16 @@ function showReview(body) {
     ['Bên mua', buyerParty?.name], ['Nhà cung cấp', selected.farmer], ['Sản phẩm', selected.name],
     ['Số lượng', body.quantityUnit ? quantity.value + ' ' + body.quantityUnit + ' (' + baseQuantity + ')' : baseQuantity],
     ['Đơn giá', money(body.unitPrice) + '/' + selected.unit],
+    ['Ngày giao dự kiến', date(body.deliveryDate)], ['Tiền cọc', money(body.depositAmount)],
+    ['Hiệu lực', dateRange(body.validFrom, body.validUntil)],
   ]);
-  byId('proposal-review-terms').innerHTML = termsMarkup(body.deliveryTerms, body.paymentTerms, true, {
-    deliveryTerms: [['Ngày giao dự kiến', date(body.deliveryDate)]],
-    paymentTerms: [['Tiền cọc', money(body.depositAmount)]],
-    article7: [['Hiệu lực', dateRange(body.validFrom, body.validUntil)]],
-  });
+  byId('proposal-review-terms').innerHTML = termsMarkup(body.deliveryTerms, body.paymentTerms);
   showStep(2);
 }
 
 async function saveProposal(body, asDraft) {
   if (!hasBuyerParty(buyerParty) || missingArticle()) {
-    notice(message, 'Vui lòng kiểm tra thông tin Bên B và nhập đủ cả 8 điều khoản.', true);
+    notice(message, 'Vui lòng kiểm tra thông tin Bên B và điền đầy đủ các điều khoản.', true);
     return;
   }
   const serialized = JSON.stringify(body);
@@ -246,7 +256,8 @@ async function saveProposal(body, asDraft) {
       notice(message, 'API chưa xác nhận đã lưu. Vui lòng kiểm tra lại danh sách hợp đồng.', true);
       return;
     }
-    location.href = 'contracts.html?' + (asDraft ? 'saved' : 'submitted') + '=' + encodeURIComponent(result.id);
+    const outcome = editingRevision ? 'resent' : asDraft ? 'saved' : 'submitted';
+    location.href = 'contracts.html?' + outcome + '=' + encodeURIComponent(result.id);
   } catch (error) {
     const draftRouteMissing = asDraft && !draft && [404, 405].includes(error.status);
     const errorMessage = draftRouteMissing
@@ -262,28 +273,53 @@ async function saveProposal(body, asDraft) {
 }
 
 async function loadDraft() {
-  notice(message, 'Đang tải bản nháp…');
+  notice(message, 'Đang tải đề xuất…');
   try {
     draft = await request('/b2b/contracts/' + edit + '/draft');
+    editingRevision = draft.revisionChanges != null;
     byId('proposal-title').textContent = 'Chỉnh sửa đề xuất hợp đồng Offtake';
     byId('proposal-code').value = draft.code;
     byId('proposal-today').value = date(draft.createdAt);
     selected = draft.product;
     updateUnits(draft.proposal.quantityUnit);
-    const terms = readContractTerms(draft.proposal.deliveryTerms, draft.proposal.paymentTerms);
-    for (const [name, value] of Object.entries({ ...draft.proposal, ...terms })) {
+    articles.replaceChildren();
+    for (const article of readContractTerms(draft.proposal.deliveryTerms, draft.proposal.paymentTerms)) appendArticle(article);
+    if (!articles.childElementCount) appendArticle({ title: 'Nội dung hợp đồng' });
+    numberArticles();
+    for (const [name, value] of Object.entries(draft.proposal)) {
       const field = form.elements.namedItem(name);
       if (field) field.value = value ?? '';
     }
     quantity.value = Number((draft.proposal.quantity / quantityFactor()).toPrecision(15));
+    if (editingRevision) {
+      byId('proposal-title').textContent = 'Chỉnh sửa và gửi lại đề xuất Offtake';
+      byId('proposal-description').textContent = 'Cập nhật điều khoản theo yêu cầu của nông dân rồi gửi lại để nông dân xác nhận.';
+      byId('proposal-status').innerHTML = 'Trạng thái hợp đồng ' + badge('Negotiating');
+      byId('proposal-amendment-details').innerHTML = facts([
+        ...(draft.revisionReason ? [['Lý do', draft.revisionReason]] : []),
+        ['Nội dung đề nghị', draft.revisionChanges],
+      ]);
+      byId('proposal-amendment').hidden = false;
+      byId('proposal-cancel').href = 'contracts.html?record=' + edit;
+      byId('proposal-send-note').textContent = 'Nông dân sẽ nhận phiên bản mới để xem và xác nhận.';
+      byId('catalog-picker').hidden = true;
+      catalog = [draft.product];
+      product.add(new Option(draft.product.name + ' — ' + draft.product.farmer, draft.product.id));
+      product.disabled = true;
+      updateSummary(draft.proposal.quantityUnit);
+      form.hidden = false;
+      notice(message, '');
+      return;
+    }
     if (await loadCatalog()) {
       if (!selected) {
         notice(message, 'Sản phẩm cũ không còn khả dụng. Vui lòng chọn lại sản phẩm.', true);
       } else if (params.has('review')) {
         byId('proposal-title').textContent = 'Gửi phê duyệt đề xuất Offtake';
-        if (missingArticle()) {
+        if (missingArticle() || [...panels[1].querySelectorAll('input, textarea')].some(field => !field.checkValidity())
+          || readProposal().deliveryTerms.length > 10000) {
           showStep(1);
-          notice(message, 'Bản nháp chưa có đủ 8 điều khoản. Vui lòng bổ sung trước khi gửi.', true);
+          notice(message, 'Vui lòng kiểm tra điều khoản và thông tin giao hàng, hiệu lực, đặt cọc trước khi gửi.', true);
         } else {
           showReview(readProposal());
         }
@@ -294,67 +330,37 @@ async function loadDraft() {
   }
 }
 
-async function loadRevision(id) {
-  byId('proposal-wizard').hidden = true;
-  byId('proposal-title').textContent = 'Xem lại đề xuất sửa đổi';
-  byId('proposal-description').textContent = 'Kiểm tra phiên bản hiện tại trước khi xác nhận.';
-  notice(message, 'Đang tải điều khoản…');
-  const panel = byId('revision-panel');
-  try {
-    const detail = await request('/b2b/contracts/' + id);
-    panel.innerHTML = detailMarkup(detail);
-    panel.hidden = false;
-    notice(message, '');
-    const action = document.createElement('div');
-    action.className = 'offtake-actions';
-    const leave = document.createElement('a');
-    leave.href = 'contracts.html?record=' + id;
-    leave.textContent = 'Quay lại theo dõi';
-    action.append(leave);
-    if (detail.canConfirmRevision) {
-      const confirm = document.createElement('button');
-      confirm.type = 'button';
-      confirm.className = 'primary';
-      confirm.textContent = 'Xác nhận phiên bản ' + detail.version;
-      confirm.addEventListener('click', async () => {
-        confirm.disabled = true;
-        try {
-          await request('/b2b/contracts/' + id + '/versions/' + detail.version + '/confirmation',
-            { method: 'POST' });
-          location.href = leave.href;
-        } catch (error) {
-          notice(message, error.message, true);
-          confirm.disabled = false;
-        }
-      });
-      action.append(confirm);
-    }
-    panel.append(action);
-  } catch (error) {
-    notice(message, error.message, true);
-  }
-}
-
 if (Auth.requireAuth('WholesaleBuyer')) {
-  if (revision && /^\d+$/.test(revision)) {
-    loadRevision(revision);
-  } else {
-    renderArticleInputs();
-    showBuyerParty();
-    byId('proposal-today').value = new Intl.DateTimeFormat('vi-VN', {
-      dateStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh',
-    }).format(new Date());
-    product.addEventListener('change', () => updateSummary());
-    unit.addEventListener('change', () => { quantity.value = ''; updateQuantityStep(); });
-    search.addEventListener('click', loadCatalog);
-    byId('catalog-keyword').addEventListener('keydown', event => {
-      if (event.key === 'Enter') { event.preventDefault(); loadCatalog(); }
-    });
-    form.addEventListener('submit', advance);
-    save.addEventListener('click', () => saveProposal(readProposal(), true));
-    back.addEventListener('click', () => { notice(message, ''); showStep(step - 1); });
-    showStep(0, false);
-    if (edit && /^\d+$/.test(edit)) loadDraft();
-    else loadCatalog();
-  }
+  appendArticle({ title: 'Nội dung hợp đồng' });
+  numberArticles();
+  addArticle.addEventListener('click', () => {
+    const article = appendArticle();
+    numberArticles();
+    article.querySelector('input').focus();
+  });
+  articles.addEventListener('click', event => {
+    const button = event.target.closest('[data-remove-article]');
+    if (!button || articles.childElementCount === 1) return;
+    const article = button.closest('fieldset');
+    const nearby = article.nextElementSibling || article.previousElementSibling;
+    article.remove();
+    numberArticles();
+    nearby.querySelector('input').focus();
+  });
+  showBuyerParty();
+  byId('proposal-today').value = new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh',
+  }).format(new Date());
+  product.addEventListener('change', () => updateSummary());
+  unit.addEventListener('change', () => { quantity.value = ''; updateQuantityStep(); });
+  search.addEventListener('click', loadCatalog);
+  byId('catalog-keyword').addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); loadCatalog(); }
+  });
+  form.addEventListener('submit', advance);
+  save.addEventListener('click', () => saveProposal(readProposal(), true));
+  back.addEventListener('click', () => { notice(message, ''); showStep(step - 1); });
+  showStep(0, false);
+  if (edit && /^\d+$/.test(edit)) loadDraft();
+  else loadCatalog();
 }

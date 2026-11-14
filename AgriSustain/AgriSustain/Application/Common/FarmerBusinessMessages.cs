@@ -28,7 +28,7 @@ public static class FarmerBusinessMessages
         ["MSG151"] = "Đã ghi nhận xác nhận của bạn. Đang chờ các xác nhận còn lại trên cùng phiên bản điều khoản.",
         ["MSG152"] = "Hợp đồng đang chờ xác minh đủ tiền cọc theo thỏa thuận.",
         ["MSG153"] = "Hợp đồng đã đủ xác nhận và điều kiện tiền cọc, có thể thực hiện.",
-        ["MSG154"] = "Đã gửi đề nghị sửa đổi. Hai bên cần xác nhận lại phiên bản điều khoản mới.",
+        ["MSG154"] = "Đã gửi đề nghị sửa đổi. Vui lòng chờ bên mua chỉnh sửa và gửi lại đề xuất.",
         ["MSG155"] = "Đã ghi nhận giao hàng theo đợt và xuất kho một lần.",
         ["MSG156"] = "Đợt giao có chênh lệch chưa được giải quyết.",
         ["MSG157"] = "Đang hiển thị kết quả thống nhất đã được ghi nhận.",

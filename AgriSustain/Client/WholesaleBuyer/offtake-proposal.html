@@ -23,7 +23,7 @@
         <p id="proposal-notice" class="offtake-notice" role="status" hidden></p>
         <div class="offtake-wizard" id="proposal-wizard">
           <nav class="offtake-steps panel" aria-label="Các bước tạo đề xuất">
-            <p class="offtake-wizard-status">Trạng thái hợp đồng <span class="offtake-badge warm">Bản nháp</span></p>
+            <p class="offtake-wizard-status" id="proposal-status">Trạng thái hợp đồng <span class="offtake-badge warm">Bản nháp</span></p>
             <ol>
               <li aria-current="step"><b>Thông tin cơ bản</b><small>Đối tác, sản phẩm và giá dự kiến</small></li>
               <li><b>Điều khoản &amp; chính sách</b><small>Giao hàng, hiệu lực và thanh toán</small></li>
@@ -31,6 +31,10 @@
             </ol>
           </nav>
           <form id="proposal-form" class="panel offtake-card" hidden novalidate>
+            <section id="proposal-amendment" class="offtake-terms" hidden>
+              <h2>Yêu cầu sửa đổi của nông dân</h2>
+              <dl class="offtake-facts" id="proposal-amendment-details"></dl>
+            </section>
             <section data-step="0" aria-labelledby="basic-title">
               <h2 id="basic-title" tabindex="-1">1. Thông tin cơ bản</h2>
               <h3>Thông tin hợp đồng</h3>
@@ -44,7 +48,7 @@
               <dl class="offtake-facts" id="proposal-buyer"></dl>
               <p><a href="profile.html">Xem và bổ sung hồ sơ doanh nghiệp</a></p>
               <h3>Thông tin sản phẩm và nhà cung cấp</h3>
-              <div class="offtake-picker">
+              <div class="offtake-picker" id="catalog-picker">
                 <label>Tìm sản phẩm
                   <input id="catalog-keyword" type="search" maxlength="100" placeholder="Nhập tên sản phẩm">
                 </label>
@@ -68,17 +72,26 @@
             </section>
             <section data-step="1" aria-labelledby="terms-title" hidden>
               <h2 id="terms-title" tabindex="-1">2. Điều khoản &amp; chính sách</h2>
-              <p class="offtake-note">Nhập đầy đủ nội dung của cả 8 điều trước khi xem lại hợp đồng.</p>
+              <fieldset class="offtake-article-input">
+                <legend>Thông tin giao hàng, hiệu lực và đặt cọc</legend>
+                <div class="offtake-fields">
+                  <label>Ngày giao hàng dự kiến <input name="deliveryDate" type="date" required></label>
+                  <label>Hiệu lực từ ngày <input name="validFrom" type="date" required></label>
+                  <label>Hiệu lực đến ngày <input name="validUntil" type="date" required></label>
+                  <label>Tiền cọc dự kiến (VND) <input name="depositAmount" type="number" min="0" step="1" value="0" required></label>
+                </div>
+              </fieldset>
               <div id="proposal-articles"></div>
+              <button type="button" id="proposal-add-article">+ Thêm điều khoản</button>
             </section>
             <section data-step="2" aria-labelledby="review-title" hidden>
               <h2 id="review-title" tabindex="-1">3. Xem lại &amp; gửi</h2>
               <dl class="offtake-facts" id="proposal-review"></dl>
               <div id="proposal-review-terms"></div>
-              <p class="offtake-note">Khi bấm Xác nhận và gửi, bạn xác nhận đúng bộ điều khoản đang hiển thị. Nhà cung cấp sẽ nhận đề xuất để phản hồi.</p>
+              <p class="offtake-note" id="proposal-send-note">Khi bấm Xác nhận và gửi, bạn xác nhận đúng bộ điều khoản đang hiển thị. Nhà cung cấp sẽ nhận đề xuất để phản hồi.</p>
             </section>
             <div class="offtake-actions">
-              <a href="contracts.html">Hủy</a>
+              <a id="proposal-cancel" href="contracts.html">Hủy</a>
               <button type="button" id="proposal-back" hidden>Quay lại</button>
               <button type="button" id="proposal-save" hidden>Lưu bản nháp</button>
               <button type="submit" class="primary" id="proposal-next">Tiếp theo →</button>
@@ -96,7 +109,6 @@
             </section>
           </aside>
         </div>
-        <section class="panel offtake-card" id="revision-panel" hidden></section>
       </main>
     </div>
   </div>

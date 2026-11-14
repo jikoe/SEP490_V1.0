@@ -15,6 +15,8 @@ async function loadProposal() {
     const detail = await request('/farmer/offtake-proposals/' + id);
     panel.innerHTML = detailMarkup(detail);
     panel.hidden = false;
+    byId('farmer-proposal-contract').href = 'offtake-contracts.html?id=' + id;
+    byId('farmer-proposal-actions').hidden = false;
     notice(message, '');
   } catch (error) {
     if (error.status === 401) signIn();

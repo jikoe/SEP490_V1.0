@@ -3,17 +3,33 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 
 namespace AgriSustain.Application.Services;
 
 public sealed class OfftakeContractRules
 {
+    public const string AmendmentHeading = "\n\nĐề xuất sửa đổi:\n";
+    public const string DepositTitle = "Đặt cọc";
+    public static (string Terms, string? Changes) SplitAmendment(string terms)
+    {
+        var start = terms.IndexOf(AmendmentHeading, StringComparison.Ordinal);
+        return start < 0 ? (terms, null) : (terms[..start],
+            terms[(terms.LastIndexOf(AmendmentHeading, StringComparison.Ordinal) + AmendmentHeading.Length)..]);
+    }
     public static bool Verified(string status) => status is "Success" or "Successful" or "Succeeded" or "Paid" or "Completed";
     public static bool IsProcessedPayout(FarmerPayout payout) => payout.PayoutStatus is "Processed" or "Paid"
         && payout.ProcessedAt.HasValue && !string.IsNullOrWhiteSpace(payout.BankTransferRef);
     public static bool OpenDispute(DisputeTicket ticket) => ticket.TicketStatus is not ("Resolved" or "Closed" or "Rejected");
+    public static bool CanInspect(Shipment shipment) => shipment.ShippedAt.HasValue && !shipment.ReceivedAt.HasValue
+        && shipment.ShipmentStatus is ("InTransit" or "Shipping" or "Delivered")
+        && shipment.ShipmentItems.Count > 0
+        && shipment.ShipmentItems.All(item => item.ReceivedQuantity == null && item.ReconciliationStatus == "Pending");
     public static bool Confirmed(ContractSignature signature) => signature.ConfirmationStatus == "Confirmed" && signature.ConfirmedAt.HasValue;
+    public static bool CanConfirmProposal(ContractVersion version, long farmerUserId) =>
+        version.ProposedByUserId != farmerUserId || version.ContractSignatures.Any(x =>
+            (x.PartyRole is "WholesaleBuyer" or "Buyer") && Confirmed(x));
     public static ContractVersion Current(OfftakeContext context) => context.Contract.ContractVersions.Single(x => x.VersionNo == context.Contract.CurrentVersionNo);
     public static IEnumerable<ContractLine> Lines(OfftakeContext context) => Current(context).ContractLines;
     public static IEnumerable<ContractMilestone> Milestones(OfftakeContext context) => Current(context).ContractMilestones;
@@ -40,6 +56,7 @@ public sealed class OfftakeContractRules
         if (!seasonId.HasValue || version <= 0) return "MSG02";
         if (version != context.Contract.CurrentVersionNo) return "MSG163";
         if (context.Contract.Status is not ("PendingApproval" or "Proposed" or "Pending" or "PendingConfirmation" or "Negotiating" or "AwaitingDeposit")) return "MSG131";
+        if (!CanConfirmProposal(Current(context), context.Contract.FarmerProfile.UserId)) return "MSG131";
         var season = context.Seasons.SingleOrDefault(x => x.CropSeasonId == seasonId);
         var lines = Lines(context).ToList();
         if (season is null || lines.Count == 0 || lines.Any(x => x.ProductId != season.ProductId || x.UnitSnapshot != season.YieldUnit)
@@ -58,8 +75,36 @@ public sealed class OfftakeContractRules
             && DepositPaid(context) >= context.Contract.DepositAmount;
     }
 
-    public static decimal DepositPaid(OfftakeContext context) => context.Contract.PaymentTransactions
+    public static decimal DepositPaid(OfftakeContext context) => DepositPaid(context.Contract);
+
+    public static decimal DepositPaid(B2bcontract contract) => contract.PaymentTransactions
         .Where(x => x.PaymentPurpose.Contains("Deposit") && Verified(x.PaymentStatus) && x.PaidAt.HasValue).Sum(x => x.Amount);
+
+    public static ContractMilestone? PrepareDeposit(B2bcontract contract, ContractVersion version, DateTime signedAt)
+    {
+        var existing = version.ContractMilestones.SingleOrDefault(m => m.MilestoneType == ContractPaymentRules.DepositType);
+        if (existing is not null) return existing;
+
+        // The Offtake proposal has one delivery. The deposit and delivery together must equal its original value.
+        var milestones = version.ContractMilestones;
+        var delivery = milestones.Count == 1 ? milestones.Single() : null;
+        if (contract.DepositAmount <= 0 || DepositPaid(contract) != 0
+            || delivery is not { MilestoneType: "DeliveryAndPayment", PaidAmount: 0, PaymentStatus: "Unpaid" or "Pending" }
+            || delivery.Amount < contract.DepositAmount)
+            return null;
+
+        delivery.Amount -= contract.DepositAmount;
+        if (delivery.Amount == 0) delivery.PaymentStatus = ContractLineStatuses.Paid;
+        var deposit = new ContractMilestone
+        {
+            B2bcontractId = contract.B2bcontractId, MilestoneTitle = DepositTitle,
+            MilestoneType = ContractPaymentRules.DepositType, Amount = contract.DepositAmount,
+            DueDate = DateOnly.FromDateTime(signedAt.AddHours(7)),
+            FulfillmentStatus = "Pending", PaymentStatus = "Unpaid"
+        };
+        version.ContractMilestones.Add(deposit);
+        return deposit;
+    }
 
     public bool PreserveAcceptedCommitments(OfftakeContext context) =>
         !context.Contract.SellerOrders.SelectMany(x => x.Shipments).Any()
@@ -117,7 +162,8 @@ public sealed class OfftakeContractRules
         decimal verifiedReceipts = context.Contract.PaymentTransactions.Where(x => Verified(x.PaymentStatus) && x.PaidAt != null).Sum(x => x.Amount);
         decimal completedRefunds = context.Refunds.Where(x => Verified(x.RefundStatus) && x.ProcessedAt != null).Sum(x => x.Amount);
         if (invoiced > settled || invoiced > verifiedReceipts - completedRefunds) return false;
-        decimal applied = context.Contract.PaymentTransactions.SelectMany(x => x.ContractDepositAllocations).Sum(x => x.Amount);
+        decimal applied = context.Contract.PaymentTransactions.SelectMany(x => x.ContractDepositAllocations)
+            .Sum(x => x.PaymentInvoiceAllocations.Sum(a => a.Amount));
         decimal refunded = context.Refunds.Where(x => Verified(x.RefundStatus)).Sum(x => x.Amount);
         return DepositPaid(context) <= applied + refunded;
     }

@@ -10,10 +10,13 @@ public interface IOfftakeRepository
     Task<OfftakeProduct?> FindProductAsync(long farmerId, long productId, CancellationToken ct);
     Task<B2bcontract?> FindSubmissionAsync(long buyerId, string code, CancellationToken ct);
     Task<B2bcontract?> FindManagedAsync(long buyerId, long contractId, CancellationToken ct);
-    Task<bool> HasCommitmentsAsync(long contractId, CancellationToken ct);
+    Task<Shipment?> FindShipmentForInspectionAsync(long buyerId, long contractId, long shipmentId, CancellationToken ct);
+    Task<DisputeEvidence?> FindContractEvidenceAsync(long buyerUserId, long contractId, long evidenceId, CancellationToken ct);
+    Task<IReadOnlyList<OfftakeDiscrepancyReply>> DiscrepancyRepliesAsync(long contractId, long ticketId, CancellationToken ct);
+    Task<IReadOnlyList<long>> OfftakeReviewersAsync(CancellationToken ct);
+    Task<bool> HasCommitmentsAsync(long contractId, CancellationToken ct, bool editingRevision = false);
     Task<long> FarmerUserIdAsync(long farmerId, CancellationToken ct);
     void AddNotification(Notification notification);
-    Task<B2bcontract?> FindRevisionAsync(long buyerId, long contractId, CancellationToken ct);
     void Add(B2bcontract contract);
     Task<OfftakeTrackingPage> TrackAsync(long userId, bool orders, OfftakeTrackingQuery query,
         CancellationToken ct);

@@ -330,6 +330,21 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<IActorContext, CurrentActor>();
         builder.Services.AddScoped<IOfftakeRepository, OfftakeRepository>();
         builder.Services.AddScoped<IOfftakeService, OfftakeService>();
+        builder.Services.AddScoped<IFarmerOfftakeContractRepository, FarmerOfftakeContractRepository>();
+        builder.Services.AddSingleton<OfftakeContractRules>();
+        builder.Services.AddScoped<FarmerOfftakeContractService>();
+        builder.Services.AddScoped<FarmerBusinessInputFilter>();
+        builder.Services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
+        builder.Services.AddSingleton<IPaymentQrProvider, AgriSustain.Infrastructure.Payments.SePayQrProvider>();
+        builder.Services.AddScoped<AgriSustain.Application.Services.Finance.IContractPaymentRepository,
+            ContractPaymentRepository>();
+        builder.Services.AddScoped<AgriSustain.Application.Services.Finance.ContractPaymentService>();
+        builder.Services.AddScoped<AgriSustain.Application.Services.Finance.IContractPaymentService>(
+            s => s.GetRequiredService<AgriSustain.Application.Services.Finance.ContractPaymentService>());
+        builder.Services.AddScoped<IBankTransferHandler>(s =>
+            s.GetRequiredService<AgriSustain.Application.Services.Finance.ContractPaymentService>());
+        builder.Services.AddSingleton<IValidator<AgriSustain.Application.Services.Finance.ConfirmReceivedRequest>,
+            AgriSustain.Application.Services.Finance.ConfirmReceivedRequestValidator>();
         builder.Services.AddScoped<IUseCaseUnitOfWork, SqlUnitOfWork>();
         builder.Services.AddSingleton<IPersistenceErrorClassifier, PersistenceErrorClassifier>();
         builder.Services.AddSingleton(new AgriSustain.Application.Common.AccountNotificationSettings(null));

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AgriSustain.Application.DTOs.Offtake;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Services;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -40,30 +41,58 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
                 && x.ContractNumber == code, ct);
 
     public Task<B2bcontract?> FindManagedAsync(long buyerId, long contractId, CancellationToken ct) =>
-        db.B2bcontracts.Include(x => x.ContractVersions).ThenInclude(x => x.ContractSignatures)
-            .Include(x => x.ContractLines).Include(x => x.ContractMilestones).AsSplitQuery()
+        db.B2bcontracts.Include(x => x.FarmerProfile)
+            .Include(x => x.ContractVersions).ThenInclude(x => x.ContractSignatures)
+            .Include(x => x.ContractVersions).ThenInclude(x => x.ContractLines)
+            .Include(x => x.ContractVersions).ThenInclude(x => x.ContractMilestones).ThenInclude(m => m.Invoices)
+            .Include(x => x.PaymentTransactions).AsSplitQuery()
             .SingleOrDefaultAsync(x => x.WholesaleBuyerProfileId == buyerId
                 && x.B2bcontractId == contractId, ct);
 
-    public Task<bool> HasCommitmentsAsync(long contractId, CancellationToken ct) =>
-        db.B2bcontracts.AnyAsync(x => x.B2bcontractId == contractId
-            && (x.SignedDate != null || x.DigitalSignatureStatus == "FullySigned"
+    public Task<bool> HasCommitmentsAsync(long contractId, CancellationToken ct, bool editingRevision = false) =>
+        ContractsWithCommitments(editingRevision).AnyAsync(x => x.B2bcontractId == contractId, ct);
+
+    public Task<Shipment?> FindShipmentForInspectionAsync(long buyerId, long contractId, long shipmentId,
+        CancellationToken ct) =>
+        db.Shipments.Include(s => s.SellerOrder).ThenInclude(o => o.Order)
+            .Include(s => s.SellerOrder).ThenInclude(o => o.DisputeTickets).ThenInclude(t => t.DisputeEvidences)
+            .Include(s => s.ShipmentItems).ThenInclude(i => i.OrderItemBatchAllocation).ThenInclude(a => a.OrderItem)
+            .Include(s => s.ContractMilestone).ThenInclude(m => m!.ContractVersion).ThenInclude(v => v.B2bcontract)
+            .Include(s => s.ContractMilestone).ThenInclude(m => m!.ContractVersion).ThenInclude(v => v.ContractLines)
+            .Include(s => s.ContractMilestone).ThenInclude(m => m!.Invoices)
+            .Include(s => s.ContractMilestone).ThenInclude(m => m!.ContractDepositAllocations).ThenInclude(a => a.PaymentTransaction)
+            .Include(s => s.ContractMilestone).ThenInclude(m => m!.Shipments).ThenInclude(s => s.ShipmentItems)
+                .ThenInclude(i => i.OrderItemBatchAllocation).ThenInclude(a => a.OrderItem)
+            .AsSplitQuery().SingleOrDefaultAsync(s => s.ShipmentId == shipmentId
+                && s.SellerOrder.B2bcontractId == contractId && s.ContractMilestone != null
+                && s.ContractMilestone.B2bcontractId == contractId
+                && s.ContractMilestone.ContractVersion.B2bcontract.WholesaleBuyerProfileId == buyerId
+                && s.SellerOrder.Order.BuyerUserId == s.ContractMilestone.ContractVersion.B2bcontract.WholesaleBuyerProfile.UserId, ct);
+
+    public Task<DisputeEvidence?> FindContractEvidenceAsync(long buyerUserId, long contractId, long evidenceId,
+        CancellationToken ct) =>
+        db.DisputeEvidences.AsNoTracking().Where(e => e.DisputeEvidenceId == evidenceId
+            && (e.DisputeTicket.B2bcontractId == contractId || e.DisputeTicket.SellerOrder!.B2bcontractId == contractId)
+            && Contracts(buyerUserId).Any(c => c.B2bcontractId == contractId)).SingleOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyList<OfftakeDiscrepancyReply>> DiscrepancyRepliesAsync(long contractId,
+        long ticketId, CancellationToken ct) => Replies(await db.AuditLogs.AsNoTracking()
+            .Where(a => a.EntityType == "FarmerOfftakeContract" && a.EntityId == contractId && a.Action == "Discrepancy")
+            .OrderByDescending(a => a.OccurredAt).ThenByDescending(a => a.AuditLogId).ToListAsync(ct), ticketId);
+
+    public async Task<IReadOnlyList<long>> OfftakeReviewersAsync(CancellationToken ct) =>
+        await db.Users.Where(u => u.Status == "Active" && u.Role == "CustomerSupport")
+            .Select(u => u.UserId).ToListAsync(ct);
+
+    private IQueryable<B2bcontract> ContractsWithCommitments(bool editingRevision) =>
+        db.B2bcontracts.Where(x => x.SignedDate != null || x.DigitalSignatureStatus == "FullySigned"
                 || x.PaymentTransactions.Any() || x.SellerOrders.Any()
                 || x.ContractMilestones.Any(m => m.DeliveredQuantity > 0 || m.PaidAmount > 0
                     || m.Invoices.Any() || m.Shipments.Any())
                 || x.ContractVersions.Any(v => v.VersionStatus == "Signed"
-                    || v.ContractSignatures.Any(s => s.PartyRole == "Farmer"
-                        && s.ConfirmationStatus == "Confirmed"))), ct);
-
-    public Task<B2bcontract?> FindRevisionAsync(long buyerId, long contractId,
-        CancellationToken ct) =>
-        db.B2bcontracts.Include(x => x.FarmerProfile).Include(x => x.ContractVersions
-                .Where(v => v.VersionNo > 1)).ThenInclude(x => x.ContractSignatures)
-            .Include(x => x.PaymentTransactions.Where(p => p.PaymentPurpose == "ContractDeposit"
-                && p.PaymentStatus == "Succeeded" && p.PaidAt != null))
-            .AsSplitQuery()
-            .SingleOrDefaultAsync(x => x.WholesaleBuyerProfileId == buyerId
-                && x.B2bcontractId == contractId, ct);
+                    || ((!editingRevision || v.ProposedByUserId != x.FarmerProfile.UserId)
+                        && v.ContractSignatures.Any(s => s.PartyRole == "Farmer"
+                            && s.ConfirmationStatus == "Confirmed"))));
 
     public void Add(B2bcontract contract) => db.B2bcontracts.Add(contract);
 
@@ -133,7 +162,13 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
             details = details.Include(x => x.SellerOrders.Where(o => o.Order.BuyerUserId == userId))
                 .ThenInclude(x => x.Invoices)
                 .Include(x => x.SellerOrders.Where(o => o.Order.BuyerUserId == userId))
-                .ThenInclude(x => x.Shipments);
+                .ThenInclude(x => x.Shipments).ThenInclude(s => s.ShipmentItems)
+                .ThenInclude(i => i.OrderItemBatchAllocation).ThenInclude(a => a.HarvestBatch)
+                .Include(x => x.SellerOrders.Where(o => o.Order.BuyerUserId == userId))
+                .ThenInclude(x => x.Shipments).ThenInclude(s => s.ContractMilestone)
+                .Include(x => x.SellerOrders.Where(o => o.Order.BuyerUserId == userId))
+                .ThenInclude(x => x.Shipments).ThenInclude(s => s.ShipmentItems)
+                .ThenInclude(i => i.OrderItemBatchAllocation).ThenInclude(a => a.OrderItem);
         }
         var contract = await details.SingleOrDefaultAsync(ct);
         if (contract is null)
@@ -152,9 +187,9 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
                 displayUnit is null ? null : x.CommittedQuantity / displayUnit.Factor,
                 displayUnit?.Unit)).ToList();
         var orderedMilestones = contract.ContractMilestones.OrderBy(x => x.DueDate).ToList();
-        var milestones = orderedMilestones.Where(x => version is null
+        var milestones = orderedMilestones.Where(x => x.DeliveryQuantity != null && (version is null
                 || x.ContractVersionId == version.ContractVersionId
-                || x.DeliveredQuantity > 0 || x.Invoices.Count > 0)
+                || x.DeliveredQuantity > 0 || x.Invoices.Count > 0))
             .Select(Delivery).ToList();
         var invoices = contract.ContractMilestones.SelectMany(x => x.Invoices)
             .Concat(contract.SellerOrders.SelectMany(x => x.Invoices));
@@ -166,16 +201,39 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
             : contract.FarmerProfile.FarmName;
         var farmer = contract.FarmerProfile;
         var buyer = contract.WholesaleBuyerProfile;
+        var (terms, proposedChanges) = version is null ? (null, null)
+            : OfftakeContractRules.SplitAmendment(version.TermsAndConditions);
+        var history = forFarmer ? [] : await db.AuditLogs.AsNoTracking()
+            .Where(a => a.EntityType == "FarmerOfftakeContract" && a.EntityId == id
+                && (a.Action == "Delay" || a.Action == "Discrepancy" || a.Action == "Review"))
+            .OrderByDescending(a => a.OccurredAt).ThenByDescending(a => a.AuditLogId).ToListAsync(ct);
+        var relatedTickets = forFarmer ? [] : await db.DisputeTickets.AsNoTracking().Where(t =>
+                t.DisputeReason == "ContractDeliveryDiscrepancy"
+                && t.B2bcontractId == id && t.SellerOrder!.Order.BuyerUserId == userId)
+            .Include(t => t.DisputeEvidences).OrderByDescending(t => t.CreatedAt).ToListAsync(ct);
         return new(contract.ContractNumber, contract.Status, partner,
-            version?.VersionNo, version?.TermsAndConditions, contract.PaymentTerms,
+            version?.VersionNo, terms, contract.PaymentTerms,
             contract.DepositAmount, contract.ValidFrom, contract.ValidUntil, lines, milestones,
-            Shipments(contract.SellerOrders), Invoices(invoices), confirmations,
-            !forFarmer && version is { VersionNo: > 1, VersionStatus: "Pending" }
-                && version.ProposedByUserId == contract.FarmerProfile.UserId
-                && contract.Status is not ("Rejected" or "Cancelled" or "Terminated" or "Completed")
-                && !confirmations.Any(x => x.Role is "WholesaleBuyer" or "Buyer"
-                    && x.Status == "Confirmed"))
+            Shipments(contract.SellerOrders, version, contract.Status == "Active"), Invoices(invoices, contract), confirmations)
         {
+            Production = forFarmer ? [] : await ProductionAsync(versionLines, ct),
+            DeliveryEvents = history.Where(a => a.Action == "Delay").Select(a =>
+            {
+                var input = ReadAction<ContractDelayRequest>(a);
+                return new OfftakeContractEvent(a.Action, a.OccurredAt, a.Reason, input?.ProposedDate, input?.Quantity);
+            }).ToList(),
+            Discrepancies = relatedTickets.Select(t => new OfftakeDiscrepancy(t.DisputeTicketId, t.SellerOrderId,
+                t.TicketStatus, t.Description, t.ResolutionNotes,
+                Replies(history, t.DisputeTicketId),
+                t.DisputeEvidences.OrderBy(e => e.SubmittedAt).Select(e =>
+                    new OfftakeEvidence(e.DisputeEvidenceId, e.SubmittedByUserId == userId, e.Description)).ToList())).ToList(),
+            FeedbackReason = version?.FeedbackReason,
+            ProposedChanges = contract.Status == "Rejected" ? null : proposedChanges,
+            CanEditRevision = !forFarmer && contract.Status is ("Negotiating" or "UnderNegotiation")
+                && version is { VersionStatus: "Pending" }
+                && version.ProposedByUserId == farmer.UserId
+                && !confirmations.Any(x => (x.Role is "WholesaleBuyer" or "Buyer") && x.Status == "Confirmed")
+                && !await HasCommitmentsAsync(id, ct, editingRevision: true),
             Document = forFarmer ? null : new(
                 new(farmer.FarmName, farmer.RepresentativeName, farmer.Address, null),
                 new(buyer.CompanyName, buyer.RepresentativeName, buyer.BusinessAddress, buyer.TaxCode),
@@ -183,6 +241,45 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
                     && x.DeliveryQuantity > 0).Select(Delivery).ToList(),
                 version?.CreatedAt ?? contract.CreatedAt)
         };
+    }
+
+    private static List<OfftakeDiscrepancyReply> Replies(IEnumerable<AuditLog> history, long ticketId) =>
+        history.Where(a => a.Action == "Discrepancy").Select(a => (Log: a, Input: ReadAction<ContractDiscrepancyResponseRequest>(a)))
+            .Where(x => x.Input?.TicketId == ticketId)
+            .Select(x => new OfftakeDiscrepancyReply(x.Input!.ShipmentItemId, x.Input.ProposedQuantity,
+                x.Input.ProposedResolution, x.Log.Reason, DateTime.SpecifyKind(x.Log.OccurredAt, DateTimeKind.Utc))).ToList();
+
+    private async Task<IReadOnlyList<OfftakeSeasonProgress>> ProductionAsync(List<ContractLine> lines, CancellationToken ct)
+    {
+        var seasonIds = lines.Where(l => l.CropSeasonId.HasValue).Select(l => l.CropSeasonId!.Value).Distinct().ToArray();
+        if (seasonIds.Length == 0) return [];
+        var seasons = await db.CropSeasons.AsNoTracking().Where(s => seasonIds.Contains(s.CropSeasonId))
+            .Include(s => s.Product).Include(s => s.HarvestBatches)
+            .Include(s => s.CultivationLogs.OrderByDescending(l => l.ActionDate)
+                .ThenByDescending(l => l.CultivationLogId).Take(5)).AsSplitQuery().ToListAsync(ct);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
+        return seasons.Select(s => new OfftakeSeasonProgress(s.Product.ProductName, s.SeasonName, s.Status,
+            s.EstimatedHarvestDate, s.ActualHarvestDate,
+            s.HarvestBatches.Where(b => b.ActualHarvestDate.HasValue).Sum(b => b.HarvestYield), s.YieldUnit,
+            s.ActualHarvestDate is null && s.EstimatedHarvestDate < today
+                && s.Status is not ("Cancelled" or "Crop Failure" or "Completed"),
+            s.CultivationLogs.OrderByDescending(l => l.ActionDate).Select(l =>
+                new OfftakeProductionLog(l.ActionDate, l.ActionType, l.DetailDescription)).ToList())).ToList();
+    }
+
+    private static T? ReadAction<T>(AuditLog log)
+    {
+        if (log.NewValue is null) return default;
+        try
+        {
+            using var json = JsonDocument.Parse(log.NewValue);
+            return json.RootElement.ValueKind == JsonValueKind.Object && json.RootElement.TryGetProperty("Input", out var input)
+                ? input.Deserialize<T>() : default;
+        }
+        catch (JsonException)
+        {
+            return default;
+        }
     }
 
     private static OfftakeDelivery Delivery(ContractMilestone milestone) =>
@@ -245,8 +342,10 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
             && s_wholesaleOrderTypes.Contains(x.OrderType));
 
     private IQueryable<OfftakeTrackingRow> ContractRows(long userId, string? keyword,
-        string? product) =>
-        from contract in Contracts(userId)
+        string? product)
+    {
+        var committed = ContractsWithCommitments(editingRevision: true);
+        return from contract in Contracts(userId)
         where string.IsNullOrEmpty(keyword) || contract.ContractNumber.Contains(keyword)
             || contract.FarmerProfile.FarmName.Contains(keyword)
         let lines = contract.ContractLines.Where(x =>
@@ -270,8 +369,16 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
             Value = lines.Any() && !lines.Any(x => x.AgreedPrice == null)
                 ? lines.Sum(x => x.CommittedQuantity * x.AgreedPrice) : null,
             CreatedAt = contract.CreatedAt, DeliveryFrom = milestones.Min(x => (DateOnly?)x.DueDate),
-            DeliveryTo = milestones.Max(x => (DateOnly?)x.DueDate), Status = contract.Status
+            DeliveryTo = milestones.Max(x => (DateOnly?)x.DueDate), Status = contract.Status,
+            CanEditRevision = (contract.Status == "Negotiating" || contract.Status == "UnderNegotiation")
+                && contract.ContractVersions.Any(v => v.VersionNo == contract.CurrentVersionNo
+                    && v.ProposedByUserId == contract.FarmerProfile.UserId
+                    && v.VersionStatus == "Pending" && !v.ContractSignatures.Any(s =>
+                        (s.PartyRole == "WholesaleBuyer" || s.PartyRole == "Buyer")
+                        && s.ConfirmationStatus == "Confirmed"))
+                && !committed.Any(x => x.B2bcontractId == contract.B2bcontractId)
         };
+    }
 
     private IQueryable<OfftakeTrackingRow> OrderRows(long userId, string? keyword, string? product) =>
         from order in Orders(userId)
@@ -306,13 +413,33 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
             x.ProductImages.OrderByDescending(i => i.IsPrimary).ThenBy(i => i.DisplayOrder)
                 .ThenBy(i => i.ProductImageId).Select(i => i.ImageUrl).FirstOrDefault()));
 
-    private static List<OfftakeInvoice> Invoices(IEnumerable<Invoice> invoices) =>
+    private static List<OfftakeInvoice> Invoices(IEnumerable<Invoice> invoices, B2bcontract? contract = null) =>
         invoices.DistinctBy(x => x.InvoiceId).OrderBy(x => x.IssuedAt)
             .Select(x => new OfftakeInvoice(x.InvoiceNumber, x.IssuedAt,
-                x.DueAt, x.TotalAmount, x.InvoiceStatus)).ToList();
+                x.DueAt, x.TotalAmount, x.InvoiceStatus)
+            {
+                MilestoneId = x.ContractMilestoneId,
+                CanPay = contract?.Status == "Active" && x.InvoiceNumber.StartsWith("OFT-INV-", StringComparison.Ordinal)
+                    && x.ContractMilestone is { } m && m.ContractVersionId == contract.ContractVersions
+                        .SingleOrDefault(v => v.VersionNo == contract.CurrentVersionNo)?.ContractVersionId
+                    && m.Amount > m.PaidAmount && x.InvoiceStatus is ("Issued" or "PartiallyPaid")
+            }).ToList();
 
-    private static List<OfftakeShipment> Shipments(IEnumerable<SellerOrder> orders) =>
+    private static List<OfftakeShipment> Shipments(IEnumerable<SellerOrder> orders, ContractVersion? version = null,
+        bool active = false) =>
         orders.SelectMany(x => x.Shipments).OrderBy(x => x.ShipmentId)
             .Select(x => new OfftakeShipment(x.TrackingNumber, x.PlannedDeliveryAt,
-                x.ShippedAt, x.DeliveredAt, x.ShipmentStatus)).ToList();
+                x.ShippedAt, x.DeliveredAt, x.ShipmentStatus)
+            {
+                Id = x.ShipmentId, SellerOrderId = x.SellerOrderId,
+                CanInspect = active && version != null && x.ContractMilestone?.ContractVersionId == version.ContractVersionId
+                    && OfftakeContractRules.CanInspect(x),
+                Items = x.ShipmentItems.Select(i =>
+                {
+                    var allocation = i.OrderItemBatchAllocation;
+                    return new OfftakeShipmentLine(i.ShipmentItemId, allocation.OrderItem.ProductNameSnapshot ?? "Sản phẩm",
+                        allocation.HarvestBatch.BatchCode, allocation.OrderItem.UnitSnapshot, i.ShippedQuantity,
+                        i.ReceivedQuantity, i.AcceptedQuantity, i.QualityResult, i.ReconciliationStatus);
+                }).ToList()
+            }).ToList();
 }

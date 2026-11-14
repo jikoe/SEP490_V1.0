@@ -1,5 +1,5 @@
 import { esc, icon, localTime, money, request, safeUrl } from './page-ui.js';
-import { contractArticles, readContractTerms } from './offtake-terms.js';
+import { readContractTerms } from './offtake-terms.js';
 
 export const byId = id => document.getElementById(id);
 export const number = value => value == null ? '—' : Number(value).toLocaleString('vi-VN');
@@ -43,6 +43,15 @@ const statuses = {
   Paid: ['Đã thanh toán', 'green'],
   Delivered: ['Đã giao', 'green'],
   Received: ['Đã nhận', 'green'],
+  Accepted: ['Đã nghiệm thu', 'green'],
+  Disputed: ['Có chênh lệch', 'red'],
+  Resolved: ['Đã xử lý', 'green'],
+  Open: ['Chờ phản hồi', 'warm'],
+  UnderReview: ['Đang xem xét', 'blue'],
+  Issued: ['Đã phát hành', 'blue'],
+  PartiallyPaid: ['Thanh toán một phần', 'warm'],
+  Growing: ['Đang chăm sóc', 'green'],
+  Harvesting: ['Đang thu hoạch', 'green'],
   Shipped: ['Đã gửi hàng', 'blue'],
   PendingPayment: ['Chờ thanh toán', 'warm'],
   Shipping: ['Đang giao hàng', 'blue'],
@@ -64,15 +73,12 @@ export function notice(element, message, isError = false) {
   element.setAttribute('role', isError ? 'alert' : 'status');
 }
 
-export function termsMarkup(terms, paymentTerms, showEmpty = false, articleFacts = {}) {
-  const values = readContractTerms(terms, paymentTerms);
-  const articles = contractArticles.filter(([, field]) => showEmpty || values[field])
-    .map(([title, field]) => '<h4>' + esc(title) + '</h4>'
-      + (articleFacts[field] ? '<dl class="offtake-facts">' + facts(articleFacts[field]) + '</dl>' : '')
-      + '<p>' + esc(values[field] || 'Chưa nhập nội dung bổ sung') + '</p>').join('');
-  const revision = values.revisionTerms ? '<p>' + esc(values.revisionTerms) + '</p>' : '';
-  return articles || revision ? '<section class="offtake-terms"><h3>Điều khoản hợp đồng</h3>'
-    + articles + revision + '</section>' : '';
+export function termsMarkup(terms, paymentTerms) {
+  const articles = readContractTerms(terms, paymentTerms)
+    .map(({ title, body }, index) => '<h4>Điều ' + (index + 1) + ': ' + esc(title) + '</h4>'
+      + '<p>' + esc(body || 'Chưa nhập nội dung bổ sung') + '</p>').join('');
+  return articles ? '<section class="offtake-terms"><h3>Điều khoản hợp đồng</h3>'
+    + articles + '</section>' : '';
 }
 
 export function detailMarkup(detail) {
@@ -81,15 +87,17 @@ export function detailMarkup(detail) {
     info.push(['Phiên bản', detail.version], ['Hiệu lực', dateRange(detail.validFrom, detail.validUntil)],
       ['Tiền cọc', money(detail.deposit)]);
   }
+  const feedback = [];
+  if (detail.feedbackReason) feedback.push([
+    detail.status === 'Rejected' ? 'Lý do từ chối' : 'Lý do đề nghị sửa', detail.feedbackReason,
+  ]);
+  if (detail.proposedChanges) feedback.push(['Nội dung đề nghị thay đổi', detail.proposedChanges]);
   return '<h3>' + esc(detail.code) + '</h3><dl class="offtake-facts">' + facts(info) + '</dl>'
     + detailTable('Sản phẩm', ['Sản phẩm', 'Số lượng', 'Giá / cơ chế giá'], detail.lines.map(line =>
       [line.product, number(line.quantity) + ' ' + line.unit, line.priceFormula || money(line.unitPrice)]))
     + (detail.version == null ? '' : termsMarkup(detail.terms, detail.paymentTerms))
-    + (detail.version == null ? '' : detailTable('Xác nhận điều khoản', ['Bên xác nhận', 'Thời điểm', 'Trạng thái'],
-      detail.confirmations.map(item => [
-        ({ Buyer: 'Bên mua', WholesaleBuyer: 'Bên mua', Farmer: 'Nhà cung cấp' })[item.role] || item.role,
-        localTime(item.confirmedAt), statusName(item.status),
-      ])))
+    + (feedback.length ? '<section><h3>Phản hồi của nông dân</h3><dl class="offtake-facts">'
+      + facts(feedback) + '</dl></section>' : '')
     + (detail.version == null ? '' : detailTable('Mốc giao hàng',
       ['Mốc', 'Ngày dự kiến', 'Cam kết', 'Đã giao', 'Đã chấp nhận', 'Tiến độ', 'Thanh toán'],
       detail.milestones.map(item => [item.title, date(item.dueDate), number(item.quantity),

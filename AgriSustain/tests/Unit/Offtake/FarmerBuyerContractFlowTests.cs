@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Offtake;
 using AgriSustain.Application.Interfaces;
@@ -75,42 +76,92 @@ public sealed class FarmerBuyerContractFlowTests
     }
 
     [Theory]
-    [InlineData(true)]
     [InlineData(false)]
-    public async Task FarmerRevision_CanBeConfirmedByBothPartiesInEitherOrder(bool buyerFirst)
+    [InlineData(true)]
+    public async Task BuyerCanEditFarmerRevisionAndSendNewTermsForConfirmation(bool legacyFarmerConfirmation)
     {
         var store = new FlowStore();
         await store.Submit();
-        var changed = await store.Farmer.RequestAmendmentAsync(7, 10, new AmendContractRequest
+        const string requestedChanges = "Giao nhận tại kho của nông trại.";
+        const string reason = "Nông trại cần đổi địa điểm giao nhận.";
+        var amendment = await store.Farmer.RequestAmendmentAsync(7, 10, new AmendContractRequest
         {
             ExpectedVersion = store.Version,
             RequestKey = Guid.NewGuid().ToString(),
-            Reason = "Điều chỉnh địa điểm giao nhận theo yêu cầu của nông trại.",
-            ProposedChanges = "Giao nhận tại kho nông trại đã thống nhất."
+            Reason = reason,
+            ProposedChanges = requestedChanges
         }, default);
-        Assert.True(changed.IsSuccess, changed.Error?.Message);
-        Assert.Equal("Pending", store.Current.VersionStatus);
-        Assert.Empty(store.Current.ContractSignatures);
-        Assert.Equal(1, store.Contract.ContractVersions.First().VersionNo);
-        Assert.Single(store.Contract.ContractVersions.First().ContractSignatures);
+        Assert.True(amendment.IsSuccess, amendment.Error?.Message);
+        var farmerVersion = store.Current;
+        if (legacyFarmerConfirmation)
+            farmerVersion.ContractSignatures.Add(new ContractSignature
+            {
+                PartyRole = "Farmer", SignedByUserId = 7, ConfirmationStatus = "Confirmed",
+                ConfirmedAt = DateTime.UtcNow
+            });
+        var staleConfirmation = store.Confirmation();
 
-        if (buyerFirst)
-        {
-            Assert.True((await store.Buyer.ConfirmRevisionAsync(10, 2, default)).Success);
-            Assert.Equal("Negotiating", store.Contract.Status);
-            Assert.True((await store.Farmer.ConfirmTermsAsync(7, 10, store.Confirmation(), default)).IsSuccess);
-        }
-        else
-        {
-            Assert.True((await store.Farmer.ConfirmTermsAsync(7, 10, store.Confirmation(), default)).IsSuccess);
-            Assert.Equal("Negotiating", store.Contract.Status);
-            Assert.True((await store.Buyer.ConfirmRevisionAsync(10, 2, default)).Success);
-        }
+        var loaded = await store.Buyer.DraftAsync(10, default);
+        Assert.True(loaded.Success, loaded.Message);
+        var draft = Assert.IsType<OfftakeDraft>(loaded.Data);
+        Assert.Equal(2, draft.Version);
+        Assert.Equal(reason, draft.RevisionReason);
+        Assert.Equal(requestedChanges, draft.RevisionChanges);
+        Assert.DoesNotContain(requestedChanges, draft.Proposal.DeliveryTerms!);
+        var revised = draft.Proposal with { Quantity = 12, UnitPrice = 11000, PaymentTerms = "Thanh toán trong 7 ngày." };
+        Assert.Equal(409, (await store.Buyer.UpdateDraftAsync(10, draft.Version, revised, false, default)).StatusCode);
+        Assert.Equal(409, (await store.Buyer.UpdateDraftAsync(10, draft.Version,
+            revised with { ProductId = 3 }, true, default)).StatusCode);
+        Assert.Same(farmerVersion, store.Current);
 
+        var sent = await store.Buyer.UpdateDraftAsync(10, draft.Version, revised, true, default);
+        Assert.True(sent.Success, sent.Message);
+        Assert.Equal(3, store.Current.VersionNo);
+        Assert.Equal("PendingApproval", store.Contract.Status);
+        Assert.Equal(9, store.Current.ProposedByUserId);
+        Assert.Equal("WholesaleBuyer", Assert.Single(store.Current.ContractSignatures).PartyRole);
+        Assert.Contains(requestedChanges, farmerVersion.TermsAndConditions);
+        Assert.Equal(reason, farmerVersion.FeedbackReason);
+        Assert.Equal(10, Assert.Single(farmerVersion.ContractLines).CommittedQuantity);
+        Assert.Equal(12, Assert.Single(store.Current.ContractLines).CommittedQuantity);
+        Assert.Equal(132000, store.Milestone.Amount);
+        Assert.Equal(revised.PaymentTerms, store.Contract.PaymentTerms);
+        Assert.True((await store.Buyer.UpdateDraftAsync(10, draft.Version, revised, true, default)).Success);
+        Assert.Equal(3, store.Contract.ContractVersions.Count);
+        Assert.Equal(2, store.Notices.Count(x => x.UserId == 7 && x.PayloadJson!.Contains("offtake-proposal:10:3")));
+        Assert.False((await store.Farmer.ConfirmTermsAsync(7, 10, staleConfirmation, default)).IsSuccess);
+        Assert.True((await store.Farmer.ConfirmTermsAsync(7, 10, store.Confirmation(), default)).IsSuccess);
         Assert.Equal("Active", store.Contract.Status);
-        Assert.Equal("Signed", store.Current.VersionStatus);
-        Assert.Equal(2, store.Current.ContractSignatures.Count(x => x.ConfirmationStatus == "Confirmed"));
-        Assert.Equal(2, store.Current.VersionNo);
+    }
+
+    [Fact]
+    public async Task SecondFarmerAmendmentShowsOnlyLatestFeedbackAndWaitsForBuyer()
+    {
+        var store = new FlowStore();
+        await store.Submit();
+        var original = store.Current.TermsAndConditions;
+        async Task Amend(string reason, string changes) =>
+            Assert.True((await store.Farmer.RequestAmendmentAsync(7, 10, new AmendContractRequest
+            {
+                ExpectedVersion = store.Version, RequestKey = Guid.NewGuid().ToString(),
+                Reason = reason, ProposedChanges = changes
+            }, default)).IsSuccess);
+
+        await Amend("Cần điều chỉnh do thay đổi lịch thu hoạch.", "Giao buổi sáng.");
+        await Amend("Cần điều chỉnh lại do lịch xe thay đổi.", "Giao buổi chiều.");
+
+        Assert.Equal(original + OfftakeContractRules.AmendmentHeading + "Giao buổi chiều.",
+            store.Current.TermsAndConditions);
+        var detail = await store.Farmer.GetContextAsync(7, 10, default);
+        Assert.True(detail.IsSuccess);
+        var payload = JsonSerializer.SerializeToElement(detail.Value);
+        Assert.Equal("Cần điều chỉnh lại do lịch xe thay đổi.", payload.GetProperty("FeedbackReason").GetString());
+        Assert.Equal("Giao buổi chiều.", payload.GetProperty("proposedChanges").GetString());
+        Assert.False((await store.Farmer.ConfirmTermsAsync(7, 10, store.Confirmation(), default)).IsSuccess);
+        Assert.Empty(store.Current.ContractSignatures);
+        var draft = Assert.IsType<OfftakeDraft>((await store.Buyer.DraftAsync(10, default)).Data);
+        Assert.Equal("Giao buổi chiều.", draft.RevisionChanges);
+        Assert.Equal(original, draft.Proposal.DeliveryTerms);
     }
 
     [Fact]
@@ -126,6 +177,9 @@ public sealed class FarmerBuyerContractFlowTests
         }, default);
         Assert.True(rejected.IsSuccess, rejected.Error?.Message);
         Assert.Equal("Rejected", store.Contract.Status);
+        var detail = JsonSerializer.SerializeToElement((await store.Farmer.GetContextAsync(7, 10, default)).Value);
+        Assert.Equal("Nông trại không đủ năng lực cung ứng theo lịch đề xuất.",
+            detail.GetProperty("FeedbackReason").GetString());
     }
 
     [Fact]
@@ -136,6 +190,9 @@ public sealed class FarmerBuyerContractFlowTests
         var confirmed = await store.Farmer.ConfirmTermsAsync(7, 10, store.Confirmation(), default);
         Assert.True(confirmed.IsSuccess, confirmed.Error?.Message);
         Assert.Equal("AwaitingDeposit", store.Contract.Status);
+        var deposit = Assert.Single(store.Current.ContractMilestones, m => m.MilestoneType == "Deposit");
+        Assert.Equal(10000, deposit.Amount);
+        Assert.Equal(90000, store.Milestone.Amount);
         var result = await store.Farmer.DispatchDeliveryAsync(7, 10, store.Dispatch(), default);
         Assert.False(result.IsSuccess);
         Assert.Empty(store.Contract.SellerOrders);
@@ -164,7 +221,7 @@ public sealed class FarmerBuyerContractFlowTests
         public B2bcontract Contract { get; private set; } = null!;
         public OfftakeContext Context { get; private set; } = null!;
         public ContractVersion Current => OfftakeContractRules.Current(Context);
-        public ContractMilestone Milestone => Assert.Single(Current.ContractMilestones);
+        public ContractMilestone Milestone => Assert.Single(Current.ContractMilestones, m => m.DeliveryQuantity > 0);
         public HarvestBatch Batch => Assert.Single(Context.Batches);
         public string Version => OfftakeContractRules.Version(Context);
         public List<Notification> Notices { get; } = [];
@@ -309,8 +366,15 @@ public sealed class FarmerBuyerContractFlowTests
         public Task<B2bcontract?> FindSubmissionAsync(long buyerId, string code, CancellationToken ct) =>
             Task.FromResult<B2bcontract?>(Contract?.ContractNumber == code ? Contract : null);
         public Task<B2bcontract?> FindManagedAsync(long buyerId, long contractId, CancellationToken ct) => Task.FromResult<B2bcontract?>(Contract);
-        public Task<B2bcontract?> FindRevisionAsync(long buyerId, long contractId, CancellationToken ct) => Task.FromResult<B2bcontract?>(Contract);
-        public Task<bool> HasCommitmentsAsync(long contractId, CancellationToken ct) => Task.FromResult(false);
+        public Task<Shipment?> FindShipmentForInspectionAsync(long buyerId, long contractId, long shipmentId,
+            CancellationToken ct) => throw new NotSupportedException();
+        public Task<DisputeEvidence?> FindContractEvidenceAsync(long buyerUserId, long contractId, long evidenceId,
+            CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<OfftakeDiscrepancyReply>> DiscrepancyRepliesAsync(long contractId, long ticketId,
+            CancellationToken ct) => throw new NotSupportedException();
+        public Task<IReadOnlyList<long>> OfftakeReviewersAsync(CancellationToken ct) => throw new NotSupportedException();
+        public Task<bool> HasCommitmentsAsync(long contractId, CancellationToken ct, bool editingRevision = false) =>
+            Task.FromResult(!editingRevision && Current.ContractSignatures.Any(x => x.PartyRole == "Farmer"));
         public Task<long> FarmerUserIdAsync(long farmerId, CancellationToken ct) => Task.FromResult(7L);
         public void AddNotification(Notification notification) => Notices.Add(notification);
         public Task<ITransaction> BeginAsync(CancellationToken ct) => Task.FromResult<ITransaction>(this);

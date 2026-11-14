@@ -1,4 +1,6 @@
+using System.Data;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Services;
 using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
@@ -101,18 +103,36 @@ public sealed class ContractPaymentRepository(AgriSustainContext db) : IContract
         db.PaymentTransactions.AsNoTracking().AnyAsync(p => p.TransactionCode == transactionCode, cancellationToken);
 
     public Task<bool> ReferenceUsedAsync(string gateway, string reference, CancellationToken cancellationToken) =>
-        db.PaymentTransactions.AsNoTracking().AnyAsync(p => p.GatewayProvider == gateway
-            && p.ProviderTransactionReference == reference, cancellationToken);
+        db.PaymentTransactions.AsNoTracking().AnyAsync(p => p.ProviderTransactionReference == reference
+            && (p.GatewayProvider == gateway || p.PaymentStatus == "Success"), cancellationToken);
 
-    public async Task RecordPaymentAsync(ContractPaymentWrite write, CancellationToken cancellationToken)
+    public async Task<bool> RecordPaymentAsync(ContractPaymentWrite write, CancellationToken cancellationToken)
     {
-        var line = await db.ContractMilestones.FirstAsync(m => m.ContractMilestoneId == write.LineId,
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        var contract = await db.B2bcontracts.FromSqlInterpolated(
+            $"SELECT * FROM dbo.B2BContract WITH (UPDLOCK,HOLDLOCK) WHERE B2BContractId = {write.ContractId}")
+            .SingleOrDefaultAsync(cancellationToken);
+        if (contract is null || !ContractPaymentRules.IsTracked(contract.Status)) return false;
+        var line = await db.ContractMilestones.SingleOrDefaultAsync(m => m.ContractMilestoneId == write.LineId
+            && m.B2bcontractId == write.ContractId && m.ContractVersion.VersionNo == contract.CurrentVersionNo,
             cancellationToken);
+        if (line is null || line.PaidAmount != write.NewPaidAmount - write.Amount || write.NewPaidAmount > line.Amount
+            || ContractLineStatuses.Normalize(line.PaymentStatus) == ContractLineStatuses.Paid)
+            return false;
+        if (line.MilestoneType == "DeliveryAndPayment" && line.DeliveryQuantity > 0
+            && !await db.Invoices.AnyAsync(i => i.ContractMilestoneId == write.LineId && i.InvoiceStatus != "Cancelled",
+                cancellationToken)) return false;
+        if (await db.PaymentTransactions.AnyAsync(p => p.TransactionCode == write.TransactionCode
+            || (write.ProviderReference != null && p.ProviderTransactionReference == write.ProviderReference
+                && (p.GatewayProvider == write.Gateway || p.PaymentStatus == "Success")), cancellationToken))
+            return false;
+
+        var isDeposit = ContractPaymentRules.IsDeposit(line.MilestoneType);
         string oldStatus = line.PaymentStatus;
         line.PaidAmount = write.NewPaidAmount;
         line.PaymentStatus = write.NewLineStatus;
 
-        db.PaymentTransactions.Add(new PaymentTransaction
+        var payment = new PaymentTransaction
         {
             B2bcontractId = write.ContractId,
             ContractMilestoneId = write.LineId,
@@ -123,27 +143,44 @@ public sealed class ContractPaymentRepository(AgriSustainContext db) : IContract
             PaymentStatus = "Success",
             WebhookPayload = write.RawPayload,
             PaidAt = write.PaidAt,
-            PaymentPurpose = ContractPaymentRules.PaymentPurpose,
+            PaymentPurpose = isDeposit ? ContractPaymentRules.DepositPurpose : ContractPaymentRules.PaymentPurpose,
             RequestedAt = write.Now,
             ReconciledAt = write.ActorUserId is null ? null : write.Now,
             RequestKey = Guid.NewGuid().ToString("N"),
             ProviderTransactionReference = string.IsNullOrWhiteSpace(write.ProviderReference)
                 ? null : write.ProviderReference.Trim()
-        });
+        };
+        db.PaymentTransactions.Add(payment);
+
+        if (isDeposit && line.MilestoneTitle == OfftakeContractRules.DepositTitle)
+        {
+            var delivery = await db.ContractMilestones.SingleOrDefaultAsync(m => m.ContractVersionId == line.ContractVersionId
+                && m.MilestoneType == "DeliveryAndPayment", cancellationToken);
+            if (delivery is not null)
+                payment.ContractDepositAllocations.Add(new ContractDepositAllocation
+                {
+                    ContractMilestone = delivery, Amount = write.Amount, CreatedAt = write.Now,
+                    RequestKey = Guid.NewGuid().ToString("N")
+                });
+        }
 
         // DBR-48: the invoice of the line follows its payment status.
         var invoices = await db.Invoices.Where(i => i.ContractMilestoneId == write.LineId)
             .ToListAsync(cancellationToken);
         foreach (var invoice in invoices)
         {
+            if (invoice.InvoiceNumber.StartsWith("OFT-INV-", StringComparison.Ordinal))
+                payment.PaymentInvoiceAllocations.Add(new PaymentInvoiceAllocation
+                {
+                    Invoice = invoice, Amount = write.Amount, CreatedAt = write.Now,
+                    RequestKey = Guid.NewGuid().ToString("N")
+                });
             invoice.InvoiceStatus = write.NewLineStatus == ContractLineStatuses.Paid ? "Paid" : "PartiallyPaid";
         }
 
-        if (write.ActivateContract)
+        if (write.ActivateContract && contract.Status == "AwaitingDeposit")
         {
-            var contract = await db.B2bcontracts.FirstAsync(c => c.B2bcontractId == write.ContractId,
-                cancellationToken);
-            if (contract.Status == "AwaitingDeposit") contract.Status = "Active";
+            contract.Status = "Active";
         }
 
         db.AuditLogs.Add(new AuditLog
@@ -160,7 +197,9 @@ public sealed class ContractPaymentRepository(AgriSustainContext db) : IContract
 
         // The line update, payment, invoice, contract and audit entry are saved together.
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         db.ChangeTracker.Clear();
+        return true;
     }
 
     public async Task RecordUnappliedAsync(IncomingBankTransfer transfer, long? contractId, long? lineId, string status,
@@ -279,13 +318,19 @@ public sealed class ContractPaymentRepository(AgriSustainContext db) : IContract
                 m.B2bcontractId,
                 Line = new ContractLineRecord(m.ContractMilestoneId, m.MilestoneTitle, m.MilestoneType, m.DueDate,
                     m.Amount, m.PaidAmount, m.PaymentStatus,
-                    m.PaymentTransactions.Where(p => p.PaymentPurpose == ContractPaymentRules.PaymentPurpose
+                    m.PaymentTransactions.Where(p => (p.PaymentPurpose == ContractPaymentRules.PaymentPurpose
+                            || p.PaymentPurpose == ContractPaymentRules.DepositPurpose)
                             && p.PaymentStatus == "Success")
                         .OrderByDescending(p => p.PaidAt).Select(p => p.PaidAt).FirstOrDefault(),
-                    m.PaymentTransactions.Where(p => p.PaymentPurpose == ContractPaymentRules.PaymentPurpose
+                    m.PaymentTransactions.Where(p => (p.PaymentPurpose == ContractPaymentRules.PaymentPurpose
+                            || p.PaymentPurpose == ContractPaymentRules.DepositPurpose)
                             && p.PaymentStatus == "Success")
                         .OrderByDescending(p => p.PaidAt)
                         .Select(p => p.ProviderTransactionReference ?? p.TransactionCode).FirstOrDefault())
+                {
+                    AwaitingInspection = m.MilestoneType == "DeliveryAndPayment" && m.DeliveryQuantity > 0
+                        && !m.Invoices.Any(i => i.InvoiceStatus != "Cancelled")
+                }
             })
             .ToListAsync(cancellationToken);
 

@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Infrastructure.Payments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -87,6 +88,14 @@ public sealed class SePayWebhookController(
             payload.ReferenceCode,
             JsonSerializer.Serialize(payload),
             [payload.Code, payload.Content, payload.Description]);
+        if (ContractPaymentRules.FindLineId(incoming.ReferenceTexts) is not null)
+        {
+            var account = configuration["Payment:SePay:AccountNumber"]?.Trim();
+            if (string.IsNullOrWhiteSpace(configuration["Payment:SePay:WebhookApiKey"]))
+                return Unauthorized(new { success = false });
+            if (string.IsNullOrWhiteSpace(account) || payload.AccountNumber?.Trim() != account)
+                return BadRequest(new { success = false, message = "Invalid receiving account" });
+        }
         foreach (var handler in transferHandlers)
         {
             if (await handler.TryHandleAsync(incoming, cancellationToken))

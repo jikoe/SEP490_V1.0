@@ -4,6 +4,7 @@ using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Offtake;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Services;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.BackgroundWorkers;
 using AgriSustain.Infrastructure.Data;
@@ -90,34 +91,19 @@ public sealed class OfftakeSqlTests
         Assert.Null(await repository.DetailAsync(fixture.OtherBuyerId, true, order.OrderId, default));
 
         var contract = await db.B2bcontracts.SingleAsync(x => x.B2bcontractId == id);
-        var revised = new ContractVersion
-        {
-            B2bcontractId = id, VersionNo = 2, VersionStatus = "Pending",
-            TermsAndConditions = "Giao tại kho của nhà cung cấp",
-            ProposedByUserId = fixture.FarmerId
-        };
-        revised.ContractSignatures.Add(new ContractSignature
-        {
-            PartyRole = "Farmer", SignedByUserId = fixture.FarmerId,
-            ConfirmationMethod = "InApp", ConfirmationStatus = "Confirmed",
-            ConfirmedAt = fixture.Clock.GetUtcNow().UtcDateTime
-        });
-        db.ContractVersions.Add(revised);
-        contract.CurrentVersionNo = revised.VersionNo;
+        await db.Entry(contract).Collection(x => x.ContractVersions).LoadAsync();
+        const string rejection = "Nông trại không đủ sản lượng theo lịch giao đề xuất.";
+        contract.RejectProposal(rejection);
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
 
-        Assert.True((await service.ConfirmRevisionAsync(id, 2, default)).Success);
-        var confirmed = Assert.IsType<OfftakeTrackingDetail>(
-            await repository.DetailAsync(fixture.BuyerId, false, id, default));
-        Assert.Equal("AwaitingDeposit", confirmed.Status);
-        Assert.Equal(2, confirmed.Confirmations.Count(x => x.Status == "Confirmed"));
-        Assert.All(confirmed.Confirmations, item =>
-        {
-            Assert.NotNull(item.ConfirmedAt);
-            Assert.False(string.IsNullOrWhiteSpace(item.ConfirmedBy));
-        });
         var buyer = fixture.As(fixture.BuyerId, "WholesaleBuyer");
+        var rejected = (await buyer.GetFromJsonAsync<Result<OfftakeTrackingDetail>>(
+            $"api/b2b/contracts/{id}"))?.Data;
+        Assert.Equal(rejection, rejected?.FeedbackReason);
+        Assert.Null(rejected?.ProposedChanges);
+        using var oldConfirmation = await buyer.PostAsync($"api/b2b/contracts/{id}/versions/2/confirmation", null);
+        Assert.Equal(HttpStatusCode.NotFound, oldConfirmation.StatusCode);
         using var blocked = await buyer.PostAsync($"api/b2b/contracts/{id}/cancellation", null);
         Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
 
@@ -161,13 +147,351 @@ public sealed class OfftakeSqlTests
             await repository.DetailAsync(fixture.BuyerId, false, draftId, default));
         Assert.Equal("PendingApproval", sent.Status);
         Assert.Equal("Confirmed", Assert.Single(sent.Confirmations).Status);
+
+        var negotiating = await db.B2bcontracts.SingleAsync(x => x.B2bcontractId == draftId);
+        var farmerVersion = new ContractVersion
+        {
+            B2bcontractId = draftId, VersionNo = latest.Version + 1, VersionStatus = "Pending",
+            ProposedByUserId = fixture.FarmerId, FeedbackReason = "Đề nghị thay đổi số lượng giao.",
+            TermsAndConditions = updated.DeliveryTerms + OfftakeContractRules.AmendmentHeading + "Giao 25 kg."
+                + OfftakeContractRules.AmendmentHeading + "Giao 26 kg."
+        };
+        farmerVersion.ContractSignatures.Add(new ContractSignature
+        {
+            PartyRole = "Farmer", SignedByUserId = fixture.FarmerId,
+            ConfirmationMethod = "InApp", ConfirmationStatus = "Confirmed",
+            ConfirmedAt = fixture.Clock.GetUtcNow().UtcDateTime
+        });
+        var farmerLine = new ContractLine
+        {
+            B2bcontractId = draftId, ProductId = updated.ProductId, UnitSnapshot = "kg",
+            CommittedQuantity = updated.Quantity, PriceType = "Fixed", AgreedPrice = updated.UnitPrice
+        };
+        farmerVersion.ContractLines.Add(farmerLine);
+        farmerVersion.ContractMilestones.Add(new ContractMilestone
+        {
+            B2bcontractId = draftId, ContractLine = farmerLine, MilestoneType = "DeliveryAndPayment",
+            MilestoneTitle = "Giao hàng theo đề xuất", DueDate = updated.DeliveryDate,
+            DeliveryQuantity = updated.Quantity, Amount = updated.Quantity * updated.UnitPrice,
+            FulfillmentStatus = "Pending", PaymentStatus = "Unpaid"
+        });
+        db.ContractVersions.Add(farmerVersion);
+        negotiating.CurrentVersionNo = farmerVersion.VersionNo;
+        negotiating.Status = "Negotiating";
+        await db.SaveChangesAsync();
+        var feedback = await repository.DetailAsync(fixture.BuyerId, false, draftId, default);
+        Assert.True(feedback?.CanEditRevision);
+        Assert.Equal(updated.DeliveryTerms, feedback?.Terms);
+        Assert.Equal("Giao 26 kg.", feedback?.ProposedChanges);
+        Assert.Equal(farmerVersion.FeedbackReason, feedback?.FeedbackReason);
+        var negotiationList = await repository.TrackAsync(fixture.BuyerId, false,
+            new OfftakeTrackingQuery(Status: "Negotiating"), default);
+        Assert.True(Assert.Single(negotiationList.Items).CanEditRevision);
+
+        var edit = Assert.IsType<OfftakeDraft>((await buyer.GetFromJsonAsync<Result<OfftakeDraft>>(draftUrl))?.Data);
+        Assert.Equal("Giao 26 kg.", edit.RevisionChanges);
+        var counterproposal = edit.Proposal with { Quantity = 26 };
+        using var resend = await buyer.PutAsJsonAsync($"{draftUrl}/{edit.Version}?submit=true", counterproposal);
+        Assert.Equal(HttpStatusCode.OK, resend.StatusCode);
+        var returned = (await fixture.Farmer().GetFromJsonAsync<Result<OfftakeTrackingDetail>>(
+            $"api/farmer/offtake-proposals/{draftId}"))?.Data;
+        Assert.NotNull(returned);
+        Assert.Equal(edit.Version + 1, returned.Version);
+        Assert.Equal("PendingApproval", returned.Status);
+        Assert.Equal(26, Assert.Single(returned.Lines).Quantity);
+        Assert.Equal(26, Assert.Single(returned.Milestones).Quantity);
+        Assert.Equal("WholesaleBuyer", Assert.Single(returned.Confirmations).Role);
+
+        fixture.As(fixture.BuyerId, "WholesaleBuyer");
         using var cancelled = await buyer.PostAsync($"api/b2b/contracts/{draftId}/cancellation", null);
-        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
-        Assert.Equal("Cancelled", (await repository.DetailAsync(
-            fixture.BuyerId, false, draftId, default))?.Status);
+        Assert.Equal(HttpStatusCode.Conflict, cancelled.StatusCode);
+    }
+
+    [CommerceSqlTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExistingSignedContractCanGenerateDepositAndActivateOnlyAfterFullReceipt(bool useWebhook)
+    {
+        await using var fixture = await CommerceDatabase.Create(new Dictionary<string, string?>
+        {
+            ["Payment:SePay:AccountNumber"] = "1234567890",
+            ["Payment:SePay:BankShortName"] = "MB",
+            ["Payment:SePay:AccountName"] = "Test Platform",
+            ["Payment:SePay:WebhookApiKey"] = "test-only-key"
+        });
+        await using var db = fixture.Open();
+        var buyer = new WholesaleBuyerProfile
+        {
+            UserId = fixture.BuyerId, CompanyName = "Buyer Co", TaxCode = "0123456789",
+            RepresentativeName = "Buyer", BusinessAddress = "Test address", VerificationStatus = "Approved"
+        };
+        db.WholesaleBuyerProfiles.Add(buyer);
+        var financeUser = new User
+        {
+            Username = "finance", Email = "finance@example.test", FullName = "Finance",
+            PasswordHash = "test-only", Role = "FinanceStaff", Status = "Active", IsEmailVerified = true
+        };
+        db.Users.Add(financeUser);
+        await db.SaveChangesAsync();
+        var farmerId = await db.Products.Where(x => x.ProductId == fixture.ProductId).Select(x => x.FarmerProfileId).SingleAsync();
+        var service = new OfftakeService(new OfftakeRepository(db), new SqlUnitOfWork(db),
+            new BuyerActor(fixture.BuyerId), new PersistenceErrorClassifier(), fixture.Clock, new AccountNotificationSettings(null));
+        var request = new OfftakeProposalRequest(Guid.NewGuid(), farmerId, fixture.ProductId,
+            20, 25000, new(2026, 11, 1), new(2026, 12, 31), new(2026, 11, 20),
+            string.Join("\n\n", new[] { 1, 2, 3, 4, 6, 7, 8 }.Select(n => $"Điều {n}: Điều khoản\n  Nội dung {n}")),
+            "Thanh toán khi nhận", 100000);
+        var proposal = await service.ProposeAsync(request, default);
+        Assert.True(proposal.Success, proposal.Message);
+        var id = proposal.Data!.Id;
+        var url = $"api/b2b/contracts/{id}/deposit";
+        var client = fixture.As(fixture.BuyerId, "WholesaleBuyer");
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync(url, null)).StatusCode);
+
+        var contract = await db.B2bcontracts.Include(c => c.ContractVersions).SingleAsync(c => c.B2bcontractId == id);
+        contract.Status = "AwaitingDeposit";
+        contract.DigitalSignatureStatus = "FullySigned";
+        contract.SignedDate = fixture.Clock.GetUtcNow().UtcDateTime;
+        var version = Assert.Single(contract.ContractVersions);
+        version.VersionStatus = "Signed";
+        version.ContractSignatures.Add(new ContractSignature
+        {
+            PartyRole = "Farmer", SignedByUserId = fixture.FarmerId, ConfirmationMethod = "InSystem",
+            ConfirmationStatus = "Confirmed", ConfirmedAt = contract.SignedDate
+        });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await fixture.Farmer().PostAsync(url, null)).StatusCode);
+        fixture.As(fixture.BuyerId, "WholesaleBuyer");
+        async Task<PaymentQr> Instructions()
+        {
+            using var response = await client.PostAsync(url, null);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            return (await response.Content.ReadFromJsonAsync<Result<PaymentQr>>())!.Data!;
+        }
+        var qr = await Instructions();
+        Assert.Equal(100000, qr.Amount);
+        Assert.Equal("1234567890", qr.AccountNumber);
+        Assert.Equal(qr.Reference, (await Instructions()).Reference);
+        var milestones = await db.ContractMilestones.Where(m => m.B2bcontractId == id).AsNoTracking().ToListAsync();
+        var deposit = Assert.Single(milestones, m => m.MilestoneType == "Deposit");
+        var delivery = Assert.Single(milestones, m => m.MilestoneType == "DeliveryAndPayment");
+        Assert.Equal(400000, delivery.Amount);
+        Assert.Equal(500000, milestones.Sum(m => m.Amount));
+        Assert.Equal(ContractPaymentRules.Reference(deposit.ContractMilestoneId), qr.Reference);
+
+        var finance = fixture.As(financeUser.UserId, "FinanceStaff");
+        var confirmationUrl = $"api/finance/contract-payments/lines/{deposit.ContractMilestoneId}/confirm";
+        Assert.Equal(HttpStatusCode.OK, (await finance.PostAsJsonAsync(confirmationUrl,
+            new ConfirmReceivedRequest(40000, "DEPOSIT-1", null))).StatusCode);
+        Assert.Equal("AwaitingDeposit", (await db.B2bcontracts.AsNoTracking().SingleAsync(c => c.B2bcontractId == id)).Status);
+        fixture.As(fixture.BuyerId, "WholesaleBuyer");
+        Assert.Equal(60000, (await Instructions()).Amount);
+        fixture.As(financeUser.UserId, "FinanceStaff");
+        Assert.Equal(HttpStatusCode.Conflict, (await finance.PostAsJsonAsync(confirmationUrl,
+            new ConfirmReceivedRequest(40000, "DEPOSIT-1", null))).StatusCode);
+        if (useWebhook)
+        {
+            async Task<HttpStatusCode> SendCredit(string accountNumber)
+            {
+                using var message = new HttpRequestMessage(HttpMethod.Post, "/api/payment/sepay-webhook")
+                {
+                    Content = JsonContent.Create(new
+                    {
+                        id = 613, transferType = "in", transferAmount = 60000, accountNumber,
+                        content = qr.Reference, referenceCode = "DEPOSIT-2"
+                    })
+                };
+                message.Headers.TryAddWithoutValidation("x-api-key", "test-only-key");
+                using var response = await client.SendAsync(message);
+                return response.StatusCode;
+            }
+            Assert.Equal(HttpStatusCode.BadRequest, await SendCredit("0000000000"));
+            Assert.Equal(HttpStatusCode.OK, await SendCredit(qr.AccountNumber));
+            Assert.Equal(HttpStatusCode.OK, await SendCredit(qr.AccountNumber));
+        }
+        else
+        {
+            using var response = await finance.PostAsJsonAsync(confirmationUrl, new ConfirmReceivedRequest(60000, "DEPOSIT-2", null));
+            Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        }
+        var paid = await db.B2bcontracts.AsNoTracking().Include(c => c.PaymentTransactions)
+            .ThenInclude(p => p.ContractDepositAllocations).SingleAsync(c => c.B2bcontractId == id);
+        Assert.Equal("Active", paid.Status);
+        Assert.Equal(100000, OfftakeContractRules.DepositPaid(paid));
+        Assert.Equal(100000, paid.PaymentTransactions.SelectMany(p => p.ContractDepositAllocations).Sum(a => a.Amount));
     }
 
     private sealed record BuyerActor(long UserId) : IActorContext;
+
+    [CommerceSqlTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BuyerInspectionRecordsAcceptanceOrSharesDiscrepancyWithFarmer(bool discrepancy)
+    {
+        await using var fixture = await CommerceDatabase.Create(new Dictionary<string, string?>
+        {
+            ["Payment:SePay:AccountNumber"] = "1234567890", ["Payment:SePay:BankShortName"] = "MB"
+        });
+        await using var db = fixture.Open();
+        var now = fixture.Clock.GetUtcNow().UtcDateTime;
+        var batch = await db.HarvestBatches.Include(b => b.CropSeason).SingleAsync(b => b.HarvestBatchId == fixture.BatchId);
+        var farmId = batch.CropSeason.FarmerProfileId;
+        var buyer = new WholesaleBuyerProfile
+        {
+            UserId = fixture.BuyerId, CompanyName = "Buyer Co", TaxCode = "0123456789",
+            RepresentativeName = "Buyer", BusinessAddress = "Test address", VerificationStatus = "Approved"
+        };
+        db.WholesaleBuyerProfiles.Add(buyer);
+        db.WholesaleBuyerProfiles.Add(new WholesaleBuyerProfile
+        {
+            UserId = fixture.OtherBuyerId, CompanyName = "Other Co", TaxCode = "0987654321",
+            RepresentativeName = "Other", BusinessAddress = "Other address", VerificationStatus = "Approved"
+        });
+        var finance = new User
+        {
+            Username = "finance", Email = "finance@example.test", FullName = "Finance",
+            PasswordHash = "test-only", Role = "FinanceStaff", Status = "Active", IsEmailVerified = true
+        };
+        db.Users.Add(finance);
+        var contract = new B2bcontract
+        {
+            WholesaleBuyerProfile = buyer, FarmerProfileId = farmId, ContractNumber = "OFTC-INSPECTION",
+            Status = "Active", DigitalSignatureStatus = "FullySigned", SignedDate = now, CurrentVersionNo = 1,
+            ValidFrom = new(2026, 10, 1), ValidUntil = new(2026, 11, 30), CreatedAt = now
+        };
+        var version = new ContractVersion
+        {
+            VersionNo = 1, ProposedByUserId = fixture.BuyerId, TermsAndConditions = "Điều khoản",
+            VersionStatus = "Signed"
+        };
+        var line = new ContractLine
+        {
+            B2bcontract = contract, ProductId = fixture.ProductId, CropSeasonId = batch.CropSeasonId,
+            UnitSnapshot = "kg", PriceType = "Fixed", CommittedQuantity = 10, AgreedPrice = 25000
+        };
+        version.ContractLines.Add(line);
+        var milestone = new ContractMilestone
+        {
+            B2bcontract = contract, ContractLine = line, MilestoneTitle = "Giao theo hợp đồng", MilestoneType = "DeliveryAndPayment",
+            DueDate = new(2026, 10, 27), DeliveryQuantity = 10, DeliveredQuantity = 10, Amount = 250000,
+            FulfillmentStatus = "Shipped", PaymentStatus = "Unpaid"
+        };
+        version.ContractMilestones.Add(milestone);
+        contract.ContractVersions.Add(version);
+        var order = new Order
+        {
+            BuyerUserId = fixture.BuyerId, OrderCode = "OFT-INSPECTION", OrderType = "Wholesale", OrderDate = now,
+            ShippingAddress = "Test address", RecipientNameSnapshot = "Buyer", RecipientPhoneSnapshot = "0900000000",
+            OrderStatus = "Shipping", CheckoutRequestKey = "offtake-inspection", TotalAmount = 250000, FinalAmount = 250000
+        };
+        var seller = new SellerOrder
+        {
+            Order = order, FarmerProfileId = farmId, SellerOrderCode = "OFT-INSPECTION-1", Status = "Shipping",
+            Subtotal = 250000, FinalAmount = 250000
+        };
+        var orderItem = new OrderItem
+        {
+            ProductId = fixture.ProductId, ContractLine = line, ProductNameSnapshot = "Tomato", UnitSnapshot = "kg",
+            Quantity = 10, UnitPriceSnapshot = 25000, SubTotal = 250000, ItemStatus = "Shipping"
+        };
+        seller.OrderItems.Add(orderItem);
+        var shipment = new Shipment { ContractMilestone = milestone, ShipmentStatus = "InTransit", ShippedAt = now };
+        var item = new ShipmentItem
+        {
+            OrderItemBatchAllocation = new OrderItemBatchAllocation
+            {
+                OrderItem = orderItem, HarvestBatchId = fixture.BatchId, AllocationSequence = 1,
+                AllocatedQuantity = 10, AllocationStatus = "Shipped", ReservedAt = now
+            },
+            ShippedQuantity = 10, ReconciliationStatus = "Pending"
+        };
+        shipment.ShipmentItems.Add(item);
+        seller.Shipments.Add(shipment);
+        contract.SellerOrders.Add(seller);
+        db.B2bcontracts.Add(contract);
+        await db.SaveChangesAsync();
+        var url = $"api/b2b/contracts/{contract.B2bcontractId}";
+        var inspection = $"{url}/shipments/{shipment.ShipmentId}/inspection";
+        var input = new OfftakeInspectionRequest([new(item.ShipmentItemId, 10, discrepancy ? 8 : 10, "Loại A")],
+            discrepancy ? "Hai kg không đạt phẩm cấp." : null, null);
+        var client = fixture.As(fixture.OtherBuyerId, "WholesaleBuyer");
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync(inspection, input)).StatusCode);
+        fixture.As(fixture.BuyerId, "WholesaleBuyer");
+        async Task<OfftakeTrackingDetail> BuyerDetail()
+        {
+            using var response = await client.GetAsync(url);
+            Assert.True(response.IsSuccessStatusCode, fixture.Errors.ToString());
+            return (await response.Content.ReadFromJsonAsync<Result<OfftakeTrackingDetail>>())!.Data!;
+        }
+        var detail = await BuyerDetail();
+        Assert.True(Assert.Single(detail.Shipments).CanInspect);
+        Assert.Equal("TEST-BATCH", Assert.Single(Assert.Single(detail.Shipments).Items).Batch);
+        Assert.Equal(25, Assert.Single(detail.Production).Harvested);
+        if (discrepancy)
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(inspection, input)).StatusCode);
+            input = input with { Evidence = [await Upload($"{url}/evidence")] };
+        }
+        using var inspected = await client.PostAsJsonAsync(inspection, input);
+        Assert.True(inspected.IsSuccessStatusCode, await inspected.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync(inspection, input)).StatusCode);
+        if (discrepancy)
+        {
+            var ticket = Assert.Single((await BuyerDetail()).Discrepancies);
+            var evidence = Assert.Single(ticket.Evidence);
+            fixture.As(fixture.OtherBuyerId, "WholesaleBuyer");
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"{url}/evidence/{evidence.Id}")).StatusCode);
+            fixture.Farmer();
+            var farmerUrl = $"api/farmer/offtake-contracts/{contract.B2bcontractId}";
+            using var farmerEvidence = await client.GetAsync($"{farmerUrl}/evidence/{evidence.Id}");
+            Assert.True(farmerEvidence.IsSuccessStatusCode, fixture.Errors.ToString());
+            using var farmerDetail = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync(farmerUrl));
+            var expectedVersion = farmerDetail.RootElement.GetProperty("version").GetString();
+            using var replied = await client.PostAsJsonAsync($"{farmerUrl}/discrepancy", new ContractDiscrepancyResponseRequest
+            {
+                TicketId = ticket.Id, ShipmentItemId = item.ShipmentItemId, ProposedQuantity = 8,
+                ProposedResolution = "Chấp nhận nghiệm thu 8 kg.", Reason = "Đồng ý số lượng kiểm nhận.",
+                ExpectedVersion = expectedVersion!, RequestKey = Guid.NewGuid().ToString(),
+                Evidence = [await Upload("api/farmer/offtake-contracts/evidence")]
+            });
+            Assert.True(replied.IsSuccessStatusCode, await replied.Content.ReadAsStringAsync());
+            fixture.As(fixture.BuyerId, "WholesaleBuyer");
+            ticket = Assert.Single((await BuyerDetail()).Discrepancies);
+            var reply = Assert.Single(ticket.Replies);
+            Assert.Equal(8, reply.Quantity);
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"{url}/evidence/{ticket.Evidence.Single(e => !e.FromBuyer).Id}")).StatusCode);
+            using var decided = await client.PostAsJsonAsync(
+                $"{url}/shipments/{shipment.ShipmentId}/discrepancies/{ticket.Id}/decision",
+                new OfftakeDiscrepancyDecision(true, null, reply.At));
+            Assert.True(decided.IsSuccessStatusCode, await decided.Content.ReadAsStringAsync());
+            Assert.Equal("Resolved", Assert.Single((await BuyerDetail()).Discrepancies).Status);
+        }
+        var invoice = Assert.Single((await BuyerDetail()).Invoices);
+        Assert.True(invoice.CanPay);
+        Assert.Equal(discrepancy ? 200000 : 250000, invoice.Amount);
+        var paymentUrl = $"{url}/milestones/{milestone.ContractMilestoneId}/payment";
+        var payment = (await client.GetFromJsonAsync<Result<PaymentQr>>(paymentUrl))!.Data!;
+        Assert.Equal(invoice.Amount, payment.Amount);
+        fixture.As(finance.UserId, "FinanceStaff");
+        using var paid = await client.PostAsJsonAsync($"api/finance/contract-payments/lines/{milestone.ContractMilestoneId}/confirm",
+            new ConfirmReceivedRequest(payment.Amount, "OFT-INVOICE-RECEIPT", null));
+        Assert.True(paid.IsSuccessStatusCode, await paid.Content.ReadAsStringAsync());
+        Assert.Equal(invoice.Amount, await db.PaymentInvoiceAllocations.AsNoTracking()
+            .Where(a => a.Invoice.ContractMilestoneId == milestone.ContractMilestoneId).SumAsync(a => a.Amount));
+
+        async Task<string> Upload(string endpoint)
+        {
+            using var form = new MultipartFormDataContent();
+            form.Add(new ByteArrayContent("%PDF-1.4"u8.ToArray()), "file", "sample.pdf");
+            using var response = await client.PostAsync(endpoint, form);
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.True(response.IsSuccessStatusCode, content);
+            using var json = System.Text.Json.JsonDocument.Parse(content);
+            var root = json.RootElement;
+            return (root.TryGetProperty("data", out var data) ? data : root).GetProperty("url").GetString()!;
+        }
+    }
 
     private static async Task VerifyEmailRetryAsync(CommerceDatabase fixture, long noticeId,
         long contractId)

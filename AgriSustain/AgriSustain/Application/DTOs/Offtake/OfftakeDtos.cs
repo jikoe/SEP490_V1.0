@@ -14,7 +14,11 @@ public sealed record OfftakeProposalRequest(Guid RequestId, long FarmerId, long 
 public sealed record OfftakeProposalReceipt(long Id, string Code);
 
 public sealed record OfftakeDraft(string Code, int Version, DateTime CreatedAt,
-    OfftakeProposalRequest Proposal, OfftakeProduct? Product);
+    OfftakeProposalRequest Proposal, OfftakeProduct? Product)
+{
+    public string? RevisionReason { get; init; }
+    public string? RevisionChanges { get; init; }
+}
 
 public sealed record OfftakeProduct(long Id, long FarmerId, string Farmer, string Name,
     string Category, string Unit, string? ImageUrl)
@@ -69,18 +73,38 @@ public sealed record OfftakeTrackingRow
     public DateOnly? DeliveryFrom { get; init; }
     public DateOnly? DeliveryTo { get; init; }
     public required string Status { get; init; }
+    public bool CanEditRevision { get; init; }
 }
 
 public sealed record OfftakeTrackingDetail(string Code, string Status, string? Partner,
     int? Version, string? Terms, string? PaymentTerms, decimal? Deposit, DateOnly? ValidFrom,
     DateOnly? ValidUntil, IReadOnlyList<OfftakeLine> Lines,
     IReadOnlyList<OfftakeDelivery> Milestones, IReadOnlyList<OfftakeShipment> Shipments,
-    IReadOnlyList<OfftakeInvoice> Invoices, IReadOnlyList<OfftakeConfirmation> Confirmations,
-    bool CanConfirmRevision = false)
+    IReadOnlyList<OfftakeInvoice> Invoices, IReadOnlyList<OfftakeConfirmation> Confirmations)
 {
     public OfftakeDocumentDetails? Document { get; init; }
+    public bool CanEditRevision { get; init; }
+    public string? FeedbackReason { get; init; }
+    public string? ProposedChanges { get; init; }
+    public IReadOnlyList<OfftakeSeasonProgress> Production { get; init; } = [];
+    public IReadOnlyList<OfftakeContractEvent> DeliveryEvents { get; init; } = [];
+    public IReadOnlyList<OfftakeDiscrepancy> Discrepancies { get; init; } = [];
 }
 
+public sealed record OfftakeSeasonProgress(string Product, string Season, string Status, DateOnly EstimatedHarvest,
+    DateOnly? ActualHarvest, decimal Harvested, string Unit, bool BehindSchedule,
+    IReadOnlyList<OfftakeProductionLog> Logs);
+public sealed record OfftakeProductionLog(DateTime Date, string Activity, string? Description);
+public sealed record OfftakeContractEvent(string Action, DateTime At, string? Reason, DateOnly? ProposedDate, decimal? Quantity);
+public sealed record OfftakeDiscrepancy(long Id, long? SellerOrderId, string Status, string? Description,
+    string? Resolution, IReadOnlyList<OfftakeDiscrepancyReply> Replies, IReadOnlyList<OfftakeEvidence> Evidence);
+public sealed record OfftakeDiscrepancyReply(long ShipmentItemId, decimal? Quantity, string Resolution, string? Reason, DateTime At);
+public sealed record OfftakeEvidence(long Id, bool FromBuyer, string? Description);
+public sealed record OfftakeInspectionLine(long ItemId, decimal Received, decimal Accepted, string Grade);
+public sealed record OfftakeInspectionRequest(IReadOnlyList<OfftakeInspectionLine> Items, string? Reason,
+    IReadOnlyList<string>? Evidence);
+public sealed record OfftakeInspectionResult(long? TicketId);
+public sealed record OfftakeDiscrepancyDecision(bool Accept, string? Reason, DateTime? ReplyAt);
 public sealed record OfftakeDocumentDetails(OfftakeParty Supplier, OfftakeParty Buyer,
     IReadOnlyList<OfftakeDelivery> DeliverySchedule, DateTime VersionCreatedAt);
 
@@ -94,10 +118,22 @@ public sealed record OfftakeDelivery(string Title, DateOnly DueDate, decimal? Qu
     decimal Delivered, decimal Accepted, string Status, string PaymentStatus);
 
 public sealed record OfftakeShipment(string? TrackingNumber, DateTime? PlannedAt,
-    DateTime? ShippedAt, DateTime? DeliveredAt, string Status);
+    DateTime? ShippedAt, DateTime? DeliveredAt, string Status)
+{
+    public long Id { get; init; }
+    public long SellerOrderId { get; init; }
+    public bool CanInspect { get; init; }
+    public IReadOnlyList<OfftakeShipmentLine> Items { get; init; } = [];
+}
+public sealed record OfftakeShipmentLine(long Id, string Product, string Batch, string Unit, decimal Shipped,
+    decimal? Received, decimal? Accepted, string? Grade, string Status);
 
 public sealed record OfftakeInvoice(string Number, DateTime IssuedAt, DateTime? DueAt,
-    decimal Amount, string Status);
+    decimal Amount, string Status)
+{
+    public long? MilestoneId { get; init; }
+    public bool CanPay { get; init; }
+}
 
 public sealed record OfftakeConfirmation(string Role, DateTime? ConfirmedAt, string Status,
     string? ConfirmedBy = null);
