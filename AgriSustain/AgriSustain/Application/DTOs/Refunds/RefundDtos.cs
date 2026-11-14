@@ -117,11 +117,11 @@ public sealed record RefundActionResponse(
     string RefundStatus,
     string Message);
 
-/// <summary>BR-RF-04 history actions used by UC-FIN-03.</summary>
+/// <summary>BR-RF-04 history actions used by UC-FIN-03; aliases of <see cref="AgriSustain.Application.Common.AuditActions"/>.</summary>
 public static class RefundProcessingActions
 {
-    public const string TransferFailed = "RefundTransferFailed";
-    public const string AccountReminder = "RemindRefundAccount";
+    public const string TransferFailed = AgriSustain.Application.Common.AuditActions.RefundTransferFailed;
+    public const string AccountReminder = AgriSustain.Application.Common.AuditActions.RemindRefundAccount;
 }
 
 public static class RefundMethods

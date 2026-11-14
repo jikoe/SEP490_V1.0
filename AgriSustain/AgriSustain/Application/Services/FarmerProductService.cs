@@ -101,7 +101,7 @@ public sealed class FarmerProductService(IFarmerProductRepository repository, IU
             await notifications.NotifyModeratorsAsync(product, Guid.NewGuid().ToString("N"), ct);
             notificationPending = true;
         }
-        repository.Audit(userId, newProduct ? "SubmitListing" : resubmission ? "ResubmitListing" : "UpdateListing",
+        repository.Audit(userId, newProduct ? AuditActions.SubmitListing : resubmission ? AuditActions.ResubmitListing : AuditActions.UpdateListing,
             product.ProductId, before, JsonSerializer.Serialize(request));
         await repository.SaveListingAsync(product, unitOfWork, ct);
         var response = await GetProductAsync(userId, product.ProductId, ct);
