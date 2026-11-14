@@ -46,6 +46,12 @@ public sealed class RefundProcessingService(
     /// History action written for each reminder; read back to enforce one reminder per 24 hours.
     /// </summary>
     public const string AccountReminderAction = RefundProcessingActions.AccountReminder;
+    /// <summary>
+    /// MSG123 for UC-FIN-03 Step 9: shown by FeatureExceptionMiddleware when a refund action cannot be saved.
+    /// SaveChangesAsync writes all or nothing, so the request keeps its previous status.
+    /// </summary>
+    public const string SaveFailedMessage =
+        "Không thể lưu kết quả hoàn tiền. Vui lòng tải lại để kiểm tra thông tin mới nhất trước khi thử lại.";
     /// <summary>One reminder per request every 24 hours, like the B2B payment reminder.</summary>
     public static readonly TimeSpan AccountReminderInterval = TimeSpan.FromHours(24);
 

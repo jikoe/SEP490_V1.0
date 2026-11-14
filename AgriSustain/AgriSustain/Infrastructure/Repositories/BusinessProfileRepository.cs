@@ -46,7 +46,7 @@ public sealed class BusinessProfileRepository(AgriSustainContext db) : IBusiness
             PerformedByUserId = userId,
             EntityType = "WholesaleBuyerProfile",
             EntityId = profile.WholesaleBuyerProfileId,
-            Action = "SubmitForVerification",
+            Action = AuditActions.SubmitForVerification,
             OldValue = JsonSerializer.Serialize(new { VerificationStatus = oldStatus }),
             NewValue = JsonSerializer.Serialize(new
             {
