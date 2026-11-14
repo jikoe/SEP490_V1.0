@@ -81,7 +81,9 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
         return new RefundRequestRecord(row.RefundTransactionId, userId, row.RefundCode, row.OrderCode, farmName,
             row.Amount, row.Reason, row.RefundStatus, approvedAt, row.ReceiverBankCode, row.ReceiverBankShortName,
             row.ReceiverAccountNumber, row.ReceiverAccountHolder, row.ReceiverAccountProvidedAt,
-            failure?.Reason, failure?.OccurredAt);
+            failure?.Reason, failure?.OccurredAt, row.RequestKey.StartsWith("farmer-reject:")
+                && await db.RefundTransactions.AnyAsync(x => x.RefundTransactionId == refundId
+                    && x.PaymentTransaction.Order != null && x.PaymentTransaction.Order.OrderType == "Retail", cancellationToken));
     }
 
     public async Task<IReadOnlyList<RefundHistoryDto>> HistoryAsync(long refundId, CancellationToken cancellationToken)
@@ -105,6 +107,7 @@ public sealed class RefundAccountRepository(AgriSustainContext db) : IRefundAcco
         string accountHolder, long userId, DateTime now, CancellationToken cancellationToken)
     {
         var refund = await db.RefundTransactions.FirstOrDefaultAsync(r => r.RefundTransactionId == refundId
+            && (!r.RequestKey.StartsWith("farmer-reject:") || r.PaymentTransaction.Order == null || r.PaymentTransaction.Order.OrderType != "Retail")
             && (r.RefundStatus == RefundTransaction.StatusPending || r.RefundStatus == "Failed"),
             cancellationToken);
         if (refund is null) return false;

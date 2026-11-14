@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta content="width=device-width,initial-scale=1" name="viewport">
+    <title>Hoàn tiền đơn bị từ chối - AgriSustain</title>
+    <link href="../css/style.css" rel="stylesheet">
+    <link href="../css/components.css" rel="stylesheet">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="app-sidebar"></aside>
+      <div class="workspace">
+        <header id="app-header"></header>
+        <main>
+          <div id="business-root"></div>
+        </main>
+      </div>
+    </div>
+    <template id="business-template">
+      <link href="../css/finance-rejected-order-refunds.css" rel="stylesheet">
+      <main>
+        <div class="intro">
+          <h1>Hoàn tiền đơn hàng bị từ chối</h1>
+          <p class="muted">Xem yêu cầu, hoàn tiền cho RetailCustomer và theo dõi kết quả chuyển khoản.</p>
+        </div>
+        <nav class="tabs" aria-label="Các trang chức năng">
+          <button class="active" id="tab-list" data-screen-go="list" role="tab">Danh sách yêu cầu</button>
+          <button id="tab-detail" data-screen-go="detail" role="tab">Chi tiết / hoàn tiền</button>
+        </nav>
+        <div class="notice" role="status" aria-live="polite" id="feedback" hidden="">
+          <span id="feedbackText">Chọn yêu cầu từ danh sách để xem và xử lý.</span>
+        </div>
+        <section id="screen-list" data-screen="list">
+          <div class="panel">
+            <div class="body filters">
+              <div>
+                <label for="keyword">Tìm kiếm</label>
+                <input id="keyword" maxlength="255" placeholder="Mã hoàn tiền / mã đơn / RetailCustomer">
+              </div>
+              <div>
+                <label for="status">Trạng thái hoàn tiền</label>
+                <select id="status">
+                  <option value="">Tất cả</option>
+                  <option value="Pending">Chờ xử lý</option>
+                  <option value="Processing">Đang chờ đối soát</option>
+                  <option value="NeedsReconciliation">Cần đối soát</option>
+                  <option value="Succeeded">Đã hoàn tiền</option>
+                </select>
+              </div>
+              <div>
+                <label for="from">Ngày gửi từ</label>
+                <input id="from" type="date">
+              </div>
+              <div>
+                <label for="to">Ngày gửi đến</label>
+                <input id="to" type="date">
+              </div>
+              <div class="actions">
+                <button class="btn primary" id="apply">Áp dụng</button>
+                <button class="btn" id="clear">Xóa lọc</button>
+              </div>
+            </div>
+            <div class="title">
+              <h2>Yêu cầu hoàn tiền</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Yêu cầu / Ngày gửi</th>
+                    <th>Đơn hàng / RetailCustomer</th>
+                    <th>Nông trại</th>
+                    <th class="amount">Số tiền hoàn</th>
+                    <th>Trạng thái hoàn tiền</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="rows"></tbody>
+              </table>
+            </div>
+            <div class="pagination">
+              <span>
+                <span id="count"></span>
+              </span>
+              <div class="actions">
+                <button class="btn" id="prev">‹</button>
+                <span id="page">1</span>
+                <button class="btn" id="next">›</button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="screen-detail" data-screen="detail" hidden>
+          <div class="screen-back">
+            <button class="btn" data-screen-go="list">← Danh sách yêu cầu</button>
+            <h2>Chi tiết / hoàn tiền</h2>
+          </div>
+          <div class="panel">
+            <div class="title">
+              <h2 id="refundCode"></h2>
+              <span class="badge" id="refundStatus"></span>
+            </div>
+            <div class="body grid">
+              <section>
+                <h3>Đơn hàng đã hủy</h3>
+                <dl class="kv" id="orderDetails"></dl>
+              </section>
+              <section class="summary">
+                <h3>Thanh toán và số tiền hoàn</h3>
+                <div id="amountDetails"></div>
+              </section>
+            </div>
+            <div class="body">
+              <h3>Tài khoản nhận hoàn tiền đã lưu</h3>
+              <dl class="kv" id="recipient"></dl>
+            </div>
+            <div class="body actions end">
+              <button class="btn primary" id="openQr">Mở QR hoàn tiền</button>
+            </div>
+            <section class="body" id="qrBox" hidden>
+              <div class="summary">
+                <h3>Chuyển tiền cho RetailCustomer</h3>
+                <div class="qr-layout">
+                  <div>
+                    <img id="qr" class="qr" alt="Mã QR chuyển khoản hoàn tiền">
+                  </div>
+                  <div>
+                    <dl class="kv" id="transferData"></dl>
+                    <div class="actions end">
+                      <button class="btn" id="copy">Sao chép nội dung chuyển khoản</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <div class="body grid">
+              <section>
+                <h3>Đối soát giao dịch</h3>
+                <p class="muted" id="reconciliation"></p>
+                <button class="btn" id="check">Kiểm tra kết quả hoàn tiền</button>
+              </section>
+              <section>
+                <h3>Kết quả hoàn tiền</h3>
+                <dl class="kv" id="result"></dl>
+              </section>
+            </div>
+            <div class="title">
+              <h2>Lịch sử xử lý</h2>
+            </div>
+            <div class="body">
+              <ul class="history" id="history"></ul>
+            </div>
+          </div>
+        </section>
+        <p class="muted">VND · Thời gian Việt Nam. </p>
+        <dialog id="confirmDialog">
+          <h2>Xác nhận mở QR hoàn tiền</h2>
+          <p id="confirmText"></p>
+          <div class="actions end">
+            <button class="btn" id="confirmCancel">Quay lại</button>
+            <button class="btn primary" id="confirmOk">Xác nhận</button>
+          </div>
+        </dialog>
+      </main>
+    </template>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/rejected-order-refunds.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
+    <script src="../js/farmer-business.js"></script>
+    <script src="../js/finance-rejected-order-refunds.js"></script>
+  </body>
+</html>
+

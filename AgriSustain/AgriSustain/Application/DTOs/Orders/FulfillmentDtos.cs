@@ -38,9 +38,9 @@ public sealed record SellerOrderResponse(long SellerOrderId, string SellerOrderC
     IReadOnlyList<OrderLineResponse> Items, IReadOnlyList<ShipmentResponse> Shipments,
     IReadOnlyList<TimelineResponse> Timeline, IReadOnlyList<ComplaintResponse> Complaints,
     string? VoucherCode = null,
-    string? BankName = null,
-    string? BankAccount = null,
-    string? BankAccountName = null,
+    [property: System.Text.Json.Serialization.JsonIgnore] string? BankName = null,
+    [property: System.Text.Json.Serialization.JsonIgnore] string? BankAccount = null,
+    [property: System.Text.Json.Serialization.JsonIgnore] string? BankAccountName = null,
     bool IsRefunded = false, decimal RefundableAmount = 0, decimal RefundedAmount = 0, bool NotificationPending = false);
 
 public sealed record PackingSlipResponse(

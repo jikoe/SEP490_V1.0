@@ -1,14 +1,14 @@
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Common;
 using AgriSustain.Domain.Entities;
 
 namespace AgriSustain.Application.Services;
 
 /// <summary>
 /// UC-FAR-06 Farmer rejection of a paid order. The paid share is not sent anywhere automatically:
-/// a Pending refund request goes to Finance Staff, who transfer it manually in UC-FIN-03, the
-/// same way as an approved complaint refund (BR-RF-01, BR-RF-03 as revised).
+/// a pending request goes to Finance Staff for QR transfer and verified SePay reconciliation.
 /// </summary>
-public sealed class OrderRefundService(IFarmerOrderRepository repository, FulfillmentRules rules,
+public class OrderRefundService(IFarmerOrderRepository repository, FulfillmentRules rules,
     TimeProvider clock)
 {
 
@@ -68,8 +68,7 @@ public sealed class OrderRefundService(IFarmerOrderRepository repository, Fulfil
                 throw new InvalidOperationException("Không xác định được khoản thanh toán của đơn nông trại.");
             return null;
         }
-        // The saved default account is used until the buyer confirms or changes it (UC-FIN-08); without
-        // one the request waits as "Awaiting customer account" and the rejection still goes through.
+        // Snapshot the saved account. Finance revalidates it before opening any QR.
         var account = await repository.LoadPaymentContextAsync(order, ct);
         RefundTransaction? last = null;
         var created = new List<RefundTransaction>();
@@ -95,7 +94,7 @@ public sealed class OrderRefundService(IFarmerOrderRepository repository, Fulfil
                     PaymentInvoiceAllocationId = allocation?.PaymentInvoiceAllocationId,
                     // Replaced by the Finance Staff member who records the transfer.
                     ProcessedByUserId = actorId,
-                    RefundCode = $"REF-{order.SellerOrderId}-{payment.PaymentTransactionId}-{allocation?.PaymentInvoiceAllocationId ?? 0}",
+                    RefundCode = "RJR" + Guid.NewGuid().ToString("N")[..20].ToUpperInvariant(),
                     Amount = amount, Reason = reason[..Math.Min(500, reason.Length)],
                     RefundStatus = RefundTransaction.StatusPending, RequestKey = key,
                     ReceiverBankCode = account?.BankCode, ReceiverAccountNumber = account?.AccountNumber,
@@ -115,7 +114,7 @@ public sealed class OrderRefundService(IFarmerOrderRepository repository, Fulfil
         return last;
     }
 
-    /// <summary>Finance Staff learn about the new manual refund requests in-app (UC-FIN-03 queue).</summary>
+    /// <summary>Finance Staff receive the refund requests through both system notifications and email.</summary>
     private async Task NotifyFinanceAsync(SellerOrder order, IReadOnlyList<RefundTransaction> refunds,
         DateTime now, CancellationToken ct)
     {
@@ -127,16 +126,24 @@ public sealed class OrderRefundService(IFarmerOrderRepository repository, Fulfil
         decimal total = refunds.Sum(refund => refund.Amount);
         foreach (long userId in financeUsers)
         {
-            var notice = new Notification
+            foreach (string channel in new[] { "InApp", "Email" })
             {
-                UserId = userId, Title = "Yêu cầu hoàn tiền mới",
-                Content = $"Nông trại từ chối đơn {order.SellerOrderCode}: cần hoàn {total:N0} ₫ "
-                    + $"({string.Join(", ", refunds.Select(refund => refund.RefundCode))}).",
-                NotificationType = "Refund", IsRead = false, SentAt = now,
-                DeliveryChannel = "InApp", DeliveryStatus = "Sent",
-                RelatedRecordType = "SellerOrder", RelatedRecordId = order.SellerOrderId
-            };
-            repository.SaveNotificationsAsync(notice);
+                repository.SaveNotificationsAsync(new Notification
+                {
+                    UserId = userId,
+                    Title = "Yêu cầu hoàn tiền đơn hàng bị từ chối",
+                    Content = RejectedOrderRefundMessages.Requested(order.SellerOrderCode,
+                        string.Join(", ", refunds.Select(x => x.RefundCode)), total, refunds[0].Reason ?? "", now)
+                        + $" Nông trại: {order.FarmerProfile.FarmName}.",
+                    NotificationType = "RefundEmail",
+                    DeliveryChannel = channel,
+                    DeliveryStatus = channel == "Email" ? "Pending" : "Sent",
+                    RelatedRecordType = "SellerOrder",
+                    RelatedRecordId = order.SellerOrderId,
+                    PayloadJson = $"rejected-order:{order.SellerOrderId}:requested:{userId}:{channel}",
+                    SentAt = now
+                });
+            }
         }
     }
 }

@@ -49,7 +49,7 @@ public sealed class RefundRepository : IRefundRepository
         RefundQuery query,
         CancellationToken cancellationToken)
     {
-        var refunds = _context.RefundTransactions.AsNoTracking();
+        var refunds = _context.RefundTransactions.AsNoTracking().Where(x => (!x.RequestKey.StartsWith("farmer-reject:") || x.PaymentTransaction.Order == null || x.PaymentTransaction.Order.OrderType != "Retail"));
         if (query.Status is not null)
         {
             refunds = refunds.Where(refund => refund.RefundStatus == query.Status);
@@ -145,7 +145,7 @@ public sealed class RefundRepository : IRefundRepository
             .Include(item => item.ProcessedByUser)
             .Include(item => item.ReceiverBankCodeNavigation)
             .AsSplitQuery()
-            .SingleOrDefaultAsync(item => item.RefundTransactionId == refundId, cancellationToken);
+            .SingleOrDefaultAsync(item => item.RefundTransactionId == refundId && (!item.RequestKey.StartsWith("farmer-reject:") || item.PaymentTransaction.Order == null || item.PaymentTransaction.Order.OrderType != "Retail"), cancellationToken);
         if (refund is null)
         {
             return null;
@@ -343,7 +343,7 @@ public sealed class RefundRepository : IRefundRepository
                         .ThenInclude(order => order.PaymentTransactions)
                             .ThenInclude(payment => payment.RefundTransactions)
             .AsSplitQuery()
-            .SingleOrDefaultAsync(refund => refund.RefundTransactionId == refundId, cancellationToken);
+            .SingleOrDefaultAsync(refund => refund.RefundTransactionId == refundId && (!refund.RequestKey.StartsWith("farmer-reject:") || refund.PaymentTransaction.Order == null || refund.PaymentTransaction.Order.OrderType != "Retail"), cancellationToken);
     }
 
     /// <summary>

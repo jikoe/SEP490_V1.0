@@ -79,6 +79,10 @@ public sealed class OrderNotificationWorker(IServiceScopeFactory scopes,
                     content += "\n\nXem đề xuất: " + link;
                     eventKey = $"offtake-proposal-notice:{id}";
                 }
+                if (notification.NotificationType == "RefundEmail"
+                    && notification.PayloadJson?.StartsWith("rejected-order:") == true)
+                    content += "\n\nXem yêu cầu: " + settings.FrontendBaseUrl.TrimEnd('/')
+                        + "/FinanceStaff/rejected-order-refunds.html";
                 await gateway.SendEmailAsync(notification.User.Email, notification.Title, content,
                     eventKey, cancellationToken);
                 notices.RecordDeliveryResult(notification, true, clock.GetUtcNow().UtcDateTime);

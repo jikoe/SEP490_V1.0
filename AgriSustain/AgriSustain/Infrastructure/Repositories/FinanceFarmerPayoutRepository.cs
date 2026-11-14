@@ -109,7 +109,7 @@ public sealed class FinanceFarmerPayoutRepository(AgriSustainContext db) : IFina
     public Task<long?> FindOperationAsync(string operation, CancellationToken ct) => db.FarmerPayouts
         .Where(x => x.PayoutCode == operation).Select(x => (long?)x.FarmerPayoutId).SingleOrDefaultAsync(ct);
     public Task<AuditLog?> FindTraceAsync(string trace, CancellationToken ct) => db.AuditLogs
-        .SingleOrDefaultAsync(x => x.EntityType == "FinanceFarmerPayout" && x.TraceId == trace, ct);
+        .SingleOrDefaultAsync(x => (x.EntityType == "FinanceFarmerPayout" || x.EntityType == "RejectedOrderRefund") && x.TraceId == trace, ct);
 
     public async Task<T> SaveAtomicAsync<T>(Func<Task<T>> operation, CancellationToken ct)
     {

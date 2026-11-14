@@ -45,15 +45,10 @@ public sealed class OrderNotificationService(
                 break;
 
             case "MSG186": // Order canceled / rejected
-                // refundableAmount is the Pending refund Finance Staff will transfer (UC-FIN-03);
-                // the completion notice is sent when Finance records the transfer.
-                title = refundableAmount > 0 ? "Đơn hàng đã hủy, khoản hoàn đang chờ chuyển" : "Đơn hàng đã hủy";
-                string refundNote = refundableAmount > 0
-                    ? $"Khoản hoàn {refundableAmount:N0} ₫ đang chờ bộ phận Tài chính chuyển khoản. Vui lòng đăng nhập để cung cấp hoặc xác nhận tài khoản ngân hàng nhận tiền hoàn."
-                    : "Đơn hàng chưa phát sinh thanh toán nên không có khoản hoàn tiền.";
-                inAppMessage = $"Đơn hàng {orderCode} đã bị từ chối bởi nông trại. Lý do: {reason}. {refundNote}";
+                title = "Đơn hàng đã hủy";
+                inAppMessage = AgriSustain.Application.Common.RejectedOrderRefundMessages.Cancellation(orderCode, reason, refundableAmount);
                 emailSubject = $"[AgriSustain] Thông báo hủy đơn hàng {orderCode}";
-                emailBody = $"Kính gửi Quý khách,\n\nĐơn hàng {orderCode} của Quý khách đã bị từ chối/hủy bởi nông trại.\nLý do: {reason}\n{refundNote}\n\nNếu cần hỗ trợ thêm, Quý khách vui lòng liên hệ bộ phận CSKH.\n\nTrân trọng,\nĐội ngũ AgriSustain";
+                emailBody = inAppMessage;
                 break;
 
             default:
