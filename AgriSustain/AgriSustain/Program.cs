@@ -155,7 +155,8 @@ builder.Services.AddScoped<RetailCartService>();
 builder.Services.AddScoped<CartPricingService>();
 builder.Services.AddScoped<FulfillmentRules>();
 builder.Services.AddScoped<OrderFulfillmentService>();
-builder.Services.AddScoped<OrderRefundService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.RejectedOrderRefundRequestService>();
+builder.Services.AddScoped<OrderRefundService>(sp => sp.GetRequiredService<AgriSustain.Application.Services.Refunds.RejectedOrderRefundRequestService>());
 builder.Services.AddScoped<OrderNotificationService>();
 builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.OrderNotificationWorker>();
 builder.Services.AddScoped<FarmerOrderService>();
@@ -332,8 +333,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<IFarmerOfftakeContractRepository, FarmerOfftakeContractRepository>();
 builder.Services.AddScoped<FarmerOfftakeContractService>();
 builder.Services.AddScoped<OfftakeContractRules>();
-builder.Services.AddScoped<IFarmerRevenueRepository, FarmerRevenueRepository>();
+builder.Services.AddScoped<FarmerRevenueRepository>();
+builder.Services.AddScoped<IFarmerRevenueRepository>(sp => sp.GetRequiredService<FarmerRevenueRepository>());
 builder.Services.AddScoped<FarmerRevenueService>();
+builder.Services.AddScoped<IFarmerPaymentRequestRepository>(sp => sp.GetRequiredService<FarmerRevenueRepository>());
+builder.Services.AddScoped<FarmerPaymentRequestService>();
+builder.Services.AddScoped<PayoutNotificationService>();
 builder.Services.AddScoped<RevenueAggregationRules>();
 builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmerBusinessInputFilter>();
 if (builder.Configuration.GetValue("OfftakeContracts:EnableNotificationWorker", true))
@@ -351,6 +356,16 @@ if (builder.Configuration.GetValue("Payouts:EnableNotificationWorker", true))
 
 if (builder.Configuration.GetValue("Payouts:EnableReconciliationWorker", true))
     builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.FarmerPayoutReconciliationWorker>();
+
+// UC-FIN-09: Finance QR refund, verified against observed SePay debits.
+builder.Services.AddScoped<IFinanceRejectedOrderRefundRepository, FinanceRejectedOrderRefundRepository>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.FinanceRejectedOrderRefundService>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.RejectedOrderRefundRules>();
+builder.Services.AddScoped<AgriSustain.Application.Services.Refunds.RejectedOrderRefundNotificationService>();
+builder.Services.AddScoped<IRejectedOrderRefundGateway, AgriSustain.Infrastructure.Payments.SePayRefundGateway>();
+builder.Services.AddScoped<AgriSustain.Api.Controllers.RejectedOrderRefundInputFilter>();
+if (builder.Configuration.GetValue("RejectedOrderRefunds:EnableReconciliationWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.RejectedOrderRefundReconciliationWorker>();
 
 var app = builder.Build();
 

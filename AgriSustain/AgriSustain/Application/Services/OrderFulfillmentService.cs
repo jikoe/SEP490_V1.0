@@ -30,7 +30,7 @@ public sealed class OrderFulfillmentService(
             || query.PaymentStatus is not (null or "" or "Paid" or "AwaitingPayment"))
         {
             return FeatureResult<PageResult<SellerOrderResponse>>.Fail("VALIDATION",
-                "Bộ lọc hoặc khoảng ngày không hợp lệ.");
+                FarmerOrderMessages.InvalidFilters);
         }
 
         return FeatureResult<PageResult<SellerOrderResponse>>.Ok(
@@ -41,7 +41,7 @@ public sealed class OrderFulfillmentService(
         CancellationToken cancellationToken)
     {
         var order = await repository.LoadOwnedContextAsync(userId, id, cancellationToken);
-        return order is null ? Fail("NOT_FOUND", "Bạn không có quyền truy cập đơn hàng này hoặc thực hiện thao tác.")
+        return order is null ? Fail("NOT_FOUND", FarmerOrderMessages.ForbiddenOrder)
             : FeatureResult<SellerOrderResponse>.Ok(repository.Map(order));
     }
 
@@ -49,11 +49,11 @@ public sealed class OrderFulfillmentService(
         string action, OrderActionRequest request, CancellationToken cancellationToken)
     {
         if (request is null || !Guid.TryParseExact(request.RequestKey, "D", out _)
-            || request.Version?.Length != 64 || request.Reason?.Length > 100
+            || request.Version?.Length != 64 || request.Reason?.Length > (action == "reject" ? 500 : 100)
             || request.Explanation?.Length > 2000
             || request.EvidenceUrls?.Length > 5)
         {
-            return Fail("VALIDATION", "Thông tin thao tác không hợp lệ.");
+            return Fail("VALIDATION", FarmerOrderMessages.InvalidAction);
         }
 
         if (action is "reject")
@@ -61,14 +61,18 @@ public sealed class OrderFulfillmentService(
             var trimmedReason = (request.Explanation ?? request.Reason)?.Trim();
             if (string.IsNullOrWhiteSpace(trimmedReason))
             {
-                return Fail("VALIDATION", "Vui lòng nhập lý do từ chối. Không được để trống hoặc chỉ nhập khoảng trắng.");
+                return Fail("VALIDATION", FarmerOrderMessages.ReasonRequired);
+            }
+            if (trimmedReason.Length > 500)
+            {
+                return Fail("VALIDATION", FarmerOrderMessages.ReasonTooLong);
             }
 
         }
 
         if (action == "delivery-report" && request.Reason is not ("DeliveryFailure" or "Return"))
         {
-            return Fail("VALIDATION", "Chọn loại báo cáo giao hàng.");
+            return Fail("VALIDATION", FarmerOrderMessages.ReportTypeRequired);
         }
 
         if (action is "delivery-report" or "evidence" &&
@@ -76,35 +80,35 @@ public sealed class OrderFulfillmentService(
                 || request.Explanation.Trim().Length < 15
                 || request.EvidenceUrls is not { Length: > 0 }))
         {
-            return Fail("VALIDATION", "Nhập giải trình (ít nhất 15 ký tự) và bằng chứng.");
+            return Fail("VALIDATION", FarmerOrderMessages.EvidenceRequired);
         }
 
         if (request.EvidenceUrls?.Any(url => !IsOwnedEvidence(userId, url) || !storage.OwnsEvidence(userId, url)) == true)
         {
-            return Fail("VALIDATION", "Tệp bằng chứng không thuộc tài khoản của bạn.");
+            return Fail("VALIDATION", FarmerOrderMessages.EvidenceNotOwned);
         }
 
         await unitOfWork.BeginAsync(cancellationToken);
         if (!await repository.IsApprovedFarmerAsync(userId, cancellationToken))
         {
-            return Fail("FORBIDDEN", "Bạn chưa có quyền xử lý đơn hàng. Hồ sơ nông trại phải được duyệt trước khi thực hiện thao tác.");
+            return Fail("FORBIDDEN", FarmerOrderMessages.FarmerNotApproved);
         }
 
         var order = await repository.LoadOwnedContextAsync(userId, id, cancellationToken);
         if (order is null)
         {
-            return Fail("NOT_FOUND", "Bạn không có quyền truy cập đơn hàng này hoặc thực hiện thao tác.");
+            return Fail("NOT_FOUND", FarmerOrderMessages.ForbiddenOrder);
         }
 
         if (await repository.HasRequestAsync(request.RequestKey, cancellationToken)
             || FulfillmentRules.Version(order) != request.Version)
         {
-            return Fail("CONFLICT", "Yêu cầu xung đột với dữ liệu hiện tại hoặc đã được xử lý. Vui lòng tải lại để xem kết quả; không thực hiện thao tác trùng lặp.");
+            return Fail("CONFLICT", FarmerOrderMessages.Stale);
         }
 
         if (order.B2bcontractId.HasValue)
         {
-            return Fail("CONFLICT", "Đơn hợp đồng được xử lý qua quản lý hợp đồng UC-FAR-08.");
+            return Fail("CONFLICT", FarmerOrderMessages.ContractOrder);
         }
 
         decimal refundedAmount = 0;
@@ -169,13 +173,13 @@ public sealed class OrderFulfillmentService(
                 }
                 if (refundService is not null)
                 {
-                    // A Pending request for Finance Staff (UC-FIN-03); no money moves here.
+                    // A pending Finance refund request; rejection never initiates a bank transfer.
                     await refundService.RefundSellerShareOnceAsync(order, userId, trimmedReason,
                         request.RequestKey, now, cancellationToken);
                     refundedAmount = refundService.GetPendingAmount(order);
                 }
                 else if (rules.VerifiedPayment(order) > 0)
-                    return Fail("UNAVAILABLE", "Dịch vụ hoàn tiền chưa sẵn sàng. Vui lòng thử lại.");
+                    return Fail("UNAVAILABLE", FarmerOrderMessages.RefundUnavailable);
                 await repository.ReleasePurchaseHoldsAsync(order, cancellationToken);
                 break;
             case "delivery-report":
@@ -191,7 +195,7 @@ public sealed class OrderFulfillmentService(
                 }
                 break;
             default:
-                return Fail("VALIDATION", "Thao tác không được hỗ trợ.");
+                return Fail("VALIDATION", FarmerOrderMessages.UnsupportedAction);
         }
 
         if (action == "evidence")
@@ -247,7 +251,7 @@ public sealed class OrderFulfillmentService(
             {
                 "dispatch" or "start-shipping" => $"Đơn hàng {order.SellerOrderCode} đã bắt đầu giao mô phỏng. Bạn có thể theo dõi tiến độ tại Chi tiết đơn hàng.",
                 "reject" => refundedAmount > 0
-                    ? $"Đơn hàng {order.SellerOrderCode} đã bị từ chối bởi nông trại. Lý do: {request.Explanation ?? request.Reason}. Khoản hoàn {refundedAmount:N0} ₫ đang chờ bộ phận Tài chính chuyển khoản; vui lòng cung cấp hoặc xác nhận tài khoản nhận tiền."
+                    ? $"Đơn hàng {order.SellerOrderCode} đã bị từ chối bởi nông trại. Lý do: {request.Explanation ?? request.Reason}. Khoản hoàn {refundedAmount:N0} ₫ đang chờ bộ phận Tài chính chuyển khoản; bộ phận Tài chính sẽ xử lý về tài khoản đã lưu."
                     : $"Đơn hàng {order.SellerOrderCode} đã bị từ chối. Lý do: {request.Explanation ?? request.Reason}",
                 "confirm" => $"Đơn hàng {order.SellerOrderCode} đã được xác nhận và đang chuẩn bị.",
                 "ready" => $"Đơn hàng {order.SellerOrderCode} đã sẵn sàng giao mô phỏng.",
@@ -266,15 +270,15 @@ public sealed class OrderFulfillmentService(
     {
         return action switch
         {
-            "confirm" when order.Status != "Pending" => "Trạng thái không hợp lệ.",
-            "ready" when !FulfillmentRules.IsConfirmed(order.Status) => "Đơn chưa được xác nhận.",
+            "confirm" when order.Status != "Pending" => FarmerOrderMessages.InvalidStatus,
+            "ready" when !FulfillmentRules.IsConfirmed(order.Status) => FarmerOrderMessages.NotConfirmed,
             "dispatch" or "start-shipping" when !FulfillmentRules.IsReady(order.Status) =>
-                "Không thể chuyển đơn hàng sang đang giao từ trạng thái hiện tại. Đơn phải sẵn sàng giao trước.",
+                FarmerOrderMessages.NotReady,
             "reject" when !FulfillmentRules.IsBeforeShipping(order.Status) =>
-                "Chỉ từ chối trước khi giao.",
+                FarmerOrderMessages.AlreadyDispatched,
             "delivery-report" when !FulfillmentRules.IsShipping(order.Status)
                 && order.Status is not ("Delivered" or "DeliveryFailed") =>
-                "Đơn chưa giao hoặc không còn nhận báo cáo.",
+                FarmerOrderMessages.ReportClosed,
             _ => null
         };
     }

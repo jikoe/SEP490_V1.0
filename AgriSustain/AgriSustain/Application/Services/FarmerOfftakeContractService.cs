@@ -190,6 +190,11 @@ public sealed class FarmerOfftakeContractService(
         foreach (var selected in input.BatchQuantities)
         {
             var batch = context.Batches.Single(x => x.HarvestBatchId == selected.HarvestBatchId);
+            // Commercial allocations and shipment quantities stay in the contract's unit.
+            // The inventory ledger and AvailableQuantity use the product/batch unit.
+            if (!OfftakeContractRules.TryStockQuantity(selected.Quantity, line.UnitSnapshot,
+                    line.Product.Unit, out var stockQuantity))
+                return "MSG120";
             var allocation = new OrderItemBatchAllocation
             {
                 OrderItem = item,
@@ -205,13 +210,13 @@ public sealed class FarmerOfftakeContractService(
                 ShippedQuantity = selected.Quantity,
                 ReconciliationStatus = "Pending"
             });
-            batch.AvailableQuantity -= selected.Quantity;
+            batch.AvailableQuantity -= stockQuantity;
             batch.InventoryMovements.Add(new InventoryMovement
             {
                 OrderItemBatchAllocation = allocation,
                 RecordedByUserId = actor,
                 MovementType = "StockOut",
-                QuantityChange = -selected.Quantity,
+                QuantityChange = -stockQuantity,
                 Reason = "Giao theo hợp đồng " + context.Contract.ContractNumber,
                 OccurredAt = DateTime.UtcNow,
                 RequestKey = "oc:" + input.RequestKey + ":" + batch.HarvestBatchId
@@ -432,6 +437,7 @@ public sealed class FarmerOfftakeContractService(
         var (terms, proposedChanges) = OfftakeContractRules.SplitAmendment(version.TermsAndConditions);
         return new
         {
+            today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7)),
             notificationFailed = context.NotificationFailed,
             id = contract.B2bcontractId,
             code = contract.ContractNumber,
@@ -464,19 +470,35 @@ public sealed class FarmerOfftakeContractService(
                 x.PriceFormula,
                 x.QualitySpecification
             }),
-            seasons = context.Seasons.Select(x => new { id = x.CropSeasonId, x.SeasonName, x.ProductId, x.EstimatedYield, x.EstimatedHarvestDate, x.Status }),
-            batches = context.Batches.Select(x => new
+            seasons = context.Seasons.Select(x => new { id = x.CropSeasonId, x.SeasonName, x.ProductId, x.EstimatedYield, x.YieldUnit, x.EstimatedHarvestDate, x.Status }),
+            batches = context.Batches.Select(x =>
             {
-                id = x.HarvestBatchId,
-                x.BatchCode,
-                x.ProductId,
-                x.CropSeasonId,
-                x.ActualHarvestDate,
-                x.AvailableQuantity,
-                x.ReservedQuantity,
-                x.Status,
-                x.ExpirationDate,
-                hasQr = x.TraceabilityQrcode is { IsRevoked: false }
+                var line = version.ContractLines.FirstOrDefault(l =>
+                    l.ProductId == x.ProductId && l.CropSeasonId == x.CropSeasonId);
+                decimal? contractQuantity = line is not null
+                    && OfftakeContractRules.TryConvertQuantity(x.AvailableQuantity, x.Product.Unit,
+                        line.UnitSnapshot, out var converted) ? converted : null;
+                return new
+                {
+                    id = x.HarvestBatchId,
+                    x.BatchCode,
+                    x.ProductId,
+                    x.CropSeasonId,
+                    x.ActualHarvestDate,
+                    x.StockEnteredAt,
+                    x.AvailableQuantity,
+                    x.ReservedQuantity,
+                    unit = x.Product.Unit,
+                    contractUnit = line?.UnitSnapshot,
+                    availableContractQuantity = contractQuantity,
+                    contractQuantityStep = line is not null
+                        && OfftakeContractRules.TryConvertQuantity(.001m, x.Product.Unit,
+                            line.UnitSnapshot, out var convertedStep)
+                        ? Math.Max(.001m, convertedStep) : .001m,
+                    x.Status,
+                    x.ExpirationDate,
+                    hasQr = x.TraceabilityQrcode is { IsRevoked: false }
+                };
             }),
             milestones = version.ContractMilestones.Select(x => new
             {
@@ -503,6 +525,7 @@ public sealed class FarmerOfftakeContractService(
                 items = x.ShipmentItems.Select(i => new
                 {
                     id = i.ShipmentItemId,
+                    unit = i.OrderItemBatchAllocation.OrderItem.UnitSnapshot,
                     i.ShippedQuantity,
                     i.ReceivedQuantity,
                     i.AcceptedQuantity,

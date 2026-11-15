@@ -84,7 +84,8 @@ public sealed record RefundRequestRecord(
     string? ReceiverAccountHolder,
     DateTime? ReceiverAccountProvidedAt,
     string? LastFailureReason,
-    DateTime? LastFailureAt);
+    DateTime? LastFailureAt,
+    bool SavedRecipientOnly = false);
 
 public interface IRefundAccountRepository
 {
@@ -165,7 +166,7 @@ public sealed class RefundAccountService(
         if (refund is null) return Result<MyRefundDetailDto>.FailureResult(NotFound());
 
         // Step 6 / MSG-RF-10: only a request that is still waiting for transfer can change account.
-        if (!IsEditable(refund.RefundStatus))
+        if (refund.SavedRecipientOnly || !IsEditable(refund.RefundStatus))
         {
             return Result<MyRefundDetailDto>.FailureResult(new Error("REFUND_LOCKED",
                 $"Yêu cầu hoàn tiền đang ở trạng thái {refund.RefundStatus}. Không thể thay đổi tài khoản nhận nữa.",
@@ -292,7 +293,7 @@ public sealed class RefundAccountService(
         string state = State(r);
         return new MyRefundDetailDto(
             r.RefundId, r.RefundCode, r.OrderCode, r.FarmName, r.Amount, r.Reason, r.RefundStatus, state,
-            CanEdit: IsEditable(r.RefundStatus),
+            CanEdit: !r.SavedRecipientOnly && IsEditable(r.RefundStatus),
             LastFailureReason: state == RefundAccountStates.TransferFailed ? r.LastFailureReason : null,
             r.ApprovedAt,
             r.ReceiverAccountNumber is null ? null : new RefundReceiverDto(

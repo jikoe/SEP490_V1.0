@@ -10,9 +10,9 @@ public sealed class RevenueAggregationRules
         filter.From ??= today.AddDays(-29);
         filter.To ??= today;
         if (filter.From > filter.To) return "MSG111";
-        if (filter.To == DateOnly.MaxValue || filter.Page < 1 || filter.Page > 100000 || filter.Season < 1
+        if (filter.From == DateOnly.MinValue || filter.To == DateOnly.MaxValue || filter.Page < 1 || filter.Page > 100000 || filter.Season < 1
             || filter.DateBasis != "EventDate"
-            || filter.Channel is not (null or "" or "Retail" or "Wholesale" or "PreOrder" or "Contract")
+            || filter.Channel is not (null or "" or "B2C" or "B2B")
             || filter.PaymentStage is not (null or "" or "Goods" or "Deposit" or "Milestone" or "Settlement")
             || filter.SettlementState is not (null or "" or "Verified" or "Held" or "Eligible" or "Processed")) return "MSG120";
         return null;

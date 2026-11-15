@@ -57,22 +57,6 @@ public partial class CultivationLog
 
 public partial class HarvestBatch
 {
-    public void SavePlan(string code, DateOnly estimate, decimal yield, string? notes)
-    {
-        if (StockEnteredAt.HasValue)
-            throw new InvalidOperationException("Batch stock has already been accepted.");
-        BatchCode = code;
-        EstimatedHarvestDate = estimate;
-        HarvestYield = yield;
-        QualityNotes = notes;
-        Status = "Planned";
-        ActualHarvestDate = null;
-        ExpirationDate = null;
-        AvailableQuantity = 0;
-        ReservedQuantity = 0;
-    }
-
-
     public void RecordActualHarvestOnce(
         string code,
         DateOnly date,
@@ -110,11 +94,17 @@ public partial class HarvestBatch
     }
 
 
+    public void ApplyJustifiedAdjustment(
+        decimal delta,
+        (decimal Adjustment, decimal Held, decimal Shipped) balance)
+    {
+        CalculateAvailable(balance.Adjustment + delta, balance.Held, balance.Shipped);
+    }
+
     public void BlockSuspectGoods()
     {
         Status = "Blocked";
-        if (TraceabilityQrcode is { } qr)
-            qr.IsRevoked = true;
+        // Blocking suspect goods is not an approved recall and does not revoke its QR identity.
     }
 }
 
