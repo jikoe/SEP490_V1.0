@@ -7,7 +7,8 @@ const FarmMessages = Object.freeze({
   MSG94: "Đã ghi nhận nhật ký canh tác thành công.",
   MSG95: "Ngày thực hiện không được ở tương lai.",
   MSG96: "Ảnh bằng chứng phải là JPG, JPEG hoặc PNG và không vượt quá 5 MB mỗi ảnh.",
-  MSG97: "Vui lòng chọn loại hoạt động và nhập mô tả; không được để trống hoặc chỉ nhập khoảng trắng.",
+  MSG97:
+    "Vui lòng chọn loại hoạt động và nhập mô tả; không được để trống hoặc chỉ nhập khoảng trắng.",
   MSG99: "Nhãn QR đã sẵn sàng để tải xuống hoặc in; giữ nguyên mã truy xuất hiện có.",
   MSG100: "Đã cập nhật thông tin lô thu hoạch thành công.",
   MSG101: "Mã lô đã tồn tại. Vui lòng chọn mã khác.",
@@ -26,7 +27,8 @@ const FarmMessages = Object.freeze({
   MSG126: "Không thể tải dữ liệu. Vui lòng thử lại.",
   MSG128: "Mùa vụ đã chuyển sang giai đoạn thu hoạch.",
   MSG129: "Đã ghi nhận hủy mùa vụ hoặc mất mùa. Lịch sử và các cam kết hiện có được giữ nguyên.",
-  MSG130: "Thay đổi này ảnh hưởng sản lượng hoặc lịch giao đã cam kết nên không thể được chấp nhận.",
+  MSG130:
+    "Thay đổi này ảnh hưởng sản lượng hoặc lịch giao đã cam kết nên không thể được chấp nhận.",
   MSG131: "Không thể thực hiện thao tác ở trạng thái hiện tại hoặc mở lại mùa vụ đã kết thúc.",
   MSG132: "Đã thêm bản đính chính. Bản gốc, lý do và liên kết đính chính được giữ nguyên.",
   MSG133:
@@ -48,7 +50,8 @@ const FarmMessages = Object.freeze({
   confirmCorrection: "Lưu bản đính chính và lý do? Bản gốc sẽ được giữ nguyên.",
   confirmHarvest: "Xác nhận ghi nhận thu hoạch thực tế một lần cho lô này?",
   confirmUpdate: "Lưu thay đổi có lý do và giữ nguyên thông tin định danh lô?",
-  confirmIssue: "Ghi nhận vấn đề và lý do? Thao tác này không phê duyệt thu hồi hoặc ghi đè tồn kho.",
+  confirmIssue:
+    "Ghi nhận vấn đề và lý do? Thao tác này không phê duyệt thu hồi hoặc ghi đè tồn kho.",
   noHistory: "Chưa có lịch sử thay đổi.",
   noProof: "Không có ảnh bằng chứng.",
   noCommitments: "Chưa có cam kết sản xuất / giao hàng liên quan.",
@@ -59,8 +62,10 @@ const FarmMessages = Object.freeze({
   qrPrerequisites: "Lưu thu hoạch hợp lệ trước khi cấp QR; yêu cầu có nhật ký canh tác.",
   qrPresent: "Đã cấp QR",
   qrAbsent: "Chưa cấp QR",
-  qrContext: (date, logs, state, qr) => `Ngày thu hoạch: ${date} · ${logs} nhật ký mùa vụ · ${state} · ${qr}`,
-  labelContext: (farm, season) => `Nguồn gốc: ${farm} · ${season}. Nhãn giữ nguyên mã truy xuất của lô.`,
+  qrContext: (date, logs, state, qr) =>
+    `Ngày thu hoạch: ${date} · ${logs} nhật ký mùa vụ · ${state} · ${qr}`,
+  labelContext: (farm, season) =>
+    `Nguồn gốc: ${farm} · ${season}. Nhãn giữ nguyên mã truy xuất của lô.`,
   recordHarvest: "Ghi thu hoạch thực tế",
   updateHarvest: "Lưu ghi chú / hạn sử dụng",
   createHarvestTitle: "Ghi nhận thu hoạch thực tế",

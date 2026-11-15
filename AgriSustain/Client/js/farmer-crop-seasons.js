@@ -23,7 +23,9 @@ document.addEventListener("DOMContentLoaded", () => {
       ...new Set(
         [
           p?.unit,
-          ...(p && ["kg", "g", "tấn", "tạ", "yến"].includes(p.unit) ? ["kg", "g", "tấn", "tạ", "yến"] : []),
+          ...(p && ["kg", "g", "tấn", "tạ", "yến"].includes(p.unit)
+            ? ["kg", "g", "tấn", "tạ", "yến"]
+            : []),
         ].filter(Boolean),
       ),
     ];
@@ -49,7 +51,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const activities = (current?.activities || [])
       .map(
         (x) =>
-          `<p>${ui.date(x.actionDate)} · ${ui.escape(x.actionType)} · ${ui.escape(x.description)}${x.correctsLogId ? " · " + ui.escape(ui.m.correction(x.correctsLogId)) : ""}${x.correctionReason ? " · " + ui.escape(x.correctionReason) : ""}</p>`,
+          /* HTML */ `<p>
+            ${ui.date(x.actionDate)} · ${ui.escape(x.actionType)} ·
+            ${ui.escape(x.description)}${x.correctsLogId
+              ? " · " + ui.escape(ui.m.correction(x.correctsLogId))
+              : ""}${x.correctionReason ? " · " + ui.escape(x.correctionReason) : ""}
+          </p>`,
       )
       .join("");
     const batches = (current?.harvestBatches || [])
@@ -58,8 +65,11 @@ document.addEventListener("DOMContentLoaded", () => {
           `<p><a href="harvest-batches.html?id=${x.harvestBatchId}">${ui.escape(x.batchCode)}</a> · ${ui.date(x.actualHarvestDate)} · ${ui.number(x.quantity)} ${ui.escape(x.unit)}</p>`,
       )
       .join("");
-    $("#seasonHistory").innerHTML =
-      `<p>Nhật ký: ${current?.logCount || 0} hoạt động · Tổng lô đã thu hoạch: ${ui.number(current?.recordedHarvestYield)} ${ui.escape(current?.yieldUnit || "")}</p>${activities}${batches}${ui.history(current?.history || [])}`;
+    $("#seasonHistory").innerHTML = /* HTML */ `<p>
+        Nhật ký: ${current?.logCount || 0} hoạt động · Tổng lô đã thu hoạch:
+        ${ui.number(current?.recordedHarvestYield)} ${ui.escape(current?.yieldUnit || "")}
+      </p>
+      ${activities}${batches}${ui.history(current?.history || [])}`;
     $("#closeSeasonTitle").textContent = current
       ? `${current.seasonName} · ${ui.m.stage[current.status]}`
       : ui.m.selectRecord;
@@ -129,7 +139,31 @@ document.addEventListener("DOMContentLoaded", () => {
         rows
           .map(
             (s) =>
-              `<tr><td><strong>${ui.escape(s.seasonName)}</strong><br>${ui.escape(s.productName)} · ${ui.escape(s.cropVariety)}</td><td>${ui.number(s.cultivatedArea)} ha</td><td>Trồng: ${ui.date(s.plantingDate)}<br>Dự kiến: ${ui.date(s.estimatedHarvestDate)}</td><td>Ước tính ${ui.number(s.estimatedYield)} ${ui.escape(s.yieldUnit)}<br>Thực tế: ${s.actualYield === null ? "chưa chốt" : ui.number(s.actualYield) + " " + ui.escape(s.yieldUnit)}</td><td><span class="pill">${ui.escape(ui.m.stage[s.status] || s.status)}</span></td><td><button class="btn" type="button" data-open="${s.cropSeasonId}">Xem / cập nhật</button> <button class="btn" type="button" data-close="${s.cropSeasonId}">Kết thúc / mất mùa</button></td></tr>`,
+              /* HTML */ `<tr>
+                <td>
+                  <strong>${ui.escape(s.seasonName)}</strong><br />${ui.escape(s.productName)} ·
+                  ${ui.escape(s.cropVariety)}
+                </td>
+                <td>${ui.number(s.cultivatedArea)} ha</td>
+                <td>
+                  Trồng: ${ui.date(s.plantingDate)}<br />Dự kiến: ${ui.date(s.estimatedHarvestDate)}
+                </td>
+                <td>
+                  Ước tính ${ui.number(s.estimatedYield)} ${ui.escape(s.yieldUnit)}<br />Thực tế:
+                  ${s.actualYield === null
+                    ? "chưa chốt"
+                    : ui.number(s.actualYield) + " " + ui.escape(s.yieldUnit)}
+                </td>
+                <td><span class="pill">${ui.escape(ui.m.stage[s.status] || s.status)}</span></td>
+                <td>
+                  <button class="btn" type="button" data-open="${s.cropSeasonId}">
+                    Xem / cập nhật
+                  </button>
+                  <button class="btn" type="button" data-close="${s.cropSeasonId}">
+                    Kết thúc / mất mùa
+                  </button>
+                </td>
+              </tr>`,
           )
           .join(""),
         6,

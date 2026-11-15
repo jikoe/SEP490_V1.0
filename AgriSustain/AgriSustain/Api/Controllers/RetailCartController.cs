@@ -16,27 +16,39 @@ public sealed class RetailCartController(RetailCartService service, ICurrentActo
         Ok(await service.GetCartAsync(actor.UserId, cancellationToken));
 
     [HttpPost("items")]
-    public async Task<IActionResult> Add(CartItemRequest request,
-        CancellationToken cancellationToken) =>
-        Respond(await service.AddItemAsync(actor.UserId, request, cancellationToken));
+    public async Task<IActionResult> Add(
+        CartItemRequest request,
+        CancellationToken cancellationToken
+    ) => Respond(await service.AddItemAsync(actor.UserId, request, cancellationToken));
 
     [HttpPut("items/{id:long}/quantity")]
-    public async Task<IActionResult> Quantity(long id, QuantityRequest request,
-        CancellationToken cancellationToken) => Respond(await service.ChangeQuantityAsync(
-            actor.UserId, id, request.Quantity, cancellationToken));
+    public async Task<IActionResult> Quantity(
+        long id,
+        QuantityRequest request,
+        CancellationToken cancellationToken
+    ) =>
+        Respond(
+            await service.ChangeQuantityAsync(actor.UserId, id, request.Quantity, cancellationToken)
+        );
 
     [HttpPut("selection")]
-    public async Task<IActionResult> Selection(CartSelectionRequest request,
-        CancellationToken cancellationToken) => Respond(await service.SelectItemsAsync(
-            actor.UserId, request, cancellationToken));
+    public async Task<IActionResult> Selection(
+        CartSelectionRequest request,
+        CancellationToken cancellationToken
+    ) => Respond(await service.SelectItemsAsync(actor.UserId, request, cancellationToken));
 
     [HttpPost("remove-items")]
-    public async Task<IActionResult> Remove(RemoveCartItemsRequest request,
-        CancellationToken cancellationToken) => Respond(await service.RemoveItemsAsync(
-            actor.UserId, request.ItemIds, cancellationToken));
+    public async Task<IActionResult> Remove(
+        RemoveCartItemsRequest request,
+        CancellationToken cancellationToken
+    ) => Respond(await service.RemoveItemsAsync(actor.UserId, request.ItemIds, cancellationToken));
 
     [HttpPost("prepare-checkout")]
-    public async Task<IActionResult> Prepare(PrepareCheckoutRequest request,
-        CancellationToken cancellationToken) => Respond(await service.PrepareCheckoutAsync(
-            actor.UserId, request.ReviewToken, cancellationToken));
+    public async Task<IActionResult> Prepare(
+        PrepareCheckoutRequest request,
+        CancellationToken cancellationToken
+    ) =>
+        Respond(
+            await service.PrepareCheckoutAsync(actor.UserId, request.ReviewToken, cancellationToken)
+        );
 }

@@ -34,11 +34,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       total = result.total;
       $("#contractRows").innerHTML = result.items
         .map(
-          (row) => `<tr>
-        <td><strong>${ui.escape(row.code)}</strong><small>${ui.escape(row.buyer)}</small></td>
-        <td>${ui.escape((row.products || []).map((item) => `${item.productName}: ${ui.number(item.committedQuantity)} ${item.unitSnapshot}`).join(" · ")) || ui.number(row.quantity)}</td><td>${ui.date(row.validFrom)} – ${ui.date(row.validUntil)}</td>
-        <td><span class="badge">${ui.escape(ui.label(row.status))}</span></td>
-        <td><button type="button" class="btn" data-contract="${row.id}">Xem và xử lý</button></td></tr>`,
+          (row) =>
+            /* HTML */ `<tr>
+              <td><strong>${ui.escape(row.code)}</strong><small>${ui.escape(row.buyer)}</small></td>
+              <td>
+                ${ui.escape(
+                  (row.products || [])
+                    .map(
+                      (item) =>
+                        `${item.productName}: ${ui.number(item.committedQuantity)} ${item.unitSnapshot}`,
+                    )
+                    .join(" · "),
+                ) || ui.number(row.quantity)}
+              </td>
+              <td>${ui.date(row.validFrom)} – ${ui.date(row.validUntil)}</td>
+              <td><span class="badge">${ui.escape(ui.label(row.status))}</span></td>
+              <td>
+                <button type="button" class="btn" data-contract="${row.id}">Xem và xử lý</button>
+              </td>
+            </tr>`,
         )
         .join("");
       $("#contractEmpty").hidden = total !== 0;
@@ -53,27 +67,31 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function inspection() {
-    const ticket = current?.disputes.find(
-      (row) => row.id === Number(value("#disputeTicket")),
-    );
+    const ticket = current?.disputes.find((row) => row.id === Number(value("#disputeTicket")));
     const items = (current?.shipments ?? [])
-      .filter(shipment => !ticket?.sellerOrderId || shipment.sellerOrderId === ticket.sellerOrderId)
-      .flatMap(shipment => shipment.items)
-      .filter(item => item.receivedQuantity != null
-        && (ticket?.disputeReason !== "ContractDeliveryDiscrepancy" || item.reconciliationStatus === "Disputed"));
+      .filter(
+        (shipment) => !ticket?.sellerOrderId || shipment.sellerOrderId === ticket.sellerOrderId,
+      )
+      .flatMap((shipment) => shipment.items)
+      .filter(
+        (item) =>
+          item.receivedQuantity != null &&
+          (ticket?.disputeReason !== "ContractDeliveryDiscrepancy" ||
+            item.reconciliationStatus === "Disputed"),
+      );
     const previousItem = value("#disputeShipment");
-    ui.options("#disputeShipment", items, item =>
-      `#${item.id} · đã giao ${ui.number(item.shippedQuantity)} · đã nhận ${ui.number(item.receivedQuantity)}`,
-      "Chọn hàng đã kiểm nhận");
-    $("#disputeShipment").value = items.some(item => String(item.id) === previousItem)
-      ? previousItem : (items[0]?.id ?? "");
-    const item = items.find(
-      (row) => row.id === Number(value("#disputeShipment")),
+    ui.options(
+      "#disputeShipment",
+      items,
+      (item) =>
+        `#${item.id} · đã giao ${ui.number(item.shippedQuantity)} · đã nhận ${ui.number(item.receivedQuantity)}`,
+      "Chọn hàng đã kiểm nhận",
     );
-    text(
-      "#discrepancyStatus",
-      ticket ? ui.label(ticket.ticketStatus) : ui.m.noRecords,
-    );
+    $("#disputeShipment").value = items.some((item) => String(item.id) === previousItem)
+      ? previousItem
+      : (items[0]?.id ?? "");
+    const item = items.find((row) => row.id === Number(value("#disputeShipment")));
+    text("#discrepancyStatus", ticket ? ui.label(ticket.ticketStatus) : ui.m.noRecords);
     ui.kv("#inspectionDetail", [
       ["Nội dung", ticket?.description || ticket?.disputeReason],
       ["Đã giao", `${ui.number(item?.shippedQuantity)} ${item?.unit || ""}`],
@@ -126,26 +144,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           )
           .join("\n"),
       ],
-      [
-        "Chất lượng",
-        row.lines.map((line) => line.qualitySpecification || "—").join("\n"),
-      ],
+      ["Chất lượng", row.lines.map((line) => line.qualitySpecification || "—").join("\n")],
       ["Thanh toán", row.paymentTerms],
       ["Tiền cọc yêu cầu", money(row.depositAmount)],
     ]);
     text(
       "#confirmationState",
       row.signatures
-        .map(
-          (item) =>
-            `${ui.label(item.partyRole)}: ${ui.label(item.confirmationStatus)}`,
-        )
+        .map((item) => `${ui.label(item.partyRole)}: ${ui.label(item.confirmationStatus)}`)
         .join(" · ") || ui.m.noRecords,
     );
-    text(
-      "#depositState",
-      `${money(row.depositPaid)} / ${money(row.depositAmount)}`,
-    );
+    text("#depositState", `${money(row.depositPaid)} / ${money(row.depositAmount)}`);
     ui.options(
       "#contractSeason",
       row.seasons.filter((season) =>
@@ -155,30 +164,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         `${season.seasonName} · ${ui.number(season.estimatedYield)} ${season.yieldUnit || ""} · ${ui.date(season.estimatedHarvestDate)}`,
       "Chọn mùa vụ",
     );
-    if (row.lines.length)
-      $("#contractSeason").value = row.lines[0].cropSeasonId || "";
+    if (row.lines.length) $("#contractSeason").value = row.lines[0].cropSeasonId || "";
     ui.options(
       "#shipmentMilestone",
-      row.milestones.filter(
-        (item) => item.deliveryQuantity > item.deliveredQuantity,
-      ),
+      row.milestones.filter((item) => item.deliveryQuantity > item.deliveredQuantity),
       (item) =>
         `${item.milestoneTitle} · ${ui.date(item.dueDate)} · còn ${ui.number(item.deliveryQuantity - item.deliveredQuantity)} ${milestoneUnit(item, row.lines)}`,
       "Chọn đợt giao",
     );
     ui.options(
       "#delayMilestone",
-      row.milestones.filter(
-        (item) => item.deliveryQuantity > item.deliveredQuantity,
-      ),
+      row.milestones.filter((item) => item.deliveryQuantity > item.deliveredQuantity),
       (item) => item.milestoneTitle,
       "Chọn nghĩa vụ",
     );
     $("#milestoneRows").innerHTML = row.milestones
       .map(
-        (item) => `<tr><td>${ui.escape(item.milestoneTitle)}</td>
-      <td>${ui.date(item.dueDate)}</td><td>${ui.number(item.deliveryQuantity)} ${ui.escape(milestoneUnit(item, row.lines))}</td><td>${ui.number(item.deliveredQuantity)} / ${ui.number(item.acceptedQuantity)} ${ui.escape(milestoneUnit(item, row.lines))}</td>
-      <td>${ui.escape(ui.label(item.fulfillmentStatus))} · ${ui.escape(ui.label(item.paymentStatus))}</td></tr>`,
+        (item) =>
+          /* HTML */ `<tr>
+            <td>${ui.escape(item.milestoneTitle)}</td>
+            <td>${ui.date(item.dueDate)}</td>
+            <td>
+              ${ui.number(item.deliveryQuantity)} ${ui.escape(milestoneUnit(item, row.lines))}
+            </td>
+            <td>
+              ${ui.number(item.deliveredQuantity)} / ${ui.number(item.acceptedQuantity)}
+              ${ui.escape(milestoneUnit(item, row.lines))}
+            </td>
+            <td>
+              ${ui.escape(ui.label(item.fulfillmentStatus))} ·
+              ${ui.escape(ui.label(item.paymentStatus))}
+            </td>
+          </tr>`,
       )
       .join("");
     ui.options(
@@ -197,10 +214,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? `${ui.label(termination.requestStatus)} · ${termination.reason}`
         : ui.m.noTermination,
     );
-    text(
-      "#completionState",
-      row.status === "Completed" ? ui.label(row.status) : ui.m.pending,
-    );
+    text("#completionState", row.status === "Completed" ? ui.label(row.status) : ui.m.pending);
     ui.kv("#financialProgress", [
       [
         "Khoản thu được xác minh",
@@ -244,9 +258,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             input?.ProposedChanges,
             input?.SettlementProposal,
             input?.ProposedResolution,
-            input?.Quantity
-              ? `${ui.number(input.Quantity)} · ${input.ProposedDate || ""}`
-              : null,
+            input?.Quantity ? `${ui.number(input.Quantity)} · ${input.ProposedDate || ""}` : null,
           ]
             .filter(Boolean)
             .join(" · ");
@@ -263,9 +275,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const milestone = current?.milestones.find(
       (row) => row.id === Number(value("#shipmentMilestone")),
     );
-    const line = current?.lines.find(
-      (row) => row.id === milestone?.contractLineId,
-    );
+    const line = current?.lines.find((row) => row.id === milestone?.contractLineId);
     ui.options(
       "#shipmentBatch",
       (current?.batches || []).filter(
@@ -281,13 +291,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           batch.availableQuantity > 0 &&
           batch.availableContractQuantity > 0,
       ),
-      (batch) => ui.m.batchAvailable(
-        batch.batchCode,
-        ui.number(batch.availableQuantity),
-        batch.unit,
-        ui.number(batch.availableContractQuantity),
-        batch.contractUnit,
-      ),
+      (batch) =>
+        ui.m.batchAvailable(
+          batch.batchCode,
+          ui.number(batch.availableQuantity),
+          batch.unit,
+          ui.number(batch.availableContractQuantity),
+          batch.contractUnit,
+        ),
       "Chọn lô hàng thực tế",
     );
     quantityLimits();
@@ -306,15 +317,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const milestone = current?.milestones.find(
       (row) => row.id === Number(value("#shipmentMilestone")),
     );
-    const batch = current?.batches.find(
-      (row) => row.id === Number(value("#shipmentBatch")),
-    );
+    const batch = current?.batches.find((row) => row.id === Number(value("#shipmentBatch")));
     const hint = $("#shipmentStockHint");
     hint.hidden = !batch;
-    hint.textContent = batch ? ui.m.batchStockSummary(
-      ui.number(batch.availableQuantity), batch.unit,
-      ui.number(batch.availableContractQuantity), batch.contractUnit,
-    ) : "";
+    hint.textContent = batch
+      ? ui.m.batchStockSummary(
+          ui.number(batch.availableQuantity),
+          batch.unit,
+          ui.number(batch.availableContractQuantity),
+          batch.contractUnit,
+        )
+      : "";
     const input = $("#shipmentQuantity");
     $("label[for=shipmentQuantity]").textContent = ui.m.contractQuantityLabel(
       milestone ? milestoneUnit(milestone) : "",
@@ -322,11 +335,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     input.step = String(batch?.contractQuantityStep || 0.001);
     input.min = input.step;
     if (batch && milestone) {
-      input.max = String(Math.min(
-        Math.floor(batch.availableContractQuantity * 1000) / 1000,
-        milestone.deliveryQuantity - milestone.deliveredQuantity,
-        999999999999,
-      ));
+      input.max = String(
+        Math.min(
+          Math.floor(batch.availableContractQuantity * 1000) / 1000,
+          milestone.deliveryQuantity - milestone.deliveredQuantity,
+          999999999999,
+        ),
+      );
     } else {
       input.removeAttribute("max");
     }
@@ -348,12 +363,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       !proposal ||
       current.canConfirmTerms === false ||
       current.signatures.some(
-        (item) =>
-          item.partyRole === "Farmer" &&
-          item.confirmationStatus === "Confirmed",
+        (item) => item.partyRole === "Farmer" && item.confirmationStatus === "Confirmed",
       );
-    $("#rejectContract").disabled =
-      busy || !proposal || current.status === "AwaitingDeposit";
+    $("#rejectContract").disabled = busy || !proposal || current.status === "AwaitingDeposit";
     $("#amendContract").disabled =
       busy ||
       !current ||
@@ -365,12 +377,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       !current ||
       !!current.termination ||
       ["Completed", "Terminated", "Rejected"].includes(current.status);
-    const ticket = current?.disputes.find(
-      (item) => item.id === Number(value("#disputeTicket")),
-    );
-    const closed =
-      !ticket ||
-      ["Resolved", "Closed", "Rejected"].includes(ticket.ticketStatus);
+    const ticket = current?.disputes.find((item) => item.id === Number(value("#disputeTicket")));
+    const closed = !ticket || ["Resolved", "Closed", "Rejected"].includes(ticket.ticketStatus);
     $("#submitDiscrepancy").disabled = busy || closed;
     $("#escalateDiscrepancy").disabled = busy || closed;
   }
@@ -385,12 +393,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function command(action, payload, form = null) {
     if (!current || busy) return;
     if (form && !form.reportValidity()) return;
-    if (
-      !(await ui.confirm(
-        action === "dispatch" ? ui.m.dispatchConfirm : ui.m.confirm,
-      ))
-    )
-      return;
+    if (!(await ui.confirm(action === "dispatch" ? ui.m.dispatchConfirm : ui.m.confirm))) return;
     busy = true;
     syncButtons();
     try {
@@ -409,8 +412,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
       });
       requests.delete(identity);
-      const screen = ui.$$("[data-screen]").find((node) => !node.hidden)
-        .dataset.screen;
+      const screen = ui.$$("[data-screen]").find((node) => !node.hidden).dataset.screen;
       if (form) form.reset();
       await detail(current.id, screen);
       ui.notice(result.message);
@@ -447,21 +449,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   $("#contractRows").onclick = (event) => {
     const button = event.target.closest("[data-contract]");
     if (button)
-      detail(Number(button.dataset.contract)).catch((error) =>
-        ui.notice(error.message, true),
-      );
+      detail(Number(button.dataset.contract)).catch((error) => ui.notice(error.message, true));
   };
   $("#filterContracts").onclick = () => {
     page = 1;
     load();
   };
   $("#resetContracts").onclick = () => {
-    [
-      "#contractSearch",
-      "#contractStatus",
-      "#contractFrom",
-      "#contractTo",
-    ].forEach((id) => {
+    ["#contractSearch", "#contractStatus", "#contractFrom", "#contractTo"].forEach((id) => {
       $(id).value = "";
     });
     page = 1;
@@ -554,9 +549,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ticketId: Number(value("#disputeTicket")),
         shipmentItemId: Number(value("#disputeShipment")),
         proposedQuantity:
-          value("#proposedQuantity") === ""
-            ? null
-            : Number(value("#proposedQuantity")),
+          value("#proposedQuantity") === "" ? null : Number(value("#proposedQuantity")),
         proposedResolution: value("#proposedGrade"),
         reason: value("#discrepancyExplanation"),
         files: "#discrepancyEvidence",
@@ -598,6 +591,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   syncButtons();
   await load();
   const requested = Number(new URLSearchParams(location.search).get("id"));
-  if (requested > 0)
-    detail(requested).catch((error) => ui.notice(error.message, true));
+  if (requested > 0) detail(requested).catch((error) => ui.notice(error.message, true));
 });

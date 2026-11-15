@@ -18,25 +18,48 @@
       </div>
     </div>
     <template id="business-template">
-      <link href="../css/finance-farmer-payouts.css" rel="stylesheet">
+      <link href="../css/finance-farmer-payouts.css" rel="stylesheet" />
       <main>
         <div class="page-title">
           <h1>Yêu cầu thanh toán của nông dân</h1>
           <p>Kiểm tra yêu cầu, xử lý chi trả và theo dõi kết quả chuyển khoản.</p>
         </div>
         <div class="screen-tabs" role="tablist" aria-label="Các trang chức năng">
-          <button type="button" role="tab" data-screen-go="list" aria-controls="screen-list" id="tab-list">Danh sách yêu cầu</button>
-          <button type="button" role="tab" data-screen-go="detail" aria-controls="screen-detail" id="tab-detail">Chi tiết / xử lý</button>
+          <button
+            type="button"
+            role="tab"
+            data-screen-go="list"
+            aria-controls="screen-list"
+            id="tab-list"
+          >
+            Danh sách yêu cầu
+          </button>
+          <button
+            type="button"
+            role="tab"
+            data-screen-go="detail"
+            aria-controls="screen-detail"
+            id="tab-detail"
+          >
+            Chi tiết / xử lý
+          </button>
         </div>
         <div id="feedback" class="notice feedback" role="status" aria-live="polite" hidden="">
           <span id="feedbackText"></span>
         </div>
-        <section class="screen" data-screen="list" id="screen-list" role="tabpanel" aria-labelledby="tab-list" hidden="">
+        <section
+          class="screen"
+          data-screen="list"
+          id="screen-list"
+          role="tabpanel"
+          aria-labelledby="tab-list"
+          hidden=""
+        >
           <section class="panel">
             <div class="body toolbar">
               <div class="field">
                 <label for="payoutSearch">Tìm kiếm</label>
-                <input id="payoutSearch" placeholder="Mã yêu cầu / phiếu chi / nông dân">
+                <input id="payoutSearch" placeholder="Mã yêu cầu / phiếu chi / nông dân" />
               </div>
               <div class="field">
                 <label for="payoutFarmerFilter">Nông dân</label>
@@ -57,8 +80,8 @@
               <div class="field">
                 <label for="payoutFrom">Ngày gửi từ / đến</label>
                 <div class="grid two">
-                  <input id="payoutFrom" type="date" aria-label="Ngày gửi từ">
-                  <input id="payoutTo" type="date" aria-label="Ngày gửi đến">
+                  <input id="payoutFrom" type="date" aria-label="Ngày gửi từ" />
+                  <input id="payoutTo" type="date" aria-label="Ngày gửi đến" />
                 </div>
               </div>
               <div class="actions">
@@ -98,15 +121,21 @@
             </div>
           </section>
         </section>
-        <section class="screen" data-screen="detail" id="screen-detail" role="tabpanel" aria-labelledby="tab-detail" hidden="">
+        <section
+          class="screen"
+          data-screen="detail"
+          id="screen-detail"
+          role="tabpanel"
+          aria-labelledby="tab-detail"
+          hidden=""
+        >
           <div class="screen-back">
             <button class="btn" data-screen-go="list">← Danh sách yêu cầu</button>
             <h2>Chi tiết / xử lý</h2>
           </div>
           <section class="panel">
             <div class="panel-title">
-              <h2>Yêu cầu ·<span id="payoutCode"></span>
-              </h2>
+              <h2>Yêu cầu ·<span id="payoutCode"></span></h2>
               <span id="payoutBadge" class="badge"></span>
             </div>
             <div class="body grid two">
@@ -133,12 +162,17 @@
                   <strong id="savedNet"></strong>
                 </div>
               </div>
-              <div class="wide notice">Chỉ thanh toán nguồn còn đủ điều kiện. Khoản đang có khiếu nại, hoàn tiền hoặc hạn giữ tài khoản không được chi trả.</div>
+              <div class="wide notice">
+                Chỉ thanh toán nguồn còn đủ điều kiện. Khoản đang có khiếu nại, hoàn tiền hoặc hạn
+                giữ tài khoản không được chi trả.
+              </div>
               <div class="wide">
                 <h3>Tài khoản nhận tiền đã lưu</h3>
                 <dl id="savedRecipient" class="kv"></dl>
               </div>
-              <p class="wide muted">Thông tin và số tiền lấy từ yêu cầu của nông dân; không chỉnh sửa tại đây.</p>
+              <p class="wide muted">
+                Thông tin và số tiền lấy từ yêu cầu của nông dân; không chỉnh sửa tại đây.
+              </p>
             </div>
             <div class="panel-title">
               <h2>Nguồn đã được yêu cầu và giữ chỗ</h2>
@@ -158,7 +192,10 @@
               </table>
             </div>
             <div class="body grid two">
-              <div class="wide notice">Yêu cầu đã gửi hoặc QR đã mở chưa có nghĩa là đã thanh toán. Chỉ ghi nhận sau khi xác minh giao dịch tiền ra phù hợp.</div>
+              <div class="wide notice">
+                Yêu cầu đã gửi hoặc QR đã mở chưa có nghĩa là đã thanh toán. Chỉ ghi nhận sau khi
+                xác minh giao dịch tiền ra phù hợp.
+              </div>
               <div>
                 <h3>Kết quả chuyển khoản</h3>
                 <dl id="transferDetails" class="kv"></dl>
@@ -184,12 +221,18 @@
                 <h3>Chuyển khoản cho nông dân</h3>
                 <div class="qr-layout">
                   <div>
-                    <img id="payoutQrImage" class="payout-qr" alt="Mã QR chuyển khoản cho nông dân">
+                    <img
+                      id="payoutQrImage"
+                      class="payout-qr"
+                      alt="Mã QR chuyển khoản cho nông dân"
+                    />
                   </div>
                   <div>
                     <dl id="payoutQrDetails" class="kv"></dl>
                     <div class="actions end">
-                      <button id="copyPayoutReference" class="btn">Sao chép nội dung chuyển khoản</button>
+                      <button id="copyPayoutReference" class="btn">
+                        Sao chép nội dung chuyển khoản
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -214,9 +257,16 @@
       </dialog>
       <dialog id="rejectDialog">
         <h2>Từ chối yêu cầu thanh toán</h2>
-        <p>Yêu cầu chỉ được từ chối trước khi mở QR. Các khoản giữ cho yêu cầu này sẽ được giải phóng.</p>
+        <p>
+          Yêu cầu chỉ được từ chối trước khi mở QR. Các khoản giữ cho yêu cầu này sẽ được giải
+          phóng.
+        </p>
         <label for="rejectReason">Lý do từ chối *</label>
-        <textarea id="rejectReason" maxlength="500" placeholder="Nhập lý do từ chối, tối đa 500 ký tự"></textarea>
+        <textarea
+          id="rejectReason"
+          maxlength="500"
+          placeholder="Nhập lý do từ chối, tối đa 500 ký tự"
+        ></textarea>
         <p id="rejectError" class="muted" role="alert"></p>
         <div class="actions end">
           <button class="btn" id="closeReject">Quay lại</button>
@@ -224,7 +274,6 @@
         </div>
       </dialog>
     </template>
-
 
     <script src="../js/config.js"></script>
     <script src="../js/utils.js"></script>

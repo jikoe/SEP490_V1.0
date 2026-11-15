@@ -26,23 +26,33 @@ window.FarmerPaymentRequestsUI = class {
         ui.notice(this.m.selectionLimit, true);
         return;
       }
-      checkbox.checked ? this.selected.add(Number(checkbox.dataset.source))
+      checkbox.checked
+        ? this.selected.add(Number(checkbox.dataset.source))
         : this.selected.delete(Number(checkbox.dataset.source));
       this.run(() => this.previewSelection());
     };
     $("#submitRequest").onclick = () => this.run(() => this.submit());
     $("#discardRequest").onclick = () => this.navigate("requests");
     $("#requestPrev").onclick = () => {
-      if (this.page > 1) { this.page--; this.run(() => this.list()); }
+      if (this.page > 1) {
+        this.page--;
+        this.run(() => this.list());
+      }
     };
     $("#requestNext").onclick = () => {
-      if (this.page * 10 < this.total) { this.page++; this.run(() => this.list()); }
+      if (this.page * 10 < this.total) {
+        this.page++;
+        this.run(() => this.list());
+      }
     };
   }
 
   async run(action) {
-    try { await action(); }
-    catch (error) { this.ui.notice(error.message || this.m.loadFailed, true); }
+    try {
+      await action();
+    } catch (error) {
+      this.ui.notice(error.message || this.m.loadFailed, true);
+    }
   }
 
   async navigate(screen) {
@@ -58,20 +68,28 @@ window.FarmerPaymentRequestsUI = class {
     });
   }
 
-  label(value) { return this.m.status[value] || value || "—"; }
+  label(value) {
+    return this.m.status[value] || value || "—";
+  }
 
   async list() {
     const ticket = ++this.generation;
     const data = await this.ui.request(`${this.base}?page=${this.page}`);
     if (ticket !== this.generation) return;
     this.total = data.total;
-    const ui = this.ui, $ = this.$;
-    $("#requestRows").innerHTML = data.items.map(row => `<tr>
-      <td><strong>${ui.escape(row.code)}</strong><small>${ui.date(row.at)}</small></td>
-      <td class="amount">${ui.money(row.netAmount)}</td>
-      <td>${ui.escape(this.label(row.payoutStatus))}</td>
-      <td><button class="btn" data-request="${row.id}">Xem chi tiết</button></td>
-    </tr>`).join("");
+    const ui = this.ui,
+      $ = this.$;
+    $("#requestRows").innerHTML = data.items
+      .map(
+        (row) =>
+          /* HTML */ `<tr>
+            <td><strong>${ui.escape(row.code)}</strong><small>${ui.date(row.at)}</small></td>
+            <td class="amount">${ui.money(row.netAmount)}</td>
+            <td>${ui.escape(this.label(row.payoutStatus))}</td>
+            <td><button class="btn" data-request="${row.id}">Xem chi tiết</button></td>
+          </tr>`,
+      )
+      .join("");
     $("#requestCount").textContent = this.m.requestCount(data.total);
     $("#requestPage").textContent = this.page;
     $("#requestPrev").disabled = this.page <= 1;
@@ -82,8 +100,12 @@ window.FarmerPaymentRequestsUI = class {
   totals(data) {
     const $ = this.$;
     $("#requestSourceCount").textContent = this.selected.size;
-    for (const [selector, key] of [["#requestGross", "gross"], ["#requestFee", "commission"],
-      ["#requestDeduction", "deduction"], ["#requestNet", "net"]]) {
+    for (const [selector, key] of [
+      ["#requestGross", "gross"],
+      ["#requestFee", "commission"],
+      ["#requestDeduction", "deduction"],
+      ["#requestNet", "net"],
+    ]) {
       $(selector).textContent = data ? this.ui.money(data[key]) : "—";
     }
     $("#submitRequest").disabled = this.busy || !data?.canCreate;
@@ -96,18 +118,39 @@ window.FarmerPaymentRequestsUI = class {
     const generation = ++this.generation;
     const data = await this.ui.request(this.base + "/context");
     if (generation !== this.generation) return;
-    const ui = this.ui, $ = this.$;
-    this.ui.kv("#requestRecipient", [["Nông trại", data.farmerName],
-      ["Ngân hàng", data.recipient?.bankName], ["Số tài khoản", data.recipient?.accountNumber],
-      ["Chủ tài khoản", data.recipient?.accountHolder]]);
+    const ui = this.ui,
+      $ = this.$;
+    this.ui.kv("#requestRecipient", [
+      ["Nông trại", data.farmerName],
+      ["Ngân hàng", data.recipient?.bankName],
+      ["Số tài khoản", data.recipient?.accountNumber],
+      ["Chủ tài khoản", data.recipient?.accountHolder],
+    ]);
     $("#requestBankState").textContent = data.message || this.m.recipientReady;
-    $("#requestSourceRows").innerHTML = data.sources.map(row => `<tr>
-      <td><input type="checkbox" data-source="${row.id}" aria-label="Chọn ${ui.escape(row.reference)}" ${row.eligible ? "" : "disabled"}></td>
-      <td><strong>${ui.escape(row.reference)}</strong><small>${ui.escape(row.channel)} · ${ui.escape(row.product)}</small></td>
-      <td>${ui.escape(row.holdReason || this.m.eligible)}</td>
-      <td class="amount">${ui.money(row.gross)}</td><td class="amount">${ui.money(row.commission)}</td>
-      <td class="amount">${ui.money(row.deduction)}</td><td class="amount">${ui.money(row.eligible ? row.net : 0)}</td>
-    </tr>`).join("");
+    $("#requestSourceRows").innerHTML = data.sources
+      .map(
+        (row) =>
+          /* HTML */ `<tr>
+            <td>
+              <input
+                type="checkbox"
+                data-source="${row.id}"
+                aria-label="Chọn ${ui.escape(row.reference)}"
+                ${row.eligible ? "" : "disabled"}
+              />
+            </td>
+            <td>
+              <strong>${ui.escape(row.reference)}</strong
+              ><small>${ui.escape(row.channel)} · ${ui.escape(row.product)}</small>
+            </td>
+            <td>${ui.escape(row.holdReason || this.m.eligible)}</td>
+            <td class="amount">${ui.money(row.gross)}</td>
+            <td class="amount">${ui.money(row.commission)}</td>
+            <td class="amount">${ui.money(row.deduction)}</td>
+            <td class="amount">${ui.money(row.eligible ? row.net : 0)}</td>
+          </tr>`,
+      )
+      .join("");
     this.totals(data);
     if (data.message) ui.notice(data.message, true);
     else if (!data.sources.length) ui.notice(this.m.allSources);
@@ -119,7 +162,8 @@ window.FarmerPaymentRequestsUI = class {
     this.totals(null);
     if (!this.selected.size) return;
     const data = await this.ui.request(this.base + "/preview", {
-      method: "POST", body: { selectedSourceIds: [...this.selected] },
+      method: "POST",
+      body: { selectedSourceIds: [...this.selected] },
     });
     if (generation !== this.generation) return;
     this.preview = data;
@@ -132,8 +176,11 @@ window.FarmerPaymentRequestsUI = class {
     const ids = [...this.selected].sort((a, b) => a - b);
     this.confirming = true;
     let confirmed;
-    try { confirmed = await this.ui.confirm(this.m.confirmSubmit); }
-    finally { this.confirming = false; }
+    try {
+      confirmed = await this.ui.confirm(this.m.confirmSubmit);
+    } finally {
+      this.confirming = false;
+    }
     if (!confirmed) return;
     if (this.preview !== candidate) return;
     const body = { selectedSourceIds: ids, expectedBalance: candidate.expectedBalance };
@@ -141,10 +188,13 @@ window.FarmerPaymentRequestsUI = class {
     if (!this.keys.has(signature)) this.keys.set(signature, crypto.randomUUID());
     this.busy = true;
     this.totals(candidate);
-    this.ui.$$("[data-source]").forEach(input => { input.disabled = true; });
+    this.ui.$$("[data-source]").forEach((input) => {
+      input.disabled = true;
+    });
     try {
       const result = await this.ui.request(this.base, {
-        method: "POST", body: { ...body, requestKey: this.keys.get(signature) },
+        method: "POST",
+        body: { ...body, requestKey: this.keys.get(signature) },
       });
       // Keep the same key after an uncertain response, so retry cannot reserve money twice.
       this.keys.delete(signature);
@@ -157,8 +207,10 @@ window.FarmerPaymentRequestsUI = class {
     } finally {
       this.busy = false;
       this.totals(this.preview);
-      this.ui.$$("[data-source]").forEach(input => {
-        input.disabled = !this.preview?.sources.some(row => row.id === Number(input.dataset.source) && row.eligible);
+      this.ui.$$("[data-source]").forEach((input) => {
+        input.disabled = !this.preview?.sources.some(
+          (row) => row.id === Number(input.dataset.source) && row.eligible,
+        );
       });
     }
   }
@@ -166,19 +218,39 @@ window.FarmerPaymentRequestsUI = class {
   async detail(id) {
     const data = await this.ui.request(`${this.base}/${id}`);
     this.current = data;
-    const ui = this.ui, $ = this.$;
+    const ui = this.ui,
+      $ = this.$;
     $("#requestDetailCode").textContent = data.code;
     $("#requestDetailState").textContent = this.label(data.status);
-    ui.kv("#requestDetails", [["Ngày gửi", ui.date(data.submittedAt)],
+    ui.kv("#requestDetails", [
+      ["Ngày gửi", ui.date(data.submittedAt)],
       ["Ngân hàng / Tài khoản", `${data.recipient.bankCode} · ${data.recipient.accountNumber}`],
       ["Chủ tài khoản", data.recipient.accountHolder],
-      ["Nguồn thanh toán", data.sources.map(row => `${row.reference}: ${ui.money(row.gross)}`).join(" · ")],
-      ["Mã giao dịch", data.bankTransferRef], ["Thời điểm xác minh", ui.date(data.processedAt)],
-      ["Lý do từ chối", data.rejectionReason]]);
-    $("#requestDetailSummary").innerHTML = [["Tổng gộp", data.gross], ["Hoa hồng", data.commission],
-      ["Khấu trừ", data.deduction], ["Thực nhận dự kiến", data.net]].map(([title, value]) =>
-      `<div class="line"><span>${ui.escape(title)}</span><strong>${ui.money(value)}</strong></div>`).join("");
-    $("#requestHistory").innerHTML = data.history.map(row => `<li>${ui.date(row.occurredAt)} · ${ui.escape(this.label(row.action))}${row.reason ? " · " + ui.escape(row.reason) : ""}</li>`).join("");
+      [
+        "Nguồn thanh toán",
+        data.sources.map((row) => `${row.reference}: ${ui.money(row.gross)}`).join(" · "),
+      ],
+      ["Mã giao dịch", data.bankTransferRef],
+      ["Thời điểm xác minh", ui.date(data.processedAt)],
+      ["Lý do từ chối", data.rejectionReason],
+    ]);
+    $("#requestDetailSummary").innerHTML = [
+      ["Tổng gộp", data.gross],
+      ["Hoa hồng", data.commission],
+      ["Khấu trừ", data.deduction],
+      ["Thực nhận dự kiến", data.net],
+    ]
+      .map(
+        ([title, value]) =>
+          `<div class="line"><span>${ui.escape(title)}</span><strong>${ui.money(value)}</strong></div>`,
+      )
+      .join("");
+    $("#requestHistory").innerHTML = data.history
+      .map(
+        (row) =>
+          `<li>${ui.date(row.occurredAt)} · ${ui.escape(this.label(row.action))}${row.reason ? " · " + ui.escape(row.reason) : ""}</li>`,
+      )
+      .join("");
     ui.go("request-detail");
     if (data.notificationFailed) ui.notice(this.m.notificationFailed);
   }

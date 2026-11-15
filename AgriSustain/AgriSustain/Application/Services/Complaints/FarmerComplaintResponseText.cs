@@ -4,7 +4,11 @@ using AgriSustain.Domain.Entities;
 namespace AgriSustain.Application.Services.Complaints;
 
 // AuditLog.NewValue retains the full explanation; DisputeEvidence.Description is limited to 500 characters.
-public sealed record FarmerComplaintResponseText(long RequestId, string Explanation, string[] EvidenceUrls)
+public sealed record FarmerComplaintResponseText(
+    long RequestId,
+    string Explanation,
+    string[] EvidenceUrls
+)
 {
     public const string Action = "FarmerComplaintResponse";
     public const string Entity = "DisputeTicket";
@@ -13,7 +17,9 @@ public sealed record FarmerComplaintResponseText(long RequestId, string Explanat
     {
         try
         {
-            return JsonSerializer.Deserialize<FarmerComplaintResponseText>(audit.NewValue ?? "null");
+            return JsonSerializer.Deserialize<FarmerComplaintResponseText>(
+                audit.NewValue ?? "null"
+            );
         }
         catch (JsonException)
         {

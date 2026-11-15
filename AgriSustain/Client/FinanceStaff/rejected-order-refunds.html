@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="vi">
   <head>
-    <meta charset="utf-8">
-    <meta content="width=device-width,initial-scale=1" name="viewport">
+    <meta charset="utf-8" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
     <title>Hoàn tiền đơn bị từ chối - AgriSustain</title>
-    <link href="../css/style.css" rel="stylesheet">
-    <link href="../css/components.css" rel="stylesheet">
+    <link href="../css/style.css" rel="stylesheet" />
+    <link href="../css/components.css" rel="stylesheet" />
   </head>
   <body>
     <div class="app-shell">
@@ -18,14 +18,18 @@
       </div>
     </div>
     <template id="business-template">
-      <link href="../css/finance-rejected-order-refunds.css" rel="stylesheet">
+      <link href="../css/finance-rejected-order-refunds.css" rel="stylesheet" />
       <main>
         <div class="intro">
           <h1>Hoàn tiền đơn hàng bị từ chối</h1>
-          <p class="muted">Xem yêu cầu, hoàn tiền cho RetailCustomer và theo dõi kết quả chuyển khoản.</p>
+          <p class="muted">
+            Xem yêu cầu, hoàn tiền cho RetailCustomer và theo dõi kết quả chuyển khoản.
+          </p>
         </div>
         <nav class="tabs" aria-label="Các trang chức năng">
-          <button class="active" id="tab-list" data-screen-go="list" role="tab">Danh sách yêu cầu</button>
+          <button class="active" id="tab-list" data-screen-go="list" role="tab">
+            Danh sách yêu cầu
+          </button>
           <button id="tab-detail" data-screen-go="detail" role="tab">Chi tiết / hoàn tiền</button>
         </nav>
         <div class="notice" role="status" aria-live="polite" id="feedback" hidden="">
@@ -36,7 +40,11 @@
             <div class="body filters">
               <div>
                 <label for="keyword">Tìm kiếm</label>
-                <input id="keyword" maxlength="255" placeholder="Mã hoàn tiền / mã đơn / RetailCustomer">
+                <input
+                  id="keyword"
+                  maxlength="255"
+                  placeholder="Mã hoàn tiền / mã đơn / RetailCustomer"
+                />
               </div>
               <div>
                 <label for="status">Trạng thái hoàn tiền</label>
@@ -50,11 +58,11 @@
               </div>
               <div>
                 <label for="from">Ngày gửi từ</label>
-                <input id="from" type="date">
+                <input id="from" type="date" />
               </div>
               <div>
                 <label for="to">Ngày gửi đến</label>
-                <input id="to" type="date">
+                <input id="to" type="date" />
               </div>
               <div class="actions">
                 <button class="btn primary" id="apply">Áp dụng</button>
@@ -123,7 +131,7 @@
                 <h3>Chuyển tiền cho RetailCustomer</h3>
                 <div class="qr-layout">
                   <div>
-                    <img id="qr" class="qr" alt="Mã QR chuyển khoản hoàn tiền">
+                    <img id="qr" class="qr" alt="Mã QR chuyển khoản hoàn tiền" />
                   </div>
                   <div>
                     <dl class="kv" id="transferData"></dl>
@@ -153,7 +161,7 @@
             </div>
           </div>
         </section>
-        <p class="muted">VND · Thời gian Việt Nam. </p>
+        <p class="muted">VND · Thời gian Việt Nam.</p>
         <dialog id="confirmDialog">
           <h2>Xác nhận mở QR hoàn tiền</h2>
           <p id="confirmText"></p>
@@ -176,4 +184,3 @@
     <script src="../js/finance-rejected-order-refunds.js"></script>
   </body>
 </html>
-

@@ -6,4 +6,5 @@ public sealed record OrderItemBatchDto(
     decimal Quantity,
     DateOnly? HarvestDate,
     string? SeasonName,
-    string? TraceabilityUrl);
+    string? TraceabilityUrl
+);

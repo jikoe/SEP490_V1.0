@@ -21,24 +21,38 @@ public partial class FarmerPayout
         var blocks = new List<PayoutBlock>();
         if (FarmerProfile.User.Status != "Active")
         {
-            blocks.Add(new PayoutBlock(BlockAccountSuspended,
-                "Tài khoản nông trại đang bị tạm ngưng hoặc chưa hoạt động; chỉ chi khi tài khoản được kích hoạt lại."));
+            blocks.Add(
+                new PayoutBlock(
+                    BlockAccountSuspended,
+                    "Tài khoản nông trại đang bị tạm ngưng hoặc chưa hoạt động; chỉ chi khi tài khoản được kích hoạt lại."
+                )
+            );
         }
         var disputedOrders = PayoutItems
             .Select(item => item.OrderItem?.SellerOrder)
-            .Where(order => order is not null && order.DisputeTickets.Any(ticket => ticket.IsAwaitingDecision))
+            .Where(order =>
+                order is not null && order.DisputeTickets.Any(ticket => ticket.IsAwaitingDecision)
+            )
             .Select(order => order!.SellerOrderCode)
             .Distinct()
             .ToList();
         if (disputedOrders.Count > 0)
         {
-            blocks.Add(new PayoutBlock(BlockOpenComplaint,
-                $"Đơn {string.Join(", ", disputedOrders)} đang có khiếu nại chưa được quyết định."));
+            blocks.Add(
+                new PayoutBlock(
+                    BlockOpenComplaint,
+                    $"Đơn {string.Join(", ", disputedOrders)} đang có khiếu nại chưa được quyết định."
+                )
+            );
         }
         if (receivingAccount?.PayoutHoldUntil > now)
         {
-            blocks.Add(new PayoutBlock(BlockBankAccountChanged,
-                $"Tài khoản nhận tiền vừa được thay đổi; chỉ chi sau {receivingAccount.PayoutHoldUntil:dd/MM/yyyy HH:mm} UTC."));
+            blocks.Add(
+                new PayoutBlock(
+                    BlockBankAccountChanged,
+                    $"Tài khoản nhận tiền vừa được thay đổi; chỉ chi sau {receivingAccount.PayoutHoldUntil:dd/MM/yyyy HH:mm} UTC."
+                )
+            );
         }
         return blocks;
     }

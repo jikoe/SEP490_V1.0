@@ -32,12 +32,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       total = data.total;
       $("#payoutRows").innerHTML = data.items
         .map(
-          (row) => `<tr>
-        <td><strong>${ui.escape(row.code)}</strong><small>${ui.date(row.at)}</small></td>
-        <td>${ui.escape(row.farmer)}</td><td class="amount">${ui.money(row.amount)}</td>
-        <td class="amount">${ui.money(row.deductedCommission)} / ${ui.money(row.deduction)}</td><td class="amount">${ui.money(row.netAmount)}</td>
-        <td>${ui.escape(ui.label(row.payoutStatus))}</td>
-        <td><button class="btn" type="button" data-payout="${row.id}">Xem / xử lý</button></td></tr>`,
+          (row) =>
+            /* HTML */ `<tr>
+              <td><strong>${ui.escape(row.code)}</strong><small>${ui.date(row.at)}</small></td>
+              <td>${ui.escape(row.farmer)}</td>
+              <td class="amount">${ui.money(row.amount)}</td>
+              <td class="amount">
+                ${ui.money(row.deductedCommission)} / ${ui.money(row.deduction)}
+              </td>
+              <td class="amount">${ui.money(row.netAmount)}</td>
+              <td>${ui.escape(ui.label(row.payoutStatus))}</td>
+              <td>
+                <button class="btn" type="button" data-payout="${row.id}">Xem / xử lý</button>
+              </td>
+            </tr>`,
         )
         .join("");
       $("#payoutEmpty").hidden = total > 0;
@@ -54,19 +62,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderDetail(data) {
     current = data;
     ui.kv("#savedRecipient", [
-      ["Ngân hàng", data.recipient.bankCode], ["Số tài khoản", data.recipient.accountNumber],
+      ["Ngân hàng", data.recipient.bankCode],
+      ["Số tài khoản", data.recipient.accountNumber],
       ["Chủ tài khoản", data.recipient.accountHolder],
       ["Xác minh", ui.label(data.recipient.verificationStatus)],
       ["Giữ chi trả đến", ui.date(data.recipient.payoutHoldUntil)],
     ]);
-    $("#sourceRows").innerHTML = data.sources.map(row => `<tr>
-      <td>${ui.escape(row.reference || row.id)}<small>${ui.escape(row.channel)}</small></td>
-      <td>${ui.escape(data.status === "Processed" ? ui.m.sourceSettled : data.status === "Rejected"
-        ? ui.m.sourceReleased : row.holdReason || ui.m.sourceReserved)}</td>
-      <td class="amount">${ui.money(row.gross)}</td>
-      <td class="amount">${ui.money(row.commission)}</td>
-      <td class="amount">${ui.money(row.deduction)}</td>
-    </tr>`).join("");
+    $("#sourceRows").innerHTML = data.sources
+      .map(
+        (row) =>
+          /* HTML */ `<tr>
+            <td>${ui.escape(row.reference || row.id)}<small>${ui.escape(row.channel)}</small></td>
+            <td>
+              ${ui.escape(
+                data.status === "Processed"
+                  ? ui.m.sourceSettled
+                  : data.status === "Rejected"
+                    ? ui.m.sourceReleased
+                    : row.holdReason || ui.m.sourceReserved,
+              )}
+            </td>
+            <td class="amount">${ui.money(row.gross)}</td>
+            <td class="amount">${ui.money(row.commission)}</td>
+            <td class="amount">${ui.money(row.deduction)}</td>
+          </tr>`,
+      )
+      .join("");
 
     display("#payoutCode", data.code);
     display("#payoutBadge", ui.label(data.status));
@@ -75,9 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ["Ngày gửi", ui.date(data.submittedAt)],
       [
         "Nguồn chi trả",
-        data.sources
-          .map((row) => `${row.reference || row.id}: ${ui.money(row.gross)}`)
-          .join(" · "),
+        data.sources.map((row) => `${row.reference || row.id}: ${ui.money(row.gross)}`).join(" · "),
       ],
     ]);
     [
@@ -90,10 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ["Trạng thái", ui.label(data.status)],
       ["Mã giao dịch", data.bankTransferRef],
       ["Thời điểm tiền ra đã xác minh", ui.date(data.processedAt)],
-      [
-        "Cơ sở ghi nhận",
-        data.status === "Processed" ? ui.m.sourceDebit : ui.m.pending,
-      ],
+      ["Cơ sở ghi nhận", data.status === "Processed" ? ui.m.sourceDebit : ui.m.pending],
     ]);
     display(
       "#reconciliationText",
@@ -107,28 +123,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     display(
       "#payoutNotification",
-      data.notificationFailed ? ui.m.notificationFailed : data.status === "Pending" ? ui.m.submittedPending
-        : data.status === "Rejected" ? ui.m.notificationRejected : ui.m.notifications,
+      data.notificationFailed
+        ? ui.m.notificationFailed
+        : data.status === "Pending"
+          ? ui.m.submittedPending
+          : data.status === "Rejected"
+            ? ui.m.notificationRejected
+            : ui.m.notifications,
     );
     $("#processPayout").disabled =
-      busy ||
-      !data.canProcess ||
-      !!data.holdReason ||
-      !!data.integrationMessage;
+      busy || !data.canProcess || !!data.holdReason || !!data.integrationMessage;
     $("#rejectRequest").disabled = busy || !data.canReject;
     $("#checkGateway").disabled = busy || !data.canReconcile;
     $("#qrPaymentBox").hidden = !data.plan || data.status !== "Processing";
     if (data.plan) {
       $("#payoutQrImage").src = data.plan.qrUrl;
       ui.kv("#payoutQrDetails", [
-        [
-          "Tài khoản nguồn",
-          `${data.plan.sourceBankName} · ${data.plan.sourceAccountNumber}`,
-        ],
-        [
-          "Tài khoản nhận",
-          `${data.recipient.bankCode} · ${data.recipient.accountNumber}`,
-        ],
+        ["Tài khoản nguồn", `${data.plan.sourceBankName} · ${data.plan.sourceAccountNumber}`],
+        ["Tài khoản nhận", `${data.recipient.bankCode} · ${data.recipient.accountNumber}`],
         ["Chủ tài khoản nhận", data.recipient.accountHolder],
         ["Số tiền", ui.money(data.plan.amount)],
         ["Nội dung bắt buộc", data.plan.operationKey],
@@ -149,7 +161,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!quiet) ui.go("detail");
   }
 
-
   async function command(action) {
     if (!current || busy) return;
     const id = current.id;
@@ -160,19 +171,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (action === "process") {
         snapshot = await ui.request(`${base}/${id}/qr-preview`);
         if (current?.id !== id) return;
-        const confirmed = await ui.confirm(ui.m.confirmTransfer(ui.money(snapshot.net),
-          snapshot.recipient.accountHolder, snapshot.recipient.bankCode, snapshot.recipient.accountNumber));
+        const confirmed = await ui.confirm(
+          ui.m.confirmTransfer(
+            ui.money(snapshot.net),
+            snapshot.recipient.accountHolder,
+            snapshot.recipient.bankCode,
+            snapshot.recipient.accountNumber,
+          ),
+        );
         if (!confirmed || current?.id !== id) return;
       }
       busy = true;
       renderDetail(current);
-      const body = action === "reconcile"
-        ? { existingOperationKey: snapshot.plan.operationKey }
-        : { expectedVersion: snapshot.version, confirmedNetAmount: snapshot.net, requestKey: crypto.randomUUID() };
+      const body =
+        action === "reconcile"
+          ? { existingOperationKey: snapshot.plan.operationKey }
+          : {
+              expectedVersion: snapshot.version,
+              confirmedNetAmount: snapshot.net,
+              requestKey: crypto.randomUUID(),
+            };
       const result = await ui.request(`${base}/${id}/${action}`, { method: "POST", body });
       await detail(id);
       ui.notice(result.message);
-      if (action === "process" && current.plan) $("#qrPaymentBox").scrollIntoView({ behavior: "smooth", block: "start" });
+      if (action === "process" && current.plan)
+        $("#qrPaymentBox").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       ui.notice(error.message || ui.m.saveFailed, true);
     } finally {
@@ -191,8 +214,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("#rejectError").textContent = "";
     $("#rejectDialog").showModal();
   };
-  $("#closeReject").onclick = () => { if (!busy) $("#rejectDialog").close(); };
-  $("#rejectDialog").addEventListener("cancel", event => { if (busy) event.preventDefault(); });
+  $("#closeReject").onclick = () => {
+    if (!busy) $("#rejectDialog").close();
+  };
+  $("#rejectDialog").addEventListener("cancel", (event) => {
+    if (busy) event.preventDefault();
+  });
   $("#confirmReject").onclick = async () => {
     if (busy || !rejectSnapshot) return;
     const reason = $("#rejectReason").value.trim();
@@ -200,14 +227,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       $("#rejectError").textContent = !reason ? ui.m.rejectionRequired : ui.m.rejectionTooLong;
       return;
     }
-    const signature = JSON.stringify({ id: rejectSnapshot.id, version: rejectSnapshot.version, reason });
+    const signature = JSON.stringify({
+      id: rejectSnapshot.id,
+      version: rejectSnapshot.version,
+      reason,
+    });
     if (rejection?.signature !== signature) rejection = { signature, key: crypto.randomUUID() };
     busy = true;
     $("#confirmReject").disabled = true;
     $("#closeReject").disabled = true;
     try {
       const result = await ui.request(`${base}/${rejectSnapshot.id}/reject`, {
-        method: "POST", body: { expectedVersion: rejectSnapshot.version, requestKey: rejection.key, reason },
+        method: "POST",
+        body: { expectedVersion: rejectSnapshot.version, requestKey: rejection.key, reason },
       });
       $("#rejectDialog").close();
       await detail(result.id);
@@ -223,7 +255,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   ui.navigate = async (screen) => {
     if (busy) return;
-    if (screen === "detail" && !current) { ui.notice(ui.m.selectPayout, true); return; }
+    if (screen === "detail" && !current) {
+      ui.notice(ui.m.selectPayout, true);
+      return;
+    }
     ui.go(screen);
     if (screen === "list") await list();
   };
@@ -233,11 +268,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       await navigator.clipboard.writeText(current.plan.operationKey);
       ui.notice(ui.m.copied);
-    } catch { ui.notice(ui.m.copyFailed, true); }
+    } catch {
+      ui.notice(ui.m.copyFailed, true);
+    }
   };
   $("#payoutRows").onclick = (event) => {
     const button = event.target.closest("[data-payout]");
-    if (button && !busy) detail(Number(button.dataset.payout)).catch(error => ui.notice(error.message, true));
+    if (button && !busy)
+      detail(Number(button.dataset.payout)).catch((error) => ui.notice(error.message, true));
   };
   $("#applyPayoutFilter").onclick = () => {
     if (field("#payoutFrom") && field("#payoutTo") && field("#payoutFrom") > field("#payoutTo")) {
@@ -248,19 +286,47 @@ document.addEventListener("DOMContentLoaded", async () => {
     list();
   };
   $("#resetPayoutFilter").onclick = () => {
-    ["#payoutSearch", "#payoutFarmerFilter", "#payoutStatusFilter", "#payoutFrom", "#payoutTo"].forEach(id => { $(id).value = ""; });
+    [
+      "#payoutSearch",
+      "#payoutFarmerFilter",
+      "#payoutStatusFilter",
+      "#payoutFrom",
+      "#payoutTo",
+    ].forEach((id) => {
+      $(id).value = "";
+    });
     page = 1;
     list();
   };
-  $("#payoutPrev").onclick = () => { if (page > 1) { page--; list(); } };
-  $("#payoutNext").onclick = () => { if (page * 10 < total) { page++; list(); } };
+  $("#payoutPrev").onclick = () => {
+    if (page > 1) {
+      page--;
+      list();
+    }
+  };
+  $("#payoutNext").onclick = () => {
+    if (page * 10 < total) {
+      page++;
+      list();
+    }
+  };
   const timer = setInterval(async () => {
-    if (busy || document.hidden || !current?.canReconcile || $("#screen-detail").hidden
-      || $("#rejectDialog").open || $("#confirmDialog").open) return;
+    if (
+      busy ||
+      document.hidden ||
+      !current?.canReconcile ||
+      $("#screen-detail").hidden ||
+      $("#rejectDialog").open ||
+      $("#confirmDialog").open
+    )
+      return;
     const id = current.id;
     busy = true;
     try {
-      await ui.request(`${base}/${id}/reconcile`, { method: "POST", body: { existingOperationKey: current.plan.operationKey } });
+      await ui.request(`${base}/${id}/reconcile`, {
+        method: "POST",
+        body: { existingOperationKey: current.plan.operationKey },
+      });
       await detail(id, true);
       if (current?.id === id && current.status === "Processed") ui.notice(ui.m.sourceDebit);
     } catch {
@@ -274,9 +340,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   ui.go("list");
   try {
     const farmers = await ui.request(base + "/farmers");
-    ui.options("#payoutFarmerFilter", farmers, row => row.name, "Tất cả nông dân");
+    ui.options("#payoutFarmerFilter", farmers, (row) => row.name, "Tất cả nông dân");
     await list();
     const requestId = new URLSearchParams(location.search).get("requestId");
     if (/^[1-9]\d*$/.test(requestId || "")) await detail(Number(requestId));
-  } catch (error) { ui.notice(error.message || ui.m.loadFailed, true); }
+  } catch (error) {
+    ui.notice(error.message || ui.m.loadFailed, true);
+  }
 });

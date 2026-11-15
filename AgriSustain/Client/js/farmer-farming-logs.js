@@ -48,7 +48,8 @@ document.addEventListener("DOMContentLoaded", () => {
     el(form, prefix + "material").required = pest || activity === "Bón phân";
     el(form, prefix + "dosage").required = pest || activity === "Bón phân";
     const reuse =
-      form === cf && (original?.evidenceUrls || []).some((x) => x.startsWith("/api/farmer/evidence/"));
+      form === cf &&
+      (original?.evidenceUrls || []).some((x) => x.startsWith("/api/farmer/evidence/"));
     el(form, prefix + "images").required = pest && !reuse;
     for (const [suffix, title, required] of [
       ["material", "Vật tư", pest || activity === "Bón phân"],
@@ -102,8 +103,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await ui.request("/" + id);
       if (seq !== selection) return;
       original = data;
-      $("#originalLog").innerHTML =
-        `<strong>NK-${data.cultivationLogId}</strong> · ${ui.escape(data.seasonName)} · ${ui.date(data.actionDate)} · ${ui.escape(data.detailDescription)}<br>Người thực hiện: ${ui.escape(data.performedBy)}${ui.proofs(data.evidenceUrls)}`;
+      $("#originalLog").innerHTML = /* HTML */ `<strong>NK-${data.cultivationLogId}</strong> ·
+        ${ui.escape(data.seasonName)} · ${ui.date(data.actionDate)} ·
+        ${ui.escape(data.detailDescription)}<br />Người thực hiện:
+        ${ui.escape(data.performedBy)}${ui.proofs(data.evidenceUrls)}`;
       if (![...el(cf, "correctactivity").options].some((x) => x.value === data.actionType))
         el(cf, "correctactivity").add(new Option(data.actionType, data.actionType));
       ui.fill(cf, {
@@ -142,7 +145,21 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const l = await ui.request("/" + id);
       const box = $("#proofContent");
-      box.innerHTML = `<h3>NK-${l.cultivationLogId} · ${ui.escape(l.seasonName)}</h3><p>${ui.date(l.actionDate)} · ${ui.escape(l.actionType)}</p><p>${ui.escape(l.detailDescription)}</p><p>${ui.escape(l.inputMaterial)} · ${ui.escape(l.dosage)}</p><p>Người thực hiện: ${ui.escape(l.performedBy)}<br>Người ghi: ${ui.escape(l.recorder)} · ${ui.datetime(l.recordedAt)}</p>${l.correctsLogId ? "<p>" + ui.escape(ui.m.correction(l.correctsLogId)) + " · " + ui.escape(l.correctionReason) + "</p>" : ""}${ui.proofs(l.evidenceUrls)}`;
+      box.innerHTML = /* HTML */ `<h3>NK-${l.cultivationLogId} · ${ui.escape(l.seasonName)}</h3>
+        <p>${ui.date(l.actionDate)} · ${ui.escape(l.actionType)}</p>
+        <p>${ui.escape(l.detailDescription)}</p>
+        <p>${ui.escape(l.inputMaterial)} · ${ui.escape(l.dosage)}</p>
+        <p>
+          Người thực hiện: ${ui.escape(l.performedBy)}<br />Người ghi: ${ui.escape(l.recorder)} ·
+          ${ui.datetime(l.recordedAt)}
+        </p>
+        ${l.correctsLogId
+          ? "<p>" +
+            ui.escape(ui.m.correction(l.correctsLogId)) +
+            " · " +
+            ui.escape(l.correctionReason) +
+            "</p>"
+          : ""}${ui.proofs(l.evidenceUrls)}`;
       $("#proofViewer").showModal();
     } catch (error) {
       ui.failure(error);
@@ -163,7 +180,42 @@ document.addEventListener("DOMContentLoaded", () => {
         data.items
           .map(
             (l) =>
-              `<tr><td><strong>NK-${l.cultivationLogId}</strong><br>${ui.date(l.actionDate)} · ${ui.escape(l.actionType)}<br>${ui.escape(l.seasonName)}${l.correctsLogId ? '<br><span class="pill amber">' + ui.escape(ui.m.correction(l.correctsLogId)) + "</span><br><small>Lý do: " + ui.escape(l.correctionReason) + "</small>" : ""}</td><td>${ui.escape(l.detailDescription)}<br><small>${ui.escape(l.inputMaterial)} ${ui.escape(l.dosage)}</small></td><td>${ui.escape(l.performedBy)}<br><small>Người ghi: ${ui.escape(l.recorder)}<br>${ui.datetime(l.recordedAt)}<br>Không sửa / xóa</small></td><td>${l.evidenceUrls.length ? ui.proofs(l.evidenceUrls) : ui.escape(ui.m.noProof)}<br><button class="btn" data-detail="${l.cultivationLogId}" type="button">Xem chi tiết</button>${!l.correctsLogId ? '<button class="btn" data-correct="' + l.cultivationLogId + '" type="button">Thêm đính chính</button>' : ""}</td></tr>`,
+              /* HTML */ `<tr>
+                <td>
+                  <strong>NK-${l.cultivationLogId}</strong><br />${ui.date(l.actionDate)} ·
+                  ${ui.escape(l.actionType)}<br />${ui.escape(l.seasonName)}${l.correctsLogId
+                    ? '<br><span class="pill amber">' +
+                      ui.escape(ui.m.correction(l.correctsLogId)) +
+                      "</span><br><small>Lý do: " +
+                      ui.escape(l.correctionReason) +
+                      "</small>"
+                    : ""}
+                </td>
+                <td>
+                  ${ui.escape(l.detailDescription)}<br /><small
+                    >${ui.escape(l.inputMaterial)} ${ui.escape(l.dosage)}</small
+                  >
+                </td>
+                <td>
+                  ${ui.escape(l.performedBy)}<br /><small
+                    >Người ghi: ${ui.escape(l.recorder)}<br />${ui.datetime(l.recordedAt)}<br />Không
+                    sửa / xóa</small
+                  >
+                </td>
+                <td>
+                  ${l.evidenceUrls.length ? ui.proofs(l.evidenceUrls) : ui.escape(ui.m.noProof)}<br /><button
+                    class="btn"
+                    data-detail="${l.cultivationLogId}"
+                    type="button"
+                  >
+                    Xem chi tiết</button
+                  >${!l.correctsLogId
+                    ? '<button class="btn" data-correct="' +
+                      l.cultivationLogId +
+                      '" type="button">Thêm đính chính</button>'
+                    : ""}
+                </td>
+              </tr>`,
           )
           .join(""),
         4,
@@ -207,7 +259,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!ui.validate(form)) return;
     saving = true;
     try {
-      const seasonId = correcting ? original.cropSeasonId : Number(ui.value(form, prefix + "season"));
+      const seasonId = correcting
+        ? original.cropSeasonId
+        : Number(ui.value(form, prefix + "season"));
       const season = ui.optionsData.seasons.find((x) => x.cropSeasonId === seasonId);
       if (!correcting && !["Planting", "Growing", "Harvesting"].includes(season?.status)) {
         ui.notice(ui.m.MSG133, true);

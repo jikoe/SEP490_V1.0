@@ -4,7 +4,8 @@ namespace AgriSustain.Infrastructure.BackgroundWorkers;
 
 public sealed class FarmerComplaintNotificationWorker(
     IServiceScopeFactory scopes,
-    ILogger<FarmerComplaintNotificationWorker> logger) : BackgroundService
+    ILogger<FarmerComplaintNotificationWorker> logger
+) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -14,7 +15,9 @@ public sealed class FarmerComplaintNotificationWorker(
             try
             {
                 using var scope = scopes.CreateScope();
-                await scope.ServiceProvider.GetRequiredService<FarmerComplaintService>().NotifySupportAsync(null, stoppingToken);
+                await scope
+                    .ServiceProvider.GetRequiredService<FarmerComplaintService>()
+                    .NotifySupportAsync(null, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -22,7 +25,10 @@ public sealed class FarmerComplaintNotificationWorker(
             }
             catch (Exception ex)
             {
-                logger.LogWarning("Farmer complaint notification queue unavailable ({Type}).", ex.GetType().Name);
+                logger.LogWarning(
+                    "Farmer complaint notification queue unavailable ({Type}).",
+                    ex.GetType().Name
+                );
             }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }

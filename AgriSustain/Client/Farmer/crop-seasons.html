@@ -38,7 +38,12 @@
           <form id="filters" class="toolbar">
             <div class="field">
               <label for="keyword">Tìm kiếm</label>
-              <input id="keyword" name="keyword" type="search" placeholder="Tên mùa vụ, sản phẩm, giống..." />
+              <input
+                id="keyword"
+                name="keyword"
+                type="search"
+                placeholder="Tên mùa vụ, sản phẩm, giống..."
+              />
             </div>
             <div class="field">
               <label for="filterStatus">Trạng thái / hoạt động</label>
@@ -116,7 +121,13 @@
                   </div>
                   <div class="field">
                     <label for="variety">Giống cây *</label>
-                    <input id="variety" name="variety" type="text" required placeholder="Ví dụ: Cát Chu" />
+                    <input
+                      id="variety"
+                      name="variety"
+                      type="text"
+                      required
+                      placeholder="Ví dụ: Cát Chu"
+                    />
                   </div>
                   <div class="field">
                     <label for="area">Diện tích (ha) *</label>
@@ -276,8 +287,8 @@
                   </div>
                 </div>
                 <div class="notice">
-                  Dừng nhận cam kết mới; giữ nguyên lịch sử và các cam kết đã có. Thao tác này không thay đổi
-                  thỏa thuận mua hàng hoặc xác nhận hoàn tiền.
+                  Dừng nhận cam kết mới; giữ nguyên lịch sử và các cam kết đã có. Thao tác này không
+                  thay đổi thỏa thuận mua hàng hoặc xác nhận hoàn tiền.
                 </div>
                 <div class="actions end">
                   <button class="btn" type="button" data-go="list">Hủy</button>
@@ -292,14 +303,18 @@
         <h2>Xác nhận thao tác</h2>
         <p id="confirmText"></p>
         <div class="actions end">
-          <button class="btn" type="button" onclick="this.closest('dialog').close()">Quay lại</button>
+          <button class="btn" type="button" onclick="this.closest('dialog').close()">
+            Quay lại
+          </button>
           <button class="btn primary" id="confirmOk">Xác nhận</button>
         </div>
       </dialog>
       <dialog id="proofViewer">
         <h2>Ảnh bằng chứng</h2>
         <div id="proofContent"></div>
-        <div class="actions end"><button class="btn" type="button" data-close-dialog>Đóng</button></div>
+        <div class="actions end">
+          <button class="btn" type="button" data-close-dialog>Đóng</button>
+        </div>
       </dialog>
     </template>
     <script src="../js/config.js"></script>

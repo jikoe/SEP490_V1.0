@@ -8,7 +8,6 @@ public partial class CropSeason
         return input;
     }
 
-
     public void UpdatePlan(CropSeason input)
     {
         if (Status is not ("Planned" or "Planning"))
@@ -23,7 +22,6 @@ public partial class CropSeason
         YieldUnit = input.YieldUnit;
     }
 
-
     public void AdvanceStage(string nextStage) => Status = nextStage;
 
     public void Complete(DateOnly date, decimal actualYield)
@@ -32,7 +30,6 @@ public partial class CropSeason
         ActualHarvestDate = date;
         ActualYield = actualYield;
     }
-
 
     public void CancelOrFail(string outcome, decimal actualYield)
     {
@@ -63,7 +60,8 @@ public partial class HarvestBatch
         decimal yield,
         DateOnly expiry,
         string? notes,
-        DateTime now)
+        DateTime now
+    )
     {
         if (StockEnteredAt.HasValue || ActualHarvestDate.HasValue)
             throw new InvalidOperationException("Initial stock-in cannot be repeated.");
@@ -76,13 +74,11 @@ public partial class HarvestBatch
         Status = "Available";
     }
 
-
     public void UpdateDetails(DateOnly expiry, string? notes)
     {
         ExpirationDate = expiry;
         QualityNotes = notes;
     }
-
 
     public void CalculateAvailable(decimal adjustment, decimal held, decimal shipped)
     {
@@ -93,10 +89,10 @@ public partial class HarvestBatch
         AvailableQuantity = available;
     }
 
-
     public void ApplyJustifiedAdjustment(
         decimal delta,
-        (decimal Adjustment, decimal Held, decimal Shipped) balance)
+        (decimal Adjustment, decimal Held, decimal Shipped) balance
+    )
     {
         CalculateAvailable(balance.Adjustment + delta, balance.Held, balance.Shipped);
     }
@@ -114,7 +110,8 @@ public partial class TraceabilityQrcode
         HarvestBatch batch,
         string identity,
         string url,
-        DateTime now)
+        DateTime now
+    )
     {
         if (batch.TraceabilityQrcode is not null)
             throw new InvalidOperationException("Batch already has a QR identity.");
@@ -123,10 +120,9 @@ public partial class TraceabilityQrcode
             HarvestBatchId = batch.HarvestBatchId,
             QrcontentString = identity,
             TargetUrl = url,
-            GeneratedAt = now
+            GeneratedAt = now,
         };
     }
-
 
     public string GetExistingIdentity() => QrcontentString;
 }

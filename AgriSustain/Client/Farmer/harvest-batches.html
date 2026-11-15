@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="vi">
   <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Quản lý lô thu hoạch - AgriSustain</title>
-    <link rel="stylesheet" href="../css/style.css">
-    <link rel="stylesheet" href="../css/components.css">
-    <link rel="stylesheet" href="../css/farm-management-shell.css">
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/farm-management-shell.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -19,7 +19,7 @@
       </div>
     </div>
     <template id="farm-template">
-      <link rel="stylesheet" href="../css/farmer-harvest-batches.css">
+      <link rel="stylesheet" href="../css/farmer-harvest-batches.css" />
       <div class="app">
         <div class="head">
           <div>
@@ -27,7 +27,9 @@
             <p>Quản lý hoạt động của nông trại</p>
           </div>
           <div class="actions create-actions">
-            <button class="btn primary" type="button" id="newActual">+ Ghi thu hoạch thực tế</button>
+            <button class="btn primary" type="button" id="newActual">
+              + Ghi thu hoạch thực tế
+            </button>
           </div>
         </div>
         <nav class="views">
@@ -41,7 +43,13 @@
           <form id="filters" class="toolbar">
             <div class="field">
               <label for="keyword">Tìm kiếm</label>
-              <input id="keyword" name="keyword" type="search" placeholder="Mã lô, sản phẩm, mùa vụ..." maxlength="255">
+              <input
+                id="keyword"
+                name="keyword"
+                type="search"
+                placeholder="Mã lô, sản phẩm, mùa vụ..."
+                maxlength="255"
+              />
             </div>
             <div class="field">
               <label for="filterStatus">Trạng thái / hoạt động</label>
@@ -68,11 +76,11 @@
             </div>
             <div class="field">
               <label for="from">Từ ngày</label>
-              <input id="from" name="from" type="date">
+              <input id="from" name="from" type="date" />
             </div>
             <div class="field">
               <label for="to">Đến ngày</label>
-              <input id="to" name="to" type="date">
+              <input id="to" name="to" type="date" />
             </div>
             <button class="btn primary">Áp dụng</button>
             <button class="btn" type="button" id="clearFilters">Xóa bộ lọc</button>
@@ -111,7 +119,14 @@
                 <div class="grid">
                   <div class="field">
                     <label for="code">Mã lô *</label>
-                    <input id="code" name="code" type="text" required placeholder="Ví dụ: HB-XOAI-2026-001" maxlength="100">
+                    <input
+                      id="code"
+                      name="code"
+                      type="text"
+                      required
+                      placeholder="Ví dụ: HB-XOAI-2026-001"
+                      maxlength="100"
+                    />
                   </div>
                   <div class="field">
                     <label for="product">Sản phẩm *</label>
@@ -127,31 +142,50 @@
                   </div>
                   <div class="field">
                     <label for="harvest">Ngày thu hoạch thực tế *</label>
-                    <input id="harvest" name="harvest" type="date" required="">
+                    <input id="harvest" name="harvest" type="date" required="" />
                   </div>
                   <div class="field">
                     <label for="expiry">Hạn sử dụng *</label>
-                    <input id="expiry" name="expiry" type="date" required="">
+                    <input id="expiry" name="expiry" type="date" required="" />
                   </div>
                   <div class="field">
                     <label for="yield">Sản lượng thực tế *</label>
-                    <input id="yield" name="yield" type="number" min="0.001" step="0.001" placeholder="Ví dụ: 500" required="" max="999999999999999">
+                    <input
+                      id="yield"
+                      name="yield"
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      placeholder="Ví dụ: 500"
+                      required=""
+                      max="999999999999999"
+                    />
                   </div>
                   <div class="field">
                     <label for="unit">Đơn vị sản phẩm</label>
-                    <input id="unit" name="unit" type="text" readonly>
+                    <input id="unit" name="unit" type="text" readonly />
                   </div>
                   <div class="field">
                     <label for="available">Tồn khả dụng · hệ thống tính</label>
-                    <input id="available" name="available" type="text" readonly>
+                    <input id="available" name="available" type="text" readonly />
                   </div>
                   <div class="field">
                     <label for="notes">Ghi chú chất lượng</label>
-                    <textarea id="notes" name="notes" placeholder="Ví dụ: Thu hoạch loại A, bảo quản nơi thoáng mát" maxlength="500"></textarea>
+                    <textarea
+                      id="notes"
+                      name="notes"
+                      placeholder="Ví dụ: Thu hoạch loại A, bảo quản nơi thoáng mát"
+                      maxlength="500"
+                    ></textarea>
                   </div>
                   <div class="field">
                     <label for="changeReason">Lý do thay đổi</label>
-                    <textarea id="changeReason" name="changeReason" placeholder="Nhập lý do chỉnh sửa thông tin lô" maxlength="500"></textarea>
+                    <textarea
+                      id="changeReason"
+                      name="changeReason"
+                      placeholder="Nhập lý do chỉnh sửa thông tin lô"
+                      maxlength="500"
+                    ></textarea>
                   </div>
                 </div>
               </div>
@@ -162,7 +196,10 @@
             <div class="actions space">
               <button class="btn" type="button" id="generateQr">Cấp / xem QR của lô đã lưu</button>
             </div>
-            <div class="notice">Ghi nhận thu hoạch thực tế một lần; không nhập trực tiếp số lượng khả dụng. Thay đổi thông tin đã có phải kèm lý do.</div>
+            <div class="notice">
+              Ghi nhận thu hoạch thực tế một lần; không nhập trực tiếp số lượng khả dụng. Thay đổi
+              thông tin đã có phải kèm lý do.
+            </div>
             <div class="actions end">
               <button class="btn" type="button" data-go="list">Hủy</button>
               <button class="btn primary" type="submit">Ghi thu hoạch thực tế</button>
@@ -173,7 +210,7 @@
           <label class="block-label">Nhãn QR hiện có</label>
           <div class="label-preview">
             <div class="qr">
-              <img id="qrImage" alt="Mã QR truy xuất lô thu hoạch">
+              <img id="qrImage" alt="Mã QR truy xuất lô thu hoạch" />
             </div>
             <div>
               <h2 id="qrProduct"></h2>
@@ -183,7 +220,9 @@
             </div>
           </div>
           <div id="traceInfo" class="notice space"></div>
-          <a id="qrLookup" class="btn" target="_blank" rel="noopener noreferrer">Xem thông tin truy xuất</a>
+          <a id="qrLookup" class="btn" target="_blank" rel="noopener noreferrer"
+            >Xem thông tin truy xuất</a
+          >
           <div class="actions space">
             <button class="btn" type="button" id="downloadQr">Tải nhãn PNG</button>
             <button class="btn primary" type="button" id="printQr">In nhãn / Lưu PDF</button>
@@ -198,7 +237,7 @@
                 <div class="grid">
                   <div class="field">
                     <label for="issueBatch">Lô bị ảnh hưởng</label>
-                    <input id="issueBatch" name="issueBatch" type="text" readonly>
+                    <input id="issueBatch" name="issueBatch" type="text" readonly />
                   </div>
                   <div class="field">
                     <label for="issueType">Loại ghi nhận *</label>
@@ -210,20 +249,49 @@
                   </div>
                   <div class="field">
                     <label for="affected">Số lượng hàng nghi vấn</label>
-                    <input id="affected" name="affected" type="number" min="0.001" step="0.001" placeholder="Ví dụ: 20" max="999999999999999">
+                    <input
+                      id="affected"
+                      name="affected"
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      placeholder="Ví dụ: 20"
+                      max="999999999999999"
+                    />
                   </div>
                   <div class="field">
                     <label for="adjustment">Mức điều chỉnh (+ tăng / − giảm)</label>
-                    <input id="adjustment" name="adjustment" type="number" step="0.001" placeholder="Ví dụ: -5 hoặc 10" max="999999999999999" min="-999999999999999">
+                    <input
+                      id="adjustment"
+                      name="adjustment"
+                      type="number"
+                      step="0.001"
+                      placeholder="Ví dụ: -5 hoặc 10"
+                      max="999999999999999"
+                      min="-999999999999999"
+                    />
                   </div>
                   <div class="field">
                     <label for="issueReason">Lý do *</label>
-                    <textarea id="issueReason" name="issueReason" required placeholder="Nhập vấn đề, nguyên nhân và cách xử lý" maxlength="500"></textarea>
+                    <textarea
+                      id="issueReason"
+                      name="issueReason"
+                      required
+                      placeholder="Nhập vấn đề, nguyên nhân và cách xử lý"
+                      maxlength="500"
+                    ></textarea>
                   </div>
                   <div class="field">
                     <label for="issueEvidence">Ảnh bằng chứng *</label>
                     <div class="upload">
-                      <input id="issueEvidence" name="issueEvidence" type="file" accept="image/jpeg,image/png" multiple required>
+                      <input
+                        id="issueEvidence"
+                        name="issueEvidence"
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        multiple
+                        required
+                      />
                       <p class="hint">JPG, JPEG, PNG · tối đa 5 MB mỗi ảnh</p>
                       <div class="gallery" data-preview="issueEvidence"></div>
                     </div>
@@ -232,8 +300,8 @@
               </div>
             </section>
             <div class="notice">
-              Số dư được tính lại từ thu hoạch, điều chỉnh, lượng giữ chỗ và lượng đã xuất. Báo cáo chất lượng
-              không tự phê duyệt thu hồi; hàng nghi vấn không được phân bổ mới.
+              Số dư được tính lại từ thu hoạch, điều chỉnh, lượng giữ chỗ và lượng đã xuất. Báo cáo
+              chất lượng không tự phê duyệt thu hồi; hàng nghi vấn không được phân bổ mới.
             </div>
             <div id="issueHistory" class="notice"></div>
             <div class="actions end">
@@ -247,7 +315,9 @@
         <h2>Xác nhận thao tác</h2>
         <p id="confirmText"></p>
         <div class="actions end">
-          <button class="btn" type="button" onclick="this.closest('dialog').close()">Quay lại</button>
+          <button class="btn" type="button" onclick="this.closest('dialog').close()">
+            Quay lại
+          </button>
           <button class="btn primary" id="confirmOk">Xác nhận</button>
         </div>
       </dialog>
@@ -271,4 +341,3 @@
     <script src="../js/farmer-harvest-batches.js"></script>
   </body>
 </html>
-

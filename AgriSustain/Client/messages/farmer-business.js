@@ -1,14 +1,11 @@
 /* Shared messages for farmer contracts, revenue and notification inbox. */
 const FarmerBusinessMessages = {
-  required:
-    "Vui lòng nhập đầy đủ thông tin bắt buộc, không chỉ chứa khoảng trắng.",
+  required: "Vui lòng nhập đầy đủ thông tin bắt buộc, không chỉ chứa khoảng trắng.",
   invalid: "Thông tin không hợp lệ. Vui lòng kiểm tra lại.",
-  reason:
-    "Lý do từ chối hoặc sửa đổi phải có từ 20–500 ký tự sau khi bỏ khoảng trắng đầu và cuối.",
+  reason: "Lý do từ chối hoặc sửa đổi phải có từ 20–500 ký tự sau khi bỏ khoảng trắng đầu và cuối.",
   loadFailed: "Không thể tải dữ liệu. Vui lòng thử lại.",
   saveFailed: "Không thể lưu dữ liệu. Vui lòng thử lại.",
-  conflict:
-    "Dữ liệu đã thay đổi. Vui lòng tải lại; không thực hiện thao tác trùng.",
+  conflict: "Dữ liệu đã thay đổi. Vui lòng tải lại; không thực hiện thao tác trùng.",
   exportFailed: "Không thể xuất báo cáo. Vui lòng thử lại.",
   exported: "Báo cáo đã sẵn sàng để tải xuống.",
   contractProposedLabel: (unit) => `Đề xuất số lượng${unit ? ` (${unit})` : ""}`,
@@ -28,8 +25,7 @@ const FarmerBusinessMessages = {
   emptyContracts: "Không có hợp đồng phù hợp với bộ lọc.",
   emptyRevenue: "Không có dữ liệu doanh thu phù hợp với tiêu chí đã chọn.",
   pending: "Khoản tiền đang chờ xử lý, chưa phải chuyển khoản hoàn tất.",
-  noTermination:
-    "Chưa có đề nghị chấm dứt. Gửi đề nghị không làm hợp đồng chấm dứt ngay.",
+  noTermination: "Chưa có đề nghị chấm dứt. Gửi đề nghị không làm hợp đồng chấm dứt ngay.",
   noAgreement:
     "Chưa có kết quả thống nhất được ghi nhận. Phản hồi không tự thay đổi kết quả nghiệm thu.",
   noticeFailed: "Thao tác đã được lưu. Kênh email đang chờ gửi hoặc thử lại.",

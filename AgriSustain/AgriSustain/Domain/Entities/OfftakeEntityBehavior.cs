@@ -30,7 +30,8 @@ public partial class Shipment
 {
     public void MarkDispatchedOnce(DateTime now)
     {
-        if (ShippedAt.HasValue) return;
+        if (ShippedAt.HasValue)
+            return;
         ShipmentStatus = "InTransit";
         ShippedAt = now;
     }

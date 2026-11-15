@@ -14,31 +14,56 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
     : IProductRepository
 {
     public Task<FarmerProfile?> GetFarmerAsync(long userId, CancellationToken cancellationToken) =>
-        context.FarmerProfiles.Include(x => x.User).SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+        context
+            .FarmerProfiles.Include(x => x.User)
+            .SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
 
-    public async Task<ProductOptions> GetOptionsAsync(long userId,
-        CancellationToken cancellationToken)
+    public async Task<ProductOptions> GetOptionsAsync(
+        long userId,
+        CancellationToken cancellationToken
+    )
     {
         var farm = await GetFarmerAsync(userId, cancellationToken);
-        var categories = await context.Categories.AsNoTracking().Where(x => x.IsActive)
-            .OrderBy(x => x.CategoryName).ThenBy(x => x.CategoryId)
+        var categories = await context
+            .Categories.AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.CategoryName)
+            .ThenBy(x => x.CategoryId)
             .Select(x => new CategoryOption(x.CategoryId, x.CategoryName))
             .ToListAsync(cancellationToken);
         var today = DateOnly.FromDateTime(clock.GetUtcNow().AddHours(7).DateTime);
-        var certificates = await context.FarmCertificates.AsNoTracking()
+        var certificates = await context
+            .FarmCertificates.AsNoTracking()
             .Where(x => x.FarmerProfile.UserId == userId)
             .Where(MarketplaceRules.ValidCertificate(today))
-            .OrderBy(x => x.CertificateType).ThenBy(x => x.CertificateNumber)
-            .Select(x => new ProductCertificateOption(x.FarmCertificateId, x.CertificateType,
-                x.CertificateNumber, x.IssuedBy, x.IssueDate, x.ExpiryDate, x.VerificationStatus, true))
+            .OrderBy(x => x.CertificateType)
+            .ThenBy(x => x.CertificateNumber)
+            .Select(x => new ProductCertificateOption(
+                x.FarmCertificateId,
+                x.CertificateType,
+                x.CertificateNumber,
+                x.IssuedBy,
+                x.IssueDate,
+                x.ExpiryDate,
+                x.VerificationStatus,
+                true
+            ))
             .ToListAsync(cancellationToken);
-        return new ProductOptions(farm?.VerificationStatus == "Approved" && farm.User.Status == "Active",
-            farm?.VerificationStatus ?? "NotSubmitted", categories)
-        { Certificates = certificates };
+        return new ProductOptions(
+            farm?.VerificationStatus == "Approved" && farm.User.Status == "Active",
+            farm?.VerificationStatus ?? "NotSubmitted",
+            categories
+        )
+        {
+            Certificates = certificates,
+        };
     }
 
-    public async Task<PageResult<ProductResponse>> SearchAsync(long userId, ProductQuery query,
-        CancellationToken cancellationToken)
+    public async Task<PageResult<ProductResponse>> SearchAsync(
+        long userId,
+        ProductQuery query,
+        CancellationToken cancellationToken
+    )
     {
         var rows = context.Products.AsNoTracking().Where(x => x.FarmerProfile.UserId == userId);
         if (!string.IsNullOrWhiteSpace(query.Keyword))
@@ -62,32 +87,61 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
         }
 
         int total = await rows.CountAsync(cancellationToken);
-        var products = await rows.Include(x => x.Category).Include(x => x.FarmCertificate).Include(x => x.ProductImages)
-            .Include(x => x.HarvestBatches).Include(x => x.OrderItems)
-            .OrderByDescending(x => x.CreatedAt).ThenBy(x => x.ProductId)
-            .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
-            .AsSplitQuery().ToListAsync(cancellationToken);
-        return new PageResult<ProductResponse>(products.Select(Map).ToList(),
-            total, query.Page, query.PageSize);
+        var products = await rows.Include(x => x.Category)
+            .Include(x => x.FarmCertificate)
+            .Include(x => x.ProductImages)
+            .Include(x => x.HarvestBatches)
+            .Include(x => x.OrderItems)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenBy(x => x.ProductId)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
+        return new PageResult<ProductResponse>(
+            products.Select(Map).ToList(),
+            total,
+            query.Page,
+            query.PageSize
+        );
     }
 
-    public Task<Product?> GetOwnedAsync(long userId, long id,
-        CancellationToken cancellationToken) => context.Products
-        .Include(x => x.Category).Include(x => x.FarmCertificate).Include(x => x.ProductImages)
-        .Include(x => x.FarmerProfile).Include(x => x.HarvestBatches).Include(x => x.OrderItems)
-        .AsSplitQuery().SingleOrDefaultAsync(x => x.ProductId == id
-            && x.FarmerProfile.UserId == userId, cancellationToken);
+    public Task<Product?> GetOwnedAsync(
+        long userId,
+        long id,
+        CancellationToken cancellationToken
+    ) =>
+        context
+            .Products.Include(x => x.Category)
+            .Include(x => x.FarmCertificate)
+            .Include(x => x.ProductImages)
+            .Include(x => x.FarmerProfile)
+            .Include(x => x.HarvestBatches)
+            .Include(x => x.OrderItems)
+            .AsSplitQuery()
+            .SingleOrDefaultAsync(
+                x => x.ProductId == id && x.FarmerProfile.UserId == userId,
+                cancellationToken
+            );
 
     public Task<bool> IsCategoryActiveAsync(long id, CancellationToken cancellationToken) =>
         context.Categories.AnyAsync(x => x.CategoryId == id && x.IsActive, cancellationToken);
 
     public Task<bool> IsUnitLockedAsync(long id, CancellationToken cancellationToken) =>
-        context.Products.AnyAsync(x => x.ProductId == id
-            && (x.HarvestBatches.Any() || x.OrderItems.Any()), cancellationToken);
+        context.Products.AnyAsync(
+            x => x.ProductId == id && (x.HarvestBatches.Any() || x.OrderItems.Any()),
+            cancellationToken
+        );
 
-    public Task<FarmCertificate?> GetCertificateAsync(long userId, long certificateId, CancellationToken ct) =>
-        context.FarmCertificates.SingleOrDefaultAsync(x => x.FarmCertificateId == certificateId
-            && x.FarmerProfile.UserId == userId, ct);
+    public Task<FarmCertificate?> GetCertificateAsync(
+        long userId,
+        long certificateId,
+        CancellationToken ct
+    ) =>
+        context.FarmCertificates.SingleOrDefaultAsync(
+            x => x.FarmCertificateId == certificateId && x.FarmerProfile.UserId == userId,
+            ct
+        );
 
     public void RemoveImages(Product product)
     {
@@ -98,61 +152,100 @@ public sealed class ProductRepository(AgriSustainContext context, TimeProvider c
     public void Add(Product product) => context.Products.Add(product);
 
     public void Audit(long userId, string action, long? id, string? before, string after) =>
-        context.AuditLogs.Add(new AuditLog
-        {
-            PerformedByUserId = userId,
-            EntityType = "Product",
-            EntityId = id,
-            Action = action,
-            OldValue = before,
-            NewValue = after,
-            OccurredAt = clock.GetUtcNow().UtcDateTime
-        });
+        context.AuditLogs.Add(
+            new AuditLog
+            {
+                PerformedByUserId = userId,
+                EntityType = "Product",
+                EntityId = id,
+                Action = action,
+                OldValue = before,
+                NewValue = after,
+                OccurredAt = clock.GetUtcNow().UtcDateTime,
+            }
+        );
 
     public ProductResponse Map(Product product)
     {
         var today = DateOnly.FromDateTime(clock.GetUtcNow().AddHours(7).DateTime);
-        var images = product.ProductImages.OrderBy(x => x.DisplayOrder)
-            .Select(x => new ProductImageInput(x.ImageUrl, x.IsPrimary, x.AltText)).ToList();
-        var fingerprint = JsonSerializer.Serialize(new
-        {
+        var images = product
+            .ProductImages.OrderBy(x => x.DisplayOrder)
+            .Select(x => new ProductImageInput(x.ImageUrl, x.IsPrimary, x.AltText))
+            .ToList();
+        var fingerprint = JsonSerializer.Serialize(
+            new
+            {
+                product.ProductName,
+                product.CategoryId,
+                product.Unit,
+                product.Description,
+                product.FarmCertificateId,
+                product.BaseRetailPrice,
+                product.WholesaleMinQuantity,
+                product.WholesalePrice,
+                product.ApprovalStatus,
+                product.IsPublished,
+                Images = images,
+            }
+        );
+        string version = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint)));
+        var deliveryStates = context
+            .Notifications.AsNoTracking()
+            .Where(n =>
+                n.NotificationType == "ProductListingReview"
+                && n.RelatedRecordId == product.ProductId
+            )
+            .Select(n => n.DeliveryStatus)
+            .ToList();
+        bool pending = deliveryStates.Any(state => state != "Sent");
+        bool failed = deliveryStates.Contains("Failed");
+        return new ProductResponse(
+            product.ProductId,
             product.ProductName,
             product.CategoryId,
+            product.Category?.CategoryName ?? "",
             product.Unit,
             product.Description,
-            product.FarmCertificateId,
             product.BaseRetailPrice,
             product.WholesaleMinQuantity,
             product.WholesalePrice,
             product.ApprovalStatus,
             product.IsPublished,
-            Images = images
-        });
-        string version = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint)));
-        var deliveryStates = context.Notifications.AsNoTracking()
-            .Where(n => n.NotificationType == "ProductListingReview" && n.RelatedRecordId == product.ProductId)
-            .Select(n => n.DeliveryStatus).ToList();
-        bool pending = deliveryStates.Any(state => state != "Sent");
-        bool failed = deliveryStates.Contains("Failed");
-        return new ProductResponse(product.ProductId, product.ProductName, product.CategoryId,
-            product.Category?.CategoryName ?? "", product.Unit,
-            product.Description, product.BaseRetailPrice, product.WholesaleMinQuantity,
-            product.WholesalePrice, product.ApprovalStatus, product.IsPublished,
-            product.RejectionReason, product.HarvestBatches.Where(x => x.IsSaleable(today))
-                .Sum(x => x.AvailableQuantity), product.HarvestBatches.Count,
-            product.HarvestBatches.Count > 0 || product.OrderItems.Count > 0, version, images)
+            product.RejectionReason,
+            product.HarvestBatches.Where(x => x.IsSaleable(today)).Sum(x => x.AvailableQuantity),
+            product.HarvestBatches.Count,
+            product.HarvestBatches.Count > 0 || product.OrderItems.Count > 0,
+            version,
+            images
+        )
         {
             FarmCertificateId = product.FarmCertificateId,
             Certificate = product.FarmCertificate is { } certificate
-                ? new ProductCertificateOption(certificate.FarmCertificateId, certificate.CertificateType,
-                    certificate.CertificateNumber, certificate.IssuedBy, certificate.IssueDate,
-                    certificate.ExpiryDate, certificate.VerificationStatus,
-                    MarketplaceRules.ValidCertificate(today).Compile()(certificate)) : null,
+                ? new ProductCertificateOption(
+                    certificate.FarmCertificateId,
+                    certificate.CertificateType,
+                    certificate.CertificateNumber,
+                    certificate.IssuedBy,
+                    certificate.IssueDate,
+                    certificate.ExpiryDate,
+                    certificate.VerificationStatus,
+                    MarketplaceRules.ValidCertificate(today).Compile()(certificate)
+                )
+                : null,
             NotificationPending = pending,
-            NotificationMessage = failed ? ProductListingMessages.MSG187 : pending
-                ? "Email thông báo đang được xử lý; không cần gửi duyệt lại." : null,
-            Batches = product.HarvestBatches.OrderBy(x => x.BatchCode).Select(x =>
-                new ProductBatchSummary(x.BatchCode, x.Status, x.AvailableQuantity, x.ExpirationDate)).ToArray()
+            NotificationMessage =
+                failed ? ProductListingMessages.MSG187
+                : pending ? "Email thông báo đang được xử lý; không cần gửi duyệt lại."
+                : null,
+            Batches = product
+                .HarvestBatches.OrderBy(x => x.BatchCode)
+                .Select(x => new ProductBatchSummary(
+                    x.BatchCode,
+                    x.Status,
+                    x.AvailableQuantity,
+                    x.ExpirationDate
+                ))
+                .ToArray(),
         };
     }
 }

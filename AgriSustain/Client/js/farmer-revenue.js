@@ -10,19 +10,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   let sequence = 0;
   function defaults() {
     const now = new Date();
-    const today = new Date(now.getTime() + 7 * 3600000)
-      .toISOString()
-      .slice(0, 10);
+    const today = new Date(now.getTime() + 7 * 3600000).toISOString().slice(0, 10);
     const start = new Date(today + "T00:00:00Z");
     start.setUTCDate(start.getUTCDate() - 29);
     $("#revenueFrom").value = start.toISOString().slice(0, 10);
     $("#revenueTo").value = today;
-    [
-      "#revenueSeason",
-      "#revenueChannel",
-      "#revenueStage",
-      "#revenueStatus",
-    ].forEach((id) => {
+    ["#revenueSeason", "#revenueChannel", "#revenueStage", "#revenueStatus"].forEach((id) => {
       $(id).value = "";
     });
   }
@@ -49,20 +42,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
   }
   function metrics(totals) {
-    [
-      "sales",
-      "receipts",
-      "deposits",
-      "commission",
-      "refund",
-      "eligible",
-      "held",
-      "payout",
-    ].forEach((key) => {
-      $("#" + key + "Metric").textContent = totals
-        ? ui.money(totals[key === "refund" ? "refunds" : key])
-        : "—";
-    });
+    ["sales", "receipts", "deposits", "commission", "refund", "eligible", "held", "payout"].forEach(
+      (key) => {
+        $("#" + key + "Metric").textContent = totals
+          ? ui.money(totals[key === "refund" ? "refunds" : key])
+          : "—";
+      },
+    );
   }
   function chart(rows) {
     const channels = ["B2C", "B2B"];
@@ -73,9 +59,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     ];
     const groups = channels.map((channel) => ({
       channel,
-      values: series.map(({ key }) => rows
-        .filter((row) => row.channel === channel)
-        .reduce((total, row) => total + Math.max(0, Number(row[key]) || 0), 0)),
+      values: series.map(({ key }) =>
+        rows
+          .filter((row) => row.channel === channel)
+          .reduce((total, row) => total + Math.max(0, Number(row[key]) || 0), 0),
+      ),
     }));
     const maximum = Math.max(1, ...groups.flatMap((group) => group.values));
     const parts = [
@@ -84,18 +72,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     ];
     groups.forEach((group, index) => {
       group.values.forEach((value, bar) => {
-        const height = value / maximum * 130;
+        const height = (value / maximum) * 130;
         const x = 190 + index * 400 + bar * 70;
         const label = (value / 1000000).toLocaleString("vi-VN", {
           maximumFractionDigits: 6,
         });
         parts.push(
-          `<rect x="${x}" y="${175 - height}" width="48" height="${height}" rx="3" fill="${series[bar].color}">`
-          + `<title>${group.channel} · ${series[bar].label}: ${ui.money(value)}</title></rect>`,
+          `<rect x="${x}" y="${175 - height}" width="48" height="${height}" rx="3" fill="${series[bar].color}">` +
+            `<title>${group.channel} · ${series[bar].label}: ${ui.money(value)}</title></rect>`,
           `<text x="${x + 24}" y="${165 - height}" text-anchor="middle" font-size="11" fill="#405c4c">${label}</text>`,
         );
       });
-      parts.push(`<text x="${285 + index * 400}" y="202" text-anchor="middle" fill="#687c70">${group.channel}</text>`);
+      parts.push(
+        `<text x="${285 + index * 400}" y="202" text-anchor="middle" fill="#687c70">${group.channel}</text>`,
+      );
     });
     $("#revenueChart").innerHTML = parts.join("");
   }
@@ -106,12 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (request !== sequence) return;
       report = data;
       const selectedSeason = $("#revenueSeason").value;
-      ui.options(
-        "#revenueSeason",
-        data.seasons,
-        (row) => row.name,
-        "Tất cả mùa vụ",
-      );
+      ui.options("#revenueSeason", data.seasons, (row) => row.name, "Tất cả mùa vụ");
       $("#revenueSeason").value = selectedSeason;
       syncFilters();
       metrics(data.totals);
@@ -120,18 +105,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         `${data.filters.from} – ${data.filters.to} · ${data.dateBasis} · ${data.currency} · cập nhật ${ui.date(data.generatedAt)}`;
       $("#revenueRows").innerHTML = data.items
         .map(
-          (row) => `<tr>
-        <td>${ui.escape(row.reference)}<small>${ui.date(row.at)}</small></td>
-        <td>${ui.escape(ui.label(row.kind))}<small>${ui.escape(row.season)}</small></td>
-        <td>${ui.escape(ui.label(row.channel))}<small>${ui.escape(ui.label(row.stage))}</small></td>
-        <td class="amount">${ui.money(row.eventAmount || row.sales || row.receipts || row.payout || row.eligible || row.held || row.deposits || row.refunds)}</td>
-        <td>${ui.money(row.commission)} / ${ui.money(row.refunds)}</td>
-        <td>${ui.escape(ui.label(row.state))}</td><td><button type="button" class="btn" data-transaction="${ui.escape(row.id)}">Xem chi tiết</button></td></tr>`,
+          (row) =>
+            /* HTML */ `<tr>
+              <td>${ui.escape(row.reference)}<small>${ui.date(row.at)}</small></td>
+              <td>${ui.escape(ui.label(row.kind))}<small>${ui.escape(row.season)}</small></td>
+              <td>
+                ${ui.escape(ui.label(row.channel))}<small>${ui.escape(ui.label(row.stage))}</small>
+              </td>
+              <td class="amount">
+                ${ui.money(
+                  row.eventAmount ||
+                    row.sales ||
+                    row.receipts ||
+                    row.payout ||
+                    row.eligible ||
+                    row.held ||
+                    row.deposits ||
+                    row.refunds,
+                )}
+              </td>
+              <td>${ui.money(row.commission)} / ${ui.money(row.refunds)}</td>
+              <td>${ui.escape(ui.label(row.state))}</td>
+              <td>
+                <button type="button" class="btn" data-transaction="${ui.escape(row.id)}">
+                  Xem chi tiết
+                </button>
+              </td>
+            </tr>`,
         )
         .join("");
       $("#revenueEmpty").hidden = data.total > 0;
-      $("#revenueCount").textContent =
-        `${data.total} bản ghi · 10 bản ghi/trang`;
+      $("#revenueCount").textContent = `${data.total} bản ghi · 10 bản ghi/trang`;
       $("#revenuePage").textContent = page;
       $("#revenuePrev").disabled = page <= 1;
       $("#revenueNext").disabled = page * 10 >= data.total;
@@ -146,9 +150,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
   async function detail(id) {
-    selected = await ui.request(
-      "/farmer/revenue/transaction/" + encodeURIComponent(id),
-    );
+    selected = await ui.request("/farmer/revenue/transaction/" + encodeURIComponent(id));
     ui.kv("#revenueDetail", [
       ["Tham chiếu", selected.reference],
       ["Ngày ghi nhận", ui.date(selected.at)],
@@ -190,10 +192,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
   $("#revenueRows").onclick = (event) => {
     const button = event.target.closest("[data-transaction]");
-    if (button)
-      detail(button.dataset.transaction).catch((error) =>
-        ui.notice(error.message, true),
-      );
+    if (button) detail(button.dataset.transaction).catch((error) => ui.notice(error.message, true));
   };
   $("#applyRevenue").onclick = () => {
     const next = applied();
@@ -242,10 +241,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       const format = $("#exportFormat").value;
       const params = query();
       params.set("format", format);
-      const response = await fetch(
-        `${CONFIG.API_BASE_URL}/farmer/revenue/export?${params}`,
-        { headers: { Authorization: "Bearer " + Auth.getAccessToken() } },
-      );
+      const response = await fetch(`${CONFIG.API_BASE_URL}/farmer/revenue/export?${params}`, {
+        headers: { Authorization: "Bearer " + Auth.getAccessToken() },
+      });
       if (!response.ok) throw new Error(ui.m.exportFailed);
       const url = URL.createObjectURL(await response.blob());
       const link = document.createElement("a");

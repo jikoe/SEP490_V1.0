@@ -1,307 +1,286 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Xử lý đơn hàng - Nông trại AgriSustain</title>
-  <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/components.css">
-</head>
-<body>
-  <div class="app-shell">
-    <aside id="app-sidebar" class="sidebar"></aside>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Xử lý đơn hàng - Nông trại AgriSustain</title>
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/components.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside id="app-sidebar" class="sidebar"></aside>
 
-    <div class="workspace">
-      <header id="app-header"></header>
+      <div class="workspace">
+        <header id="app-header"></header>
 
-      <main>
-        <div class="farmer-orders-app">
-          <!-- Head -->
-          <div class="head">
-            <div>
-              <h1>Xử lý đơn hàng</h1>
-              <p>Quản lý hoạt động của nông trại</p>
-            </div>
-          </div>
-
-          <!-- Views Navigation: EXACTLY 3 VIEWS -->
-          <nav class="views" aria-label="Các chế độ xem đơn hàng">
-            <button
-              type="button"
-              id="view-btn-list"
-              class="active"
-              onclick="switchView('list')"
-            >
-              Đơn hàng của nông trại
-            </button>
-            <button
-              type="button"
-              id="view-btn-detail"
-              onclick="switchView('detail')"
-            >
-              Xem và xử lý đơn
-            </button>
-            <button
-              type="button"
-              id="view-btn-reject"
-              onclick="switchView('reject')"
-            >
-              Từ chối đơn hàng
-            </button>
-          </nav>
-
-          <section aria-label="Thông báo" id="orders-feedback-section" style="display:none;margin-bottom:16px"><strong>Thông báo</strong><div id="orders-feedback" class="feedback" role="status"></div></section>
-
-          <!-- ================= VIEW 1: LIST ================= -->
-          <div id="view-list" class="view">
-            <div class="field">
-              <label>Tìm kiếm và bộ lọc</label>
-              <form class="filter-row order-filters" onsubmit="handleApplyFilters(event)">
-                <div class="filter-field filter-keyword">
-                  <label for="orderKeyword">Tìm kiếm</label>
-                  <input
-                    id="orderKeyword"
-                    placeholder="Mã đơn, khách hàng, mã lô..."
-                  />
-                </div>
-                <div class="filter-field">
-                  <label for="orderStatus">Trạng thái</label>
-                  <select id="orderStatus">
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="Chờ xác nhận">Chờ xác nhận</option>
-                    <option value="Đang chuẩn bị">Đang chuẩn bị</option>
-                    <option value="Sẵn sàng giao">Sẵn sàng giao</option>
-                    <option value="Đang giao">Đang giao</option>
-                    <option value="Đã hủy">Đã hủy</option>
-                  </select>
-                </div>
-                <div class="filter-field">
-                  <label for="fromDate">Từ ngày</label>
-                  <input id="fromDate" type="date" />
-                </div>
-                <div class="filter-field">
-                  <label for="toDate">Đến ngày</label>
-                  <input id="toDate" type="date" />
-                </div>
-                <button type="submit" class="btn primary" id="btn-filter-apply">
-                  Áp dụng
-                </button>
-                <button type="button" class="btn" onclick="handleClearFilters()">
-                  Xóa bộ lọc
-                </button>
-              </form>
-            </div>
-
-            <div class="field">
-              <label>Danh sách đơn hàng</label>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Đơn của nông trại / Đơn tổng</th>
-                      <th>RetailCustomer / Ngày</th>
-                      <th>Hàng hóa / Thanh toán</th>
-                      <th>Trạng thái</th>
-                      <th>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody id="orders-tbody">
-                    <tr>
-                      <td colspan="5" style="text-align: center; padding: 24px; color: #62766a;">
-                        Đang tải dữ liệu đơn hàng…
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+        <main>
+          <div class="farmer-orders-app">
+            <!-- Head -->
+            <div class="head">
+              <div>
+                <h1>Xử lý đơn hàng</h1>
+                <p>Quản lý hoạt động của nông trại</p>
               </div>
             </div>
 
-            <div class="pagination">
-              <span id="pagination-info">
-                Hiển thị 0 trong 0 bản ghi · 10 bản ghi/trang
-              </span>
-              <span id="pagination-controls">
-                <button type="button" disabled>‹</button>
-                <button type="button" class="active">1</button>
-                <button type="button" disabled>›</button>
-              </span>
-            </div>
-          </div>
+            <!-- Views Navigation: EXACTLY 3 VIEWS -->
+            <nav class="views" aria-label="Các chế độ xem đơn hàng">
+              <button type="button" id="view-btn-list" class="active" onclick="switchView('list')">
+                Đơn hàng của nông trại
+              </button>
+              <button type="button" id="view-btn-detail" onclick="switchView('detail')">
+                Xem và xử lý đơn
+              </button>
+              <button type="button" id="view-btn-reject" onclick="switchView('reject')">
+                Từ chối đơn hàng
+              </button>
+            </nav>
 
-          <!-- ================= VIEW 2: DETAIL ================= -->
-          <div id="view-detail" class="view" style="display:none;">
-            <div class="topline">
-              <h2 id="detail-order-code">Chi tiết đơn ---</h2>
-              <span id="detail-order-pill" class="pill">Chờ xác nhận</span>
-            </div>
+            <section
+              aria-label="Thông báo"
+              id="orders-feedback-section"
+              style="display: none; margin-bottom: 16px"
+            >
+              <strong>Thông báo</strong>
+              <div id="orders-feedback" class="feedback" role="status"></div>
+            </section>
 
-            <section class="section">
-              <h2>Thông tin đơn hàng</h2>
-              <div class="inside">
-                <div class="grid two">
-                  <div class="field">
-                    <label>Người nhận và địa chỉ</label>
-                    <dl class="keyvalue">
-                      <dt>Họ tên</dt>
-                      <dd id="dt-recipient-name">---</dd>
-                      <dt>Điện thoại</dt>
-                      <dd id="dt-recipient-phone">---</dd>
-                      <dt>Địa chỉ</dt>
-                      <dd id="dt-shipping-address">---</dd>
-                      <dt>Ghi chú</dt>
-                      <dd id="dt-order-notes">Không có ghi chú</dd>
-                    </dl>
+            <!-- ================= VIEW 1: LIST ================= -->
+            <div id="view-list" class="view">
+              <div class="field">
+                <label>Tìm kiếm và bộ lọc</label>
+                <form class="filter-row order-filters" onsubmit="handleApplyFilters(event)">
+                  <div class="filter-field filter-keyword">
+                    <label for="orderKeyword">Tìm kiếm</label>
+                    <input id="orderKeyword" placeholder="Mã đơn, khách hàng, mã lô..." />
                   </div>
+                  <div class="filter-field">
+                    <label for="orderStatus">Trạng thái</label>
+                    <select id="orderStatus">
+                      <option value="">Tất cả trạng thái</option>
+                      <option value="Chờ xác nhận">Chờ xác nhận</option>
+                      <option value="Đang chuẩn bị">Đang chuẩn bị</option>
+                      <option value="Sẵn sàng giao">Sẵn sàng giao</option>
+                      <option value="Đang giao">Đang giao</option>
+                      <option value="Đã hủy">Đã hủy</option>
+                    </select>
+                  </div>
+                  <div class="filter-field">
+                    <label for="fromDate">Từ ngày</label>
+                    <input id="fromDate" type="date" />
+                  </div>
+                  <div class="filter-field">
+                    <label for="toDate">Đến ngày</label>
+                    <input id="toDate" type="date" />
+                  </div>
+                  <button type="submit" class="btn primary" id="btn-filter-apply">Áp dụng</button>
+                  <button type="button" class="btn" onclick="handleClearFilters()">
+                    Xóa bộ lọc
+                  </button>
+                </form>
+              </div>
 
-                  <div class="field">
-                    <label>Sản phẩm và điều kiện giao</label>
-                    <div class="readonly">
-                      <div id="dt-items-list" style="margin-bottom: 8px;"></div>
-                      <div style="border-top: 1px dashed #cfdcd3; padding-top: 6px; margin-top: 6px;">
-                        Phí giao hàng: <span id="dt-delivery-fee">0 ₫</span> · Giảm giá: <span id="dt-discount">0 ₫</span>
-                        <br />
-                        <strong>Tổng thanh toán: <span id="dt-final-amount">0 ₫</span></strong>
-                        <br />
-                        <span id="dt-payment-status" style="color: #176d40; font-weight: 600;">
-                          Đang kiểm tra thanh toán và phân bổ hàng
-                        </span>
+              <div class="field">
+                <label>Danh sách đơn hàng</label>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Đơn của nông trại / Đơn tổng</th>
+                        <th>RetailCustomer / Ngày</th>
+                        <th>Hàng hóa / Thanh toán</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody id="orders-tbody">
+                      <tr>
+                        <td colspan="5" style="text-align: center; padding: 24px; color: #62766a">
+                          Đang tải dữ liệu đơn hàng…
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="pagination">
+                <span id="pagination-info"> Hiển thị 0 trong 0 bản ghi · 10 bản ghi/trang </span>
+                <span id="pagination-controls">
+                  <button type="button" disabled>‹</button>
+                  <button type="button" class="active">1</button>
+                  <button type="button" disabled>›</button>
+                </span>
+              </div>
+            </div>
+
+            <!-- ================= VIEW 2: DETAIL ================= -->
+            <div id="view-detail" class="view" style="display: none">
+              <div class="topline">
+                <h2 id="detail-order-code">Chi tiết đơn ---</h2>
+                <span id="detail-order-pill" class="pill">Chờ xác nhận</span>
+              </div>
+
+              <section class="section">
+                <h2>Thông tin đơn hàng</h2>
+                <div class="inside">
+                  <div class="grid two">
+                    <div class="field">
+                      <label>Người nhận và địa chỉ</label>
+                      <dl class="keyvalue">
+                        <dt>Họ tên</dt>
+                        <dd id="dt-recipient-name">---</dd>
+                        <dt>Điện thoại</dt>
+                        <dd id="dt-recipient-phone">---</dd>
+                        <dt>Địa chỉ</dt>
+                        <dd id="dt-shipping-address">---</dd>
+                        <dt>Ghi chú</dt>
+                        <dd id="dt-order-notes">Không có ghi chú</dd>
+                      </dl>
+                    </div>
+
+                    <div class="field">
+                      <label>Sản phẩm và điều kiện giao</label>
+                      <div class="readonly">
+                        <div id="dt-items-list" style="margin-bottom: 8px"></div>
+                        <div
+                          style="border-top: 1px dashed #cfdcd3; padding-top: 6px; margin-top: 6px"
+                        >
+                          Phí giao hàng: <span id="dt-delivery-fee">0 ₫</span> · Giảm giá:
+                          <span id="dt-discount">0 ₫</span>
+                          <br />
+                          <strong>Tổng thanh toán: <span id="dt-final-amount">0 ₫</span></strong>
+                          <br />
+                          <span id="dt-payment-status" style="color: #176d40; font-weight: 600">
+                            Đang kiểm tra thanh toán và phân bổ hàng
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              </section>
 
-            <!-- Action buttons (Confirm, Ready, Ship) -->
-            <div class="grid">
-              <div class="field">
-                <label>Xác nhận đơn</label>
-                <button
-                  type="button"
-                  id="btn-confirm-order"
-                  class="btn primary"
-                  onclick="confirmCurrentOrder()"
-                >
-                  Xác nhận đơn
-                </button>
-              </div>
-              <div class="field">
-                <label>Sẵn sàng giao</label>
-                <button
-                  type="button"
-                  id="btn-ready-order"
-                  class="btn"
-                  onclick="readyCurrentOrder()"
-                >
-                  Đánh dấu sẵn sàng giao
-                </button>
-              </div>
-              <div class="field">
-                <label>Giao mô phỏng</label>
-                <button
-                  type="button"
-                  id="btn-dispatch-order"
-                  class="btn primary"
-                  onclick="dispatchCurrentOrder()"
-                >
-                  Bắt đầu giao mô phỏng
-                </button>
-              </div>
-            </div>
-
-            <!-- Timeline History -->
-            <div class="field">
-              <label>Lịch sử xử lý</label>
-              <div class="timeline" id="dt-timeline"></div>
-            </div>
-
-            <!-- Bottom Actions: Print slip & Reject -->
-            <div class="grid two">
-              <div class="field">
-                <label>In phiếu</label>
-                <button type="button" class="btn" onclick="printOrderSlip()">
-                  In phiếu
-                </button>
-              </div>
-              <div class="field">
-                <label>Từ chối trước khi giao</label>
-                <button
-                  type="button"
-                  id="btn-goto-reject"
-                  class="btn danger"
-                  onclick="switchView('reject')"
-                >
-                  Từ chối đơn hàng
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- ================= VIEW 3: REJECT ================= -->
-          <div id="view-reject" class="view" style="display:none;">
-            <div class="topline">
-              <h2 id="reject-order-code">Từ chối đơn ---</h2>
-              <span id="reject-order-pill" class="pill">Chờ xác nhận</span>
-            </div>
-
-            <form onsubmit="handleRejectSubmit(event)">
-              <div class="field">
-                <label for="rejectionReasonInput">
-                  Lý do từ chối *
-                </label>
-                <textarea
-                  id="rejectionReasonInput"
-                  maxlength="500"
-                  required
-                  placeholder="Nhập lý do từ chối đơn hàng..."
-                ></textarea>
-                <p class="hint">Không được để trống hoặc chỉ nhập khoảng trắng.</p>
-              </div>
-
-              <div class="field">
-                <label>Xác nhận từ chối</label>
-                <div class="actions">
-                  <button
-                    type="submit"
-                    id="btn-submit-reject"
-                    class="btn danger"
-                  >
-                    Xác nhận từ chối
-                  </button>
+              <!-- Action buttons (Confirm, Ready, Ship) -->
+              <div class="grid">
+                <div class="field">
+                  <label>Xác nhận đơn</label>
                   <button
                     type="button"
-                    class="btn"
-                    onclick="switchView('detail')"
+                    id="btn-confirm-order"
+                    class="btn primary"
+                    onclick="confirmCurrentOrder()"
                   >
-                    Quay lại đơn hàng
+                    Xác nhận đơn
+                  </button>
+                </div>
+                <div class="field">
+                  <label>Sẵn sàng giao</label>
+                  <button
+                    type="button"
+                    id="btn-ready-order"
+                    class="btn"
+                    onclick="readyCurrentOrder()"
+                  >
+                    Đánh dấu sẵn sàng giao
+                  </button>
+                </div>
+                <div class="field">
+                  <label>Giao mô phỏng</label>
+                  <button
+                    type="button"
+                    id="btn-dispatch-order"
+                    class="btn primary"
+                    onclick="dispatchCurrentOrder()"
+                  >
+                    Bắt đầu giao mô phỏng
                   </button>
                 </div>
               </div>
-            </form>
+
+              <!-- Timeline History -->
+              <div class="field">
+                <label>Lịch sử xử lý</label>
+                <div class="timeline" id="dt-timeline"></div>
+              </div>
+
+              <!-- Bottom Actions: Print slip & Reject -->
+              <div class="grid two">
+                <div class="field">
+                  <label>In phiếu</label>
+                  <button type="button" class="btn" onclick="printOrderSlip()">In phiếu</button>
+                </div>
+                <div class="field">
+                  <label>Từ chối trước khi giao</label>
+                  <button
+                    type="button"
+                    id="btn-goto-reject"
+                    class="btn danger"
+                    onclick="switchView('reject')"
+                  >
+                    Từ chối đơn hàng
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= VIEW 3: REJECT ================= -->
+            <div id="view-reject" class="view" style="display: none">
+              <div class="topline">
+                <h2 id="reject-order-code">Từ chối đơn ---</h2>
+                <span id="reject-order-pill" class="pill">Chờ xác nhận</span>
+              </div>
+
+              <form onsubmit="handleRejectSubmit(event)">
+                <div class="field">
+                  <label for="rejectionReasonInput"> Lý do từ chối * </label>
+                  <textarea
+                    id="rejectionReasonInput"
+                    maxlength="500"
+                    required
+                    placeholder="Nhập lý do từ chối đơn hàng..."
+                  ></textarea>
+                  <p class="hint">Không được để trống hoặc chỉ nhập khoảng trắng.</p>
+                </div>
+
+                <div class="field">
+                  <label>Xác nhận từ chối</label>
+                  <div class="actions">
+                    <button type="submit" id="btn-submit-reject" class="btn danger">
+                      Xác nhận từ chối
+                    </button>
+                    <button type="button" class="btn" onclick="switchView('detail')">
+                      Quay lại đơn hàng
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <!-- Footer -->
+            <footer class="foot">
+              AgriSustain · Không gian quản lý đơn hàng của nông trại · Dữ liệu bảo mật theo tiêu
+              chuẩn nông nghiệp bền vững
+            </footer>
           </div>
+        </main>
 
-          <!-- Footer -->
-          <footer class="foot">
-            AgriSustain · Không gian quản lý đơn hàng của nông trại · Dữ liệu bảo mật theo tiêu chuẩn nông nghiệp bền vững
-          </footer>
-        </div>
-      </main>
-
-      <footer>
-        Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Farmer
-      </footer>
+        <footer>
+          Nền tảng AgriSustain · Hệ sinh thái Nông Sản Việt Bền Vững · Phân quyền Farmer
+        </footer>
+      </div>
     </div>
-  </div>
 
-  <script src="../js/config.js"></script>
-  <script src="../js/utils.js"></script>
-  <script src="../messages/order.js"></script>
-  <script src="../messages/common.js"></script>
-  <script src="../messages/index.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/components.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../messages/order.js"></script>
+    <script src="../messages/common.js"></script>
+    <script src="../messages/index.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/components.js"></script>
 
-  <script src="../js/farmer-orders.js"></script>
-</body>
+    <script src="../js/farmer-orders.js"></script>
+  </body>
 </html>

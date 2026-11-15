@@ -116,6 +116,7 @@ public sealed record BatchIssueRequest : FarmCommand
 }
 
 public sealed record FarmProductOption(long ProductId, string ProductName, string Unit);
+
 public sealed record FarmSeasonOption(
     long CropSeasonId,
     long ProductId,
@@ -123,13 +124,17 @@ public sealed record FarmSeasonOption(
     string Status,
     DateOnly PlantingDate,
     string YieldUnit,
-    decimal CultivatedArea);
+    decimal CultivatedArea
+);
+
 public sealed record FarmOptions(
     string FarmName,
     DateOnly Today,
     IReadOnlyList<FarmProductOption> Products,
     IReadOnlyList<FarmSeasonOption> Seasons,
-    IReadOnlyList<string> Activities);
+    IReadOnlyList<string> Activities
+);
+
 public sealed record FarmHistory(
     long AuditLogId,
     string Action,
@@ -137,8 +142,16 @@ public sealed record FarmHistory(
     DateTime OccurredAt,
     string? Recorder,
     string? Before,
-    string? After);
-public sealed record FarmCommitment(string Source, decimal Quantity, string Unit, DateOnly? DeliveryDate);
+    string? After
+);
+
+public sealed record FarmCommitment(
+    string Source,
+    decimal Quantity,
+    string Unit,
+    DateOnly? DeliveryDate
+);
+
 public sealed record SeasonResponse(
     long CropSeasonId,
     string SeasonName,
@@ -158,7 +171,8 @@ public sealed record SeasonResponse(
     IReadOnlyList<FarmCommitment> Commitments,
     IReadOnlyList<FarmHistory> History,
     string Version,
-    string? Message = null)
+    string? Message = null
+)
 {
     public IReadOnlyList<SeasonActivity> Activities { get; init; } = [];
 
@@ -171,13 +185,17 @@ public sealed record SeasonActivity(
     string ActionType,
     string? Description,
     long? CorrectsLogId,
-    string? CorrectionReason);
+    string? CorrectionReason
+);
+
 public sealed record SeasonHarvest(
     long HarvestBatchId,
     string BatchCode,
     DateOnly? ActualHarvestDate,
     decimal Quantity,
-    string Unit);
+    string Unit
+);
+
 public sealed record FarmingLogResponse(
     long CultivationLogId,
     long CropSeasonId,
@@ -194,7 +212,9 @@ public sealed record FarmingLogResponse(
     long? CorrectsLogId,
     string? CorrectionReason,
     string Version,
-    string? Message = null);
+    string? Message = null
+);
+
 public sealed record BatchResponse(
     long HarvestBatchId,
     string BatchCode,
@@ -220,7 +240,9 @@ public sealed record BatchResponse(
     IReadOnlyList<FarmCommitment> Commitments,
     IReadOnlyList<FarmHistory> History,
     string Version,
-    string? Message = null);
+    string? Message = null
+);
+
 public sealed record FarmLabelResponse(
     long HarvestBatchId,
     string BatchCode,
@@ -233,4 +255,5 @@ public sealed record FarmLabelResponse(
     string TraceabilityUrl,
     string QrPng,
     string QrSvg,
-    string Message);
+    string Message
+);
