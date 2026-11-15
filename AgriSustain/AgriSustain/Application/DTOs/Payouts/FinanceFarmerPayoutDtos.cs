@@ -39,26 +39,76 @@ public sealed class ReconcileFarmerPayoutRequest
     public string ExistingOperationKey { get; set; } = "";
 }
 
-public sealed record PayoutSource(long Id, string Reference, string Product, DateTime At,
-    decimal Gross, decimal Commission, decimal Deduction, decimal Net,
-    decimal CommissionRate, long? CommissionPolicyId, bool Eligible, string? HoldReason,
-    decimal Settled, decimal Held, decimal Quantity, decimal UnitPrice, string Channel = "");
+public sealed record PayoutSource(
+    long Id,
+    string Reference,
+    string Product,
+    DateTime At,
+    decimal Gross,
+    decimal Commission,
+    decimal Deduction,
+    decimal Net,
+    decimal CommissionRate,
+    long? CommissionPolicyId,
+    bool Eligible,
+    string? HoldReason,
+    decimal Settled,
+    decimal Held,
+    decimal Quantity,
+    decimal UnitPrice,
+    string Channel = ""
+);
 
-public sealed record PayoutBank(string BankCode, string BankName, string ShortName,
-    string AccountNumber, string AccountHolder, DateTime? VerifiedAt);
+public sealed record PayoutBank(
+    string BankCode,
+    string BankName,
+    string ShortName,
+    string AccountNumber,
+    string AccountHolder,
+    DateTime? VerifiedAt
+);
 
-public sealed record PayoutPreview(long FarmerId, string FarmerName, PayoutBank? Recipient,
-    IReadOnlyList<PayoutSource> Sources, decimal Gross, decimal Commission, decimal Deduction,
-    decimal Net, string ExpectedBalance, bool CanCreate, string? Message);
+public sealed record PayoutPreview(
+    long FarmerId,
+    string FarmerName,
+    PayoutBank? Recipient,
+    IReadOnlyList<PayoutSource> Sources,
+    decimal Gross,
+    decimal Commission,
+    decimal Deduction,
+    decimal Net,
+    string ExpectedBalance,
+    bool CanCreate,
+    string? Message
+);
 
 public sealed record PayoutActionResult(long Id, string Status, string Message);
 
-public sealed record PayoutTransferPlan(string OperationKey, string SourceBankCode, string SourceBankName,
-    string SourceAccountNumber, string RecipientBankCode, string RecipientAccountNumber,
-    decimal Amount, DateTime OpenedAt, string QrUrl);
+public sealed record PayoutTransferPlan(
+    string OperationKey,
+    string SourceBankCode,
+    string SourceBankName,
+    string SourceAccountNumber,
+    string RecipientBankCode,
+    string RecipientAccountNumber,
+    decimal Amount,
+    DateTime OpenedAt,
+    string QrUrl
+);
 
-public sealed record PayoutOutgoingTransfer(string EventId, string Gateway, string SourceAccountNumber,
-    decimal Amount, DateTime At, string Content, string? BankReference, string RawPayload);
+public sealed record PayoutOutgoingTransfer(
+    string EventId,
+    string Gateway,
+    string SourceAccountNumber,
+    decimal Amount,
+    DateTime At,
+    string Content,
+    string? BankReference,
+    string RawPayload
+);
 
-public sealed record PayoutGatewayLookup(IReadOnlyList<PayoutOutgoingTransfer> Transfers,
-    bool LookupAvailable, string? Message);
+public sealed record PayoutGatewayLookup(
+    IReadOnlyList<PayoutOutgoingTransfer> Transfers,
+    bool LookupAvailable,
+    string? Message
+);

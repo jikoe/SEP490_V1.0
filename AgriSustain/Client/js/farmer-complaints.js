@@ -55,7 +55,9 @@ document.addEventListener("DOMContentLoaded", () => {
   async function request(path, options = {}) {
     const response = await API.request(base + path, { ...options, suppressErrorToast: true });
     if (!response.success) {
-      const error = new Error(response.status ? displayMessage(response.error) : messages.loadFailed);
+      const error = new Error(
+        response.status ? displayMessage(response.error) : messages.loadFailed,
+      );
       error.status = response.status;
       throw error;
     }
@@ -96,14 +98,17 @@ document.addEventListener("DOMContentLoaded", () => {
       $("#rows").innerHTML = data.items.length
         ? data.items
             .map(
-              (item) => `
-        <tr>
-          <td><strong>#${item.id}</strong><small>${escape(item.orderCode)}</small></td>
-          <td>${escape(item.reason)}</td>
-          <td><span class="badge">${escape(statusText(item.status))}</span><small>${escape(requestText(item.requestStatus))}</small></td>
-          <td>${formatDate(item.dueAt)}</td>
-          <td><button type="button" data-open="${item.id}">${messages.open}</button></td>
-        </tr>`,
+              (item) =>
+                /* HTML */ ` <tr>
+                  <td><strong>#${item.id}</strong><small>${escape(item.orderCode)}</small></td>
+                  <td>${escape(item.reason)}</td>
+                  <td>
+                    <span class="badge">${escape(statusText(item.status))}</span
+                    ><small>${escape(requestText(item.requestStatus))}</small>
+                  </td>
+                  <td>${formatDate(item.dueAt)}</td>
+                  <td><button type="button" data-open="${item.id}">${messages.open}</button></td>
+                </tr>`,
             )
             .join("")
         : `<tr><td colspan="5">${messages.empty}</td></tr>`;
@@ -165,7 +170,8 @@ document.addEventListener("DOMContentLoaded", () => {
     files.forEach((file) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = messages.fileLabel(file.id) + (file.name.endsWith(".pdf") ? " · PDF" : "");
+      button.textContent =
+        messages.fileLabel(file.id) + (file.name.endsWith(".pdf") ? " · PDF" : "");
       button.onclick = () => previewSaved(file);
       target.append(button);
     });
@@ -258,7 +264,10 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#requestSelect").replaceChildren();
     data.requests.forEach((item) =>
       $("#requestSelect").add(
-        new Option(messages.requestLabel(item.id) + " · " + requestText(item.status), String(item.id)),
+        new Option(
+          messages.requestLabel(item.id) + " · " + requestText(item.status),
+          String(item.id),
+        ),
       ),
     );
     $("#requestSelect").value = String(selectedRequest?.id ?? "");
@@ -270,7 +279,10 @@ document.addEventListener("DOMContentLoaded", () => {
       node.className = "event";
       const title = document.createElement("strong");
       title.textContent =
-        messages.submittedAt + formatDate(item.submittedAt) + " · " + messages.requestLabel(item.requestId);
+        messages.submittedAt +
+        formatDate(item.submittedAt) +
+        " · " +
+        messages.requestLabel(item.requestId);
       const content = document.createElement("p");
       content.textContent = item.explanation;
       const files = document.createElement("div");
@@ -284,7 +296,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const money =
         data.refundAmount == null
           ? "—"
-          : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(data.refundAmount);
+          : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+              data.refundAmount,
+            );
       details(outcome, [
         [labels.status, statusText(data.status)],
         [labels.resolution, data.resolution],
@@ -401,7 +415,10 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     if (saving) return;
     if (!canRespond())
-      return notice(selectedRequest?.status === "Expired" ? messages.expired : messages.closed, true);
+      return notice(
+        selectedRequest?.status === "Expired" ? messages.expired : messages.closed,
+        true,
+      );
     const explanation = $("#explanation").value.trim();
     const validText = explanation.length >= 15 && explanation.length <= 2000;
     const validFiles =

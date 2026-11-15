@@ -1,12 +1,8 @@
 /* Shared UI plumbing. Domain feedback is kept in messages/farmer-business.js. */
 window.FarmerBusinessUI = class {
   constructor() {
-    this.root = document
-      .getElementById("business-root")
-      .attachShadow({ mode: "open" });
-    this.root.append(
-      document.getElementById("business-template").content.cloneNode(true),
-    );
+    this.root = document.getElementById("business-root").attachShadow({ mode: "open" });
+    this.root.append(document.getElementById("business-template").content.cloneNode(true));
     this.$ = (selector) => this.root.querySelector(selector);
     this.$$ = (selector) => [...this.root.querySelectorAll(selector)];
     this.m = Messages.business;
@@ -35,8 +31,7 @@ window.FarmerBusinessUI = class {
   money(value) {
     return value == null
       ? "—"
-      : Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 2 }) +
-          " ₫";
+      : Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 2 }) + " ₫";
   }
   number(value) {
     return value == null
@@ -45,9 +40,7 @@ window.FarmerBusinessUI = class {
   }
   date(value) {
     if (!value) return "—";
-    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value)
-      ? value + "T00:00:00+07:00"
-      : value;
+    const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value + "T00:00:00+07:00" : value;
     const date = new Date(normalized);
     return /^\d{4}-\d{2}-\d{2}$/.test(value)
       ? date.toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })
@@ -66,10 +59,7 @@ window.FarmerBusinessUI = class {
       node.hidden = node.dataset.screen !== name;
     });
     this.$$("[data-screen-go][role=tab]").forEach((node) => {
-      node.setAttribute(
-        "aria-selected",
-        String(node.dataset.screenGo === name),
-      );
+      node.setAttribute("aria-selected", String(node.dataset.screenGo === name));
       node.classList.toggle("active", node.dataset.screenGo === name);
     });
   }
@@ -78,8 +68,7 @@ window.FarmerBusinessUI = class {
       suppressErrorToast: true,
       ...options,
     });
-    if (!result.success)
-      throw new Error(result.status ? result.error : this.m.loadFailed);
+    if (!result.success) throw new Error(result.status ? result.error : this.m.loadFailed);
     return result.data;
   }
   options(selector, rows, label, prompt = "Chọn") {
@@ -89,10 +78,7 @@ window.FarmerBusinessUI = class {
   }
   kv(selector, pairs) {
     this.$(selector).innerHTML = pairs
-      .map(
-        ([key, value]) =>
-          `<dt>${this.escape(key)}</dt><dd>${this.escape(value ?? "—")}</dd>`,
-      )
+      .map(([key, value]) => `<dt>${this.escape(key)}</dt><dd>${this.escape(value ?? "—")}</dd>`)
       .join("");
   }
   confirm(text = this.m.confirm) {
@@ -120,9 +106,7 @@ window.FarmerBusinessUI = class {
       list.length > 5 ||
       list.some(
         (file) =>
-          !/\.(pdf|jpe?g|png)$/i.test(file.name) ||
-          file.size <= 0 ||
-          file.size > 5 * 1024 * 1024,
+          !/\.(pdf|jpe?g|png)$/i.test(file.name) || file.size <= 0 || file.size > 5 * 1024 * 1024,
       )
     )
       throw new Error(this.m.fileInvalid);

@@ -1,7 +1,7 @@
-using AgriSustain.Application.DTOs.Offtake;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using AgriSustain.Application.DTOs.Offtake;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
@@ -12,58 +12,150 @@ public sealed class OfftakeContractRules
 {
     public const string AmendmentHeading = "\n\nĐề xuất sửa đổi:\n";
     public const string DepositTitle = "Đặt cọc";
+
     public static (string Terms, string? Changes) SplitAmendment(string terms)
     {
         var start = terms.IndexOf(AmendmentHeading, StringComparison.Ordinal);
-        return start < 0 ? (terms, null) : (terms[..start],
-            terms[(terms.LastIndexOf(AmendmentHeading, StringComparison.Ordinal) + AmendmentHeading.Length)..]);
+        return start < 0
+            ? (terms, null)
+            : (
+                terms[..start],
+                terms[
+                    (
+                        terms.LastIndexOf(AmendmentHeading, StringComparison.Ordinal)
+                        + AmendmentHeading.Length
+                    )..
+                ]
+            );
     }
-    public static bool Verified(string status) => status is "Success" or "Successful" or "Succeeded" or "Paid" or "Completed";
-    public static bool IsProcessedPayout(FarmerPayout payout) => payout.PayoutStatus is "Processed" or "Paid"
-        && payout.ProcessedAt.HasValue && !string.IsNullOrWhiteSpace(payout.BankTransferRef);
-    public static bool OpenDispute(DisputeTicket ticket) => ticket.TicketStatus is not ("Resolved" or "Closed" or "Rejected");
-    public static bool CanInspect(Shipment shipment) => shipment.ShippedAt.HasValue && !shipment.ReceivedAt.HasValue
+
+    public static bool Verified(string status) =>
+        status is "Success" or "Successful" or "Succeeded" or "Paid" or "Completed";
+
+    public static bool IsProcessedPayout(FarmerPayout payout) =>
+        payout.PayoutStatus is "Processed" or "Paid"
+        && payout.ProcessedAt.HasValue
+        && !string.IsNullOrWhiteSpace(payout.BankTransferRef);
+
+    public static bool OpenDispute(DisputeTicket ticket) =>
+        ticket.TicketStatus is not ("Resolved" or "Closed" or "Rejected");
+
+    public static bool CanInspect(Shipment shipment) =>
+        shipment.ShippedAt.HasValue
+        && !shipment.ReceivedAt.HasValue
         && shipment.ShipmentStatus is ("InTransit" or "Shipping" or "Delivered")
         && shipment.ShipmentItems.Count > 0
-        && shipment.ShipmentItems.All(item => item.ReceivedQuantity == null && item.ReconciliationStatus == "Pending");
-    public static bool Confirmed(ContractSignature signature) => signature.ConfirmationStatus == "Confirmed" && signature.ConfirmedAt.HasValue;
+        && shipment.ShipmentItems.All(item =>
+            item.ReceivedQuantity == null && item.ReconciliationStatus == "Pending"
+        );
+
+    public static bool Confirmed(ContractSignature signature) =>
+        signature.ConfirmationStatus == "Confirmed" && signature.ConfirmedAt.HasValue;
+
     public static bool CanConfirmProposal(ContractVersion version, long farmerUserId) =>
-        version.ProposedByUserId != farmerUserId || version.ContractSignatures.Any(x =>
-            (x.PartyRole is "WholesaleBuyer" or "Buyer") && Confirmed(x));
-    public static ContractVersion Current(OfftakeContext context) => context.Contract.ContractVersions.Single(x => x.VersionNo == context.Contract.CurrentVersionNo);
-    public static IEnumerable<ContractLine> Lines(OfftakeContext context) => Current(context).ContractLines;
-    public static IEnumerable<ContractMilestone> Milestones(OfftakeContext context) => Current(context).ContractMilestones;
+        version.ProposedByUserId != farmerUserId
+        || version.ContractSignatures.Any(x =>
+            (x.PartyRole is "WholesaleBuyer" or "Buyer") && Confirmed(x)
+        );
+
+    public static ContractVersion Current(OfftakeContext context) =>
+        context.Contract.ContractVersions.Single(x =>
+            x.VersionNo == context.Contract.CurrentVersionNo
+        );
+
+    public static IEnumerable<ContractLine> Lines(OfftakeContext context) =>
+        Current(context).ContractLines;
+
+    public static IEnumerable<ContractMilestone> Milestones(OfftakeContext context) =>
+        Current(context).ContractMilestones;
+
     public static bool Feedback(string? text) => text?.Trim().Length is >= 20 and <= 500;
-    public static bool Text(string? text, int max = 1000) => !string.IsNullOrWhiteSpace(text) && text.Trim().Length <= max;
+
+    public static bool Text(string? text, int max = 1000) =>
+        !string.IsNullOrWhiteSpace(text) && text.Trim().Length <= max;
 
     public static string Version(OfftakeContext context)
     {
-        string input = JsonSerializer.Serialize(new
-        {
-            context.Contract.CurrentVersionNo,
-            context.Contract.Status,
-            History = context.History.LastOrDefault()?.AuditLogId,
-            Signatures = Current(context).ContractSignatures.OrderBy(x => x.ContractSignatureId)
-                .Select(x => new { x.ContractSignatureId, x.ConfirmationStatus, x.ConfirmedAt }),
-            Milestones = Milestones(context).OrderBy(x => x.ContractMilestoneId)
-                .Select(x => new { x.ContractMilestoneId, x.DeliveredQuantity, x.AcceptedQuantity, x.PaidAmount, x.PaymentStatus, x.FulfillmentStatus })
-        });
+        string input = JsonSerializer.Serialize(
+            new
+            {
+                context.Contract.CurrentVersionNo,
+                context.Contract.Status,
+                History = context.History.LastOrDefault()?.AuditLogId,
+                Signatures = Current(context)
+                    .ContractSignatures.OrderBy(x => x.ContractSignatureId)
+                    .Select(x => new
+                    {
+                        x.ContractSignatureId,
+                        x.ConfirmationStatus,
+                        x.ConfirmedAt,
+                    }),
+                Milestones = Milestones(context)
+                    .OrderBy(x => x.ContractMilestoneId)
+                    .Select(x => new
+                    {
+                        x.ContractMilestoneId,
+                        x.DeliveredQuantity,
+                        x.AcceptedQuantity,
+                        x.PaidAmount,
+                        x.PaymentStatus,
+                        x.FulfillmentStatus,
+                    }),
+            }
+        );
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(input)));
     }
 
     public string? ValidateConfirmation(OfftakeContext context, long? seasonId, int version)
     {
-        if (!seasonId.HasValue || version <= 0) return "MSG02";
-        if (version != context.Contract.CurrentVersionNo) return "MSG163";
-        if (context.Contract.Status is not ("PendingApproval" or "Proposed" or "Pending" or "PendingConfirmation" or "Negotiating" or "AwaitingDeposit")) return "MSG131";
-        if (!CanConfirmProposal(Current(context), context.Contract.FarmerProfile.UserId)) return "MSG131";
+        if (!seasonId.HasValue || version <= 0)
+            return "MSG02";
+        if (version != context.Contract.CurrentVersionNo)
+            return "MSG163";
+        if (
+            context.Contract.Status
+            is not (
+                "PendingApproval"
+                or "Proposed"
+                or "Pending"
+                or "PendingConfirmation"
+                or "Negotiating"
+                or "AwaitingDeposit"
+            )
+        )
+            return "MSG131";
+        if (!CanConfirmProposal(Current(context), context.Contract.FarmerProfile.UserId))
+            return "MSG131";
         var season = context.Seasons.SingleOrDefault(x => x.CropSeasonId == seasonId);
         var lines = Lines(context).ToList();
-        if (season is null || lines.Count == 0 || lines.Any(x => x.ProductId != season.ProductId || x.UnitSnapshot != season.YieldUnit)
-            || season.Status is "Cancelled" or "Crop Failure" or "Completed") return "MSG120";
-        decimal committed = context.OtherCommitments.Where(x => x.CropSeasonId == seasonId).Sum(x => x.B2bcontract.Status == "Terminated" ? x.ContractMilestones.Sum(m => m.DeliveredQuantity) : x.CommittedQuantity);
-        if (lines.Sum(x => x.CommittedQuantity) + committed + context.PreOrderCommitments.Where(x => x.CropSeasonId == seasonId).Sum(x => x.CommittedYield) > season.EstimatedYield) return "MSG120";
-        if (Milestones(context).Any(x => x.DeliveryQuantity > 0 && x.DueDate < season.EstimatedHarvestDate)) return "MSG120";
+        if (
+            season is null
+            || lines.Count == 0
+            || lines.Any(x => x.ProductId != season.ProductId || x.UnitSnapshot != season.YieldUnit)
+            || season.Status is "Cancelled" or "Crop Failure" or "Completed"
+        )
+            return "MSG120";
+        decimal committed = context
+            .OtherCommitments.Where(x => x.CropSeasonId == seasonId)
+            .Sum(x =>
+                x.B2bcontract.Status == "Terminated"
+                    ? x.ContractMilestones.Sum(m => m.DeliveredQuantity)
+                    : x.CommittedQuantity
+            );
+        if (
+            lines.Sum(x => x.CommittedQuantity)
+                + committed
+                + context
+                    .PreOrderCommitments.Where(x => x.CropSeasonId == seasonId)
+                    .Sum(x => x.CommittedYield)
+            > season.EstimatedYield
+        )
+            return "MSG120";
+        if (
+            Milestones(context)
+                .Any(x => x.DeliveryQuantity > 0 && x.DueDate < season.EstimatedHarvestDate)
+        )
+            return "MSG120";
         return null;
     }
 
@@ -77,30 +169,55 @@ public sealed class OfftakeContractRules
 
     public static decimal DepositPaid(OfftakeContext context) => DepositPaid(context.Contract);
 
-    public static decimal DepositPaid(B2bcontract contract) => contract.PaymentTransactions
-        .Where(x => x.PaymentPurpose.Contains("Deposit") && Verified(x.PaymentStatus) && x.PaidAt.HasValue).Sum(x => x.Amount);
+    public static decimal DepositPaid(B2bcontract contract) =>
+        contract
+            .PaymentTransactions.Where(x =>
+                x.PaymentPurpose.Contains("Deposit")
+                && Verified(x.PaymentStatus)
+                && x.PaidAt.HasValue
+            )
+            .Sum(x => x.Amount);
 
-    public static ContractMilestone? PrepareDeposit(B2bcontract contract, ContractVersion version, DateTime signedAt)
+    public static ContractMilestone? PrepareDeposit(
+        B2bcontract contract,
+        ContractVersion version,
+        DateTime signedAt
+    )
     {
-        var existing = version.ContractMilestones.SingleOrDefault(m => m.MilestoneType == ContractPaymentRules.DepositType);
-        if (existing is not null) return existing;
+        var existing = version.ContractMilestones.SingleOrDefault(m =>
+            m.MilestoneType == ContractPaymentRules.DepositType
+        );
+        if (existing is not null)
+            return existing;
 
         // The Offtake proposal has one delivery. The deposit and delivery together must equal its original value.
         var milestones = version.ContractMilestones;
         var delivery = milestones.Count == 1 ? milestones.Single() : null;
-        if (contract.DepositAmount <= 0 || DepositPaid(contract) != 0
-            || delivery is not { MilestoneType: "DeliveryAndPayment", PaidAmount: 0, PaymentStatus: "Unpaid" or "Pending" }
-            || delivery.Amount < contract.DepositAmount)
+        if (
+            contract.DepositAmount <= 0
+            || DepositPaid(contract) != 0
+            || delivery
+                is not {
+                    MilestoneType: "DeliveryAndPayment",
+                    PaidAmount: 0,
+                    PaymentStatus: "Unpaid" or "Pending"
+                }
+            || delivery.Amount < contract.DepositAmount
+        )
             return null;
 
         delivery.Amount -= contract.DepositAmount;
-        if (delivery.Amount == 0) delivery.PaymentStatus = ContractLineStatuses.Paid;
+        if (delivery.Amount == 0)
+            delivery.PaymentStatus = ContractLineStatuses.Paid;
         var deposit = new ContractMilestone
         {
-            B2bcontractId = contract.B2bcontractId, MilestoneTitle = DepositTitle,
-            MilestoneType = ContractPaymentRules.DepositType, Amount = contract.DepositAmount,
+            B2bcontractId = contract.B2bcontractId,
+            MilestoneTitle = DepositTitle,
+            MilestoneType = ContractPaymentRules.DepositType,
+            Amount = contract.DepositAmount,
             DueDate = DateOnly.FromDateTime(signedAt.AddHours(7)),
-            FulfillmentStatus = "Pending", PaymentStatus = "Unpaid"
+            FulfillmentStatus = "Pending",
+            PaymentStatus = "Unpaid",
         };
         version.ContractMilestones.Add(deposit);
         return deposit;
@@ -113,39 +230,97 @@ public sealed class OfftakeContractRules
 
     public string? ValidateDispatch(OfftakeContext context, DispatchContractDeliveryRequest input)
     {
-        if (input.MilestoneId <= 0 || input.BatchQuantities == null || input.BatchQuantities.Count == 0) return "MSG02";
-        if (context.Contract.Status != "Active") return "MSG131";
-        if (DepositPaid(context) < context.Contract.DepositAmount) return "MSG152";
-        if (!CanExecute(context)) return "MSG131";
-        var milestone = OfftakeContractRules.Milestones(context).SingleOrDefault(x => x.ContractMilestoneId == input.MilestoneId);
-        var line = OfftakeContractRules.Lines(context).SingleOrDefault(x => x.ContractLineId == milestone?.ContractLineId);
-        if (milestone == null || line == null || milestone.DeliveryQuantity is not > 0
-            || milestone.DueDate > DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7))) return "MSG120";
-        if (input.BatchQuantities == null || input.BatchQuantities.Count is < 1 or > 50 || input.BatchQuantities.Select(x => x.HarvestBatchId).Distinct().Count() != input.BatchQuantities.Count
-            || input.BatchQuantities.Any(x => x.Quantity <= 0 || x.Quantity > 999999999999m || x.Quantity != decimal.Round(x.Quantity, 3))) return "MSG120";
+        if (
+            input.MilestoneId <= 0
+            || input.BatchQuantities == null
+            || input.BatchQuantities.Count == 0
+        )
+            return "MSG02";
+        if (context.Contract.Status != "Active")
+            return "MSG131";
+        if (DepositPaid(context) < context.Contract.DepositAmount)
+            return "MSG152";
+        if (!CanExecute(context))
+            return "MSG131";
+        var milestone = OfftakeContractRules
+            .Milestones(context)
+            .SingleOrDefault(x => x.ContractMilestoneId == input.MilestoneId);
+        var line = OfftakeContractRules
+            .Lines(context)
+            .SingleOrDefault(x => x.ContractLineId == milestone?.ContractLineId);
+        if (
+            milestone == null
+            || line == null
+            || milestone.DeliveryQuantity is not > 0
+            || milestone.DueDate > DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7))
+        )
+            return "MSG120";
+        if (
+            input.BatchQuantities == null
+            || input.BatchQuantities.Count is < 1 or > 50
+            || input.BatchQuantities.Select(x => x.HarvestBatchId).Distinct().Count()
+                != input.BatchQuantities.Count
+            || input.BatchQuantities.Any(x =>
+                x.Quantity <= 0
+                || x.Quantity > 999999999999m
+                || x.Quantity != decimal.Round(x.Quantity, 3)
+            )
+        )
+            return "MSG120";
         decimal quantity = input.BatchQuantities.Sum(x => x.Quantity);
-        if (line.AgreedPrice.HasValue && quantity * line.AgreedPrice.Value > 9999999999999999.99m) return "MSG120";
-        if (quantity > milestone.DeliveryQuantity - milestone.DeliveredQuantity
-            || quantity > line.CommittedQuantity - OfftakeContractRules.Milestones(context)
-                .Where(x => x.ContractLineId == line.ContractLineId).Sum(x => x.DeliveredQuantity)) return "MSG120";
+        if (line.AgreedPrice.HasValue && quantity * line.AgreedPrice.Value > 9999999999999999.99m)
+            return "MSG120";
+        if (
+            quantity > milestone.DeliveryQuantity - milestone.DeliveredQuantity
+            || quantity
+                > line.CommittedQuantity
+                    - OfftakeContractRules
+                        .Milestones(context)
+                        .Where(x => x.ContractLineId == line.ContractLineId)
+                        .Sum(x => x.DeliveredQuantity)
+        )
+            return "MSG120";
         DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
         foreach (var selected in input.BatchQuantities)
         {
-            var batch = context.Batches.SingleOrDefault(x => x.HarvestBatchId == selected.HarvestBatchId);
-            if (batch == null || batch.ProductId != line.ProductId || batch.CropSeasonId != line.CropSeasonId
-                || batch.ActualHarvestDate == null || batch.ActualHarvestDate > today || batch.StockEnteredAt == null
-                || batch.ExpirationDate <= today || batch.TraceabilityQrcode is not { IsRevoked: false }
+            var batch = context.Batches.SingleOrDefault(x =>
+                x.HarvestBatchId == selected.HarvestBatchId
+            );
+            if (
+                batch == null
+                || batch.ProductId != line.ProductId
+                || batch.CropSeasonId != line.CropSeasonId
+                || batch.ActualHarvestDate == null
+                || batch.ActualHarvestDate > today
+                || batch.StockEnteredAt == null
+                || batch.ExpirationDate <= today
+                || batch.TraceabilityQrcode is not { IsRevoked: false }
                 || batch.Status is not ("Available" or "InStock" or "Harvested" or "In Stock")
-                || batch.AvailableQuantity <= 0) return "MSG139";
-            if (!TryStockQuantity(selected.Quantity, line.UnitSnapshot, line.Product.Unit, out var stockQuantity))
+                || batch.AvailableQuantity <= 0
+            )
+                return "MSG139";
+            if (
+                !TryStockQuantity(
+                    selected.Quantity,
+                    line.UnitSnapshot,
+                    line.Product.Unit,
+                    out var stockQuantity
+                )
+            )
                 return "MSG120";
             // AvailableQuantity already excludes the quantities held by retail checkout.
-            if (stockQuantity > batch.AvailableQuantity) return "MSG139";
+            if (stockQuantity > batch.AvailableQuantity)
+                return "MSG139";
         }
         return null;
     }
 
-    public static bool TryConvertQuantity(decimal quantity, string from, string to, out decimal converted)
+    public static bool TryConvertQuantity(
+        decimal quantity,
+        string from,
+        string to,
+        out decimal converted
+    )
     {
         converted = 0;
         try
@@ -163,8 +338,12 @@ public sealed class OfftakeContractRules
         }
     }
 
-    public static bool TryStockQuantity(decimal quantity, string contractUnit, string batchUnit,
-        out decimal stockQuantity) =>
+    public static bool TryStockQuantity(
+        decimal quantity,
+        string contractUnit,
+        string batchUnit,
+        out decimal stockQuantity
+    ) =>
         TryConvertQuantity(quantity, contractUnit, batchUnit, out stockQuantity)
         && stockQuantity is > 0 and <= 999999999999999m
         && decimal.Round(stockQuantity, 3) == stockQuantity;
@@ -172,25 +351,85 @@ public sealed class OfftakeContractRules
     public bool CanComplete(OfftakeContext context)
     {
         var milestones = Milestones(context).ToList();
-        if (context.Contract.Status != "Active" || milestones.Count == 0
+        if (
+            context.Contract.Status != "Active"
+            || milestones.Count == 0
             || context.Disputes.Any(OpenDispute)
-            || context.Contract.ContractTerminationRequest?.RequestStatus is "Pending" or "PendingReview") return false;
-        if (milestones.Any(x => (x.DeliveryQuantity > 0 && (x.AcceptedQuantity < x.DeliveryQuantity
-                || x.DeliveredQuantity < x.AcceptedQuantity)) || (x.Amount > 0 && x.PaymentStatus != "Paid"))) return false;
-        var items = milestones.SelectMany(x => x.Shipments).SelectMany(x => x.ShipmentItems).ToList();
-        if (items.Count == 0 || items.Any(x => x.ReconciliationStatus is not ("Accepted" or "Reconciled" or "Resolved")
-            || x.AcceptedQuantity == null || x.ReceivedQuantity == null || x.AcceptedQuantity > x.ReceivedQuantity
-            || x.ReceivedQuantity > x.ShippedQuantity)) return false;
-        if (context.Refunds.Any(x => x.RefundStatus is not ("Success" or "Successful" or "Succeeded" or "Completed" or "Rejected"))) return false;
-        if (context.Payouts.Any(x => !IsProcessedPayout(x) && x.PayoutStatus is not ("Cancelled" or "Failed"))) return false;
-        if (milestones.Any(x => x.AcceptedQuantity > 0 && !x.Invoices.Any(i => i.InvoiceStatus != "Cancelled"))) return false;
-        decimal invoiced = milestones.SelectMany(x => x.Invoices).Where(x => x.InvoiceStatus != "Cancelled").Sum(x => x.TotalAmount);
-        decimal settled = context.Payouts.Where(IsProcessedPayout)
-            .SelectMany(x => x.PayoutItems).Where(x => milestones.Any(m => m.ContractMilestoneId == x.ContractMilestoneId || m.Invoices.Any(i => i.InvoiceId == x.InvoiceLine.InvoiceId))).Sum(x => x.SourceAmountSettled);
-        decimal verifiedReceipts = context.Contract.PaymentTransactions.Where(x => Verified(x.PaymentStatus) && x.PaidAt != null).Sum(x => x.Amount);
-        decimal completedRefunds = context.Refunds.Where(x => Verified(x.RefundStatus) && x.ProcessedAt != null).Sum(x => x.Amount);
-        if (invoiced > settled || invoiced > verifiedReceipts - completedRefunds) return false;
-        decimal applied = context.Contract.PaymentTransactions.SelectMany(x => x.ContractDepositAllocations)
+            || context.Contract.ContractTerminationRequest?.RequestStatus
+                is "Pending"
+                    or "PendingReview"
+        )
+            return false;
+        if (
+            milestones.Any(x =>
+                (
+                    x.DeliveryQuantity > 0
+                    && (
+                        x.AcceptedQuantity < x.DeliveryQuantity
+                        || x.DeliveredQuantity < x.AcceptedQuantity
+                    )
+                ) || (x.Amount > 0 && x.PaymentStatus != "Paid")
+            )
+        )
+            return false;
+        var items = milestones
+            .SelectMany(x => x.Shipments)
+            .SelectMany(x => x.ShipmentItems)
+            .ToList();
+        if (
+            items.Count == 0
+            || items.Any(x =>
+                x.ReconciliationStatus is not ("Accepted" or "Reconciled" or "Resolved")
+                || x.AcceptedQuantity == null
+                || x.ReceivedQuantity == null
+                || x.AcceptedQuantity > x.ReceivedQuantity
+                || x.ReceivedQuantity > x.ShippedQuantity
+            )
+        )
+            return false;
+        if (
+            context.Refunds.Any(x =>
+                x.RefundStatus
+                    is not ("Success" or "Successful" or "Succeeded" or "Completed" or "Rejected")
+            )
+        )
+            return false;
+        if (
+            context.Payouts.Any(x =>
+                !IsProcessedPayout(x) && x.PayoutStatus is not ("Cancelled" or "Failed")
+            )
+        )
+            return false;
+        if (
+            milestones.Any(x =>
+                x.AcceptedQuantity > 0 && !x.Invoices.Any(i => i.InvoiceStatus != "Cancelled")
+            )
+        )
+            return false;
+        decimal invoiced = milestones
+            .SelectMany(x => x.Invoices)
+            .Where(x => x.InvoiceStatus != "Cancelled")
+            .Sum(x => x.TotalAmount);
+        decimal settled = context
+            .Payouts.Where(IsProcessedPayout)
+            .SelectMany(x => x.PayoutItems)
+            .Where(x =>
+                milestones.Any(m =>
+                    m.ContractMilestoneId == x.ContractMilestoneId
+                    || m.Invoices.Any(i => i.InvoiceId == x.InvoiceLine.InvoiceId)
+                )
+            )
+            .Sum(x => x.SourceAmountSettled);
+        decimal verifiedReceipts = context
+            .Contract.PaymentTransactions.Where(x => Verified(x.PaymentStatus) && x.PaidAt != null)
+            .Sum(x => x.Amount);
+        decimal completedRefunds = context
+            .Refunds.Where(x => Verified(x.RefundStatus) && x.ProcessedAt != null)
+            .Sum(x => x.Amount);
+        if (invoiced > settled || invoiced > verifiedReceipts - completedRefunds)
+            return false;
+        decimal applied = context
+            .Contract.PaymentTransactions.SelectMany(x => x.ContractDepositAllocations)
             .Sum(x => x.PaymentInvoiceAllocations.Sum(a => a.Amount));
         decimal refunded = context.Refunds.Where(x => Verified(x.RefundStatus)).Sum(x => x.Amount);
         return DepositPaid(context) <= applied + refunded;

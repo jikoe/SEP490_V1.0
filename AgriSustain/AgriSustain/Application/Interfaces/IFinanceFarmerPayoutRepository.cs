@@ -24,7 +24,12 @@ public interface IFinanceFarmerPayoutRepository
     Task<object> SearchOwnedAsync(FarmerPayoutQuery query, CancellationToken ct);
     Task<IReadOnlyList<long>> PendingAsync(CancellationToken ct);
     Task<object> FarmersAsync(CancellationToken ct);
-    Task<FarmerPayoutContext?> LoadContextAsync(long farmerId, long? payoutId, bool update, CancellationToken ct);
+    Task<FarmerPayoutContext?> LoadContextAsync(
+        long farmerId,
+        long? payoutId,
+        bool update,
+        CancellationToken ct
+    );
     Task<FarmerPayout?> FindRequestAsync(string key, CancellationToken ct);
     Task<long?> FarmerForPayoutAsync(long payoutId, CancellationToken ct);
     Task<long?> FindOperationAsync(string operation, CancellationToken ct);

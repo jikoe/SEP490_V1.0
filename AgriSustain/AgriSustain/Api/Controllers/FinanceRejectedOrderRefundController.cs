@@ -11,12 +11,16 @@ namespace AgriSustain.Api.Controllers;
 [Authorize(Roles = "FinanceStaff,Finance Staff")]
 [Route("api/finance/rejected-order-refunds")]
 [ServiceFilter(typeof(RejectedOrderRefundInputFilter), Order = int.MinValue)]
-public sealed class FinanceRejectedOrderRefundController(FinanceRejectedOrderRefundService service, ICurrentActor actor)
-    : FeatureControllerBase
+public sealed class FinanceRejectedOrderRefundController(
+    FinanceRejectedOrderRefundService service,
+    ICurrentActor actor
+) : FeatureControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] RejectedOrderRefundQuery query, CancellationToken ct) =>
-        Respond(await service.SearchAsync(actor.UserId, query, ct));
+    public async Task<IActionResult> List(
+        [FromQuery] RejectedOrderRefundQuery query,
+        CancellationToken ct
+    ) => Respond(await service.SearchAsync(actor.UserId, query, ct));
 
     [HttpGet("{id:long}")]
     public async Task<IActionResult> Detail(long id, CancellationToken ct) =>
@@ -27,8 +31,11 @@ public sealed class FinanceRejectedOrderRefundController(FinanceRejectedOrderRef
         Respond(await service.PreviewAsync(actor.UserId, id, ct));
 
     [HttpPost("{id:long}/open-qr")]
-    public async Task<IActionResult> Open(long id, OpenRejectedOrderRefundRequest request, CancellationToken ct) =>
-        Respond(await service.OpenQrAsync(actor.UserId, id, request, ct));
+    public async Task<IActionResult> Open(
+        long id,
+        OpenRejectedOrderRefundRequest request,
+        CancellationToken ct
+    ) => Respond(await service.OpenQrAsync(actor.UserId, id, request, ct));
 
     [HttpPost("{id:long}/reconcile")]
     public async Task<IActionResult> Reconcile(long id, CancellationToken ct) =>
@@ -40,10 +47,9 @@ public sealed class RejectedOrderRefundInputFilter : IActionFilter
     public void OnActionExecuting(ActionExecutingContext context)
     {
         if (!context.ModelState.IsValid)
-            context.Result = new BadRequestObjectResult(new ProblemDetails
-            {
-                Status = 400, Title = RejectedOrderRefundMessages.Invalid
-            });
+            context.Result = new BadRequestObjectResult(
+                new ProblemDetails { Status = 400, Title = RejectedOrderRefundMessages.Invalid }
+            );
     }
 
     public void OnActionExecuted(ActionExecutedContext context) { }

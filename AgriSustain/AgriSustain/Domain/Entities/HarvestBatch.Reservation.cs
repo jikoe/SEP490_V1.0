@@ -4,15 +4,18 @@ public partial class HarvestBatch
 {
     // Cart/fulfillment and checkout still use different saleability policies (Harvested status,
     // expiry on the same day); keep both until the team agrees on one rule.
-    public bool IsSaleable(DateOnly today) => StockEnteredAt.HasValue
-        && ActualHarvestDate.HasValue && ActualHarvestDate <= today
+    public bool IsSaleable(DateOnly today) =>
+        StockEnteredAt.HasValue
+        && ActualHarvestDate.HasValue
+        && ActualHarvestDate <= today
         && (!ExpirationDate.HasValue || ExpirationDate > today)
         && Status is "Available" or "Harvested" or "InStock";
 
     public bool IsReservableForCheckout(DateOnly today)
     {
         return Status is "Available" or "InStock"
-            && ActualHarvestDate.HasValue && StockEnteredAt.HasValue
+            && ActualHarvestDate.HasValue
+            && StockEnteredAt.HasValue
             && (!ExpirationDate.HasValue || ExpirationDate >= today);
     }
 

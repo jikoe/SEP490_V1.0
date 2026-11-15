@@ -11,7 +11,11 @@ public interface IFarmerManagementRepository
 
     Task<IReadOnlyList<AuditLog>> HistoryAsync(string entity, long id, CancellationToken ct);
 
-    Task<IReadOnlyList<FarmCommitment>> CommitmentsAsync(long seasonId, long? batchId, CancellationToken ct);
+    Task<IReadOnlyList<FarmCommitment>> CommitmentsAsync(
+        long seasonId,
+        long? batchId,
+        CancellationToken ct
+    );
 
     Task<FarmOptions> OptionsAsync(long actor, DateOnly today, CancellationToken ct);
 
@@ -27,7 +31,8 @@ public interface IFarmerManagementRepository
         FarmCommand command,
         object? before,
         object after,
-        string? reason = null);
+        string? reason = null
+    );
 }
 
 public interface IFarmerCropSeasonRepository : IFarmerManagementRepository
@@ -35,7 +40,8 @@ public interface IFarmerCropSeasonRepository : IFarmerManagementRepository
     Task<(IReadOnlyList<CropSeason> Items, int Total)> SearchOwnedAsync(
         long actor,
         FarmQuery query,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 
     Task<CropSeason?> LoadOwnedContextAsync(long actor, long id, CancellationToken ct);
 
@@ -51,7 +57,8 @@ public interface IFarmerFarmingLogRepository : IFarmerManagementRepository
     Task<(IReadOnlyList<CultivationLog> Items, int Total)> SearchOwnedAsync(
         long actor,
         FarmQuery query,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 
     Task<CultivationLog?> LoadLogAsync(long actor, long id, CancellationToken ct);
 
@@ -67,7 +74,8 @@ public interface IFarmerHarvestBatchRepository : IFarmerManagementRepository
     Task<(IReadOnlyList<HarvestBatch> Items, int Total)> SearchOwnedAsync(
         long actor,
         FarmQuery query,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 
     Task<HarvestBatch?> LoadOwnedContextAsync(long actor, long id, CancellationToken ct);
 
@@ -88,13 +96,18 @@ public interface IFarmerEvidenceStorage
         long actor,
         IReadOnlyList<IFormFile> files,
         string feature,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 
     bool Owns(long actor, string reference);
 
     string? ResolvePath(long actor, string reference);
 
-    Task<string?> StoreReferencesAsync(long actor, IReadOnlyList<string> references, CancellationToken ct);
+    Task<string?> StoreReferencesAsync(
+        long actor,
+        IReadOnlyList<string> references,
+        CancellationToken ct
+    );
 
     IReadOnlyList<string> ReadReferences(long actor, string? stored);
 }

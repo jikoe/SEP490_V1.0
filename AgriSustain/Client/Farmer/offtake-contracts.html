@@ -24,11 +24,7 @@
           <h1>Quản lý hợp đồng bao tiêu</h1>
           <p>Chọn trang chức năng hoặc mở chi tiết từ danh sách để tiếp tục.</p>
         </div>
-        <div
-          aria-label="Các trang chức năng"
-          class="screen-tabs"
-          role="tablist"
-        >
+        <div aria-label="Các trang chức năng" class="screen-tabs" role="tablist">
           <button
             aria-controls="screen-list"
             data-screen-go="list"
@@ -84,13 +80,7 @@
             Lịch sử / tài chính
           </button>
         </div>
-        <div
-          aria-live="polite"
-          class="notice feedback"
-          hidden=""
-          id="feedback"
-          role="status"
-        >
+        <div aria-live="polite" class="notice feedback" hidden="" id="feedback" role="status">
           <span id="feedbackText"> </span>
         </div>
         <section
@@ -105,10 +95,7 @@
             <div class="body toolbar">
               <div class="field">
                 <label for="contractSearch"> Tìm hợp đồng </label>
-                <input
-                  id="contractSearch"
-                  placeholder="Mã hợp đồng hoặc tên doanh nghiệp"
-                />
+                <input id="contractSearch" placeholder="Mã hợp đồng hoặc tên doanh nghiệp" />
               </div>
               <div class="field">
                 <label> Trạng thái </label>
@@ -130,9 +117,7 @@
                 <input id="contractTo" type="date" />
               </div>
               <div class="actions">
-                <button class="btn primary" id="filterContracts">
-                  Áp dụng
-                </button>
+                <button class="btn primary" id="filterContracts">Áp dụng</button>
                 <button class="btn" id="resetContracts">Xóa lọc</button>
               </div>
             </div>
@@ -175,9 +160,7 @@
           role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">
-              ← Danh sách hợp đồng
-            </button>
+            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
             <h2>Điều khoản</h2>
           </div>
           <section class="panel">
@@ -205,9 +188,7 @@
                 <select id="contractSeason"></select>
               </div>
               <div class="actions wide local-style-0">
-                <button class="btn primary" id="confirmContract">
-                  Xác nhận điều khoản
-                </button>
+                <button class="btn primary" id="confirmContract">Xác nhận điều khoản</button>
               </div>
             </div>
           </section>
@@ -218,9 +199,7 @@
             <div class="body">
               <div class="grid two">
                 <div class="field">
-                  <label for="contractFeedback">
-                    Lý do từ chối / đề nghị sửa *
-                  </label>
+                  <label for="contractFeedback"> Lý do từ chối / đề nghị sửa * </label>
                   <textarea
                     id="contractFeedback"
                     maxlength="500"
@@ -228,9 +207,7 @@
                   ></textarea>
                 </div>
                 <div class="field">
-                  <label for="amendmentChanges">
-                    Nội dung đề nghị thay đổi
-                  </label>
+                  <label for="amendmentChanges"> Nội dung đề nghị thay đổi </label>
                   <textarea
                     id="amendmentChanges"
                     placeholder="Ví dụ: chuyển ngày giao đợt 3 sang 25/11/2026"
@@ -239,22 +216,14 @@
               </div>
               <div class="actions end">
                 <button class="btn" id="clearTerms">Xóa nội dung</button>
-                <button class="btn danger" id="rejectContract">
-                  Từ chối đề xuất
-                </button>
-                <button class="btn primary" id="amendContract">
-                  Gửi đề nghị sửa đổi
-                </button>
+                <button class="btn danger" id="rejectContract">Từ chối đề xuất</button>
+                <button class="btn primary" id="amendContract">Gửi đề nghị sửa đổi</button>
               </div>
             </div>
           </section>
           <div class="actions end">
-            <button class="btn" data-screen-go="list">
-              ← Danh sách hợp đồng
-            </button>
-            <button class="btn primary" data-screen-go="delivery">
-              Xem lịch giao hàng →
-            </button>
+            <button class="btn" data-screen-go="list">← Danh sách hợp đồng</button>
+            <button class="btn primary" data-screen-go="delivery">Xem lịch giao hàng →</button>
           </div>
         </section>
         <section
@@ -266,9 +235,7 @@
           role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">
-              ← Danh sách hợp đồng
-            </button>
+            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
             <h2>Giao hàng</h2>
           </div>
           <section class="panel" data-contract-execution="true">
@@ -297,7 +264,11 @@
                 </div>
                 <div class="field">
                   <label for="shipmentBatch"> Lô thực tế có mã QR * </label>
-                  <select id="shipmentBatch" required="" aria-describedby="shipmentStockHint"></select>
+                  <select
+                    id="shipmentBatch"
+                    required=""
+                    aria-describedby="shipmentStockHint"
+                  ></select>
                   <small id="shipmentStockHint" class="muted" hidden></small>
                 </div>
                 <div class="field">
@@ -331,17 +302,13 @@
           role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">
-              ← Danh sách hợp đồng
-            </button>
+            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
             <h2>Phản hồi chênh lệch</h2>
           </div>
           <section class="panel" data-contract-execution="true">
             <div class="panel-title">
               <h2>Kết quả kiểm nhận và chênh lệch</h2>
-              <span class="badge warn" id="discrepancyStatus">
-                Chờ phản hồi
-              </span>
+              <span class="badge warn" id="discrepancyStatus"> Chờ phản hồi </span>
             </div>
             <div class="body">
               <div class="summary">
@@ -355,9 +322,7 @@
               <form id="discrepancyForm">
                 <div class="grid local-style-1">
                   <div class="field">
-                    <label for="proposedQuantity">
-                      Đề xuất số lượng theo đơn vị hợp đồng
-                    </label>
+                    <label for="proposedQuantity"> Đề xuất số lượng theo đơn vị hợp đồng </label>
                     <input
                       id="proposedQuantity"
                       min="0"
@@ -367,9 +332,7 @@
                     />
                   </div>
                   <div class="field">
-                    <label for="proposedGrade">
-                      Đề xuất chất lượng / phương án *
-                    </label>
+                    <label for="proposedGrade"> Đề xuất chất lượng / phương án * </label>
                     <input
                       id="proposedGrade"
                       placeholder="Ví dụ: giữ loại A cho phần hàng đạt chất lượng"
@@ -377,9 +340,7 @@
                     />
                   </div>
                   <div class="field">
-                    <label for="discrepancyEvidence">
-                      Bằng chứng phản hồi *
-                    </label>
+                    <label for="discrepancyEvidence"> Bằng chứng phản hồi * </label>
                     <input
                       accept=".pdf,.jpg,.jpeg,.png"
                       id="discrepancyEvidence"
@@ -400,18 +361,10 @@
                 </div>
                 <div class="actions end">
                   <button class="btn" type="reset">Hủy nhập</button>
-                  <button
-                    class="btn danger"
-                    id="escalateDiscrepancy"
-                    type="button"
-                  >
+                  <button class="btn danger" id="escalateDiscrepancy" type="button">
                     Đề nghị xem xét tranh chấp
                   </button>
-                  <button
-                    class="btn primary"
-                    id="submitDiscrepancy"
-                    type="submit"
-                  >
+                  <button class="btn primary" id="submitDiscrepancy" type="submit">
                     Gửi phản hồi chênh lệch
                   </button>
                 </div>
@@ -429,9 +382,7 @@
           role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">
-              ← Danh sách hợp đồng
-            </button>
+            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
             <h2>Điều chỉnh / chấm dứt</h2>
           </div>
           <section class="panel" data-contract-execution="true">
@@ -442,9 +393,7 @@
               <form id="delayForm">
                 <div class="grid">
                   <div class="field">
-                    <label for="delayMilestone">
-                      Nghĩa vụ bị ảnh hưởng *
-                    </label>
+                    <label for="delayMilestone"> Nghĩa vụ bị ảnh hưởng * </label>
                     <select id="delayMilestone" required=""></select>
                   </div>
                   <div class="field">
@@ -465,9 +414,7 @@
                     <input id="delayDate" required="" type="date" />
                   </div>
                   <div class="field wide">
-                    <label for="delayReason">
-                      Nguyên nhân và phương án *
-                    </label>
+                    <label for="delayReason"> Nguyên nhân và phương án * </label>
                     <textarea
                       id="delayReason"
                       placeholder="Nêu nguyên nhân và đề xuất xử lý"
@@ -500,9 +447,7 @@
                     ></textarea>
                   </div>
                   <div class="field">
-                    <label for="terminationPlan">
-                      Phương án thanh toán và nghĩa vụ còn lại
-                    </label>
+                    <label for="terminationPlan"> Phương án thanh toán và nghĩa vụ còn lại </label>
                     <textarea
                       id="terminationPlan"
                       placeholder="Đề xuất xử lý các đợt giao, tiền cọc và số tiền chưa thanh toán"
@@ -526,11 +471,7 @@
                 </div>
                 <div class="actions end">
                   <button class="btn" type="reset">Hủy nhập</button>
-                  <button
-                    class="btn danger"
-                    id="terminationButton"
-                    type="submit"
-                  >
+                  <button class="btn danger" id="terminationButton" type="submit">
                     Gửi đề nghị chấm dứt
                   </button>
                 </div>
@@ -547,9 +488,7 @@
           role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">
-              ← Danh sách hợp đồng
-            </button>
+            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
             <h2>Lịch sử / tài chính</h2>
           </div>
           <section class="panel" data-contract-execution="true">
@@ -563,9 +502,8 @@
                   <h3>Điều kiện hoàn tất</h3>
                   <p id="completionState"></p>
                   <p class="muted">
-                    Giá theo loại và phạt áp dụng theo điều khoản đã xác nhận.
-                    Tiền cọc được áp dụng khi quyết toán, không tính thêm thành
-                    một lần thu mới.
+                    Giá theo loại và phạt áp dụng theo điều khoản đã xác nhận. Tiền cọc được áp dụng
+                    khi quyết toán, không tính thêm thành một lần thu mới.
                   </p>
                 </div>
               </div>
@@ -586,9 +524,7 @@
         <p id="confirmText"></p>
         <div class="actions end">
           <button class="btn" id="confirmCancel" type="button">Quay lại</button>
-          <button class="btn primary" id="confirmOk" type="button">
-            Xác nhận
-          </button>
+          <button class="btn primary" id="confirmOk" type="button">Xác nhận</button>
         </div>
       </dialog>
     </template>

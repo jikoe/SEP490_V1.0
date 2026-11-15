@@ -10,12 +10,17 @@ public sealed class FarmInputFilter : IActionFilter
     {
         if (context.ModelState.IsValid)
             return;
-        var fields = context.ModelState.Where(x => x.Value?.Errors.Count > 0).ToDictionary(x => x.Key, x => new[] { FarmManagementMessages.MSG120 });
-        context.Result = new BadRequestObjectResult(new ValidationProblemDetails(fields) { Status = 400, Title = FarmManagementMessages.MSG120 });
+        var fields = context
+            .ModelState.Where(x => x.Value?.Errors.Count > 0)
+            .ToDictionary(x => x.Key, x => new[] { FarmManagementMessages.MSG120 });
+        context.Result = new BadRequestObjectResult(
+            new ValidationProblemDetails(fields)
+            {
+                Status = 400,
+                Title = FarmManagementMessages.MSG120,
+            }
+        );
     }
 
-
-    public void OnActionExecuted(ActionExecutedContext context)
-    {
-    }
+    public void OnActionExecuted(ActionExecutedContext context) { }
 }

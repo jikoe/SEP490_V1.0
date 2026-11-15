@@ -506,8 +506,6 @@ main {
   width: 260px;
 }
 
-
-
 .qr-layout {
   display: grid;
   grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);

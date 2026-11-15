@@ -25,8 +25,12 @@ public interface IFarmerOfftakeContractRepository
     Task<FarmerProfile?> FarmerAsync(long actor, CancellationToken ct);
     Task<object> SearchOwnedAsync(long actor, ContractQuery query, CancellationToken ct);
     Task<OfftakeContext?> LoadContextAsync(long actor, long id, bool update, CancellationToken ct);
-    Task<FeatureResult<ContractActionResult>> SaveAtomicAsync(long actor, long id,
-        Func<OfftakeContext, Task<FeatureResult<ContractActionResult>>> action, CancellationToken ct);
+    Task<FeatureResult<ContractActionResult>> SaveAtomicAsync(
+        long actor,
+        long id,
+        Func<OfftakeContext, Task<FeatureResult<ContractActionResult>>> action,
+        CancellationToken ct
+    );
     void Record(AuditLog entry);
     void Queue(IEnumerable<Notification> notifications);
 }

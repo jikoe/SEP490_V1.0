@@ -15,15 +15,15 @@ public sealed class FarmerHarvestBatchRules(TimeProvider clock)
                 && input.ActualHarvestDate >= season.PlantingDate
                 && input.ActualHarvestDate <= FarmState.Today(clock),
             FarmManagementMessages.DateRange,
-            "actualHarvestDate");
+            "actualHarvestDate"
+        );
         FarmState.Require(
-            input.ExpirationDate.HasValue
-                && input.ExpirationDate > input.ActualHarvestDate,
+            input.ExpirationDate.HasValue && input.ExpirationDate > input.ActualHarvestDate,
             FarmManagementMessages.MSG102,
-            "expirationDate");
+            "expirationDate"
+        );
         FarmState.Amount(input.ActualYield, "actualYield", message: FarmManagementMessages.MSG103);
     }
-
 
     private static void Identity(CropSeason season, Product product, HarvestBatchRequest input)
     {
@@ -32,49 +32,59 @@ public sealed class FarmerHarvestBatchRules(TimeProvider clock)
         FarmState.Require(
             input.BatchCode.Trim().All(c => c is >= '!' and <= '~'),
             FarmManagementMessages.MSG120,
-            "batchCode");
+            "batchCode"
+        );
         FarmState.Text(input.QualityNotes, 500, "qualityNotes", false);
         FarmState.Require(
             season.ProductId == product.ProductId
                 && season.FarmerProfileId == product.FarmerProfileId,
             FarmManagementMessages.ProductSeason,
-            "cropSeasonId");
+            "cropSeasonId"
+        );
         FarmState.Require(
             string.Equals(product.Unit, input.Unit.Trim(), StringComparison.OrdinalIgnoreCase),
             FarmManagementMessages.MSG103,
-            "unit");
+            "unit"
+        );
     }
-
 
     public (decimal Adjustment, decimal Held, decimal Shipped) Balance(HarvestBatch batch)
     {
         var now = clock.GetUtcNow().UtcDateTime;
-        decimal adjustment = batch.InventoryMovements
-            .Where(x => x.MovementType == "Adjustment")
+        decimal adjustment = batch
+            .InventoryMovements.Where(x => x.MovementType == "Adjustment")
             .Sum(x => x.QuantityChange);
-        decimal held = batch.OrderItemBatchAllocations.Count > 0
-            ? batch.OrderItemBatchAllocations
-                .Where(x => (x.AllocationStatus is "Reserved" or "Held" or "Active")
-                    && (!x.ExpiresAt.HasValue || x.ExpiresAt > now))
-                .Sum(x => x.AllocatedQuantity)
-            : batch.ReservedQuantity;
+        decimal held =
+            batch.OrderItemBatchAllocations.Count > 0
+                ? batch
+                    .OrderItemBatchAllocations.Where(x =>
+                        (x.AllocationStatus is "Reserved" or "Held" or "Active")
+                        && (!x.ExpiresAt.HasValue || x.ExpiresAt > now)
+                    )
+                    .Sum(x => x.AllocatedQuantity)
+                : batch.ReservedQuantity;
         // Stock movements are in the batch unit; contract shipments may use another unit.
         // Prefer a linked dispatch ledger entry, retaining the old fallback for unposted shipments.
         decimal shipped = Math.Max(
             batch.OrderItemBatchAllocations.Sum(allocation =>
-                batch.InventoryMovements.Any(m => m.OrderItemBatchAllocationId == allocation.OrderItemBatchAllocationId
-                    && (m.MovementType is "Dispatch" or "StockOut"))
-                    ? -batch.InventoryMovements.Where(m =>
+                batch.InventoryMovements.Any(m =>
+                    m.OrderItemBatchAllocationId == allocation.OrderItemBatchAllocationId
+                    && (m.MovementType is "Dispatch" or "StockOut")
+                )
+                    ? -batch
+                        .InventoryMovements.Where(m =>
                             m.OrderItemBatchAllocationId == allocation.OrderItemBatchAllocationId
-                            && (m.MovementType is "Dispatch" or "StockOut"))
+                            && (m.MovementType is "Dispatch" or "StockOut")
+                        )
                         .Sum(m => m.QuantityChange)
-                    : allocation.ShipmentItems.Sum(x => x.ShippedQuantity)),
-            -batch.InventoryMovements
-                .Where(x => x.MovementType is "Dispatch" or "StockOut")
-                .Sum(x => x.QuantityChange));
+                    : allocation.ShipmentItems.Sum(x => x.ShippedQuantity)
+            ),
+            -batch
+                .InventoryMovements.Where(x => x.MovementType is "Dispatch" or "StockOut")
+                .Sum(x => x.QuantityChange)
+        );
         return (adjustment, held, shipped);
     }
-
 
     public void ReconcileStock(HarvestBatch batch, decimal adjustment = 0)
     {
@@ -82,19 +92,18 @@ public sealed class FarmerHarvestBatchRules(TimeProvider clock)
         FarmState.Require(
             batch.HarvestYield + b.Adjustment + adjustment - b.Held - b.Shipped >= 0,
             FarmManagementMessages.MSG103,
-            "quantity");
+            "quantity"
+        );
     }
 
-
-    public void ProtectCommitments(
-        IReadOnlyList<FarmCommitment> commitments,
-        DateOnly expiry) =>
+    public void ProtectCommitments(IReadOnlyList<FarmCommitment> commitments, DateOnly expiry) =>
         FarmState.Require(
-            !commitments.Any(x => x.Quantity > 0
-                && x.DeliveryDate.HasValue
-                && expiry <= x.DeliveryDate),
+            !commitments.Any(x =>
+                x.Quantity > 0 && x.DeliveryDate.HasValue && expiry <= x.DeliveryDate
+            ),
             FarmManagementMessages.MSG130,
-            "expirationDate");
+            "expirationDate"
+        );
 
     public bool IsEligible(HarvestBatch batch) =>
         batch.StockEnteredAt.HasValue
@@ -112,7 +121,8 @@ public sealed class FarmerHarvestBatchRules(TimeProvider clock)
                 && batch.ActualHarvestDate.HasValue
                 && batch.ActualHarvestDate <= FarmState.Today(clock)
                 && batch.CropSeason.CultivationLogs.Count > 0,
-            FarmManagementMessages.MSG136);
+            FarmManagementMessages.MSG136
+        );
         FarmState.Require(IsEligible(batch), FarmManagementMessages.MSG139);
     }
 }

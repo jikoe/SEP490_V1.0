@@ -102,8 +102,8 @@
         </div>
         <div class="view" data-view="form">
           <div class="notice">
-            Chỉ thêm hoạt động thường lệ cho mùa vụ đang trồng, sinh trưởng hoặc thu hoạch. Nhật ký đã lưu
-            không có thao tác sửa/xóa.
+            Chỉ thêm hoạt động thường lệ cho mùa vụ đang trồng, sinh trưởng hoặc thu hoạch. Nhật ký
+            đã lưu không có thao tác sửa/xóa.
           </div>
           <form id="logForm" novalidate>
             <section class="section">
@@ -184,8 +184,8 @@
                   </div>
                 </div>
                 <p class="hint">
-                  Có thể bỏ ảnh đã chọn trước khi lưu. Bón phân và phòng trừ sâu bệnh yêu cầu vật tư, liều
-                  lượng; hoạt động phòng trừ sâu bệnh yêu cầu ảnh.
+                  Có thể bỏ ảnh đã chọn trước khi lưu. Bón phân và phòng trừ sâu bệnh yêu cầu vật
+                  tư, liều lượng; hoạt động phòng trừ sâu bệnh yêu cầu ảnh.
                 </p>
               </div>
             </section>
@@ -294,14 +294,14 @@
                   </div>
                 </div>
                 <p class="hint">
-                  Có thể bỏ ảnh đã chọn trước khi lưu. Bón phân và phòng trừ sâu bệnh yêu cầu vật tư, liều
-                  lượng; hoạt động phòng trừ sâu bệnh yêu cầu ảnh.
+                  Có thể bỏ ảnh đã chọn trước khi lưu. Bón phân và phòng trừ sâu bệnh yêu cầu vật
+                  tư, liều lượng; hoạt động phòng trừ sâu bệnh yêu cầu ảnh.
                 </p>
               </div>
             </section>
             <div class="notice">
-              Bản gốc luôn được giữ nguyên. Có thể đính chính nhật ký đã có sau khi mùa vụ đóng; không thêm
-              hoạt động mới cho mùa vụ đã đóng.
+              Bản gốc luôn được giữ nguyên. Có thể đính chính nhật ký đã có sau khi mùa vụ đóng;
+              không thêm hoạt động mới cho mùa vụ đã đóng.
             </div>
             <div class="actions end">
               <button class="btn" type="button" data-go="list">Hủy</button>
@@ -314,14 +314,18 @@
         <h2>Xác nhận thao tác</h2>
         <p id="confirmText"></p>
         <div class="actions end">
-          <button class="btn" type="button" onclick="this.closest('dialog').close()">Quay lại</button>
+          <button class="btn" type="button" onclick="this.closest('dialog').close()">
+            Quay lại
+          </button>
           <button class="btn primary" id="confirmOk">Xác nhận</button>
         </div>
       </dialog>
       <dialog id="proofViewer">
         <h2>Ảnh bằng chứng</h2>
         <div id="proofContent"></div>
-        <div class="actions end"><button class="btn" type="button" data-close-dialog>Đóng</button></div>
+        <div class="actions end">
+          <button class="btn" type="button" data-close-dialog>Đóng</button>
+        </div>
       </dialog>
     </template>
     <script src="../js/config.js"></script>

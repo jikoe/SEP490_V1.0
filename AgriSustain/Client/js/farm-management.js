@@ -55,7 +55,9 @@ window.FarmUI = class FarmUI {
     this.$$("input[type=file]").forEach((input) =>
       input.addEventListener("change", () => this.previewFiles(input)),
     );
-    window.addEventListener("beforeunload", () => this.blobs.forEach((u) => URL.revokeObjectURL(u)));
+    window.addEventListener("beforeunload", () =>
+      this.blobs.forEach((u) => URL.revokeObjectURL(u)),
+    );
   }
   escape(value) {
     return String(value ?? "").replace(
@@ -68,7 +70,9 @@ window.FarmUI = class FarmUI {
   }
   date(value) {
     return value
-      ? new Date(String(value).length === 10 ? value + "T00:00:00" : value).toLocaleDateString("vi-VN")
+      ? new Date(String(value).length === 10 ? value + "T00:00:00" : value).toLocaleDateString(
+          "vi-VN",
+        )
       : "—";
   }
   datetime(value) {
@@ -148,7 +152,9 @@ window.FarmUI = class FarmUI {
     let el =
       lookup === "evidenceUrls"
         ? form.querySelector("input[type=file]")
-        : (map[lookup] || [lookup]).map((x) => form.elements.namedItem(x)).find((x) => x && !x.disabled);
+        : (map[lookup] || [lookup])
+            .map((x) => form.elements.namedItem(x))
+            .find((x) => x && !x.disabled);
     if (!el) return;
     el.classList.add("invalid");
     el.setAttribute("aria-invalid", "true");
@@ -224,7 +230,8 @@ window.FarmUI = class FarmUI {
   failure(error, form) {
     this.notice(error.message || this.m.MSG126, true);
     this.clearErrors(form);
-    for (const [key, values] of Object.entries(error.fields || {})) this.mark(form, key, values.join(" "));
+    for (const [key, values] of Object.entries(error.fields || {}))
+      this.mark(form, key, values.join(" "));
     form?.querySelector("[aria-invalid]")?.focus();
   }
   async command(path, body, form, actionKey = path) {
@@ -273,7 +280,8 @@ window.FarmUI = class FarmUI {
   }
   table(rows, colspan) {
     this.$("#rows").innerHTML =
-      rows || `<tr><td colspan="${colspan}" class="empty-state">${this.escape(this.m.MSG124)}</td></tr>`;
+      rows ||
+      `<tr><td colspan="${colspan}" class="empty-state">${this.escape(this.m.MSG124)}</td></tr>`;
   }
   commitments(rows) {
     return rows.length
@@ -290,7 +298,13 @@ window.FarmUI = class FarmUI {
       ? rows
           .map(
             (x) =>
-              `<div class="history-entry"><strong>${this.escape(this.m.actions[x.action] || x.action)}</strong> · ${this.datetime(x.occurredAt)} · ${this.escape(x.recorder)}${x.reason ? "<br>" + this.escape(x.reason) : ""}${this.historyProof(x.after)}</div>`,
+              /* HTML */ `<div class="history-entry">
+                <strong>${this.escape(this.m.actions[x.action] || x.action)}</strong> ·
+                ${this.datetime(x.occurredAt)} ·
+                ${this.escape(x.recorder)}${x.reason
+                  ? "<br>" + this.escape(x.reason)
+                  : ""}${this.historyProof(x.after)}
+              </div>`,
           )
           .join("")
       : this.escape(this.m.noHistory);
@@ -360,7 +374,9 @@ window.FarmUI = class FarmUI {
   }
   async upload(input, feature) {
     if (!input.files.length) return [];
-    const signature = [...input.files].map((x) => [x.name, x.size, x.lastModified].join(":")).join("|");
+    const signature = [...input.files]
+      .map((x) => [x.name, x.size, x.lastModified].join(":"))
+      .join("|");
     const old = this.uploads.get(input);
     if (old?.signature === signature) return old.urls;
     for (const file of input.files)
@@ -368,7 +384,10 @@ window.FarmUI = class FarmUI {
         throw new Error(feature === "log" ? this.m.MSG96 : this.m.MSG120);
     const form = new FormData();
     for (const file of input.files) form.append("files", file);
-    const data = await this.request("/farmer/evidence?feature=" + feature, { method: "POST", body: form });
+    const data = await this.request("/farmer/evidence?feature=" + feature, {
+      method: "POST",
+      body: form,
+    });
     this.uploads.set(input, { signature, urls: data.evidenceUrls });
     return data.evidenceUrls;
   }

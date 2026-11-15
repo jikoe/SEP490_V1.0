@@ -13,10 +13,26 @@ public sealed class RejectedOrderRefundQuery
 }
 
 public sealed record OpenRejectedOrderRefundRequest(string ExpectedVersion, string RequestKey);
-public sealed record RejectedOrderRefundContext(RefundTransaction Refund, SellerOrder Order,
-    UserBankAccount? Account, IReadOnlyList<AuditLog> History);
-public sealed record RejectedOrderRefundPreview(string ExpectedVersion, PayoutTransferPlan Plan,
-    string RecipientName, string Message);
-public sealed record RejectedOrderRefundAttempt(PayoutTransferPlan Plan, string RecipientName,
-    long FinanceUserId, string RequestKey);
+
+public sealed record RejectedOrderRefundContext(
+    RefundTransaction Refund,
+    SellerOrder Order,
+    UserBankAccount? Account,
+    IReadOnlyList<AuditLog> History
+);
+
+public sealed record RejectedOrderRefundPreview(
+    string ExpectedVersion,
+    PayoutTransferPlan Plan,
+    string RecipientName,
+    string Message
+);
+
+public sealed record RejectedOrderRefundAttempt(
+    PayoutTransferPlan Plan,
+    string RecipientName,
+    long FinanceUserId,
+    string RequestKey
+);
+
 public sealed record RejectedOrderRefundResult(long Id, string Status, string Message);

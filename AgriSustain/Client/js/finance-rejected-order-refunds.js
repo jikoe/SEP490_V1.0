@@ -11,12 +11,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   let busy = false;
   let listGeneration = 0;
   let detailGeneration = 0;
-  const text = (id, value) => { $(id).textContent = value ?? "—"; };
+  const text = (id, value) => {
+    $(id).textContent = value ?? "—";
+  };
 
   function buttons() {
     $("#openQr").disabled = busy || !current?.canOpenQr;
     $("#check").disabled = busy || !["Processing", "NeedsReconciliation"].includes(current?.status);
-
   }
 
   async function loadList() {
@@ -25,23 +26,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     const to = $("#to").value;
     if (from && to && from > to) return ui.notice(m.invalidDates, true);
     const params = new URLSearchParams({ page });
-    [["keyword", "#keyword"], ["status", "#status"], ["from", "#from"], ["to", "#to"]]
-      .forEach(([key, id]) => {
-        if ($(id).value.trim()) params.set(key, $(id).value.trim());
-      });
+    [
+      ["keyword", "#keyword"],
+      ["status", "#status"],
+      ["from", "#from"],
+      ["to", "#to"],
+    ].forEach(([key, id]) => {
+      if ($(id).value.trim()) params.set(key, $(id).value.trim());
+    });
     try {
       const data = await ui.request(`${base}?${params}`);
       if (generation !== listGeneration) return;
       total = data.total;
-      $("#rows").innerHTML = data.items.map(row => `
-        <tr>
-          <td><strong>${ui.escape(row.code)}</strong><small>${ui.date(row.submittedAt)}</small></td>
-          <td>${ui.escape(row.orderCode)}<small>${ui.escape(row.customer)}</small></td>
-          <td>${ui.escape(row.farmer)}</td>
-          <td class="amount">${ui.money(row.amount)}</td>
-          <td><span class="badge">${ui.escape(ui.label(row.status))}</span></td>
-          <td><button class="btn" type="button" data-request="${row.id}">Xem / xử lý</button></td>
-        </tr>`).join("") || `<tr><td colspan="6">${ui.escape(m.empty)}</td></tr>`;
+      $("#rows").innerHTML =
+        data.items
+          .map(
+            (row) =>
+              /* HTML */ ` <tr>
+                <td>
+                  <strong>${ui.escape(row.code)}</strong><small>${ui.date(row.submittedAt)}</small>
+                </td>
+                <td>${ui.escape(row.orderCode)}<small>${ui.escape(row.customer)}</small></td>
+                <td>${ui.escape(row.farmer)}</td>
+                <td class="amount">${ui.money(row.amount)}</td>
+                <td><span class="badge">${ui.escape(ui.label(row.status))}</span></td>
+                <td>
+                  <button class="btn" type="button" data-request="${row.id}">Xem / xử lý</button>
+                </td>
+              </tr>`,
+          )
+          .join("") || `<tr><td colspan="6">${ui.escape(m.empty)}</td></tr>`;
       text("#count", m.requestCount(total));
       text("#page", page);
       $("#prev").disabled = page <= 1;
@@ -56,19 +70,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     text("#refundCode", data.code);
     text("#refundStatus", ui.label(data.status));
     ui.kv("#orderDetails", [
-      ["Đơn nông trại", data.orderCode], ["RetailCustomer", data.customer], ["Nông trại", data.farmer],
+      ["Đơn nông trại", data.orderCode],
+      ["RetailCustomer", data.customer],
+      ["Nông trại", data.farmer],
       ["Ngày hủy / Gửi yêu cầu", ui.date(data.submittedAt)],
-      ["Lý do từ chối", data.reason], ["Trạng thái đơn", "Đã hủy"],
+      ["Lý do từ chối", data.reason],
+      ["Trạng thái đơn", "Đã hủy"],
     ]);
     $("#amountDetails").innerHTML = [
-      ["Tiền hàng", data.subtotal], ["Phí giao hàng", data.deliveryFee],
-      ["Giảm giá được phân bổ", data.discountShare], ["Giá trị đơn đã hủy", data.finalAmount],
+      ["Tiền hàng", data.subtotal],
+      ["Phí giao hàng", data.deliveryFee],
+      ["Giảm giá được phân bổ", data.discountShare],
+      ["Giá trị đơn đã hủy", data.finalAmount],
       ["Thanh toán nguồn đã xác minh", data.verifiedPayment],
       ["Các khoản hoàn khác đã giữ / đã hoàn", data.otherReserved],
       ["Số tiền yêu cầu hoàn", data.amount],
-    ].map(([label, value]) => `<div class="line"><span>${ui.escape(label)}</span><strong>${ui.money(value)}</strong></div>`).join("");
+    ]
+      .map(
+        ([label, value]) =>
+          `<div class="line"><span>${ui.escape(label)}</span><strong>${ui.money(value)}</strong></div>`,
+      )
+      .join("");
     ui.kv("#recipient", [
-      ["Ngân hàng", data.recipient.bankCode], ["Số tài khoản", data.recipient.accountNumber],
+      ["Ngân hàng", data.recipient.bankCode],
+      ["Số tài khoản", data.recipient.accountNumber],
       ["Chủ tài khoản", data.recipient.accountHolder],
     ]);
     const plan = data.plan;
@@ -77,19 +102,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       $("#qr").src = plan.qrUrl;
       ui.kv("#transferData", [
         ["Tài khoản nguồn", `${plan.sourceBankCode} · ${plan.sourceAccountNumber}`],
-        ["Ngân hàng nhận", plan.recipientBankCode], ["Tài khoản nhận", plan.recipientAccountNumber],
-        ["Chủ tài khoản", data.recipient.accountHolder], ["Số tiền", ui.money(plan.amount)],
+        ["Ngân hàng nhận", plan.recipientBankCode],
+        ["Tài khoản nhận", plan.recipientAccountNumber],
+        ["Chủ tài khoản", data.recipient.accountHolder],
+        ["Số tiền", ui.money(plan.amount)],
         ["Nội dung bắt buộc", plan.operationKey],
       ]);
     }
-    text("#reconciliation", data.status === "Succeeded" ? m.succeeded : plan ? m.pending : data.eligibilityMessage || m.unopened);
+    text(
+      "#reconciliation",
+      data.status === "Succeeded"
+        ? m.succeeded
+        : plan
+          ? m.pending
+          : data.eligibilityMessage || m.unopened,
+    );
     ui.kv("#result", [
-      ["Trạng thái hoàn tiền", ui.label(data.status)], ["Số tiền", ui.money(data.amount)],
+      ["Trạng thái hoàn tiền", ui.label(data.status)],
+      ["Số tiền", ui.money(data.amount)],
       ["Mã giao dịch ngân hàng", data.gatewayReference || m.notVerified],
-      ["Thời điểm xác minh", ui.date(data.processedAt)], ["Trạng thái đơn hàng", "Đã hủy"],
+      ["Thời điểm xác minh", ui.date(data.processedAt)],
+      ["Trạng thái đơn hàng", "Đã hủy"],
     ]);
-    $("#history").innerHTML = data.history.map(row =>
-      `<li>${ui.date(row.occurredAt)} · ${ui.escape(ui.label(row.action))}<small>${ui.escape(row.reason || "")}</small></li>`).join("");
+    $("#history").innerHTML = data.history
+      .map(
+        (row) =>
+          `<li>${ui.date(row.occurredAt)} · ${ui.escape(ui.label(row.action))}<small>${ui.escape(row.reason || "")}</small></li>`,
+      )
+      .join("");
     buttons();
   }
 
@@ -113,8 +153,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const preview = await ui.request(`${base}/${id}/qr-preview`);
       const p = preview.plan;
-      const accepted = await ui.confirm(m.confirm(p.operationKey, ui.money(p.amount),
-        p.recipientBankCode, p.recipientAccountNumber, preview.recipientName));
+      const accepted = await ui.confirm(
+        m.confirm(
+          p.operationKey,
+          ui.money(p.amount),
+          p.recipientBankCode,
+          p.recipientAccountNumber,
+          preview.recipientName,
+        ),
+      );
       if (!accepted) return;
       const result = await ui.request(`${base}/${id}/open-qr`, {
         method: "POST",
@@ -148,7 +195,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  ui.navigate = view => {
+  ui.navigate = (view) => {
     if (busy) return;
     if (view === "detail" && !current) return ui.notice(m.choose, true);
     if (view === "list") {
@@ -157,18 +204,33 @@ document.addEventListener("DOMContentLoaded", async () => {
       loadList();
     } else ui.go("detail");
   };
-  $("#rows").addEventListener("click", event => {
+  $("#rows").addEventListener("click", (event) => {
     const button = event.target.closest("[data-request]");
     if (button && !busy) detail(button.dataset.request);
   });
-  $("#apply").onclick = () => { page = 1; loadList(); };
-  $("#clear").onclick = () => {
-    ["#keyword", "#status", "#from", "#to"].forEach(id => { $(id).value = ""; });
+  $("#apply").onclick = () => {
     page = 1;
     loadList();
   };
-  $("#prev").onclick = () => { if (page > 1) { --page; loadList(); } };
-  $("#next").onclick = () => { if (page * 10 < total) { ++page; loadList(); } };
+  $("#clear").onclick = () => {
+    ["#keyword", "#status", "#from", "#to"].forEach((id) => {
+      $(id).value = "";
+    });
+    page = 1;
+    loadList();
+  };
+  $("#prev").onclick = () => {
+    if (page > 1) {
+      --page;
+      loadList();
+    }
+  };
+  $("#next").onclick = () => {
+    if (page * 10 < total) {
+      ++page;
+      loadList();
+    }
+  };
   $("#openQr").onclick = openQr;
   $("#check").onclick = reconcile;
   $("#qr").onerror = () => ui.notice(m.qrFailed, true);
@@ -176,7 +238,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       await navigator.clipboard.writeText(current.plan.operationKey);
       ui.notice(m.copied);
-    } catch { ui.notice(m.copyFailed, true); }
+    } catch {
+      ui.notice(m.copyFailed, true);
+    }
   };
   ui.go("list");
   const keyword = new URLSearchParams(location.search).get("keyword");

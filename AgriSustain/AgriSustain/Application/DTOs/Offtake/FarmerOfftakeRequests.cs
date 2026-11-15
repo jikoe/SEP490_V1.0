@@ -57,4 +57,9 @@ public sealed class TerminateContractRequest : ContractActionRequest
     public List<string> Evidence { get; set; } = [];
 }
 
-public sealed record ContractActionResult(long ContractId, string Status, string Message, string Version);
+public sealed record ContractActionResult(
+    long ContractId,
+    string Status,
+    string Message,
+    string Version
+);

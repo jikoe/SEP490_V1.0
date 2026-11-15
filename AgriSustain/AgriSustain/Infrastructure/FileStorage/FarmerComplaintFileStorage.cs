@@ -5,14 +5,18 @@ using AgriSustain.Application.Interfaces;
 
 namespace AgriSustain.Infrastructure.FileStorage;
 
-public sealed partial class FarmerComplaintFileStorage(IWebHostEnvironment environment) : IFarmerComplaintFiles
+public sealed partial class FarmerComplaintFileStorage(IWebHostEnvironment environment)
+    : IFarmerComplaintFiles
 {
     private const int MaximumBytes = 5 * 1024 * 1024;
 
     public async Task<string> SaveAsync(long actor, IFormFile file, CancellationToken ct)
     {
         string extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (file.Length is <= 0 or > MaximumBytes || extension is not (".jpg" or ".jpeg" or ".png" or ".pdf"))
+        if (
+            file.Length is <= 0 or > MaximumBytes
+            || extension is not (".jpg" or ".jpeg" or ".png" or ".pdf")
+        )
             throw new InvalidDataException(FarmerComplaintMessages.Invalid);
         await using var input = file.OpenReadStream();
         using var buffer = new MemoryStream();
@@ -21,7 +25,11 @@ public sealed partial class FarmerComplaintFileStorage(IWebHostEnvironment envir
         if (bytes.Length > MaximumBytes || !ValidHeader(bytes, extension))
             throw new InvalidDataException(FarmerComplaintMessages.Invalid);
         string key = Guid.NewGuid().ToString("N") + extension;
-        string directory = Path.Combine(environment.ContentRootPath, "private-files", actor.ToString());
+        string directory = Path.Combine(
+            environment.ContentRootPath,
+            "private-files",
+            actor.ToString()
+        );
         Directory.CreateDirectory(directory);
         string path = Path.Combine(directory, key);
         try
@@ -30,14 +38,17 @@ public sealed partial class FarmerComplaintFileStorage(IWebHostEnvironment envir
         }
         catch
         {
-            if (File.Exists(path)) File.Delete(path); throw;
+            if (File.Exists(path))
+                File.Delete(path);
+            throw;
         }
         return $"/api/files/evidence/{actor}/{key}";
     }
 
     public string? Resolve(long actor, string url)
     {
-        string? path = OrderFeedbackStorage.ResolveUrl(environment.ContentRootPath, actor, url)
+        string? path =
+            OrderFeedbackStorage.ResolveUrl(environment.ContentRootPath, actor, url)
             ?? ResolveResponseEvidence(actor, url);
         return File.Exists(path) ? path : null;
     }
@@ -49,13 +60,22 @@ public sealed partial class FarmerComplaintFileStorage(IWebHostEnvironment envir
         {
             return null;
         }
-        return Path.Combine(environment.ContentRootPath, "private-files", actor.ToString(), match.Groups["key"].Value);
+        return Path.Combine(
+            environment.ContentRootPath,
+            "private-files",
+            actor.ToString(),
+            match.Groups["key"].Value
+        );
     }
 
     public async Task<bool> IsValidOwnedAsync(long actor, string url, CancellationToken ct)
     {
         string? path = ResolveResponseEvidence(actor, url);
-        if (path is null || !File.Exists(path) || new FileInfo(path).Length is <= 0 or > MaximumBytes)
+        if (
+            path is null
+            || !File.Exists(path)
+            || new FileInfo(path).Length is <= 0 or > MaximumBytes
+        )
         {
             return false;
         }
@@ -63,14 +83,23 @@ public sealed partial class FarmerComplaintFileStorage(IWebHostEnvironment envir
         return ValidHeader(bytes, Path.GetExtension(path));
     }
 
-    private static bool ValidHeader(byte[] bytes, string extension) => extension switch
-    {
-        ".png" => bytes.Length >= 24 && bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }),
-        ".pdf" => bytes.Length >= 5 && Encoding.ASCII.GetString(bytes, 0, 5) == "%PDF-",
-        ".jpg" or ".jpeg" => bytes.Length >= 4 && bytes[0] == 255 && bytes[1] == 216 && bytes[2] == 255 && bytes[^2] == 255 && bytes[^1] == 217,
-        _ => false
-    };
+    private static bool ValidHeader(byte[] bytes, string extension) =>
+        extension switch
+        {
+            ".png" => bytes.Length >= 24
+                && bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }),
+            ".pdf" => bytes.Length >= 5 && Encoding.ASCII.GetString(bytes, 0, 5) == "%PDF-",
+            ".jpg" or ".jpeg" => bytes.Length >= 4
+                && bytes[0] == 255
+                && bytes[1] == 216
+                && bytes[2] == 255
+                && bytes[^2] == 255
+                && bytes[^1] == 217,
+            _ => false,
+        };
 
-    [GeneratedRegex(@"^/api/files/evidence/(?<owner>\d+)/(?<key>[0-9a-f]{32}\.(jpg|jpeg|png|pdf))$")]
+    [GeneratedRegex(
+        @"^/api/files/evidence/(?<owner>\d+)/(?<key>[0-9a-f]{32}\.(jpg|jpeg|png|pdf))$"
+    )]
     private static partial Regex EvidencePath();
 }
