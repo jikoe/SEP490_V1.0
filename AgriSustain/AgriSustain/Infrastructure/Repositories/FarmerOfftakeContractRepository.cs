@@ -62,7 +62,7 @@ public sealed class FarmerOfftakeContractRepository(AgriSustainContext db) : IFa
             .Include(x => x.ContractVersions).ThenInclude(x => x.ContractMilestones).ThenInclude(x => x.Invoices)
             .Include(x => x.ContractVersions).ThenInclude(x => x.ContractMilestones).ThenInclude(x => x.Shipments).ThenInclude(x => x.ShipmentItems)
                 .ThenInclude(x => x.OrderItemBatchAllocation).ThenInclude(x => x.HarvestBatch)
-            .Include(x => x.PaymentTransactions).ThenInclude(x => x.ContractDepositAllocations)
+            .Include(x => x.PaymentTransactions).ThenInclude(x => x.ContractDepositAllocations).ThenInclude(x => x.PaymentInvoiceAllocations)
             .Include(x => x.ContractTerminationRequest)
             .Include(x => x.DisputeTickets).ThenInclude(x => x.DisputeEvidences)
             .Include(x => x.SellerOrders).ThenInclude(x => x.OrderItems)

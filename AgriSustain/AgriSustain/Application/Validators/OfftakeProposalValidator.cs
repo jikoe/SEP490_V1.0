@@ -5,8 +5,8 @@ namespace AgriSustain.Application.Validators;
 
 public static class OfftakeProposalValidator
 {
-    private static readonly int[] ArticleNumbers = [1, 2, 3, 4, 6, 7, 8];
-    private static readonly Regex ArticleBoundary = new(@"\n\n(?=Điều [1-8]: )");
+    private static readonly int[] LegacyArticleNumbers = [1, 2, 3, 4, 6, 7, 8];
+    private static readonly Regex ArticleBoundary = new(@"\n\n(?=Điều [0-9]+: )");
 
     public static bool IsValid(OfftakeProposalRequest proposal)
     {
@@ -33,24 +33,24 @@ public static class OfftakeProposalValidator
 
     public static bool HasCompleteArticles(OfftakeProposalRequest proposal)
     {
-        if (string.IsNullOrWhiteSpace(proposal.DeliveryTerms)
-            || string.IsNullOrWhiteSpace(proposal.PaymentTerms))
+        if (string.IsNullOrWhiteSpace(proposal.DeliveryTerms))
         {
             return false;
         }
 
         var sections = ArticleBoundary.Split(proposal.DeliveryTerms.Replace("\r\n", "\n"));
-        if (sections.Length != ArticleNumbers.Length)
-        {
-            return false;
-        }
+        return sections.Select((section, index) => HasArticle(section, index + 1)).All(valid => valid)
+            || (!string.IsNullOrWhiteSpace(proposal.PaymentTerms) && sections.Length == LegacyArticleNumbers.Length
+                && sections.Zip(LegacyArticleNumbers).All(section => HasArticle(section.First, section.Second)));
+    }
 
-        return sections.Zip(ArticleNumbers).All(section =>
-        {
-            var lineBreak = section.First.IndexOf('\n');
-            return lineBreak >= 0 && section.First.StartsWith($"Điều {section.Second}: ", StringComparison.Ordinal)
-                && !string.IsNullOrWhiteSpace(section.First[(lineBreak + 1)..]);
-        });
+    private static bool HasArticle(string section, int number)
+    {
+        var prefix = $"Điều {number}: ";
+        var lineBreak = section.IndexOf('\n');
+        return lineBreak > prefix.Length && section.StartsWith(prefix, StringComparison.Ordinal)
+            && !string.IsNullOrWhiteSpace(section[prefix.Length..lineBreak])
+            && !string.IsNullOrWhiteSpace(section[(lineBreak + 1)..]);
     }
 
     internal static decimal Total(OfftakeProposalRequest proposal) =>

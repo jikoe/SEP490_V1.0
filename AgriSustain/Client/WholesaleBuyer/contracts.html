@@ -63,12 +63,19 @@
           <div class="offtake-heading offtake-detail-toolbar">
             <h2 id="tracking-detail-title">Chi tiết theo dõi</h2>
             <div class="offtake-actions">
-              <a id="revision-offtake" class="offtake-button" hidden>Xem đề xuất sửa đổi</a>
+              <a id="edit-offtake-revision" class="offtake-button" hidden>Chỉnh sửa và gửi lại</a>
+              <button type="button" id="pay-offtake-deposit" class="primary" hidden>Đặt cọc</button>
               <button type="button" id="download-offtake" hidden>Tải xuống PDF</button>
               <form method="dialog"><button type="submit" aria-label="Đóng chi tiết">Đóng</button></form>
             </div>
           </div>
           <p id="tracking-pdf-notice" class="offtake-notice" role="status" hidden></p>
+          <section id="tracking-deposit" aria-labelledby="tracking-deposit-title" hidden>
+            <h3 id="tracking-deposit-title">Chuyển khoản đặt cọc</h3>
+            <dl class="offtake-facts" id="tracking-deposit-bank"></dl>
+            <img id="tracking-deposit-qr" width="200" height="200" alt="Mã QR chuyển khoản">
+            <p>Giữ nguyên nội dung chuyển khoản để tài chính đối soát. Sau khi thanh toán, tải lại chi tiết để xem trạng thái.</p>
+          </section>
           <div id="tracking-detail-content"></div>
         </dialog>
         <dialog class="offtake-detail offtake-cancel-dialog" id="contract-cancel"

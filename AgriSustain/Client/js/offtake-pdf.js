@@ -2,7 +2,7 @@ import pdfMake from 'pdfmake/build/pdfmake.js';
 import fonts from 'pdfmake/build/vfs_fonts.js';
 import { localTime } from './page-ui.js';
 import { date, dateRange, statusName } from './offtake-ui.js';
-import { contractArticles, readContractTerms } from './offtake-terms.js';
+import { readContractTerms } from './offtake-terms.js';
 
 pdfMake.addVirtualFileSystem(fonts);
 
@@ -68,8 +68,7 @@ function productTable(lines) {
 
 export function buildOfftakePdf(detail) {
   const { document: contract, lines, confirmations } = detail;
-  const terms = readContractTerms(detail.terms, detail.paymentTerms);
-  const articleHeading = number => heading(contractArticles[number - 1][0]);
+  const articles = readContractTerms(detail.terms, detail.paymentTerms);
   const supplier = contract?.supplier ?? { name: detail.partner };
   const buyer = contract?.buyer;
   const schedule = contract?.deliverySchedule ?? detail.milestones.filter(item => item.quantity > 0);
@@ -101,29 +100,16 @@ export function buildOfftakePdf(detail) {
       { text: 'Bản trích xuất từ AgriSustain. Thông tin nhận diện lấy từ hồ sơ hiện tại.', alignment: 'center',
         italics: true, fontSize: 9, margin: [0, 4, 0, 10] },
       { columns: [party('BÊN A · NHÀ CUNG CẤP', supplier), party('BÊN B · BÊN MUA', buyer)], columnGap: 16 },
-      articleHeading(1),
-      ...(terms.article1 ? [terms.article1] : []),
+      heading('Sản phẩm'),
       productTable(lines),
-      articleHeading(2),
-      textOrMissing(terms.article2),
-      articleHeading(3),
       ...quality.map(line => field(line.product, line.quality)),
-      ...(terms.article3 || !quality.length ? [textOrMissing(terms.article3)] : []),
-      articleHeading(4),
+      heading('Giao hàng, hiệu lực và đặt cọc'),
       ...(schedule.length ? schedule.map(item => field(date(item.dueDate),
         quantity(item.quantity, scheduleUnit))) : [missing]),
-      textOrMissing(terms.deliveryTerms),
-      articleHeading(5),
+      field('Hiệu lực', dateRange(detail.validFrom, detail.validUntil)),
       field('Tiền cọc', money(detail.deposit)),
-      textOrMissing(terms.paymentTerms),
-      articleHeading(6),
-      textOrMissing(terms.article6),
-      articleHeading(7),
-      dateRange(detail.validFrom, detail.validUntil),
-      ...(terms.article7 ? [terms.article7] : []),
-      articleHeading(8),
-      textOrMissing(terms.article8),
-      ...(terms.revisionTerms ? [terms.revisionTerms] : []),
+      ...articles.flatMap(({ title, body }, index) => [heading(`Điều ${index + 1}: ${title}`), textOrMissing(body)]),
+      ...(detail.proposedChanges ? [field('Đề nghị sửa đổi của nông dân', detail.proposedChanges)] : []),
       heading('Xác nhận của hai bên trên AgriSustain'),
       { columns: [
         confirmation('BÊN A · NHÀ CUNG CẤP', supplier?.name, confirmations, ['Farmer']),

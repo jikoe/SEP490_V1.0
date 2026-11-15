@@ -40,6 +40,8 @@ public static class ContractPaymentRules
     public const int DueSoonDays = 3;
     public static readonly TimeSpan ReminderCooldown = TimeSpan.FromHours(24);
     public const string PaymentPurpose = "ContractPayment";
+    public const string DepositType = "Deposit";
+    public const string DepositPurpose = "ContractDeposit";
     public const string ManualGateway = "BankTransfer";
     public static readonly string[] TrackedContractStatuses = ["AwaitingDeposit", "Active"];
 
@@ -116,6 +118,8 @@ public static class ContractPaymentRules
     }
 
     public static bool IsTracked(string contractStatus) => TrackedContractStatuses.Contains(contractStatus);
+
+    public static bool IsDeposit(string type) => type.Contains("Deposit", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed record ContractRecord(
@@ -138,7 +142,10 @@ public sealed record ContractLineRecord(
     decimal PaidAmount,
     string PaymentStatus,
     DateTime? LastPaidAt,
-    string? LastReference);
+    string? LastReference)
+{
+    public bool AwaitingInspection { get; init; }
+}
 
 public sealed record ContractScheduleRecord(ContractRecord Contract, IReadOnlyList<ContractLineRecord> Lines);
 
@@ -242,7 +249,7 @@ public interface IContractPaymentRepository
 
     Task<bool> ReferenceUsedAsync(string gateway, string reference, CancellationToken cancellationToken);
 
-    Task RecordPaymentAsync(ContractPaymentWrite write, CancellationToken cancellationToken);
+    Task<bool> RecordPaymentAsync(ContractPaymentWrite write, CancellationToken cancellationToken);
 
     /// <summary>Gateway credit that cannot be applied (AF2 / AF5); kept for reconciliation (UC-FIN-02).</summary>
     Task RecordUnappliedAsync(IncomingBankTransfer transfer, long? contractId, long? lineId, string status,
@@ -342,6 +349,8 @@ public sealed class ContractPaymentService(
 
         var (record, line, error) = await LineAsync(lineId, cancellationToken);
         if (error != null) return Result<ContractActionResultDto>.FailureResult(error);
+        if (ContractPaymentRules.IsDeposit(line!.Type) && decimal.Truncate(request.Amount) != request.Amount)
+            return Result<ContractActionResultDto>.Fail("Số tiền đặt cọc phải là số nguyên VND.");
 
         if (ContractPaymentRules.LineStatus(line!, Today) == ContractLineStatuses.Paid)
         {
@@ -367,9 +376,10 @@ public sealed class ContractPaymentService(
         }
 
         DateTime now = Now;
-        await RecordAsync(record!, line!, request.Amount, applied.Value,
-            $"CTM-{lineId}-{now:yyyyMMddHHmmssfff}", ContractPaymentRules.ManualGateway, reference, now, null,
-            currentActor.UserId, ContractPaymentRules.ActionConfirm, request.Note?.Trim(), now, cancellationToken);
+        if (!await RecordAsync(record!, line!, request.Amount, applied.Value,
+            $"CTM-{lineId}-{Guid.NewGuid():N}", ContractPaymentRules.ManualGateway, reference, now, null,
+            currentActor.UserId, ContractPaymentRules.ActionConfirm, request.Note?.Trim(), now, cancellationToken))
+            return Result<ContractActionResultDto>.Fail("Đợt thanh toán đã thay đổi. Vui lòng tải lại và đối chiếu giao dịch.", 409);
 
         return await ActionResultAsync(record!.Contract.ContractId,
             string.Format(ContractPaymentRules.Recorded, record.Contract.ContractNumber), cancellationToken);
@@ -477,9 +487,12 @@ public sealed class ContractPaymentService(
         var record = await repository.GetByLineAsync(lineId, cancellationToken);
         var line = record?.Lines.FirstOrDefault(l => l.LineId == lineId);
         if (record is null || line is null) return false;
+        if (!string.IsNullOrWhiteSpace(transfer.ProviderReference)
+            && await repository.ReferenceUsedAsync(transfer.Gateway, transfer.ProviderReference.Trim(), cancellationToken))
+            return true;
 
         DateTime now = Now;
-        if (!ContractPaymentRules.IsTracked(record.Contract.Status))
+        if (!ContractPaymentRules.IsTracked(record.Contract.Status) || line.AwaitingInspection)
         {
             // AF5: the schedule of a terminated or suspended contract is read-only.
             await repository.RecordUnappliedAsync(transfer, record.Contract.ContractId, lineId, "Unmatched", now,
@@ -488,7 +501,7 @@ public sealed class ContractPaymentService(
         }
 
         var applied = ContractPaymentRules.Apply(line, transfer.Amount);
-        if (applied is null)
+        if (applied is null || (ContractPaymentRules.IsDeposit(line.Type) && decimal.Truncate(transfer.Amount) != transfer.Amount))
         {
             // AF2: more than the outstanding amount goes to reconciliation.
             await repository.RecordUnappliedAsync(transfer, record.Contract.ContractId, lineId, "AmountMismatch", now,
@@ -496,9 +509,11 @@ public sealed class ContractPaymentService(
             return true;
         }
 
-        await RecordAsync(record, line, transfer.Amount, applied.Value, transfer.TransactionCode, transfer.Gateway,
+        if (!await RecordAsync(record, line, transfer.Amount, applied.Value, transfer.TransactionCode, transfer.Gateway,
             transfer.ProviderReference, transfer.PaidAt ?? now, transfer.RawPayload, null,
-            ContractPaymentRules.ActionAutoApply, null, now, cancellationToken);
+            ContractPaymentRules.ActionAutoApply, null, now, cancellationToken)
+            && !await repository.TransferRecordedAsync(transfer.TransactionCode, cancellationToken))
+            throw new InvalidOperationException("Contract payment changed while applying the transfer.");
         return true;
     }
 
@@ -527,10 +542,12 @@ public sealed class ContractPaymentService(
         {
             return (null, null, new Error("CONTRACT_READ_ONLY", ContractPaymentRules.ReadOnly, "Conflict"));
         }
+        if (line.AwaitingInspection)
+            return (null, null, new Error("AWAITING_INSPECTION", "Chưa có hóa đơn sau kiểm nhận.", "Conflict"));
         return (record, line, null);
     }
 
-    private async Task RecordAsync(ContractScheduleRecord record, ContractLineRecord line, decimal amount,
+    private async Task<bool> RecordAsync(ContractScheduleRecord record, ContractLineRecord line, decimal amount,
         (decimal PaidAmount, string Status) applied, string transactionCode, string gateway, string? reference,
         DateTime paidAt, string? rawPayload, long? actor, string action, string? note, DateTime now,
         CancellationToken cancellationToken)
@@ -538,14 +555,14 @@ public sealed class ContractPaymentService(
         var contract = record.Contract;
         // A contract waiting for its deposit becomes Active once every deposit line is paid.
         bool activate = contract.Status == "AwaitingDeposit"
-            && record.Lines.Where(l => IsDeposit(l)).All(l => l.LineId == line.LineId
+            && ContractPaymentRules.IsDeposit(line.Type)
+            && record.Lines.Where(l => ContractPaymentRules.IsDeposit(l.Type)).All(l => l.LineId == line.LineId
                 ? applied.Status == ContractLineStatuses.Paid
-                : ContractLineStatuses.Normalize(l.PaymentStatus) == ContractLineStatuses.Paid)
-            && record.Lines.Any(IsDeposit);
+                : ContractLineStatuses.Normalize(l.PaymentStatus) == ContractLineStatuses.Paid);
 
-        await repository.RecordPaymentAsync(new ContractPaymentWrite(contract.ContractId, line.LineId, amount,
+        if (!await repository.RecordPaymentAsync(new ContractPaymentWrite(contract.ContractId, line.LineId, amount,
             applied.PaidAmount, applied.Status, transactionCode, gateway, reference, paidAt, rawPayload, actor, action,
-            note, activate, now), cancellationToken);
+            note, activate, now), cancellationToken)) return false;
 
         // Step 7: notify both parties.
         string title = $"Đã nhận thanh toán hợp đồng {contract.ContractNumber}";
@@ -559,6 +576,7 @@ public sealed class ContractPaymentService(
                 contract.ContractId, now, cancellationToken);
             await TrySendAsync(email, title, content, $"CTP-PAID:{transactionCode}:{userId}", cancellationToken);
         }
+        return true;
     }
 
     private async Task MarkLineOverdueAsync(ContractRecord contract, ContractLineRecord line, long? actor, string note,
@@ -613,7 +631,7 @@ public sealed class ContractPaymentService(
         var lines = record.Lines.OrderBy(l => l.DueDate).ThenBy(l => l.LineId).Select(l =>
         {
             string status = ContractPaymentRules.LineStatus(l, today);
-            bool open = !readOnly && status != ContractLineStatuses.Paid;
+            bool open = !readOnly && !l.AwaitingInspection && status != ContractLineStatuses.Paid;
             return new ContractLineDto(l.LineId, l.Title, l.Type, l.DueDate, l.Amount, l.PaidAmount,
                 ContractPaymentRules.Outstanding(l), l.LastPaidAt, ContractPaymentRules.Reference(l.LineId),
                 l.LastReference, status, open, open,
@@ -638,6 +656,4 @@ public sealed class ContractPaymentService(
             value - received, next, ContractPaymentRules.ContractStatus(lines, today));
     }
 
-    private static bool IsDeposit(ContractLineRecord line) =>
-        line.Type.Contains("Deposit", StringComparison.OrdinalIgnoreCase);
 }

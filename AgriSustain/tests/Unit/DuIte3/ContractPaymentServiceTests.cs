@@ -338,13 +338,13 @@ internal sealed class FakeContractPaymentRepository : IContractPaymentRepository
     public Task<bool> ReferenceUsedAsync(string gateway, string reference, CancellationToken ct) =>
         Task.FromResult(UsedReferences.Contains(reference));
 
-    public Task RecordPaymentAsync(ContractPaymentWrite write, CancellationToken ct)
+    public Task<bool> RecordPaymentAsync(ContractPaymentWrite write, CancellationToken ct)
     {
         Writes.Add(write);
         _codes.Add(write.TransactionCode);
         UpdateLine(write.LineId, l => l with { PaidAmount = write.NewPaidAmount, PaymentStatus = write.NewLineStatus });
         Audits.Add((write.ActorUserId, write.LineId, write.AuditAction, write.Now));
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
     public Task RecordUnappliedAsync(IncomingBankTransfer transfer, long? contractId, long? lineId, string status,

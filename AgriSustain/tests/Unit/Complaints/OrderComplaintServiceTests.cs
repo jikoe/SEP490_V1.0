@@ -27,7 +27,7 @@ public sealed class OrderComplaintServiceTests
     private static FeedbackFile Video(long length = 100) => new("unboxing.MP4", length, Stream.Null);
     private static FeedbackFile[] RequiredEvidence() => [Photo(), Video()];
 
-    [Fact]
+    [Fact(DisplayName = "[UC-RC-06 #036] Save an image and a video as evidence")]
     public async Task ComplainAsync_ImageAndVideo_SavesBothAsEvidence()
     {
         var result = await Service().ComplainAsync(20, 1, Request(11),
@@ -39,7 +39,7 @@ public sealed class OrderComplaintServiceTests
             video => Assert.EndsWith(".mp4", video.FileUrl));
     }
 
-    [Fact]
+    [Fact(DisplayName = "[UC-RC-06 #037] Reject two videos before uploading evidence")]
     public async Task ComplainAsync_TwoVideos_RejectsBeforeSaving()
     {
         var result = await Service().ComplainAsync(20, 1, Request(11), [Photo(), Video(), Video()], default);
@@ -48,16 +48,17 @@ public sealed class OrderComplaintServiceTests
         Assert.Empty(_store.SavedFiles);
     }
 
-    [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task ComplainAsync_MissingRequiredEvidence_RejectsBeforeSaving(bool hasImage, bool hasVideo)
-    {
-        var files = new List<FeedbackFile>();
-        if (hasImage) files.Add(Photo());
-        if (hasVideo) files.Add(Video());
+    [Fact(DisplayName = "[UC-RC-06 #038] Reject an empty evidence list before saving")]
+    public Task ComplainAsync_NoEvidence_RejectsBeforeSaving() => RejectMissingEvidence([]);
 
+    [Fact(DisplayName = "[UC-RC-06 #039] Reject an image without a video before saving")]
+    public Task ComplainAsync_NoVideo_RejectsBeforeSaving() => RejectMissingEvidence([Photo()]);
+
+    [Fact(DisplayName = "[UC-RC-06 #040] Reject a video without an image before saving")]
+    public Task ComplainAsync_NoImage_RejectsBeforeSaving() => RejectMissingEvidence([Video()]);
+
+    private async Task RejectMissingEvidence(IReadOnlyList<FeedbackFile> files)
+    {
         var result = await Service().ComplainAsync(20, 1, Request(11), files, default);
 
         Assert.Equal("INVALID_EVIDENCE", result.Error?.Code);

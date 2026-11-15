@@ -12,7 +12,11 @@ public interface IOfftakeService
     Task<Result<OfftakeProposalReceipt>> UpdateDraftAsync(long id, int version,
         OfftakeProposalRequest request, bool submit, CancellationToken ct);
     Task<Result<OfftakeProposalReceipt>> CancelAsync(long id, CancellationToken ct);
-    Task<Result<OfftakeProposalReceipt>> ConfirmRevisionAsync(long id, int version,
+    Task<Result<PaymentQr>> RequestDepositAsync(long id, IPaymentQrProvider qrProvider, CancellationToken ct);
+    Task<Result<PaymentQr>> DeliveryPaymentAsync(long id, long milestoneId, IPaymentQrProvider qrProvider, CancellationToken ct);
+    Task<Result<OfftakeInspectionResult>> InspectAsync(long id, long shipmentId, OfftakeInspectionRequest input,
+        IFarmerComplaintFiles files, CancellationToken ct);
+    Task<Result> DecideDiscrepancyAsync(long id, long shipmentId, long ticketId, OfftakeDiscrepancyDecision input,
         CancellationToken ct);
     Task<Result<OfftakeTrackingPage>> TrackAsync(bool orders, OfftakeTrackingQuery query,
         CancellationToken ct);
