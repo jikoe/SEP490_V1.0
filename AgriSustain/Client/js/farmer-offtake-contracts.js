@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     $(id).textContent = content ?? "";
   };
   const money = (value) => ui.money(value);
+  const milestoneUnit = (item, lines = current?.lines || []) =>
+    lines.find((line) => line.id === item.contractLineId)?.unitSnapshot || "";
 
   async function load() {
     const sequence = ++loadSequence;
@@ -65,13 +67,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
     ui.kv("#inspectionDetail", [
       ["Nội dung", ticket?.description || ticket?.disputeReason],
-      ["Đã giao", ui.number(item?.shippedQuantity)],
-      ["Đã nhận", ui.number(item?.receivedQuantity)],
-      ["Đã chấp nhận", ui.number(item?.acceptedQuantity)],
+      ["Đã giao", `${ui.number(item?.shippedQuantity)} ${item?.unit || ""}`],
+      ["Đã nhận", `${ui.number(item?.receivedQuantity)} ${item?.unit || ""}`],
+      ["Đã chấp nhận", `${ui.number(item?.acceptedQuantity)} ${item?.unit || ""}`],
       ["Kiểm nhận", item?.qualityResult],
       ["Trạng thái", ui.label(item?.reconciliationStatus)],
     ]);
     $("#proposedQuantity").max = item?.receivedQuantity ?? "";
+    $("label[for=proposedQuantity]").textContent = ui.m.contractProposedLabel(item?.unit || "");
     text("#discrepancyOutcome", ticket?.resolutionNotes || ui.m.noAgreement);
     $("#receivedEvidence").innerHTML = (ticket?.evidence || [])
       .map(
@@ -136,7 +139,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         row.lines.every((line) => line.productId === season.productId),
       ),
       (season) =>
-        `${season.seasonName} · ${ui.number(season.estimatedYield)} · ${ui.date(season.estimatedHarvestDate)}`,
+        `${season.seasonName} · ${ui.number(season.estimatedYield)} ${season.yieldUnit || ""} · ${ui.date(season.estimatedHarvestDate)}`,
       "Chọn mùa vụ",
     );
     if (row.lines.length)
@@ -147,7 +150,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         (item) => item.deliveryQuantity > item.deliveredQuantity,
       ),
       (item) =>
-        `${item.milestoneTitle} · ${ui.date(item.dueDate)} · còn ${ui.number(item.deliveryQuantity - item.deliveredQuantity)}`,
+        `${item.milestoneTitle} · ${ui.date(item.dueDate)} · còn ${ui.number(item.deliveryQuantity - item.deliveredQuantity)} ${milestoneUnit(item, row.lines)}`,
       "Chọn đợt giao",
     );
     ui.options(
@@ -161,7 +164,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("#milestoneRows").innerHTML = row.milestones
       .map(
         (item) => `<tr><td>${ui.escape(item.milestoneTitle)}</td>
-      <td>${ui.date(item.dueDate)}</td><td>${ui.number(item.deliveryQuantity)}</td><td>${ui.number(item.deliveredQuantity)} / ${ui.number(item.acceptedQuantity)}</td>
+      <td>${ui.date(item.dueDate)}</td><td>${ui.number(item.deliveryQuantity)} ${ui.escape(milestoneUnit(item, row.lines))}</td><td>${ui.number(item.deliveredQuantity)} / ${ui.number(item.acceptedQuantity)} ${ui.escape(milestoneUnit(item, row.lines))}</td>
       <td>${ui.escape(ui.label(item.fulfillmentStatus))} · ${ui.escape(ui.label(item.paymentStatus))}</td></tr>`,
       )
       .join("");
@@ -175,7 +178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       "#disputeShipment",
       row.shipments.flatMap((shipment) => shipment.items),
       (item) =>
-        `#${item.id} · đã giao ${ui.number(item.shippedQuantity)} · đã nhận ${ui.number(item.receivedQuantity)}`,
+        `#${item.id} · đã giao ${ui.number(item.shippedQuantity)} ${item.unit || ""} · đã nhận ${ui.number(item.receivedQuantity)} ${item.unit || ""}`,
       "Chọn hàng đã kiểm nhận",
     );
     const firstTicket = row.disputes[0];
@@ -250,6 +253,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         .join("") || `<li>${ui.escape(ui.m.noRecords)}</li>`;
     syncButtons();
     batches();
+    delayUnit();
     if (row.notificationFailed) ui.notice(ui.m.noticeFailed, true);
   }
 
@@ -267,13 +271,63 @@ document.addEventListener("DOMContentLoaded", async () => {
           batch.productId === line?.productId &&
           batch.cropSeasonId === line?.cropSeasonId &&
           batch.hasQr &&
+          batch.stockEnteredAt &&
           batch.actualHarvestDate &&
-          batch.availableQuantity > batch.reservedQuantity,
+          batch.actualHarvestDate <= current.today &&
+          batch.expirationDate > current.today &&
+          ["Available", "InStock", "Harvested", "In Stock"].includes(batch.status) &&
+          batch.availableQuantity > 0 &&
+          batch.availableContractQuantity > 0,
       ),
-      (batch) =>
-        `${batch.batchCode} · còn ${ui.number(batch.availableQuantity - batch.reservedQuantity)}`,
+      (batch) => ui.m.batchAvailable(
+        batch.batchCode,
+        ui.number(batch.availableQuantity),
+        batch.unit,
+        ui.number(batch.availableContractQuantity),
+        batch.contractUnit,
+      ),
       "Chọn lô hàng thực tế",
     );
+    quantityLimits();
+  }
+
+  function delayUnit() {
+    const milestone = current?.milestones.find(
+      (item) => item.id === Number(value("#delayMilestone")),
+    );
+    $("label[for=delayQuantity]").textContent = ui.m.contractAffectedLabel(
+      milestone ? milestoneUnit(milestone) : "",
+    );
+  }
+
+  function quantityLimits() {
+    const milestone = current?.milestones.find(
+      (row) => row.id === Number(value("#shipmentMilestone")),
+    );
+    const batch = current?.batches.find(
+      (row) => row.id === Number(value("#shipmentBatch")),
+    );
+    const hint = $("#shipmentStockHint");
+    hint.hidden = !batch;
+    hint.textContent = batch ? ui.m.batchStockSummary(
+      ui.number(batch.availableQuantity), batch.unit,
+      ui.number(batch.availableContractQuantity), batch.contractUnit,
+    ) : "";
+    const input = $("#shipmentQuantity");
+    $("label[for=shipmentQuantity]").textContent = ui.m.contractQuantityLabel(
+      milestone ? milestoneUnit(milestone) : "",
+    );
+    input.step = String(batch?.contractQuantityStep || 0.001);
+    input.min = input.step;
+    if (batch && milestone) {
+      input.max = String(Math.min(
+        Math.floor(batch.availableContractQuantity * 1000) / 1000,
+        milestone.deliveryQuantity - milestone.deliveredQuantity,
+        999999999999,
+      ));
+    } else {
+      input.removeAttribute("max");
+    }
   }
 
   function syncButtons() {
@@ -453,6 +507,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("#amendmentChanges").value = "";
   };
   $("#shipmentMilestone").onchange = batches;
+  $("#shipmentBatch").onchange = quantityLimits;
+  $("#delayMilestone").onchange = delayUnit;
   $("#dispatchForm").onsubmit = (event) => {
     event.preventDefault();
     command(

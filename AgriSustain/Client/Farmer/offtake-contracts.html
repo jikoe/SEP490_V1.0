@@ -297,16 +297,17 @@
                 </div>
                 <div class="field">
                   <label for="shipmentBatch"> Lô thực tế có mã QR * </label>
-                  <select id="shipmentBatch" required=""></select>
+                  <select id="shipmentBatch" required="" aria-describedby="shipmentStockHint"></select>
+                  <small id="shipmentStockHint" class="muted" hidden></small>
                 </div>
                 <div class="field">
-                  <label for="shipmentQuantity"> Số lượng giao (kg) * </label>
+                  <label for="shipmentQuantity"> Số lượng giao theo đơn vị hợp đồng * </label>
                   <input
                     id="shipmentQuantity"
                     min="0.01"
                     placeholder="Ví dụ: 400"
                     required=""
-                    step="0.01"
+                    step="0.001"
                     type="number"
                   />
                 </div>
@@ -355,7 +356,7 @@
                 <div class="grid local-style-1">
                   <div class="field">
                     <label for="proposedQuantity">
-                      Đề xuất số lượng (kg)
+                      Đề xuất số lượng theo đơn vị hợp đồng
                     </label>
                     <input
                       id="proposedQuantity"
@@ -371,7 +372,7 @@
                     </label>
                     <input
                       id="proposedGrade"
-                      placeholder="Ví dụ: giữ loại A cho 390 kg đạt chất lượng"
+                      placeholder="Ví dụ: giữ loại A cho phần hàng đạt chất lượng"
                       required=""
                     />
                   </div>
@@ -448,7 +449,7 @@
                   </div>
                   <div class="field">
                     <label for="delayQuantity">
-                      Số lượng bị ảnh hưởng (kg) *
+                      Số lượng bị ảnh hưởng theo đơn vị hợp đồng *
                     </label>
                     <input
                       id="delayQuantity"

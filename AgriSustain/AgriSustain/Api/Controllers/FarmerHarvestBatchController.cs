@@ -29,31 +29,11 @@ public sealed class FarmerHarvestBatchController(
         CancellationToken ct) =>
         Respond(await service.GetBatchAsync(actor.UserId, id, ct));
 
-    [HttpPost("plans")]
-    public async Task<IActionResult> CreatePlan(
-        HarvestBatchRequest input,
-        CancellationToken ct) =>
-        Respond(await service.SavePlanAsync(actor.UserId, null, input, ct));
-
-    [HttpPut("{id:long}/plan")]
-    public async Task<IActionResult> SavePlan(
-        long id,
-        HarvestBatchRequest input,
-        CancellationToken ct) =>
-        Respond(await service.SavePlanAsync(actor.UserId, id, input, ct));
-
     [HttpPost("harvest")]
     public async Task<IActionResult> RecordHarvest(
         HarvestBatchRequest input,
         CancellationToken ct) =>
-        Respond(await service.RecordHarvestAsync(actor.UserId, null, input, ct));
-
-    [HttpPost("{id:long}/harvest")]
-    public async Task<IActionResult> RecordPlannedHarvest(
-        long id,
-        HarvestBatchRequest input,
-        CancellationToken ct) =>
-        Respond(await service.RecordHarvestAsync(actor.UserId, id, input, ct));
+        Respond(await service.RecordHarvestAsync(actor.UserId, input, ct));
 
     [HttpPut("{id:long}")]
     public async Task<IActionResult> UpdateDetails(

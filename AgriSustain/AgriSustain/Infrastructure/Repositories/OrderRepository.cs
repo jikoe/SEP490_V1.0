@@ -190,12 +190,6 @@ public sealed class OrderRepository(AgriSustainContext context, FulfillmentRules
         var completed = order.Order.PaymentTransactions.SelectMany(p => p.RefundTransactions)
             .Where(r => r.RequestKey.StartsWith($"farmer-reject:{order.SellerOrderId}:") && r.RefundStatus is "Completed" or "Succeeded" or "Success").ToList();
         bool isRefunded = completed.Sum(r => r.Amount) > 0;
-        var bank = context.Set<UserBankAccount>().Include(a=>a.BankCodeNavigation).AsNoTracking().SingleOrDefault(a => a.UserId == order.Order.BuyerUserId && a.IsDefault);
-        string? bankName = completed.LastOrDefault()?.ReceiverBankCode ?? bank?.BankCodeNavigation.ShortName;
-        string? number = completed.LastOrDefault()?.ReceiverAccountNumber ?? bank?.AccountNumber;
-        string? bankAccount = number is null ? null : "•••• " + number[^Math.Min(4,number.Length)..];
-        string? bankAccountName = completed.LastOrDefault()?.ReceiverAccountHolder ?? bank?.AccountHolder;
-
         return new SellerOrderResponse(order.SellerOrderId, order.SellerOrderCode,
             order.OrderId, order.Order.OrderCode, order.Order.OrderType, order.Order.OrderDate,
             order.Status, order.Order.OrderStatus, order.Order.RecipientNameSnapshot,
@@ -228,9 +222,9 @@ public sealed class OrderRepository(AgriSustainContext context, FulfillmentRules
                         r.RequestedAt, r.DueAt, r.RequestStatus, r.RespondedAt,
                         r.Instructions)).ToList())).ToList(),
             order.Order.VoucherCodeSnapshot,
-            bankName,
-            bankAccount,
-            bankAccountName,
+            null,
+            null,
+            null,
             isRefunded, OrderRefundService.CalculateRefundableAmount(rules, order, SellerAllocations(order)), completed.Sum(r => r.Amount),
             context.Notifications.Local.Any(n => n.NotificationType == "FarmerOrderUpdate" && n.RelatedRecordId == order.SellerOrderId && n.DeliveryStatus != "Sent")
             || context.Notifications.AsNoTracking().Any(n => n.NotificationType == "FarmerOrderUpdate" && n.RelatedRecordId == order.SellerOrderId && n.DeliveryStatus != "Sent"));

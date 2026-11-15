@@ -11,6 +11,13 @@ const FarmerBusinessMessages = {
     "Dữ liệu đã thay đổi. Vui lòng tải lại; không thực hiện thao tác trùng.",
   exportFailed: "Không thể xuất báo cáo. Vui lòng thử lại.",
   exported: "Báo cáo đã sẵn sàng để tải xuống.",
+  contractProposedLabel: (unit) => `Đề xuất số lượng${unit ? ` (${unit})` : ""}`,
+  contractAffectedLabel: (unit) => `Số lượng bị ảnh hưởng${unit ? ` (${unit})` : ""} *`,
+  contractQuantityLabel: (unit) => `Số lượng giao${unit ? ` (${unit})` : ""} *`,
+  batchStockSummary: (quantity, unit, contractQuantity, contractUnit) =>
+    `Tồn khả dụng: ${quantity} ${unit}.${unit !== contractUnit ? ` Tương đương ${contractQuantity} ${contractUnit} theo hợp đồng.` : ""}`,
+  batchAvailable: (code, quantity, unit, contractQuantity, contractUnit) =>
+    `${code} · còn ${quantity} ${unit}${unit !== contractUnit ? ` · ${contractQuantity} ${contractUnit} theo hợp đồng` : ""}`,
   selectContract: "Vui lòng chọn một hợp đồng từ danh sách trước.",
   selectTransaction: "Vui lòng chọn một giao dịch từ danh sách trước.",
   confirm: "Bạn có chắc muốn gửi yêu cầu này theo điều khoản đang hiển thị?",

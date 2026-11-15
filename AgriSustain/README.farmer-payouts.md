@@ -1,9 +1,12 @@
-# UC-FIN-04: chi trả bằng QR và đối soát tiền ra
+# UC-FAR-09 / UC-FIN-04: yêu cầu thanh toán và chi trả bằng QR
 
+- Nông dân: `Client/Farmer/revenue.html` → Yêu cầu thanh toán → Gửi yêu cầu. Bộ lọc B2C/B2B có trên cả Tổng quan và Lịch sử giao dịch; dùng cùng điều kiện khi chuyển trang.
+- Yêu cầu chọn nguồn hóa đơn đủ điều kiện, tính phí theo dữ liệu lịch sử và lưu tài khoản nhận đã xác minh. Một yêu cầu dùng một `FarmerPayout` cùng các `PayoutItem`; thời điểm gửi và lý do từ chối lấy từ `AuditLog`, không cần thêm bảng/cột.
+- Finance chỉ xem và xử lý yêu cầu nông dân đã gửi. Đã bỏ màn hình/API tự tạo khoản chi và hủy phiếu không có lý do.
 - Frontend: `Client/FinanceStaff/farmer-payouts.html`; thanh bên Finance Staff → Chi trả cho nông dân.
 - Nguồn tiền lấy từ `Payment:SePay` trong cấu hình hiện có. Không thay tài khoản MB của checkout sang TPBank.
 - QR chứa tài khoản nhận đã xác minh của Farmer, số tiền thực trả và mã phiếu FPO riêng.
-- Tạo phiếu giữ nguồn tiền; mở QR vẫn chưa phải thanh toán. Chỉ giao dịch tiền ra SePay được xác thực, khớp tài khoản nguồn, ngân hàng, mã phiếu, số tiền và thời gian mới chuyển sang Processed.
+- Nông dân gửi yêu cầu thì giữ nguồn tiền; mở QR vẫn chưa phải thanh toán. Chỉ giao dịch tiền ra SePay được xác thực, khớp tài khoản nguồn, ngân hàng, mã phiếu, số tiền và thời gian mới chuyển sang Processed.
 - Cơ sở xác nhận là tiền đã ra khỏi tài khoản nguồn. Không yêu cầu Farmer xác nhận đã nhận tiền.
 - Sau khi mở QR, không hủy/giải phóng nguồn bằng cách đóng trang hoặc vì chưa nhận được giao dịch. Kiểm tra lại cùng giao dịch, không tạo lệnh chuyển mới.
 
@@ -29,7 +32,9 @@ Nếu chưa cấu hình đường nhận dữ liệu tiền ra cho MB, màn hìn
 
 ## Trạng thái và thông báo
 
-Prepared → Processing → Processed; khi nhận giao dịch chưa khớp: NeedsReconciliation.
+Pending → Processing → Processed; khi nhận giao dịch chưa khớp: NeedsReconciliation.
+Pending → Rejected khi Finance nhập lý do hợp lệ trước khi mở QR; giải phóng đúng nguồn của yêu cầu. Sau khi mở QR không còn quyền từ chối/giải phóng nguồn.
+Các phiếu cũ không có dấu vết nông dân gửi không được tự biến thành yêu cầu mới hoặc xóa; lịch sử chi trả vẫn có trong sổ doanh thu.
 Một mã giao dịch SePay chỉ quyết toán một lần. Không dùng số dư thay cho chứng từ giao dịch.
-Email và thông báo InApp được ghi cùng giao dịch quyết toán; worker dùng Gmail gateway thật, thử lại email lỗi mà không lặp chi tiền.
+Email và thông báo InApp được ghi cùng giao dịch gửi yêu cầu, từ chối hoặc quyết toán; worker dùng Gmail gateway thật, thử lại email lỗi mà không lặp chi tiền.
 Không chỉnh sửa code test hay tài liệu thiết kế trong đợt triển khai này.

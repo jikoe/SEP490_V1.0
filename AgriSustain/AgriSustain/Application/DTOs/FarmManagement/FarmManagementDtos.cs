@@ -91,10 +91,6 @@ public sealed record HarvestBatchRequest : FarmCommand
 
     public string BatchCode { get; init; } = "";
 
-    public DateOnly? EstimatedHarvestDate { get; init; }
-
-    public decimal EstimatedYield { get; init; }
-
     public DateOnly? ActualHarvestDate { get; init; }
 
     public decimal ActualYield { get; init; }
@@ -208,10 +204,8 @@ public sealed record BatchResponse(
     string SeasonName,
     string FarmName,
     string Unit,
-    DateOnly? EstimatedHarvestDate,
     DateOnly? ActualHarvestDate,
     DateOnly? ExpirationDate,
-    decimal EstimatedYield,
     decimal HarvestYield,
     decimal AdjustmentQuantity,
     decimal ReservedQuantity,

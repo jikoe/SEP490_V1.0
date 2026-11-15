@@ -89,12 +89,40 @@ public sealed class OfftakeContractRules
             var batch = context.Batches.SingleOrDefault(x => x.HarvestBatchId == selected.HarvestBatchId);
             if (batch == null || batch.ProductId != line.ProductId || batch.CropSeasonId != line.CropSeasonId
                 || batch.ActualHarvestDate == null || batch.ActualHarvestDate > today || batch.StockEnteredAt == null
-                || batch.ExpirationDate < today || batch.TraceabilityQrcode is not { IsRevoked: false }
+                || batch.ExpirationDate <= today || batch.TraceabilityQrcode is not { IsRevoked: false }
                 || batch.Status is not ("Available" or "InStock" or "Harvested" or "In Stock")
-                || selected.Quantity > batch.AvailableQuantity - batch.ReservedQuantity) return "MSG139";
+                || batch.AvailableQuantity <= 0) return "MSG139";
+            if (!TryStockQuantity(selected.Quantity, line.UnitSnapshot, line.Product.Unit, out var stockQuantity))
+                return "MSG120";
+            // AvailableQuantity already excludes the quantities held by retail checkout.
+            if (stockQuantity > batch.AvailableQuantity) return "MSG139";
         }
         return null;
     }
+
+    public static bool TryConvertQuantity(decimal quantity, string from, string to, out decimal converted)
+    {
+        converted = 0;
+        try
+        {
+            converted = FarmState.ConvertUnit(quantity, from, to);
+            return converted >= 0;
+        }
+        catch (AgriSustain.Application.Common.FarmRuleException)
+        {
+            return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    public static bool TryStockQuantity(decimal quantity, string contractUnit, string batchUnit,
+        out decimal stockQuantity) =>
+        TryConvertQuantity(quantity, contractUnit, batchUnit, out stockQuantity)
+        && stockQuantity is > 0 and <= 999999999999999m
+        && decimal.Round(stockQuantity, 3) == stockQuantity;
 
     public bool CanComplete(OfftakeContext context)
     {

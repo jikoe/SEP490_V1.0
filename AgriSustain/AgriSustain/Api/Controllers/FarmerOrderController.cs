@@ -10,7 +10,7 @@ namespace AgriSustain.Api.Controllers;
 /// «boundary» FarmerOrderController
 /// UC-FAR-06: Process Order API Boundary
 /// Provides endpoints for listing, viewing, confirming, marking ready, simulated shipping,
-/// rejecting (with simulated refund and customer email), and generating packing slips.
+/// rejecting (with a pending Finance refund request and customer email), and generating packing slips.
 /// </summary>
 [Authorize(Roles = "Farmer")]
 [Route("api/farmer/orders")]

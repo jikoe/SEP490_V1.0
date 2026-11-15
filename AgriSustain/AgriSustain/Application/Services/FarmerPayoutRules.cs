@@ -24,9 +24,9 @@ public sealed class FarmerPayoutRules(IConfiguration configuration)
     {
         if (context.Farmer.User.Status != "Active" || context.Farmer.VerificationStatus != "Approved") return "SUSPENDED";
         var bank = context.Bank;
-        if (bank == null || bank.VerificationStatus != "Verified" || bank.VerifiedAt == null
+        if (bank == null || bank.VerificationStatus != "Verified"
             || bank.BankCodeNavigation is not { IsActive: true } || bank.PayoutHoldUntil > now
-            || Digits(bank.AccountNumber).Length < 6 || string.IsNullOrWhiteSpace(bank.AccountHolder)) return "ACCOUNT_HOLD";
+            || (bank.AccountNumber.Length is < 6 or > 19 || !bank.AccountNumber.All(char.IsAsciiDigit)) || string.IsNullOrWhiteSpace(bank.AccountHolder)) return "ACCOUNT_HOLD";
         return null;
     }
 
@@ -57,7 +57,7 @@ public sealed class FarmerPayoutRules(IConfiguration configuration)
             collected = Math.Min(line.LineAmount, collected);
             var claims = context.Claims.Where(x => x.InvoiceLineId == line.InvoiceLineId && x.FarmerPayoutId != excludingPayout).ToList();
             decimal settled = claims.Where(x => Paid(x.FarmerPayout)).Sum(x => Math.Max(x.GrossAmount, x.SourceAmountSettled));
-            decimal held = claims.Where(x => !Paid(x.FarmerPayout) && x.FarmerPayout.PayoutStatus is not ("Failed" or "Cancelled"))
+            decimal held = claims.Where(x => !Paid(x.FarmerPayout) && x.FarmerPayout.PayoutStatus is not ("Failed" or "Cancelled" or "Rejected"))
                 .Sum(x => x.GrossAmount);
             var refunds = context.Refunds.Where(x =>
                 (x.PaymentInvoiceAllocationId.HasValue && line.Invoice.PaymentInvoiceAllocations.Any(a => a.PaymentInvoiceAllocationId == x.PaymentInvoiceAllocationId))
@@ -125,7 +125,7 @@ public sealed class FarmerPayoutRules(IConfiguration configuration)
             if (net <= 0 || rate < 0 || rate > 100 || commission + deduction > gross) blocked ??= "FEE_INVALID";
             result.Add(new(line.InvoiceLineId, line.Invoice.InvoiceNumber, item.ProductNameSnapshot ?? item.Product.ProductName,
                 line.Invoice.IssuedAt, gross, commission, deduction, net, rate, policyId, blocked == null,
-                blocked == null ? null : FinancePayoutMessages.Text(blocked), settled, held, line.Quantity, line.UnitPriceSnapshot));
+                blocked == null ? null : FinancePayoutMessages.Text(blocked), settled, held, line.Quantity, line.UnitPriceSnapshot, seller.Order.OrderType == "Retail" ? "B2C" : "B2B"));
         }
         return result;
     }
@@ -151,10 +151,11 @@ public sealed class FarmerPayoutRules(IConfiguration configuration)
     {
         context.Payout!.FarmerPayoutId,
         context.Payout.PayoutStatus,
-        context.Payout.Amount,
-        context.Payout.NetAmount,
+        Amount = context.Payout.Amount.ToString("G29", System.Globalization.CultureInfo.InvariantCulture),
+        NetAmount = context.Payout.NetAmount.ToString("G29", System.Globalization.CultureInfo.InvariantCulture),
         context.Payout.RecipientBankCode,
         context.Payout.RecipientAccountNumber,
+        context.Payout.RecipientAccountHolder,
         context.Payout.BankTransferRef,
         context.Payout.ProcessedAt,
         LastAudit = context.History.LastOrDefault()?.AuditLogId,
@@ -177,7 +178,8 @@ public sealed class FarmerPayoutRules(IConfiguration configuration)
         var available = ValidateEligibleProceeds(context, payout.FarmerPayoutId, now).ToDictionary(x => x.Id);
         if (payout.PayoutItems.Count == 0 || payout.NetAmount <= 0 || payout.NetAmount != decimal.Floor(payout.NetAmount)) return "MSG172";
         foreach (var item in payout.PayoutItems)
-            if (!available.TryGetValue(item.InvoiceLineId, out var source) || !source.Eligible || source.Gross < item.GrossAmount)
+            if (!available.TryGetValue(item.InvoiceLineId, out var source) || !source.Eligible || source.Gross != item.GrossAmount
+                || source.Commission != item.CommissionAmount || source.Net != item.NetAmount)
                 return "MSG172";
         return null;
     }

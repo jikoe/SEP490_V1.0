@@ -243,7 +243,14 @@ public sealed class FarmerHarvestBatchRepository(
     TimeProvider clock) : FarmerManagementRepository(db, clock), IFarmerHarvestBatchRepository
 {
     private IQueryable<HarvestBatch> Batches(long actor) =>
-        Db.HarvestBatches.Where(x => x.Product.FarmerProfile.UserId == actor).Include(x => x.Product).ThenInclude(x => x.FarmerProfile).Include(x => x.CropSeason).ThenInclude(x => x.CultivationLogs).Include(x => x.InventoryMovements).Include(x => x.TraceabilityQrcode).Include(x => x.OrderItemBatchAllocations).ThenInclude(x => x.ShipmentItems).AsSplitQuery();
+        Db.HarvestBatches.Where(x => x.Product.FarmerProfile.UserId == actor
+            && x.StockEnteredAt.HasValue && x.ActualHarvestDate.HasValue && x.Status != "Planned")
+            .Include(x => x.Product).ThenInclude(x => x.FarmerProfile)
+            .Include(x => x.CropSeason).ThenInclude(x => x.CultivationLogs)
+            .Include(x => x.InventoryMovements)
+            .Include(x => x.TraceabilityQrcode)
+            .Include(x => x.OrderItemBatchAllocations).ThenInclude(x => x.ShipmentItems)
+            .AsSplitQuery();
 
     public async Task<(IReadOnlyList<HarvestBatch> Items, int Total)> SearchOwnedAsync(
         long actor,
@@ -255,37 +262,96 @@ public sealed class FarmerHarvestBatchRepository(
         if (f.Keyword is { Length: > 0 })
         {
             var s = f.Keyword.Trim();
-            q = q.Where(x => x.BatchCode.Contains(s) || x.Product.ProductName.Contains(s) || x.CropSeason.SeasonName.Contains(s));
+            q = q.Where(x => x.BatchCode.Contains(s)
+                || x.Product.ProductName.Contains(s)
+                || x.CropSeason.SeasonName.Contains(s));
         }
 
         if (f.ProductId.HasValue)
             q = q.Where(x => x.ProductId == f.ProductId);
         if (f.SeasonId.HasValue)
             q = q.Where(x => x.CropSeasonId == f.SeasonId);
-        if (f.Status == "Planned")
-            q = q.Where(x => !x.StockEnteredAt.HasValue);
-        else if (f.Status == "Expired")
-            q = q.Where(x => x.StockEnteredAt.HasValue && x.ExpirationDate <= today && x.Status != "Blocked" && x.Status != "Recalled");
-        else if (f.Status == "Actual")
-            q = q.Where(x => x.StockEnteredAt.HasValue && x.AvailableQuantity > 0 && x.ExpirationDate > today && x.Status != "Blocked" && x.Status != "Recalled");
-        else if (f.Status == "Allocated")
-            q = q.Where(x => x.StockEnteredAt.HasValue && x.AvailableQuantity == 0 && x.ExpirationDate > today && x.Status != "Blocked" && x.Status != "Recalled");
+        if (f.Status == "Expired")
+        {
+            q = q.Where(x => (x.Status == "Expired" || x.ExpirationDate <= today)
+                && x.Status != "Blocked" && x.Status != "Suspect" && x.Status != "Recalled");
+        }
+        else if (f.Status is "Actual" or "Allocated")
+        {
+            var now = Clock.GetUtcNow().UtcDateTime;
+            // Use the same live ledger balance as the detail response, including expired holds.
+            var balances = q.Where(x => x.ExpirationDate > today
+                    && x.Status != "Expired" && x.Status != "Blocked"
+                    && x.Status != "Suspect" && x.Status != "Recalled")
+                .Select(x => new
+                {
+                    Batch = x,
+                    Adjustment = x.InventoryMovements
+                        .Where(m => m.MovementType == "Adjustment")
+                        .Sum(m => (decimal?)m.QuantityChange) ?? 0,
+                    Held = x.OrderItemBatchAllocations.Any()
+                        ? x.OrderItemBatchAllocations
+                            .Where(a => (a.AllocationStatus == "Reserved" || a.AllocationStatus == "Held"
+                                    || a.AllocationStatus == "Active")
+                                && (!a.ExpiresAt.HasValue || a.ExpiresAt > now))
+                            .Sum(a => (decimal?)a.AllocatedQuantity) ?? 0
+                        : x.ReservedQuantity,
+                    AllocationShipped = -(x.InventoryMovements
+                        .Where(m => m.OrderItemBatchAllocationId.HasValue
+                            && (m.MovementType == "Dispatch" || m.MovementType == "StockOut"))
+                        .Sum(m => (decimal?)m.QuantityChange) ?? 0)
+                        + (x.OrderItemBatchAllocations.Where(a => !x.InventoryMovements.Any(m =>
+                                m.OrderItemBatchAllocationId == a.OrderItemBatchAllocationId
+                                && (m.MovementType == "Dispatch" || m.MovementType == "StockOut")))
+                            .SelectMany(a => a.ShipmentItems)
+                            .Sum(i => (decimal?)i.ShippedQuantity) ?? 0),
+                    MovementShipped = -(x.InventoryMovements
+                        .Where(m => m.MovementType == "Dispatch" || m.MovementType == "StockOut")
+                        .Sum(m => (decimal?)m.QuantityChange) ?? 0)
+                })
+                .Select(x => new
+                {
+                    x.Batch,
+                    Available = x.Batch.HarvestYield + x.Adjustment - x.Held
+                        - (x.AllocationShipped > x.MovementShipped
+                            ? x.AllocationShipped : x.MovementShipped)
+                });
+            q = (f.Status == "Actual"
+                    ? balances.Where(x => x.Available > 0)
+                    : balances.Where(x => x.Available == 0))
+                .Select(x => x.Batch);
+        }
+        else if (f.Status == "Blocked")
+            q = q.Where(x => x.Status == "Blocked" || x.Status == "Suspect");
         else if (f.Status is { Length: > 0 })
             q = q.Where(x => x.Status == f.Status);
         if (f.From.HasValue)
-            q = q.Where(x => (x.ActualHarvestDate ?? x.EstimatedHarvestDate) >= f.From);
+            q = q.Where(x => x.ActualHarvestDate >= f.From);
         if (f.To.HasValue)
-            q = q.Where(x => (x.ActualHarvestDate ?? x.EstimatedHarvestDate) <= f.To);
+            q = q.Where(x => x.ActualHarvestDate <= f.To);
         var total = await q.CountAsync(ct);
-        return (await q.OrderByDescending(x => x.HarvestBatchId).Skip((f.Page - 1) * f.PageSize).Take(f.PageSize).ToListAsync(ct), total);
+        var items = await q.OrderByDescending(x => x.HarvestBatchId)
+            .Skip((f.Page - 1) * f.PageSize)
+            .Take(f.PageSize)
+            .ToListAsync(ct);
+        return (items, total);
     }
 
 
-    public Task<HarvestBatch?> LoadOwnedContextAsync(
+    public async Task<HarvestBatch?> LoadOwnedContextAsync(
         long actor,
         long id,
-        CancellationToken ct) =>
-        Batches(actor).SingleOrDefaultAsync(x => x.HarvestBatchId == id, ct);
+        CancellationToken ct)
+    {
+        if (Db.Database.CurrentTransaction is not null)
+        {
+            await Db.HarvestBatches.FromSqlInterpolated($@"SELECT b.* FROM dbo.HarvestBatch b WITH (UPDLOCK,HOLDLOCK)
+                WHERE b.HarvestBatchId={id} AND EXISTS
+                (SELECT 1 FROM dbo.Product p INNER JOIN dbo.FarmerProfile f ON f.FarmerProfileId=p.FarmerProfileId
+                 WHERE p.ProductId=b.ProductId AND f.UserId={actor})").ToListAsync(ct);
+        }
+        return await Batches(actor).SingleOrDefaultAsync(x => x.HarvestBatchId == id, ct);
+    }
 
     public Task<bool> CodeExistsAsync(
         string code,
