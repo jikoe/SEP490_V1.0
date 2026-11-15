@@ -15,5 +15,17 @@ public interface IWholesaleOrderRepository
     Task<Order?> GetWholesaleOrderForPaymentAsync(string orderCode, CancellationToken cancellationToken);
     Task AddPaymentTransactionAsync(PaymentTransaction transaction, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Voucher>> GetActiveVouchersAsync(long farmerProfileId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Voucher>>([]);
+
+    Task<Voucher?> GetVoucherByCodeAsync(string voucherCode, CancellationToken cancellationToken) =>
+        Task.FromResult<Voucher?>(null);
+
+    Task<int> GetReservedVoucherCountAsync(long voucherId, CancellationToken cancellationToken) =>
+        Task.FromResult(0);
+
+    Task<IReadOnlyDictionary<long, int>> GetCustomerVoucherUsesAsync(long buyerUserId, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyDictionary<long, int>>(new Dictionary<long, int>());
 }
 

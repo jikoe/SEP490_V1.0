@@ -738,6 +738,7 @@ const API = {
     return this.request('/b2b/orders/calculate-price', {
       method: 'POST',
       body: {
+        ...data,
         productId: Number(data?.productId),
         quantity: Number(data?.quantity)
       },

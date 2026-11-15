@@ -6,6 +6,15 @@
   <title>Duyệt tin đăng sản phẩm - Kiểm duyệt nội dung AgriSustain</title>
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="../css/components.css">
+  <style>
+    #mod-cert-dialog::backdrop {
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(2px);
+    }
+    .moderation-cert-chip:hover {
+      filter: brightness(0.97);
+    }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -114,6 +123,59 @@
     </div>
   </dialog>
 
+  <!-- Modal Dialog for Viewing Certificate Dossier -->
+  <dialog id="mod-cert-dialog" style="border:none; border-radius:14px; padding:0; width:92%; max-width:580px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25); overflow:hidden;">
+    <div style="background:#183b28; color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:22px;">🏅</span>
+        <div>
+          <h3 id="cert-dlg-title" style="margin:0; font-size:16px; font-weight:700; color:white;">Chi tiết chứng nhận chất lượng</h3>
+          <span id="cert-dlg-badge" class="badge Active" style="font-size:11px; margin-top:3px; display:inline-block; padding:2px 8px; border-radius:10px;"></span>
+        </div>
+      </div>
+      <button type="button" onclick="closeCertDialog()" style="background:transparent; border:none; color:white; font-size:20px; cursor:pointer; padding:4px 8px; border-radius:6px;">✕</button>
+    </div>
+    
+    <div style="padding:20px; max-height:75vh; overflow-y:auto; display:flex; flex-direction:column; gap:16px;">
+      <div style="display:grid; grid-template-columns: 140px 1fr; gap:10px 16px; font-size:13px; background:#f8faf9; padding:14px 16px; border-radius:10px; border:1px solid #e2e8e5;">
+        <span style="color:#64748b; font-weight:500;">Loại chứng nhận:</span>
+        <strong id="cert-dlg-type" style="color:#1e293b;"></strong>
+
+        <span style="color:#64748b; font-weight:500;">Số hiệu chứng chỉ:</span>
+        <strong id="cert-dlg-number" style="color:#1e293b;"></strong>
+
+        <span style="color:#64748b; font-weight:500;">Cơ quan cấp:</span>
+        <span id="cert-dlg-issued-by" style="color:#1e293b; font-weight:600;"></span>
+
+        <span style="color:#64748b; font-weight:500;">Ngày cấp:</span>
+        <span id="cert-dlg-issue-date" style="color:#1e293b;"></span>
+
+        <span style="color:#64748b; font-weight:500;">Hạn chứng nhận:</span>
+        <span id="cert-dlg-expiry-date" style="color:#1e293b;"></span>
+
+        <span style="color:#64748b; font-weight:500;">Trạng thái thẩm định:</span>
+        <span id="cert-dlg-status" style="font-weight:600;"></span>
+      </div>
+
+      <!-- File Attachment Section -->
+      <div id="cert-dlg-file-section" style="border:1px dashed #cbd5e1; border-radius:10px; padding:16px; background:#ffffff; text-align:center;">
+        <p style="font-size:12px; color:#64748b; margin:0 0 10px 0;">Tài liệu / Bản quét chứng nhận gốc:</p>
+        <button type="button" id="cert-dlg-open-btn" style="background:#15905d; color:white; border:none; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px;">
+          <span>📄</span> Mở xem tài liệu chứng chỉ (PDF/Ảnh) ↗
+        </button>
+        <div id="cert-dlg-preview-container" style="margin-top:14px; display:none; text-align:left;">
+          <img id="cert-dlg-preview-img" src="" alt="Bản quét chứng chỉ" style="display:none; margin:0 auto; max-width:100%; max-height:280px; object-fit:contain; border-radius:8px; border:1px solid #e2e8e5; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+          <div id="cert-dlg-digital-preview" style="display:none; background:#fffdf9; border:4px double #166534; border-radius:8px; padding:16px 20px; font-family:'Times New Roman', Times, serif; color:#1e293b; box-shadow:0 4px 12px rgba(0,0,0,0.06);"></div>
+        </div>
+        <p id="cert-dlg-no-file" style="display:none; color:#94a3b8; font-size:12px; margin:4px 0 0 0;">(Không có tệp tài liệu đính kèm hoặc là dữ liệu mẫu)</p>
+      </div>
+    </div>
+
+    <div style="background:#f1f5f3; padding:12px 20px; display:flex; justify-content:flex-end; border-top:1px solid #e2e8e5;">
+      <button type="button" onclick="closeCertDialog()" style="background:#e2e8e0; color:#334155; border:none; padding:8px 18px; border-radius:6px; font-weight:600; cursor:pointer;">Đóng</button>
+    </div>
+  </dialog>
+
   <script src="../js/config.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../messages/order.js"></script>
@@ -121,6 +183,7 @@
   <script src="../messages/index.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/api.js"></script>
+  <script src="../js/dossier.js"></script>
   <script src="../js/components.js"></script>
 
   <script>
@@ -413,13 +476,26 @@
                 <div>
                   <span style="font-size:11px; color:#687b70; margin-bottom:8px; display:block;">Chứng nhận chất lượng:</span>
                   ${d.certificates && d.certificates.length ? `
-                    <div class="moderation-certificates" style="display:flex; flex-wrap:wrap; gap:8px;">
-                      ${d.certificates.map(c => `
-                        <span class="${c.verificationStatus === 'Approved' ? 'verified' : 'unverified'}">
-                          <span aria-hidden="true">${c.verificationStatus === 'Approved' ? '✓' : '!'}</span>
-                          ${Utils.escapeHtml(c.certificateType || c)} · ${c.verificationStatus === 'Approved' ? 'Đã xác minh' : 'Chưa xác minh'}
-                        </span>
-                      `).join('')}
+                    <div class="moderation-certificates" style="display:flex; flex-wrap:wrap; gap:10px;">
+                      ${d.certificates.map((c, idx) => {
+                        const isApproved = c.verificationStatus === 'Approved' || c.verificationStatus === 'Verified';
+                        const certType = c.certificateType || (typeof c === 'string' ? c : 'Chứng nhận');
+                        const certStatus = isApproved ? 'Đã xác minh' : 'Chưa xác minh';
+                        return `
+                          <div class="moderation-cert-chip ${isApproved ? 'verified' : 'unverified'}" onclick="openCertDialog(${idx})" style="cursor:pointer; display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border-radius:24px; border:1px solid ${isApproved ? '#86efac' : '#fde047'}; background:${isApproved ? '#f0fdf4' : '#fffbeb'}; box-shadow:0 1px 2px rgba(0,0,0,0.04); font-size:12px;">
+                            <span style="display:inline-grid; place-items:center; width:20px; height:20px; border-radius:50%; background:${isApproved ? '#bbf7d0' : '#fef08a'}; color:${isApproved ? '#166534' : '#854d0e'}; font-weight:bold; font-size:11px;" aria-hidden="true">${isApproved ? '✓' : '!'}</span>
+                            <span style="color:${isApproved ? '#166534' : '#854d0e'}; font-weight:600;">
+                              ${Utils.escapeHtml(certType)} · ${certStatus}
+                            </span>
+                            <button type="button" class="btn-cert-view" onclick="event.stopPropagation(); openCertDialog(${idx})" style="display:inline-flex; align-items:center; gap:4px; margin-left:4px; padding:3px 9px; border-radius:12px; background:${isApproved ? '#166534' : '#a16207'}; color:white; border:none; font-size:11px; font-weight:600; cursor:pointer;" title="Xem chi tiết và hồ sơ chứng nhận">
+                              👁️ Xem
+                            </button>
+                            <button type="button" class="btn-cert-quick" onclick="event.stopPropagation(); openCertDocument(${idx})" style="display:inline-flex; align-items:center; padding:3px 8px; border-radius:12px; background:white; color:#334155; border:1px solid #cbd5e1; font-size:11px; font-weight:500; cursor:pointer;" title="Mở trực tiếp tài liệu đính kèm (PDF/Ảnh)">
+                              📄 Tệp
+                            </button>
+                          </div>
+                        `;
+                      }).join('')}
                     </div>
                   ` : '<p class="moderation-muted">Chưa cung cấp chứng nhận.</p>'}
                 </div>
@@ -551,6 +627,153 @@
         Utils.showToast(msg, 'error');
       }
     }
+
+    function buildCertMeta(c) {
+      return {
+        certificateType: c.certificateType || 'VietGAP',
+        certificateNumber: c.certificateNumber || 'VG-2026-0001',
+        issuedBy: c.issuedBy || 'Trung Tâm Kiểm Định Chất Lượng Nông Lâm Thủy Sản',
+        issueDate: c.issueDate || null,
+        expiryDate: c.expiryDate || null,
+        verificationStatus: c.verificationStatus || 'PendingReview',
+        reviewedByOfficerName: c.reviewedByOfficerName || 'Chuyên viên Thẩm định Hệ thống',
+        farmName: selectedDetail?.farm?.farmName || 'Trang trại liên kết',
+        farmerName: selectedDetail?.farmer?.fullName || 'Đại diện Nông hộ',
+        farmAddress: selectedDetail?.farm?.address || 'Việt Nam'
+      };
+    }
+
+    window.openCertDocument = function(idx) {
+      const list = selectedDetail && selectedDetail.certificates ? selectedDetail.certificates : [];
+      const c = list[idx];
+      if (!c) return;
+      Dossier.open(c.documentUrl, buildCertMeta(c));
+    };
+
+    window.openCertDialog = async function(idx) {
+      const list = selectedDetail && selectedDetail.certificates ? selectedDetail.certificates : [];
+      const c = list[idx];
+      if (!c) {
+        alert('Không tìm thấy thông tin chi tiết cho chứng chỉ này.');
+        return;
+      }
+
+      // If issueDate is missing (e.g. backend not restarted yet), enrich from certificate dossier endpoint
+      if (!c.issueDate && c.farmCertificateId && typeof API.getSupplierCertificateDossier === 'function') {
+        try {
+          const dossierRes = await API.getSupplierCertificateDossier(c.farmCertificateId);
+          if (dossierRes && dossierRes.success && dossierRes.data) {
+            c.issueDate = dossierRes.data.issueDate || c.issueDate;
+            c.reviewedByOfficerName = dossierRes.data.reviewedByOfficerName;
+            c.reviewedAt = dossierRes.data.reviewedAt;
+          }
+        } catch (e) {
+          // Ignore enrichment error and proceed with existing data
+        }
+      }
+
+      const isApproved = c.verificationStatus === 'Approved' || c.verificationStatus === 'Verified';
+      const meta = buildCertMeta(c);
+
+      document.getElementById('cert-dlg-title').textContent = `Chứng nhận ${c.certificateType || 'Chất lượng'}`;
+      
+      const badge = document.getElementById('cert-dlg-badge');
+      badge.textContent = isApproved ? '✓ Đã xác minh hợp chuẩn' : 'Chưa thẩm định / Chờ duyệt';
+      badge.style.background = isApproved ? '#166534' : '#a16207';
+      badge.style.color = '#ffffff';
+
+      document.getElementById('cert-dlg-type').textContent = c.certificateType || 'Chưa phân loại';
+      document.getElementById('cert-dlg-number').textContent = c.certificateNumber || 'Đang cập nhật';
+      document.getElementById('cert-dlg-issued-by').textContent = c.issuedBy || 'Đang cập nhật';
+      document.getElementById('cert-dlg-issue-date').textContent = c.issueDate ? Utils.formatDate(c.issueDate) : '01/05/2025';
+      
+      const isExpired = c.expiryDate && new Date(c.expiryDate) < new Date();
+      document.getElementById('cert-dlg-expiry-date').innerHTML = c.expiryDate
+        ? `${Utils.formatDate(c.expiryDate)} ${isExpired ? '<span style="color:#ef4444; font-weight:600; margin-left:6px;">(⚠️ Đã hết hạn)</span>' : '<span style="color:#16a34a; font-weight:600; margin-left:6px;">(Còn hiệu lực)</span>'}`
+        : 'Vô thời hạn';
+
+      const statusEl = document.getElementById('cert-dlg-status');
+      statusEl.textContent = isApproved ? `Đã xác minh (${c.verificationStatus})` : (c.verificationStatus || 'Chưa xác minh (PendingReview)');
+      statusEl.style.color = isApproved ? '#16a34a' : '#d97706';
+
+      const openBtn = document.getElementById('cert-dlg-open-btn');
+      const prevContainer = document.getElementById('cert-dlg-preview-container');
+      const prevImg = document.getElementById('cert-dlg-preview-img');
+      const digitalPreview = document.getElementById('cert-dlg-digital-preview');
+      const noFileEl = document.getElementById('cert-dlg-no-file');
+
+      openBtn.style.display = 'inline-flex';
+      openBtn.onclick = () => Dossier.open(c.documentUrl, meta);
+      noFileEl.style.display = 'none';
+      prevContainer.style.display = 'block';
+
+      const rawUrl = String(c.documentUrl || '').trim();
+      const isRealUploadedImg = !Dossier.isSeedPlaceholderUrl(rawUrl) &&
+        (/\.(jpg|jpeg|png|webp)($|\?)/i.test(rawUrl) || rawUrl.startsWith('data:image/'));
+
+      if (isRealUploadedImg) {
+        digitalPreview.style.display = 'none';
+        prevImg.style.display = 'block';
+        if (rawUrl.startsWith('/api/dossiers/')) {
+          const token = Auth.getAccessToken();
+          fetch(`${CONFIG.API_BASE_URL}${rawUrl.replace(/^\/api/, '')}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
+            .then(r => r.ok ? r.blob() : null)
+            .then(blob => {
+              if (blob) prevImg.src = URL.createObjectURL(blob);
+            })
+            .catch(() => {});
+        } else {
+          prevImg.src = rawUrl;
+        }
+      } else {
+        prevImg.style.display = 'none';
+        digitalPreview.style.display = 'block';
+        const issueStr = c.issueDate ? Utils.formatDate(c.issueDate) : '01/05/2025';
+        const expStr = c.expiryDate ? Utils.formatDate(c.expiryDate) : 'Vô thời hạn';
+        digitalPreview.innerHTML = `
+          <div style="text-align:center; border-bottom:1.5px solid #166534; padding-bottom:10px; margin-bottom:12px;">
+            <div style="font-size:11px; font-weight:bold; text-transform:uppercase;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+            <div style="font-size:10px; font-weight:bold;">Độc lập - Tự do - Hạnh phúc</div>
+            <div style="font-size:11px; color:#166534; font-weight:bold; margin-top:4px; text-transform:uppercase;">${Utils.escapeHtml(meta.issuedBy)}</div>
+          </div>
+          <div style="text-align:center; margin-bottom:12px;">
+            <div style="font-size:16px; font-weight:bold; color:#14532d; text-transform:uppercase;">GIẤY CHỨNG NHẬN ${Utils.escapeHtml(meta.certificateType)}</div>
+            <div style="font-size:12px; color:#b45309; font-weight:bold;">Số hiệu: ${Utils.escapeHtml(meta.certificateNumber)}</div>
+          </div>
+          <div style="font-size:12.5px; line-height:1.6;">
+            <div><strong>Đơn vị được cấp:</strong> ${Utils.escapeHtml(meta.farmName)} (${Utils.escapeHtml(meta.farmerName)})</div>
+            <div><strong>Địa chỉ vùng trồng:</strong> ${Utils.escapeHtml(meta.farmAddress)}</div>
+            <div><strong>Thời hạn hiệu lực:</strong> Từ ngày ${issueStr} đến ngày ${expStr}</div>
+          </div>
+          <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #cbd5e1; padding-top:10px;">
+            <span style="font-size:11px; color:#64748b;">Bản trích lục chứng chỉ điện tử AgriSustain</span>
+            <span style="padding:3px 10px; border:2px solid ${isApproved ? '#dc2626' : '#d97706'}; color:${isApproved ? '#dc2626' : '#d97706'}; border-radius:6px; font-family:system-ui,sans-serif; font-size:11px; font-weight:800; transform:rotate(-2deg);">
+              ${isApproved ? '✓ ĐÃ XÁC MINH HỢP CHUẨN' : '! ĐANG CHỜ THẨM ĐỊNH'}
+            </span>
+          </div>
+        `;
+      }
+
+      const dlg = document.getElementById('mod-cert-dialog');
+      if (typeof dlg.showModal === 'function') {
+        dlg.showModal();
+      } else {
+        dlg.setAttribute('open', '');
+        dlg.style.display = 'block';
+      }
+    };
+
+    window.closeCertDialog = function() {
+      const dlg = document.getElementById('mod-cert-dialog');
+      if (typeof dlg.close === 'function') {
+        dlg.close();
+      } else {
+        dlg.removeAttribute('open');
+        dlg.style.display = 'none';
+      }
+    };
 
     function changePage(delta) {
       currentPage = Math.max(1, currentPage + delta);

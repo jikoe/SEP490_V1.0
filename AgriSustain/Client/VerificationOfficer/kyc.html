@@ -269,7 +269,7 @@
             </div>
 
             <!-- Quyết định thẩm định hồ sơ KYC -->
-            <div class="panel padded" style="background: #f8faf9; border: 1px solid #d5e2da; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div id="kyc-decision-panel" class="panel padded" style="background: #f8faf9; border: 1px solid #d5e2da; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
               <div>
                 <h3 style="margin: 0 0 4px;">Quyết định thẩm định hồ sơ KYC</h3>
                 <p class="muted" style="margin: 0;">
@@ -277,7 +277,7 @@
                 </p>
               </div>
               <div class="action-row">
-                <button type="button" class="primary" onclick="openDecisionModal('approve')">
+                <button type="button" id="btn-approve-kyc" class="primary" onclick="openDecisionModal('approve')">
                   ✓ Phê duyệt KYC
                 </button>
                 <button type="button" onclick="openDecisionModal('request-info')">
@@ -1014,6 +1014,12 @@
       document.getElementById('detail-reviewed-at').textContent = Utils.formatDateTime(d.reviewedAt || d.approvedAt);
       document.getElementById('detail-reviewed-by').textContent = d.reviewedBy || '—';
 
+      const decisionPanel = document.getElementById('kyc-decision-panel');
+      if (decisionPanel) {
+        const isAlreadyVerified = d.verificationStatus === 'Approved' || d.verificationStatus === 'Verified';
+        decisionPanel.style.display = isAlreadyVerified ? 'none' : 'flex';
+      }
+
       const reasonBox = document.getElementById('detail-reason-box');
       if (d.rejectReason) {
         const isAddInfo = d.verificationStatus === 'AdditionalInfoRequired';
@@ -1085,6 +1091,10 @@
     /* Decision Modal Logic */
     function openDecisionModal(action) {
       if (!selectedDetail) return;
+      if (selectedDetail.verificationStatus === 'Approved' || selectedDetail.verificationStatus === 'Verified') {
+        showNotice('error', 'Hồ sơ KYC này đã ở trạng thái Đã xác minh, không thể quyết định lại.');
+        return;
+      }
       decisionModal = action;
       const cfg = DECISION_CONFIG[action];
       const d = selectedDetail;

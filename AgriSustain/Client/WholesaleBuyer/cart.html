@@ -635,7 +635,9 @@
               document.getElementById('sepay-succ-amount').textContent = `${Number(res.data.finalAmount || 0).toLocaleString('vi-VN')} ₫`;
               document.getElementById('sepay-succ-code').textContent = `#${res.data.orderCode}`;
               document.getElementById('sepay-paid-success-box').style.display = 'block';
-              await loadUnpaidOrders();
+              setTimeout(() => {
+                window.location.href = 'orders.html';
+              }, 1500);
             } else if (res.data.paymentStatus === 'Cancelled' || res.data.orderStatus === 'Cancelled') {
               onSePayOrderExpired();
             }
