@@ -42,5 +42,9 @@ public interface IFarmerComplaintFiles
 {
     Task<string> SaveAsync(long actor, IFormFile file, CancellationToken ct);
     Task<bool> IsValidOwnedAsync(long actor, string url, CancellationToken ct);
+    Task<string> SaveResponseEvidenceAsync(long actor, IFormFile file, CancellationToken ct) =>
+        SaveAsync(actor, file, ct);
+    Task<bool> IsValidResponseEvidenceAsync(long actor, string url, CancellationToken ct) =>
+        IsValidOwnedAsync(actor, url, ct);
     string? Resolve(long actor, string url);
 }

@@ -4,6 +4,7 @@ using System.Text.Json;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Complaints;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Validators;
 using AgriSustain.Domain.Entities;
 
 namespace AgriSustain.Application.Services.Complaints;
@@ -120,14 +121,11 @@ public sealed class FarmerComplaintService(
             var urls = input.EvidenceUrls;
             if (
                 explanation.Length is < 15 or > 2000
-                || urls is null
-                || urls.Length is < 1 or > 5
-                || urls.Any(string.IsNullOrWhiteSpace)
-                || urls.Distinct(StringComparer.Ordinal).Count() != urls.Length
+                || !FarmerComplaintEvidenceRules.IsValidSelection(urls)
             )
                 return await Abort("VALIDATION", FarmerComplaintMessages.Invalid);
             foreach (string url in urls)
-                if (!await files.IsValidOwnedAsync(actor, url, ct))
+                if (!await files.IsValidResponseEvidenceAsync(actor, url, ct))
                     return await Abort("VALIDATION", FarmerComplaintMessages.Invalid);
             var recipients = await repository.GetSupportRecipientsAsync(
                 ticket.AssignedStaffUserId,

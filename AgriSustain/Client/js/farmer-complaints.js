@@ -122,6 +122,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function closePreview() {
+    const video = $("#previewContent video");
+    if (video) {
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = null;
     $("#previewContent").replaceChildren();
@@ -131,13 +137,14 @@ document.addEventListener("DOMContentLoaded", () => {
     closePreview();
     previewUrl = URL.createObjectURL(blob);
     const pdf = blob.type === "application/pdf" || /\.pdf$/i.test(name);
-    const video = blob.type === "video/mp4";
+    const video = blob.type === "video/mp4" || /\.mp4$/i.test(name);
     const node = document.createElement(video ? "video" : pdf ? "iframe" : "img");
     node.src = previewUrl;
     node.title = name;
     if (video) {
       node.controls = true;
       node.playsInline = true;
+      node.preload = "metadata";
       node.setAttribute("aria-label", name);
     } else if (!pdf) {
       node.alt = name;
@@ -171,7 +178,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const button = document.createElement("button");
       button.type = "button";
       button.textContent =
-        messages.fileLabel(file.id) + (file.name.endsWith(".pdf") ? " · PDF" : "");
+        messages.fileLabel(file.id) +
+        (/\.mp4$/i.test(file.name) ? " · MP4" : file.name.endsWith(".pdf") ? " · PDF" : "");
       button.onclick = () => previewSaved(file);
       target.append(button);
     });
@@ -424,12 +432,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const validFiles =
       attachments.length >= 1 &&
       attachments.length <= 5 &&
+      attachments.filter((file) => /\.mp4$/i.test(file.name)).length <= 1 &&
       attachments.every(
         (file) =>
-          /\.(jpe?g|png|pdf)$/i.test(file.name) &&
+          /\.(jpe?g|png|pdf|mp4)$/i.test(file.name) &&
           file.size > 0 &&
-          file.size <= 5 * 1024 * 1024 &&
-          (!file.type || ["image/jpeg", "image/png", "application/pdf"].includes(file.type)),
+          file.size <= (/\.mp4$/i.test(file.name) ? 20 : 5) * 1024 * 1024 &&
+          (!file.type ||
+            (/\.mp4$/i.test(file.name)
+              ? file.type === "video/mp4"
+              : ["image/jpeg", "image/png", "application/pdf"].includes(file.type))),
       );
     $("#explanationError").textContent = validText ? "" : messages.explanationInvalid;
     $("#evidenceError").textContent = validFiles ? "" : messages.evidenceInvalid;

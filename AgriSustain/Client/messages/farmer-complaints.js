@@ -2,9 +2,10 @@ const FarmerComplaintMessages = Object.freeze({
   saved:
     "Giải trình và bằng chứng đã được gửi để xem xét. Phản hồi này không quyết định kết quả khiếu nại.",
   invalid:
-    "Nhập giải trình từ 15–2.000 ký tự và chọn 1–5 tệp JPG/JPEG/PNG/PDF, tối đa 5 MB mỗi tệp.",
+    "Nhập giải trình từ 15–2.000 ký tự và chọn tổng cộng 1–5 tệp: JPG/JPEG/PNG/PDF tối đa 5 MB/tệp; có thể kèm tối đa 1 video MP4, tối đa 20 MB. Video không bắt buộc.",
   explanationInvalid: "Nhập từ 15–2.000 ký tự sau khi bỏ khoảng trắng đầu/cuối.",
-  evidenceInvalid: "Chọn 1–5 tệp đúng định dạng, tối đa 5 MB mỗi tệp.",
+  evidenceInvalid:
+    "Chọn tổng cộng 1–5 tệp: JPG/JPEG/PNG/PDF tối đa 5 MB/tệp; tối đa 1 video MP4, tối đa 20 MB. Video không bắt buộc.",
   expired:
     "Đã hết thời hạn 48 giờ phản hồi yêu cầu này. Hệ thống không tiếp nhận phản hồi quá hạn.",
   closed:

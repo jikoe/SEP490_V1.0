@@ -5,7 +5,7 @@ public static class FarmerComplaintMessages
     public const string Saved =
         "Giải trình và bằng chứng đã được gửi để xem xét. Phản hồi này không quyết định kết quả khiếu nại.";
     public const string Invalid =
-        "Nhập giải trình từ 15–2.000 ký tự sau khi bỏ khoảng trắng đầu/cuối và đính kèm 1–5 tệp JPG/JPEG/PNG/PDF, tối đa 5 MB mỗi tệp.";
+        "Nhập giải trình từ 15–2.000 ký tự sau khi bỏ khoảng trắng đầu/cuối và đính kèm tổng cộng 1–5 tệp: JPG/JPEG/PNG/PDF tối đa 5 MB/tệp; có thể kèm tối đa 1 video MP4, tối đa 20 MB. Video không bắt buộc.";
     public const string Forbidden =
         "Bạn không có quyền truy cập khiếu nại hoặc thực hiện thao tác này.";
     public const string Expired =

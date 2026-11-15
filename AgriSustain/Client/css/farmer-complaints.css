@@ -244,6 +244,12 @@ dialog iframe {
   height: 65vh;
   border: 0;
 }
+dialog video {
+  display: block;
+  width: 100%;
+  margin-bottom: 12px;
+  background: #102b24;
+}
 [hidden] {
   display: none !important;
 }

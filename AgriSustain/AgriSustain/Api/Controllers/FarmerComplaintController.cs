@@ -36,7 +36,8 @@ public sealed class FarmerComplaintController(
     ) => Respond(await service.SubmitResponseAsync(actor.UserId, id, input, ct));
 
     [HttpPost("evidence")]
-    [RequestSizeLimit(5 * 1024 * 1024 + 65536)]
+    [RequestSizeLimit(FarmerComplaintEvidenceRules.MaximumUploadRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = FarmerComplaintEvidenceRules.MaximumVideoBytes)]
     public async Task<IActionResult> UploadEvidence(IFormFile? file, CancellationToken ct)
     {
         if (!await service.CanUploadAsync(actor.UserId, ct))
@@ -49,7 +50,9 @@ public sealed class FarmerComplaintController(
         }
         try
         {
-            return Ok(new { fileUrl = await files.SaveAsync(actor.UserId, file, ct) });
+            return Ok(
+                new { fileUrl = await files.SaveResponseEvidenceAsync(actor.UserId, file, ct) }
+            );
         }
         catch (InvalidDataException)
         {
