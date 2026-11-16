@@ -167,18 +167,11 @@ public sealed class KycVerificationService(
 
         if (user.Status != "Suspended")
         {
-            if (action == "approve" && user.Status == "Pending")
-            {
-                user.Status = "Active";
-            }
-            else if (action == "reject")
-            {
-                user.Status = "Rejected";
-            }
-            else if (action == "request-info")
-            {
-                user.Status = "Pending";
-            }
+            // Khi thẩm định KYC (Approve / Reject / Request-info):
+            // - Trạng thái hồ sơ KYC (VerificationStatus) được cập nhật tương ứng (Approved / Rejected / AdditionalInfoRequired).
+            // - Trạng thái tài khoản người dùng (user.Status) được duy trì là "Active" (hoặc kích hoạt Active nếu trước đó là Pending),
+            //   để người dùng không bị khóa tài khoản mà vẫn có thể đăng nhập, xem thông báo/lý do từ chối và cập nhật lại hồ sơ (Option 2).
+            user.Status = "Active";
         }
 
         var auditAction = action switch
@@ -401,12 +394,7 @@ public sealed class KycVerificationService(
             return "Suspended";
         }
 
-        return verificationStatus switch
-        {
-            VerificationStatuses.Approved => "Active",
-            VerificationStatuses.Rejected => "Rejected",
-            _ => "Pending"
-        };
+        return user.Status;
     }
 
     private static UseCaseResult<T> Denied<T>() => UseCaseResult<T>.Failure(

@@ -96,6 +96,54 @@ public sealed class KycCertificateVerificationTests
         Assert.Equal("Verified", existingVerified.VerificationStatus);
         Assert.Equal("Revoked", revokedCert.VerificationStatus);
         Assert.Equal("Vi phạm tồn dư", revokedCert.RevocationReason);
+        Assert.Equal("Active", farmerUser.Status);
+    }
+
+    [Fact]
+    public async Task ReviewAsync_RejectFarmer_MaintainsActiveStatus_SetsVerificationStatusToRejected_AndRecordsReason()
+    {
+        var repo = new FakeKycRepo();
+        repo.Users[1] = CreateOfficerUser(1);
+        var farmerUser = CreateFarmerUser(10);
+        farmerUser.Status = "Active";
+        repo.Users[10] = farmerUser;
+
+        var service = new KycVerificationService(repo, new FakeActorContext(1), new FakeClock(NowUtc));
+        var result = await service.ReviewAsync(10, new KycReviewDecisionRequest("reject", "Giấy tờ pháp lý không hợp lệ"), default);
+
+        Assert.True(result.IsSuccess);
+        // Option 2: Account is NOT locked out, user remains Active so they can log in and resubmit
+        Assert.Equal("Active", farmerUser.Status);
+        Assert.Equal("Rejected", farmerUser.FarmerProfile!.VerificationStatus);
+        Assert.Equal("Giấy tờ pháp lý không hợp lệ", farmerUser.FarmerProfile.RejectReason);
+        Assert.Equal("Active", result.Value!.AccountStatus);
+        Assert.Equal("Rejected", result.Value.VerificationStatus);
+        Assert.Equal("Giấy tờ pháp lý không hợp lệ", result.Value.Reason);
+        Assert.Single(repo.Notifications);
+        Assert.Single(repo.Audits);
+    }
+
+    [Fact]
+    public async Task ReviewAsync_RequestAdditionalInfo_MaintainsActiveStatus_SetsVerificationStatusToAdditionalInfoRequired()
+    {
+        var repo = new FakeKycRepo();
+        repo.Users[1] = CreateOfficerUser(1);
+        var farmerUser = CreateFarmerUser(10);
+        farmerUser.Status = "Active";
+        repo.Users[10] = farmerUser;
+
+        var service = new KycVerificationService(repo, new FakeActorContext(1), new FakeClock(NowUtc));
+        var result = await service.ReviewAsync(10, new KycReviewDecisionRequest("request-info", "Vui lòng chụp lại ảnh CCCD mặt sau"), default);
+
+        Assert.True(result.IsSuccess);
+        // Option 2: Account is NOT locked out, user remains Active
+        Assert.Equal("Active", farmerUser.Status);
+        Assert.Equal("AdditionalInfoRequired", farmerUser.FarmerProfile!.VerificationStatus);
+        Assert.Equal("Vui lòng chụp lại ảnh CCCD mặt sau", farmerUser.FarmerProfile.RejectReason);
+        Assert.Equal("Active", result.Value!.AccountStatus);
+        Assert.Equal("AdditionalInfoRequired", result.Value.VerificationStatus);
+        Assert.Single(repo.Notifications);
+        Assert.Single(repo.Audits);
     }
 
     [Fact]

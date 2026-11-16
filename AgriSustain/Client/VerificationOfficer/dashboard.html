@@ -1129,11 +1129,10 @@
         }
 
         // Always update local demo store to ensure UI is immediately reflected
+        // Option 2: Account remains Active (not locked out) so user can log in and resubmit KYC
         const nextAccountStatus = selectedDetail.accountStatus === 'Suspended'
           ? 'Suspended'
-          : decisionModal === 'approve'
-            ? 'Active'
-            : (decisionModal === 'reject' ? 'Rejected' : selectedDetail.accountStatus);
+          : 'Active';
 
         const store = readDemoStore();
         const updatedStore = store.map(item => {
