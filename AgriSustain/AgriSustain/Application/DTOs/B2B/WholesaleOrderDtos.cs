@@ -20,13 +20,25 @@ public sealed record WholesaleProductInfoDto(
     string? FarmAvatarUrl,
     IReadOnlyList<WholesalePriceTierDto> PriceTiers,
     WholesaleBuyerCorporateKycDto BuyerKyc,
-    IReadOnlyList<WholesaleAvailableBatchDto>? AvailableBatches = null)
+    IReadOnlyList<WholesaleAvailableBatchDto>? AvailableBatches = null,
+    IReadOnlyList<WholesaleVoucherOptionDto>? AvailableVouchers = null)
 {
     public decimal MinQuantity => WholesaleMinQuantity;
     public string FarmerFarmName => FarmName;
     public string FarmerName => RepresentativeName;
     public string FarmerAddress => FarmAddress;
 }
+
+public sealed record WholesaleVoucherOptionDto(
+    string Code,
+    string DiscountType,
+    decimal DiscountValue,
+    decimal? MaxDiscountAmount,
+    decimal MinOrderAmount,
+    DateTime EndDate,
+    long? FarmerProfileId,
+    string? FarmName,
+    bool Eligible);
 
 public sealed record WholesaleAvailableBatchDto(
     long HarvestBatchId,
@@ -57,7 +69,13 @@ public sealed record WholesalePriceCalculationRequest(
     [property: JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
     long ProductId,
     [property: JsonNumberHandling(JsonNumberHandling.AllowReadingFromString)]
-    decimal Quantity);
+    decimal Quantity,
+    string? ProvinceCode = null,
+    string? DistrictCode = null,
+    string? DeliveryAddress = null,
+    string? DeliveryMethod = null,
+    long? BuyerUserId = null,
+    string? VoucherCode = null);
 
 public sealed record WholesalePriceCalculationResponse(
     decimal Quantity,
@@ -73,7 +91,10 @@ public sealed record WholesalePriceCalculationResponse(
     decimal LogisticsFee,
     decimal FinalTotal,
     bool IsValidQuantity,
-    string? ErrorMessage)
+    string? ErrorMessage,
+    decimal VoucherDiscount = 0m,
+    string? AppliedVoucherCode = null,
+    string? VoucherWarning = null)
 {
     public decimal TotalAmount => FinalTotal;
 }
@@ -100,7 +121,8 @@ public sealed record CreateWholesaleOrderRequest(
     string? RequestKey = null,
     string? DeliveryAddress = null,
     string? PaymentTerms = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? VoucherCode = null);
 
 public sealed record WholesaleOrderConfirmationDto(
     long OrderId,
@@ -126,7 +148,9 @@ public sealed record WholesaleOrderConfirmationDto(
     string PaymentMethod,
     IReadOnlyList<WholesaleBatchAllocationDto> BatchAllocations,
     string Message,
-    DateTime? ReservationExpiresAt = null)
+    DateTime? ReservationExpiresAt = null,
+    decimal VoucherDiscount = 0m,
+    string? VoucherCode = null)
 {
     public decimal TotalQuantity => Quantity;
     public decimal TotalAmount => FinalAmount;

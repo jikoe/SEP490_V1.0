@@ -347,14 +347,14 @@
                 <div class="b2b-card">
                   <div class="card-head">
                     <h3>🏢 Thông Tin Giao Nhận &amp; Xuất Hóa Đơn Doanh Nghiệp (VAT)</h3>
-                    <span style="font-size: 12px; color: #047857; font-weight: 600;">✓ Đồng bộ từ hồ sơ B2B KYC</span>
+                    <span id="kyc-sync-badge" style="font-size: 12px; color: #047857; font-weight: 600;">✓ Đồng bộ từ hồ sơ B2B KYC</span>
                   </div>
 
                   <div class="form-group">
                     <label class="form-label" for="input-delivery-address">
                       Địa chỉ kho đích / Điểm giao hàng <span class="req">*</span>:
                     </label>
-                    <input id="input-delivery-address" type="text" class="form-ctrl" placeholder="Ví dụ: Kho Tổng AgriSustain Tân Bình, 120 Hoàng Hoa Thám, P.12, Q.Tân Bình, TP.HCM">
+                    <input id="input-delivery-address" type="text" class="form-ctrl" placeholder="Ví dụ: Kho Tổng AgriSustain Tân Bình, 120 Hoàng Hoa Thám, P.12, Q.Tân Bình, TP.HCM" oninput="onDeliveryAddressInputChange()">
                     <div id="err-delivery-address" class="inline-error">Vui lòng cung cấp địa chỉ kho giao hàng đích.</div>
                   </div>
 
@@ -451,8 +451,36 @@
                   </div>
 
                   <div class="summary-line">
-                    <span>Phí vận chuyển logistics:</span>
+                    <span>Phí vận chuyển logistics (Goship):</span>
                     <strong><span id="summary-shipping">0</span> ₫</strong>
+                  </div>
+
+                  <div class="summary-line" id="summary-voucher-row" style="color: #059669;">
+                    <span>Giảm giá Voucher:</span>
+                    <strong id="summary-voucher-discount">—</strong>
+                  </div>
+
+                  <!-- Voucher Picker (như mua lẻ) -->
+                  <div id="ws-voucher-picker" style="position:relative; margin:12px 0 6px;">
+                    <label class="form-label" style="font-size:12.5px; margin-bottom:6px; display:block;">🎟️ Mã giảm giá / Voucher:</label>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <button type="button" id="ws-voucher-toggle-btn" onclick="toggleWsVoucherPanel()" style="flex:1; display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border:1px solid #cbd5e1; border-radius:8px; background:#f8fafc; font-size:13px; color:#0f172a; cursor:pointer; text-align:left;">
+                        <span id="ws-voucher-value" style="color:#64748b;">Chọn hoặc nhập mã voucher</span>
+                        <span id="ws-voucher-chevron" style="font-size:11px; color:#64748b; transition:transform 0.2s;">▼</span>
+                      </button>
+                      <button type="button" id="ws-btn-remove-voucher" onclick="applyWsVoucher('')" style="display:none; background:none; border:none; color:#dc2626; cursor:pointer; font-size:12.5px; font-weight:700; padding:4px 6px;">Bỏ</button>
+                    </div>
+
+                    <div id="ws-voucher-panel" style="display:none; flex-direction:column; gap:10px; margin-top:8px; padding:12px; border:1px solid #a7f3d0; border-radius:10px; background:#f0fdf4; box-shadow:0 8px 20px rgba(6,78,59,0.08);">
+                      <div style="display:flex; gap:8px;">
+                        <input id="ws-voucher-input" type="text" maxlength="100" class="form-ctrl" placeholder="Nhập mã voucher (VD: WELCOME10)" style="flex:1; padding:8px 10px; font-size:13px; background:#fff;" oninput="handleWsVoucherInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();applyWsVoucher(this.value);}">
+                        <button type="button" id="ws-btn-apply-voucher" disabled onclick="applyWsVoucher(document.getElementById('ws-voucher-input').value)" style="padding:8px 14px; border-radius:8px; border:1px solid #059669; background:#059669; color:#fff; font-weight:700; font-size:12.5px; cursor:pointer;">Áp dụng</button>
+                      </div>
+                      <div style="font-size:11.5px; font-weight:700; color:#065f46; text-transform:uppercase; letter-spacing:0.3px;">Voucher dành cho bạn</div>
+                      <div id="ws-vouchers-list" style="display:flex; flex-direction:column; gap:6px; max-height:190px; overflow-y:auto;"></div>
+                    </div>
+
+                    <div id="ws-voucher-warning" style="display:none; margin-top:6px; padding:7px 10px; border-radius:7px; background:#fef2f2; border:1px solid #fecaca; color:#b91c1c; font-size:12px; font-weight:600;"></div>
                   </div>
 
                   <div class="summary-divider"></div>
@@ -648,15 +676,15 @@
       <div id="sepay-paid-success-box" style="display:none; text-align:center; padding:28px 16px;">
         <div style="width:68px; height:68px; border-radius:50%; background:#dcfce7; color:#15803d; font-size:36px; font-weight:900; display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">✓</div>
         <h3 style="font-size:22px; font-weight:850; color:#064e3b; margin:0 0 6px;">Đã thanh toán SePay thành công!</h3>
-        <p style="font-size:14px; color:#475569; max-width:520px; margin:0 auto 18px;">
+        <p style="font-size:14px; color:#475569; max-width:520px; margin:0 auto 10px;">
           Giao dịch chuyển khoản <strong id="sepay-succ-amount" style="color:#047857;">0 ₫</strong> cho đơn hàng sỉ <strong id="sepay-succ-code">#WS---</strong> đã được hệ thống SePay xác nhận.
         </p>
+        <p style="font-size:13px; color:#059669; font-weight:600; margin:0 auto 18px;">
+          ⏳ Đang tự động chuyển về trang Danh sách đơn hàng mua sỉ...
+        </p>
         <div style="display:flex; justify-content:center; gap:12px;">
-          <button type="button" class="btn primary" style="background:#064e3b; color:#fff; padding:10px 22px; border-radius:8px; font-weight:700; border:none; cursor:pointer;" onclick="viewCurrentPaidOrderDetail()">
-            📦 Xem chi tiết đơn hàng sỉ
-          </button>
-          <a href="dashboard.html" class="back-link" style="padding:10px 20px;">
-            📊 Về bảng điều khiển mua buôn
+          <a href="orders.html" class="btn primary" style="text-decoration:none; background:#064e3b; color:#fff; padding:10px 22px; border-radius:8px; font-weight:700;">
+            📦 Về danh sách đơn hàng mua sỉ ngay
           </a>
         </div>
       </div>
@@ -756,7 +784,7 @@
   <script src="../js/config.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js"></script>
-  <script src="../js/api.js"></script>
+  <script src="../js/api.js?v=20261116"></script>
   <script src="../js/components.js"></script>
 
   <script>
@@ -987,14 +1015,8 @@
         batchBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#94a3b8;">Không có dữ liệu lô thu hoạch</td></tr>';
       }
 
-      // Prefill Corporate KYC
-      if (data.buyerKyc) {
-        if (data.buyerKyc.companyName) document.getElementById('input-company-name').value = data.buyerKyc.companyName;
-        if (data.buyerKyc.taxCode) document.getElementById('input-tax-code').value = data.buyerKyc.taxCode;
-        if (data.buyerKyc.businessAddress) document.getElementById('input-delivery-address').value = data.buyerKyc.businessAddress;
-        if (data.buyerKyc.representativeName) document.getElementById('input-recipient-name').value = data.buyerKyc.representativeName;
-        if (data.buyerKyc.phoneNumber) document.getElementById('input-recipient-phone').value = data.buyerKyc.phoneNumber;
-      }
+      // Prefill Corporate KYC or Personal Retail Profile
+      syncBuyerFormFields(data);
 
       const initialQty = Math.max(Number(data.minQuantity) || 1, 1);
       selectedQuantity = initialQty;
@@ -1004,7 +1026,180 @@
       qtyInput.max = data.availableStock;
 
       renderTierMatrix(data.priceTiers, selectedQuantity);
+      renderWsVoucherPicker();
       calculatePrice(selectedQuantity);
+    }
+
+    let buyerAddressCodes = { provinceCode: null, districtCode: null };
+    let addrDebounceTimer = null;
+    let selectedVoucherCode = '';
+    let voucherInputText = '';
+    let isVoucherPanelOpen = false;
+
+    function formatWsVoucherTitle(v) {
+      if (v.discountType === 'Percentage') {
+        const maxPart = v.maxDiscountAmount ? ` tối đa ${Number(v.maxDiscountAmount).toLocaleString('vi-VN')} ₫` : '';
+        return `Giảm ${v.discountValue}%${maxPart}`;
+      }
+      return `Giảm ${Number(v.discountValue).toLocaleString('vi-VN')} ₫`;
+    }
+
+    function toggleWsVoucherPanel() {
+      isVoucherPanelOpen = !isVoucherPanelOpen;
+      const panel = document.getElementById('ws-voucher-panel');
+      const chev = document.getElementById('ws-voucher-chevron');
+      if (isVoucherPanelOpen) {
+        if (panel) panel.style.display = 'flex';
+        if (chev) chev.style.transform = 'rotate(180deg)';
+        const input = document.getElementById('ws-voucher-input');
+        if (input) {
+          input.value = voucherInputText || selectedVoucherCode || '';
+          handleWsVoucherInput(input.value);
+          setTimeout(() => input.focus(), 40);
+        }
+        renderWsVoucherList();
+      } else {
+        closeWsVouchers();
+      }
+    }
+
+    function closeWsVouchers() {
+      isVoucherPanelOpen = false;
+      const panel = document.getElementById('ws-voucher-panel');
+      const chev = document.getElementById('ws-voucher-chevron');
+      if (panel) panel.style.display = 'none';
+      if (chev) chev.style.transform = 'none';
+    }
+
+    function handleWsVoucherInput(val) {
+      voucherInputText = val || '';
+      const btn = document.getElementById('ws-btn-apply-voucher');
+      if (btn) {
+        btn.disabled = !voucherInputText.trim();
+        btn.style.opacity = btn.disabled ? '0.55' : '1';
+      }
+    }
+
+    function applyWsVoucher(code) {
+      const next = (code || '').trim();
+      voucherInputText = next;
+      selectedVoucherCode = next;
+      closeWsVouchers();
+      renderWsVoucherPicker();
+      if (selectedQuantity > 0) {
+        calculatePrice(selectedQuantity);
+      }
+    }
+
+    function renderWsVoucherPicker(appliedDiscount = 0) {
+      const valEl = document.getElementById('ws-voucher-value');
+      const btnRemove = document.getElementById('ws-btn-remove-voucher');
+      if (!valEl) return;
+
+      if (selectedVoucherCode) {
+        const discText = appliedDiscount > 0 ? ` · <span style="color:#059669;">−${Number(appliedDiscount).toLocaleString('vi-VN')} ₫</span>` : '';
+        valEl.innerHTML = `<strong style="color:#064e3b;">${selectedVoucherCode}</strong>${discText}`;
+        if (btnRemove) btnRemove.style.display = 'inline-block';
+      } else {
+        valEl.innerHTML = '<span style="color:#64748b;">Chọn hoặc nhập mã voucher</span>';
+        if (btnRemove) btnRemove.style.display = 'none';
+      }
+      renderWsVoucherList();
+    }
+
+    function renderWsVoucherList() {
+      const listEl = document.getElementById('ws-vouchers-list');
+      if (!listEl) return;
+      const vouchers = productInfo?.availableVouchers || [];
+      if (!vouchers.length) {
+        listEl.innerHTML = '<div style="font-size:12px; color:#64748b; padding:6px 2px;">Hiện chưa có voucher hiển thị sẵn. Bạn vẫn có thể nhập mã voucher ở ô phía trên.</div>';
+        return;
+      }
+
+      const currentSubtotal = Number(priceCalculation?.lineSubtotal || (selectedQuantity * (productInfo?.wholesalePrice || 0)));
+
+      listEl.innerHTML = vouchers.map(v => {
+        const isSelected = (v.code || '').toLowerCase() === (selectedVoucherCode || '').toLowerCase();
+        const isEligibleNow = currentSubtotal >= (v.minOrderAmount || 0);
+        const minOrderText = v.minOrderAmount > 0 ? `Đơn từ ${Number(v.minOrderAmount).toLocaleString('vi-VN')} ₫` : 'Không yêu cầu tối thiểu';
+        const farmText = v.farmName ? ` · ${v.farmName}` : ' · Toàn sàn';
+        const expText = v.endDate ? ` · HSD ${new Date(v.endDate).toLocaleDateString('vi-VN')}` : '';
+
+        return `
+          <button type="button" onclick="applyWsVoucher('${isSelected ? '' : v.code}')" ${(!isEligibleNow && !isSelected) ? 'disabled' : ''}
+            style="display:flex; flex-direction:column; gap:3px; padding:8px 10px; border-radius:8px; border:1px solid ${isSelected ? '#059669' : '#cbd5e1'}; background:${isSelected ? '#dcfce7' : '#fff'}; text-align:left; cursor:${(!isEligibleNow && !isSelected) ? 'not-allowed' : 'pointer'}; opacity:${(!isEligibleNow && !isSelected) ? '0.6' : '1'};">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px;">
+              <strong style="color:#064e3b;">${v.code}</strong>
+              <span style="font-weight:700; color:#059669;">${formatWsVoucherTitle(v)}</span>
+            </div>
+            <div style="font-size:11px; color:#64748b;">${minOrderText}${farmText}${expText}</div>
+            ${!isEligibleNow ? '<div style="font-size:11px; color:#dc2626; font-weight:600;">Chưa đủ giá trị đơn hàng tối thiểu</div>' : ''}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function onDeliveryAddressInputChange() {
+      buyerAddressCodes = { provinceCode: null, districtCode: null };
+      clearTimeout(addrDebounceTimer);
+      addrDebounceTimer = setTimeout(() => {
+        if (selectedQuantity > 0) calculatePrice(selectedQuantity);
+      }, 400);
+    }
+
+    async function syncBuyerFormFields(data) {
+      const currentUser = (typeof Auth !== 'undefined' && typeof Auth.getUser === 'function') ? Auth.getUser() : null;
+      const role = currentUser?.role || '';
+      const isB2B = role.toLowerCase() === 'wholesalebuyer';
+      const syncBadge = document.getElementById('kyc-sync-badge');
+
+      if (!isB2B && currentUser) {
+        if (syncBadge) syncBadge.textContent = '✓ Đồng bộ từ hồ sơ cá nhân';
+        const taxInput = document.getElementById('input-tax-code');
+        if (taxInput) taxInput.placeholder = 'Không bắt buộc đối với khách hàng cá nhân';
+
+        // Initial fill from session user
+        document.getElementById('input-recipient-name').value = currentUser.fullName || '';
+        document.getElementById('input-recipient-phone').value = currentUser.phoneNumber || '';
+        document.getElementById('input-company-name').value = currentUser.fullName || '';
+        document.getElementById('input-tax-code').value = '';
+        document.getElementById('input-delivery-address').value = '';
+
+        // Fetch full personal profile & saved delivery address from /api/profile
+        try {
+          const profileRes = await API.getProfile({ suppressErrorToast: true });
+          const p = profileRes?.data || profileRes;
+          if (p && (p.fullName || p.deliveryAddress)) {
+            const addr = p.deliveryAddress;
+            buyerAddressCodes = {
+              provinceCode: addr?.provinceCode || null,
+              districtCode: addr?.districtCode || null
+            };
+            const fullAddr = addr
+              ? [addr.addressDetail, addr.ward, addr.district, addr.provinceCity].filter(Boolean).join(', ')
+              : '';
+            document.getElementById('input-recipient-name').value = addr?.recipientName || p.fullName || currentUser.fullName || '';
+            document.getElementById('input-recipient-phone').value = addr?.recipientPhone || p.phoneNumber || currentUser.phoneNumber || '';
+            document.getElementById('input-company-name').value = p.fullName || currentUser.fullName || '';
+            if (fullAddr) {
+              document.getElementById('input-delivery-address').value = fullAddr;
+            }
+            if (selectedQuantity > 0) {
+              calculatePrice(selectedQuantity);
+            }
+          }
+        } catch (_) {}
+        return;
+      }
+
+      if (syncBadge) syncBadge.textContent = '✓ Đồng bộ từ hồ sơ B2B KYC';
+      if (data.buyerKyc) {
+        if (data.buyerKyc.companyName) document.getElementById('input-company-name').value = data.buyerKyc.companyName;
+        if (data.buyerKyc.taxCode) document.getElementById('input-tax-code').value = data.buyerKyc.taxCode;
+        if (data.buyerKyc.businessAddress) document.getElementById('input-delivery-address').value = data.buyerKyc.businessAddress;
+        if (data.buyerKyc.representativeName) document.getElementById('input-recipient-name').value = data.buyerKyc.representativeName;
+        if (data.buyerKyc.phoneNumber) document.getElementById('input-recipient-phone').value = data.buyerKyc.phoneNumber;
+      }
     }
 
     function renderTierMatrix(tiers, activeQty) {
@@ -1109,10 +1304,16 @@
       const qty = Number(quantity);
       if (!productInfo || !Number.isFinite(qty) || qty <= 0) return;
 
+      const currentAddr = document.getElementById('input-delivery-address')?.value?.trim() || null;
+
       try {
         const res = await API.calculateWholesalePrice({
           productId: Number(productInfo.productId),
-          quantity: qty
+          quantity: qty,
+          deliveryAddress: currentAddr,
+          provinceCode: buyerAddressCodes.provinceCode || null,
+          districtCode: buyerAddressCodes.districtCode || null,
+          voucherCode: selectedVoucherCode || null
         });
         if (res && res.success && res.data) {
           priceCalculation = res.data;
@@ -1130,7 +1331,8 @@
       const subtotal = calc.lineSubtotal ?? calc.subtotal ?? 0;
       const savings = calc.totalSavings ?? calc.savingsVsRetail ?? 0;
       const shipping = calc.logisticsFee ?? calc.estimatedShippingFee ?? 0;
-      const total = calc.finalTotal ?? calc.totalAmount ?? (subtotal + shipping);
+      const voucherDisc = calc.voucherDiscount ?? 0;
+      const total = calc.finalTotal ?? calc.totalAmount ?? Math.max(0, subtotal + shipping - voucherDisc);
 
       document.getElementById('summary-quantity').textContent = Number(qty).toLocaleString('vi-VN');
       document.getElementById('summary-unit-price').textContent = Number(unitPrice).toLocaleString('vi-VN');
@@ -1138,6 +1340,28 @@
       document.getElementById('summary-subtotal').textContent = Number(subtotal).toLocaleString('vi-VN');
       document.getElementById('summary-savings').textContent = Number(savings).toLocaleString('vi-VN');
       document.getElementById('summary-shipping').textContent = Number(shipping).toLocaleString('vi-VN');
+
+      const voucherDiscEl = document.getElementById('summary-voucher-discount');
+      if (voucherDiscEl) {
+        voucherDiscEl.textContent = voucherDisc > 0 ? `−${Number(voucherDisc).toLocaleString('vi-VN')} ₫` : '—';
+      }
+
+      const warnEl = document.getElementById('ws-voucher-warning');
+      if (warnEl) {
+        if (calc.voucherWarning) {
+          warnEl.textContent = calc.voucherWarning;
+          warnEl.style.display = 'block';
+          selectedVoucherCode = '';
+        } else {
+          warnEl.style.display = 'none';
+        }
+      }
+
+      if (calc.appliedVoucherCode) {
+        selectedVoucherCode = calc.appliedVoucherCode;
+      }
+      renderWsVoucherPicker(voucherDisc);
+
       document.getElementById('summary-total').textContent = Number(total).toLocaleString('vi-VN');
     }
 
@@ -1329,11 +1553,16 @@
       }
 
       let hasError = false;
+      const currentUser = (typeof Auth !== 'undefined' && typeof Auth.getUser === 'function') ? Auth.getUser() : null;
+      const isB2B = !currentUser || (currentUser.role || '').toLowerCase() === 'wholesalebuyer';
+
       const address = document.getElementById('input-delivery-address').value.trim();
       const recipientName = document.getElementById('input-recipient-name').value.trim();
       const recipientPhone = document.getElementById('input-recipient-phone').value.trim();
-      const companyName = document.getElementById('input-company-name').value.trim();
-      const taxCode = document.getElementById('input-tax-code').value.trim();
+      const rawCompanyName = document.getElementById('input-company-name').value.trim();
+      const rawTaxCode = document.getElementById('input-tax-code').value.trim();
+      const companyName = rawCompanyName || (!isB2B ? (recipientName || currentUser?.fullName || 'Khách hàng cá nhân') : '');
+      const taxCode = rawTaxCode || (!isB2B ? 'Cá nhân' : '');
       const expectedDate = document.getElementById('input-expected-date').value;
       const notes = document.getElementById('input-notes').value.trim();
 
@@ -1356,8 +1585,15 @@
       validateField(address, 'input-delivery-address', 'err-delivery-address');
       validateField(recipientName, 'input-recipient-name', 'err-recipient-name');
       validateField(recipientPhone, 'input-recipient-phone', 'err-recipient-phone');
-      validateField(companyName, 'input-company-name', 'err-company-name');
-      validateField(taxCode, 'input-tax-code', 'err-tax-code');
+      if (isB2B) {
+        validateField(companyName, 'input-company-name', 'err-company-name');
+        validateField(taxCode, 'input-tax-code', 'err-tax-code');
+      } else {
+        document.getElementById('input-company-name').classList.remove('invalid');
+        document.getElementById('err-company-name').style.display = 'none';
+        document.getElementById('input-tax-code').classList.remove('invalid');
+        document.getElementById('err-tax-code').style.display = 'none';
+      }
 
       if (hasError) {
         alert('Vui lòng điền đầy đủ các trường thông tin kho giao hàng và hóa đơn doanh nghiệp bắt buộc (AF4).');
@@ -1375,6 +1611,8 @@
           quantity: Number(qty),
           warehouseAddress: address,
           deliveryAddress: address,
+          provinceCode: buyerAddressCodes.provinceCode || null,
+          districtCode: buyerAddressCodes.districtCode || null,
           recipientPhone: recipientPhone,
           recipientName: recipientName,
           companyName: companyName,
@@ -1384,6 +1622,7 @@
           orderNotes: notes || null,
           notes: notes || null,
           expectedDeliveryDate: expectedDate ? new Date(expectedDate).toISOString() : null,
+          voucherCode: selectedVoucherCode || null,
           requestKey: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : String(Date.now())
         };
 
@@ -1628,7 +1867,17 @@
       document.getElementById('sepay-succ-code').textContent = `#${orderData.orderCode}`;
       document.getElementById('sepay-paid-success-box').style.display = 'block';
 
-      await loadBuyerWholesaleOrders();
+      const pillEl = document.getElementById('sepay-header-status-pill');
+      if (pillEl) {
+        pillEl.style.background = '#dcfce7';
+        pillEl.style.color = '#166534';
+        pillEl.style.borderColor = '#86efac';
+        pillEl.innerHTML = `✓ Đã thanh toán SePay · Mã đơn #<span id="sepay-badge-code">${orderData.orderCode}</span>`;
+      }
+
+      setTimeout(() => {
+        window.location.href = 'orders.html';
+      }, 1500);
     }
 
     function viewCurrentPaidOrderDetail() {

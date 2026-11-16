@@ -79,6 +79,7 @@ public sealed record ProductModerationCertificateDto(
     string CertificateType,
     string CertificateNumber,
     string IssuedBy,
+    DateOnly? IssueDate,
     DateOnly? ExpiryDate,
     string DocumentUrl,
     string VerificationStatus);

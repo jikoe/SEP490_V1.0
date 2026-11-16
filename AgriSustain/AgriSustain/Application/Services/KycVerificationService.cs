@@ -129,6 +129,13 @@ public sealed class KycVerificationService(
         string previousVerificationStatus = GetCurrentVerificationStatus(user);
         string previousAccountStatus = user.Status;
 
+        if (previousVerificationStatus is VerificationStatuses.Approved or "Verified")
+        {
+            return UseCaseResult<KycReviewResultDto>.Failure(
+                "ALREADY_APPROVED",
+                "Hồ sơ KYC đã ở trạng thái Đã xác minh, không thể thẩm định lại.");
+        }
+
         if (user.FarmerProfile is not null)
         {
             user.FarmerProfile.VerificationStatus = targetStatus;

@@ -35,6 +35,7 @@ public class WholesaleOrderRepository(AgriSustainContext database) : IWholesaleO
     {
         return await _db.Users
             .AsNoTracking()
+            .Include(u => u.DeliveryAddress)
             .SingleOrDefaultAsync(u => u.UserId == userId, cancellationToken);
     }
 
@@ -100,16 +101,11 @@ public class WholesaleOrderRepository(AgriSustainContext database) : IWholesaleO
 
         if (buyerUserId > 0)
         {
-            var userOrders = await query
+            return await query
                 .Where(o => o.BuyerUserId == buyerUserId)
                 .OrderByDescending(o => o.OrderDate)
                 .ThenByDescending(o => o.OrderId)
                 .ToListAsync(cancellationToken);
-
-            if (userOrders.Count > 0)
-            {
-                return userOrders;
-            }
         }
 
         return await query
@@ -122,6 +118,7 @@ public class WholesaleOrderRepository(AgriSustainContext database) : IWholesaleO
     {
         return await _db.Orders
             .Include(o => o.PaymentTransactions)
+            .Include(o => o.VoucherRedemptions)
             .Include(o => o.SellerOrders)
                 .ThenInclude(so => so.FarmerProfile)
             .Include(o => o.SellerOrders)
@@ -140,6 +137,49 @@ public class WholesaleOrderRepository(AgriSustainContext database) : IWholesaleO
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Voucher>> GetActiveVouchersAsync(long farmerProfileId, CancellationToken cancellationToken)
+    {
+        var nowUtc = DateTime.UtcNow;
+        return await _db.Vouchers
+            .AsNoTracking()
+            .Where(v => v.IsActive &&
+                        v.StartDate <= nowUtc &&
+                        v.EndDate > nowUtc &&
+                        (!v.UsageLimit.HasValue || v.UsedCount < v.UsageLimit) &&
+                        (v.FarmerProfileId == null || v.FarmerProfileId == farmerProfileId))
+            .OrderBy(v => v.VoucherCode)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<Voucher?> GetVoucherByCodeAsync(string voucherCode, CancellationToken cancellationToken)
+    {
+        var code = voucherCode.Trim();
+        return _db.Vouchers.SingleOrDefaultAsync(v => v.VoucherCode == code, cancellationToken);
+    }
+
+    public Task<int> GetReservedVoucherCountAsync(long voucherId, CancellationToken cancellationToken)
+    {
+        return _db.VoucherRedemptions.CountAsync(
+            x => x.VoucherId == voucherId && x.Status == "Reserved",
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyDictionary<long, int>> GetCustomerVoucherUsesAsync(long buyerUserId, CancellationToken cancellationToken)
+    {
+        if (buyerUserId <= 0)
+        {
+            return new Dictionary<long, int>();
+        }
+
+        return await _db.VoucherRedemptions
+            .AsNoTracking()
+            .Where(x => x.Order.BuyerUserId == buyerUserId && x.Status != "Released")
+            .GroupBy(x => x.VoucherId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
     }
 }
 

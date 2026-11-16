@@ -1,7 +1,11 @@
+using System.Globalization;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace AgriSustain.Infrastructure.Payments;
@@ -25,14 +29,100 @@ public sealed record BankTransferResult(BankTransferOutcome Outcome, string Tran
 /// Records each bank credit once (keyed by TransactionCode) and confirms the matching retail order
 /// when it is still awaiting payment and the full amount arrived.
 /// </summary>
-public sealed class BankTransferReconciler(AgriSustainContext db, ILogger<BankTransferReconciler> logger)
+public sealed class BankTransferReconciler(
+    AgriSustainContext db,
+    ILogger<BankTransferReconciler> logger,
+    IConfiguration? configuration = null)
 {
+    private static readonly HttpClient SePayHttpClient = new() { Timeout = TimeSpan.FromSeconds(8) };
+    private static DateTime _lastSePayPollUtc = DateTime.MinValue;
+
     // Transfer content is "RC" + the first 16 hex digits of the order code (see QrPaymentScreen);
     // banks may drop the dash or wrap the text with their own prefixes/suffixes.
     private static readonly Regex RetailReference =
         new(@"RC-?([0-9A-F]{16})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex LegacyReference =
         new(@"ORD-?([A-Z0-9]+)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Fallback polling against SePay user API when local ngrok/webhook tunnel is offline.
+    /// </summary>
+    public async Task TrySyncIncomingFromSePayApiAsync(CancellationToken cancellationToken)
+    {
+        var token = configuration?["Payment:SePay:ApiToken"] ?? configuration?["Payouts:SePayApiToken"];
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if ((now - _lastSePayPollUtc).TotalSeconds < 2.5)
+        {
+            return;
+        }
+        _lastSePayPollUtc = now;
+
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, "https://my.sepay.vn/userapi/transactions/list?limit=15");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Trim());
+            using var res = await SePayHttpClient.SendAsync(req, cancellationToken);
+            if (!res.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            using var doc = JsonDocument.Parse(await res.Content.ReadAsStringAsync(cancellationToken));
+            if (!doc.RootElement.TryGetProperty("transactions", out var txArray) || txArray.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+
+            foreach (var item in txArray.EnumerateArray())
+            {
+                string GetStr(string prop) => item.TryGetProperty(prop, out var v) && v.ValueKind != JsonValueKind.Null ? v.ToString() : "";
+
+                if (!decimal.TryParse(GetStr("amount_in"), NumberStyles.Number, CultureInfo.InvariantCulture, out var amountIn) || amountIn <= 0)
+                {
+                    continue;
+                }
+
+                var idStr = GetStr("id");
+                if (string.IsNullOrWhiteSpace(idStr))
+                {
+                    continue;
+                }
+
+                DateTime? paidAt = DateTime.TryParseExact(
+                    GetStr("transaction_date"),
+                    "yyyy-MM-dd HH:mm:ss",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var vnTime)
+                    ? new DateTimeOffset(vnTime, TimeSpan.FromHours(7)).UtcDateTime
+                    : null;
+
+                var content = GetStr("transaction_content");
+                var code = GetStr("code");
+                var refNum = GetStr("reference_number");
+
+                await RecordAsync(
+                    new BankTransfer(
+                        "SePay",
+                        $"SEPAY-{idStr}",
+                        amountIn,
+                        paidAt,
+                        refNum,
+                        item.GetRawText(),
+                        [code, content]),
+                    cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "SePay userapi fallback poll skipped.");
+        }
+    }
 
     public async Task<BankTransferResult> RecordAsync(BankTransfer transfer, CancellationToken cancellationToken)
     {

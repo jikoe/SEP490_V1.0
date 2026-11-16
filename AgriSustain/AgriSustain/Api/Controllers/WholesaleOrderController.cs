@@ -2,16 +2,20 @@ using System.Security.Claims;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.B2B;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Infrastructure.Payments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AgriSustain.Api.Controllers;
 
 [Route("api/b2b/orders")]
-public sealed class WholesaleOrderController(IWholesaleOrderService orderService) : ApiControllerBase
+public sealed class WholesaleOrderController(
+    IWholesaleOrderService orderService,
+    BankTransferReconciler? reconciler = null) : ApiControllerBase
 {
     private const long DefaultDemoWholesaleBuyerUserId = 15; // wholesale1 (Approved KYC)
     private readonly IWholesaleOrderService _orderService = orderService;
+    private readonly BankTransferReconciler? _reconciler = reconciler;
 
     /// <summary>
     /// UC-B2B-01: Lấy thông tin nông sản, bậc giá sỉ và hồ sơ KYC doanh nghiệp của người mua.
@@ -38,7 +42,8 @@ public sealed class WholesaleOrderController(IWholesaleOrderService orderService
         [FromBody] WholesalePriceCalculationRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _orderService.CalculatePricingAsync(request, cancellationToken);
+        var enrichedRequest = request with { BuyerUserId = request.BuyerUserId ?? ResolveBuyerUserId() };
+        var result = await _orderService.CalculatePricingAsync(enrichedRequest, cancellationToken);
         return ToActionResult(result);
     }
 
@@ -79,6 +84,10 @@ public sealed class WholesaleOrderController(IWholesaleOrderService orderService
         string orderCode,
         CancellationToken cancellationToken)
     {
+        if (_reconciler != null)
+        {
+            await _reconciler.TrySyncIncomingFromSePayApiAsync(cancellationToken);
+        }
         var result = await _orderService.GetWholesaleOrderDetailByCodeAsync(orderCode, cancellationToken);
         return ToActionResult(result);
     }
@@ -112,11 +121,9 @@ public sealed class WholesaleOrderController(IWholesaleOrderService orderService
     private long ResolveBuyerUserId()
     {
         var nameId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var role = User.FindFirstValue(ClaimTypes.Role);
         if (!string.IsNullOrEmpty(nameId) &&
             long.TryParse(nameId, out var parsedId) &&
-            parsedId > 0 &&
-            string.Equals(role, "WholesaleBuyer", StringComparison.OrdinalIgnoreCase))
+            parsedId > 0)
         {
             return parsedId;
         }

@@ -131,6 +131,7 @@ public sealed class ProductModerationRepository : IProductModerationRepository
                 certificate.CertificateType,
                 certificate.CertificateNumber,
                 certificate.IssuedBy,
+                certificate.IssueDate,
                 certificate.ExpiryDate,
                 certificate.DocumentUrl,
                 certificate.VerificationStatus))

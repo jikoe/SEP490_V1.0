@@ -1,13 +1,21 @@
+using System.Globalization;
+using System.Text;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.B2B;
+using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Domain.Entities;
 
 namespace AgriSustain.Application.Services.B2B;
 
-public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWholesaleOrderService
+public class WholesaleOrderService(
+    IWholesaleOrderRepository repository,
+    IShippingRateProvider? shippingRateProvider = null,
+    IAddressCatalog? addressCatalog = null) : IWholesaleOrderService
 {
     private readonly IWholesaleOrderRepository _repository = repository;
+    private readonly IShippingRateProvider? _shippingRateProvider = shippingRateProvider;
+    private readonly IAddressCatalog? _addressCatalog = addressCatalog;
 
     public async Task<Result<WholesaleProductInfoDto>> GetWholesaleProductInfoAsync(
         long productId,
@@ -34,17 +42,30 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
         var buyerProfile = await _repository.GetBuyerKycProfileAsync(buyerUserId, cancellationToken);
         var buyerUser = await _repository.GetUserByIdAsync(buyerUserId, cancellationToken);
 
-        var isApprovedKyc = buyerProfile != null &&
-                            string.Equals(buyerProfile.VerificationStatus, "Approved", StringComparison.OrdinalIgnoreCase);
+        var isB2BUser = buyerUser == null || string.Equals(buyerUser.Role, "WholesaleBuyer", StringComparison.OrdinalIgnoreCase);
+        var isApprovedKyc = isB2BUser
+            ? (buyerProfile != null && string.Equals(buyerProfile.VerificationStatus, "Approved", StringComparison.OrdinalIgnoreCase))
+            : (buyerUser != null && string.Equals(buyerUser.Status, "Active", StringComparison.OrdinalIgnoreCase));
+
+        var personalAddr = buyerUser?.DeliveryAddress;
+        var personalAddressText = personalAddr != null
+            ? string.Join(", ", new[] { personalAddr.AddressDetail, personalAddr.Ward, personalAddr.District, personalAddr.ProvinceCity }
+                .Where(s => !string.IsNullOrWhiteSpace(s)))
+            : string.Empty;
 
         var buyerKycDto = new WholesaleBuyerCorporateKycDto(
             UserId: buyerUserId,
-            CompanyName: buyerProfile?.CompanyName ?? string.Empty,
+            CompanyName: buyerProfile?.CompanyName ?? (!isB2BUser ? (buyerUser?.FullName ?? string.Empty) : string.Empty),
             TaxCode: buyerProfile?.TaxCode ?? string.Empty,
-            RepresentativeName: buyerProfile?.RepresentativeName ?? buyerUser?.FullName ?? string.Empty,
-            BusinessAddress: buyerProfile?.BusinessAddress ?? string.Empty,
-            PhoneNumber: buyerUser?.PhoneNumber,
-            VerificationStatus: buyerProfile?.VerificationStatus ?? "NotSubmitted",
+            RepresentativeName: buyerProfile?.RepresentativeName
+                ?? (!string.IsNullOrWhiteSpace(personalAddr?.RecipientName) ? personalAddr.RecipientName : (buyerUser?.FullName ?? string.Empty)),
+            BusinessAddress: !string.IsNullOrWhiteSpace(buyerProfile?.BusinessAddress)
+                ? buyerProfile.BusinessAddress
+                : personalAddressText,
+            PhoneNumber: !string.IsNullOrWhiteSpace(personalAddr?.RecipientPhone)
+                ? personalAddr.RecipientPhone
+                : buyerUser?.PhoneNumber,
+            VerificationStatus: buyerProfile?.VerificationStatus ?? (isApprovedKyc ? "Approved" : "NotSubmitted"),
             IsApprovedKyc: isApprovedKyc);
 
         var batches = await _repository.GetAvailableHarvestBatchesAsync(productId, cancellationToken);
@@ -74,6 +95,31 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
                 Status: b.Status))
             .ToList();
 
+        var activeVouchers = await _repository.GetActiveVouchersAsync(product.FarmerProfileId, cancellationToken);
+        var customerUses = await _repository.GetCustomerVoucherUsesAsync(buyerUserId, cancellationToken);
+        var initialSubtotal = Math.Round(moq * wholesaleBasePrice, 0);
+        var farmName = product.FarmerProfile?.FarmName ?? string.Empty;
+
+        var availableVoucherDtos = activeVouchers
+            .Select(v =>
+            {
+                var usedByCustomer = customerUses.GetValueOrDefault(v.VoucherId);
+                var eligible = initialSubtotal > 0 &&
+                               initialSubtotal >= v.MinOrderAmount &&
+                               usedByCustomer < v.PerCustomerLimit;
+                return new WholesaleVoucherOptionDto(
+                    Code: v.VoucherCode,
+                    DiscountType: v.DiscountType,
+                    DiscountValue: v.DiscountValue,
+                    MaxDiscountAmount: v.MaxDiscountAmount,
+                    MinOrderAmount: v.MinOrderAmount,
+                    EndDate: v.EndDate,
+                    FarmerProfileId: v.FarmerProfileId,
+                    FarmName: v.FarmerProfileId.HasValue ? farmName : null,
+                    Eligible: eligible);
+            })
+            .ToList();
+
         var dto = new WholesaleProductInfoDto(
             ProductId: product.ProductId,
             ProductName: product.ProductName,
@@ -86,13 +132,14 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             PrimaryImageUrl: primaryImage,
             Certifications: certs,
             FarmerProfileId: product.FarmerProfileId,
-            FarmName: product.FarmerProfile?.FarmName ?? string.Empty,
+            FarmName: farmName,
             RepresentativeName: product.FarmerProfile?.RepresentativeName ?? string.Empty,
             FarmAddress: product.FarmerProfile?.Address ?? string.Empty,
             FarmAvatarUrl: product.FarmerProfile?.User?.AvatarUrl,
             PriceTiers: priceTiers,
             BuyerKyc: buyerKycDto,
-            AvailableBatches: availableBatchDtos);
+            AvailableBatches: availableBatchDtos,
+            AvailableVouchers: availableVoucherDtos);
 
         return Result<WholesaleProductInfoDto>.Ok(dto);
     }
@@ -140,8 +187,25 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
 
         const decimal vatRate = 0m;
         var vatAmount = Math.Round(subtotal * vatRate, 0);
-        var logisticsFee = CalculateLogisticsFee(request.Quantity);
-        var finalTotal = subtotal + vatAmount + logisticsFee;
+        var logisticsFee = await ResolveLogisticsFeeAsync(
+            product: product,
+            quantity: request.Quantity,
+            subtotal: subtotal,
+            buyerUserId: request.BuyerUserId,
+            provinceCode: request.ProvinceCode,
+            districtCode: request.DistrictCode,
+            deliveryAddress: request.DeliveryAddress,
+            deliveryMethod: request.DeliveryMethod,
+            cancellationToken: cancellationToken);
+
+        var (_, voucherDiscount, appliedVoucherCode, voucherWarning) = await EvaluateVoucherAsync(
+            voucherCode: request.VoucherCode,
+            subtotal: subtotal,
+            farmerProfileId: product.FarmerProfileId,
+            buyerUserId: request.BuyerUserId ?? 0,
+            cancellationToken: cancellationToken);
+
+        var finalTotal = Math.Max(0m, subtotal + vatAmount + logisticsFee - voucherDiscount);
 
         var response = new WholesalePriceCalculationResponse(
             Quantity: request.Quantity,
@@ -151,13 +215,16 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             ActiveTierName: tierName,
             TierDiscountPercent: discountPercent,
             LineSubtotal: subtotal,
-            TotalSavings: totalSavings,
+            TotalSavings: totalSavings + voucherDiscount,
             VatRate: vatRate,
             VatAmount: vatAmount,
             LogisticsFee: logisticsFee,
             FinalTotal: finalTotal,
             IsValidQuantity: isValid,
-            ErrorMessage: errorMessage);
+            ErrorMessage: errorMessage,
+            VoucherDiscount: voucherDiscount,
+            AppliedVoucherCode: appliedVoucherCode,
+            VoucherWarning: voucherWarning);
 
         return Result<WholesalePriceCalculationResponse>.Ok(response);
     }
@@ -174,8 +241,9 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             return Result<WholesaleOrderConfirmationDto>.Fail("Tài khoản người mua không hợp lệ hoặc đã bị khóa.", 403);
         }
 
+        var isB2BUser = string.Equals(buyerUser.Role, "WholesaleBuyer", StringComparison.OrdinalIgnoreCase);
         var buyerKyc = await _repository.GetBuyerKycProfileAsync(buyerUserId, cancellationToken);
-        if (buyerKyc == null || !string.Equals(buyerKyc.VerificationStatus, "Approved", StringComparison.OrdinalIgnoreCase))
+        if (isB2BUser && (buyerKyc == null || !string.Equals(buyerKyc.VerificationStatus, "Approved", StringComparison.OrdinalIgnoreCase)))
         {
             return Result<WholesaleOrderConfirmationDto>.Fail(
                 "Tài khoản doanh nghiệp chưa hoàn tất duyệt hồ sơ KYC (VerificationStatus phải là 'Approved' để đặt hàng sỉ B2B). Vui lòng gửi và chờ phê duyệt hồ sơ tại trang Hồ Sơ Doanh Nghiệp.",
@@ -192,12 +260,19 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             ? request.OrderNotes
             : request.Notes;
 
+        var companyName = !string.IsNullOrWhiteSpace(request.CompanyName)
+            ? request.CompanyName.Trim()
+            : (!isB2BUser ? buyerUser.FullName : string.Empty);
+        var taxCode = !string.IsNullOrWhiteSpace(request.TaxCode)
+            ? request.TaxCode.Trim()
+            : (!isB2BUser ? "Cá nhân" : string.Empty);
+
         // AF4: Validation for delivery and corporate invoice details
         if (string.IsNullOrWhiteSpace(warehouseAddress) ||
             string.IsNullOrWhiteSpace(request.RecipientName) ||
             string.IsNullOrWhiteSpace(request.RecipientPhone) ||
-            string.IsNullOrWhiteSpace(request.CompanyName) ||
-            string.IsNullOrWhiteSpace(request.TaxCode))
+            string.IsNullOrWhiteSpace(companyName) ||
+            string.IsNullOrWhiteSpace(taxCode))
         {
             return Result<WholesaleOrderConfirmationDto>.Fail(
                 "Vui lòng cung cấp đầy đủ thông tin giao hàng (địa chỉ kho, người nhận, số điện thoại) và thông tin xuất hóa đơn doanh nghiệp (Tên công ty, Mã số thuế).",
@@ -245,10 +320,27 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
         // Pricing calculations (Step 8 & 9)
         var (_, _, unitPrice) = DetermineTier(request.Quantity, moq, wholesaleBasePrice);
         var subtotal = Math.Round(request.Quantity * unitPrice, 0);
-        var logisticsFee = CalculateLogisticsFee(request.Quantity);
+        var logisticsFee = await ResolveLogisticsFeeAsync(
+            product: product,
+            quantity: request.Quantity,
+            subtotal: subtotal,
+            buyerUserId: buyerUserId,
+            provinceCode: request.ProvinceCode,
+            districtCode: request.DistrictCode,
+            deliveryAddress: warehouseAddress,
+            deliveryMethod: "Standard",
+            cancellationToken: cancellationToken);
         const decimal vatRate = 0m;
         var vatAmount = Math.Round(subtotal * vatRate, 0);
-        var finalAmount = subtotal + vatAmount + logisticsFee;
+
+        var (appliedVoucher, voucherDiscount, appliedVoucherCode, _) = await EvaluateVoucherAsync(
+            voucherCode: request.VoucherCode,
+            subtotal: subtotal,
+            farmerProfileId: product.FarmerProfileId,
+            buyerUserId: buyerUserId,
+            cancellationToken: cancellationToken);
+
+        var finalAmount = Math.Max(0m, subtotal + vatAmount + logisticsFee - voucherDiscount);
 
         // Build Order
         var nowUtc = DateTime.UtcNow;
@@ -276,11 +368,13 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             WardNameSnapshot = request.WardName,
             AddressDetailSnapshot = warehouseAddress.Trim(),
             TotalAmount = subtotal,
-            DiscountAmount = 0m,
+            DiscountAmount = voucherDiscount,
+            VoucherDiscount = voucherDiscount,
+            VoucherCodeSnapshot = appliedVoucherCode,
             DeliveryFee = logisticsFee,
             FinalAmount = finalAmount,
             PaymentMethod = paymentMethod,
-            OrderNotes = $"[Hóa đơn DN: {request.CompanyName.Trim()} - MST: {request.TaxCode.Trim()}] " + (orderNotes?.Trim() ?? string.Empty),
+            OrderNotes = $"[Hóa đơn DN: {companyName} - MST: {taxCode}] " + (orderNotes?.Trim() ?? string.Empty),
             CheckoutRequestKey = !string.IsNullOrWhiteSpace(request.RequestKey) ? request.RequestKey : Guid.NewGuid().ToString("N")
         };
 
@@ -290,11 +384,24 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             SellerNameSnapshot = product.FarmerProfile?.FarmName ?? "Nông Trại Cung Ứng",
             SellerOrderCode = $"{orderCode}-1",
             Subtotal = subtotal,
-            DiscountShare = 0m,
+            DiscountShare = voucherDiscount,
             DeliveryFee = logisticsFee,
             FinalAmount = finalAmount,
             Status = "Pending" // Pending Confirmation
         };
+
+        if (appliedVoucher != null && voucherDiscount > 0)
+        {
+            order.VoucherRedemptions.Add(new VoucherRedemption
+            {
+                VoucherId = appliedVoucher.VoucherId,
+                DiscountSnapshot = voucherDiscount,
+                Status = "Reserved",
+                ReservedAt = nowUtc,
+                ExpiresAt = reservationExpiresAt,
+                SellerOrder = appliedVoucher.FarmerProfileId.HasValue ? sellerOrder : null
+            });
+        }
 
         var orderItem = new OrderItem
         {
@@ -396,7 +503,9 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
             PaymentMethod: paymentMethod,
             BatchAllocations: batchAllocations,
             Message: "Đơn hàng sỉ B2B đã được khởi tạo thành công và đang chờ thanh toán SePay (giữ hàng 15 phút).",
-            ReservationExpiresAt: order.ReservationExpiresAt);
+            ReservationExpiresAt: order.ReservationExpiresAt,
+            VoucherDiscount: voucherDiscount,
+            VoucherCode: appliedVoucherCode);
 
         return Result<WholesaleOrderConfirmationDto>.Ok(confirmation);
     }
@@ -528,6 +637,12 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
                         alloc.ReleasedAt = now;
                     }
                 }
+            }
+
+            foreach (var redemption in order.VoucherRedemptions.Where(r => r.Status == "Reserved"))
+            {
+                redemption.Status = "Released";
+                redemption.ReleasedAt = now;
             }
 
             await _repository.SaveChangesAsync(cancellationToken);
@@ -786,10 +901,277 @@ public class WholesaleOrderService(IWholesaleOrderRepository repository) : IWhol
         ];
     }
 
+    private async Task<decimal> ResolveLogisticsFeeAsync(
+        Product product,
+        decimal quantity,
+        decimal subtotal,
+        long? buyerUserId,
+        string? provinceCode,
+        string? districtCode,
+        string? deliveryAddress,
+        string? deliveryMethod,
+        CancellationToken cancellationToken)
+    {
+        if (_shippingRateProvider == null || quantity <= 0)
+        {
+            return CalculateLogisticsFee(quantity);
+        }
+
+        try
+        {
+            var (recipientProvCode, recipientDistCode) = await ResolveGoshipRecipientCodesAsync(
+                buyerUserId, provinceCode, districtCode, deliveryAddress, cancellationToken);
+
+            var pickup = product.FarmerProfile is { HasPickupAddress: true }
+                ? new ShippingPickup(product.FarmerProfile.PickupProvinceCode!, product.FarmerProfile.PickupDistrictCode!)
+                : (_shippingRateProvider.HasPickupAddress(product.FarmerProfileId, null)
+                    ? null
+                    : new ShippingPickup("100000", "100100"));
+
+            var (normalizedUnit, normalizedQty) = NormalizeShippingUnit(product.Unit, quantity);
+            var lines = new List<ShippingPackageLine> { new(normalizedUnit, normalizedQty) };
+            var method = string.IsNullOrWhiteSpace(deliveryMethod) ? "Standard" : deliveryMethod.Trim();
+
+            var recipient = new CheckoutAddress(
+                RecipientName: "Wholesale Buyer",
+                Phone: "0900000000",
+                ProvinceCode: recipientProvCode,
+                Province: string.Empty,
+                DistrictCode: recipientDistCode,
+                District: string.Empty,
+                WardCode: string.Empty,
+                Ward: string.Empty,
+                Detail: deliveryAddress ?? string.Empty);
+
+            var rateResult = await _shippingRateProvider.GetRateAsync(
+                new ShippingRateRequest(
+                    FarmerProfileId: product.FarmerProfileId,
+                    Recipient: recipient,
+                    Lines: lines,
+                    DeclaredValue: Math.Max(subtotal, 1000m),
+                    DeliveryMethod: method,
+                    Pickup: pickup),
+                cancellationToken);
+
+            // Goship SANDBOX only prices parcels sent from Ha Noi (100000/100100) or TP.HCM (700000/700100).
+            // When a farm's DB profile has a provincial pickup code (e.g. An Giang 880000, Lam Dong 670000),
+            // Goship Sandbox returns 0 rates (IsSupported = false). Retry with the configured sandbox pickup.
+            if (rateResult is not { IsSupported: true, Fee: >= 0 })
+            {
+                var sandboxPickup = new ShippingPickup("100000", "100100");
+                rateResult = await _shippingRateProvider.GetRateAsync(
+                    new ShippingRateRequest(
+                        FarmerProfileId: product.FarmerProfileId,
+                        Recipient: recipient,
+                        Lines: lines,
+                        DeclaredValue: Math.Max(subtotal, 1000m),
+                        DeliveryMethod: method,
+                        Pickup: sandboxPickup),
+                    cancellationToken);
+            }
+
+            if (rateResult is { IsSupported: true, Fee: >= 0 })
+            {
+                return Math.Round(rateResult.Fee.Value, 0);
+            }
+        }
+        catch
+        {
+            // Fallback to tier formula if external Goship call fails
+        }
+
+        return CalculateLogisticsFee(quantity);
+    }
+
+    private async Task<(string ProvinceCode, string DistrictCode)> ResolveGoshipRecipientCodesAsync(
+        long? buyerUserId,
+        string? provinceCode,
+        string? districtCode,
+        string? deliveryAddress,
+        CancellationToken cancellationToken)
+    {
+        string? addrText = deliveryAddress;
+        string? provCode = provinceCode?.Trim();
+        string? distCode = districtCode?.Trim();
+
+        if (buyerUserId is > 0 && (string.IsNullOrWhiteSpace(addrText) || !IsGoshipCode(provCode) || !IsGoshipCode(distCode)))
+        {
+            var buyerUser = await _repository.GetUserByIdAsync(buyerUserId.Value, cancellationToken);
+            var buyerKyc = await _repository.GetBuyerKycProfileAsync(buyerUserId.Value, cancellationToken);
+            var savedAddr = buyerUser?.DeliveryAddress;
+
+            if (savedAddr != null)
+            {
+                if (string.IsNullOrWhiteSpace(provCode)) provCode = savedAddr.ProvinceCode;
+                if (string.IsNullOrWhiteSpace(distCode)) distCode = savedAddr.DistrictCode;
+                if (string.IsNullOrWhiteSpace(addrText))
+                {
+                    addrText = string.Join(", ", new[] { savedAddr.AddressDetail, savedAddr.Ward, savedAddr.District, savedAddr.ProvinceCity }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(addrText) && !string.IsNullOrWhiteSpace(buyerKyc?.BusinessAddress))
+            {
+                addrText = buyerKyc.BusinessAddress;
+            }
+        }
+
+        if (IsGoshipCode(provCode) && IsGoshipCode(distCode))
+        {
+            return (provCode!, distCode!);
+        }
+
+        // Try matching via GoshipAddressCatalog if available
+        if (_addressCatalog != null && !string.IsNullOrWhiteSpace(addrText))
+        {
+            var provinces = await _addressCatalog.GetProvincesAsync(cancellationToken);
+            if (provinces.Count > 0)
+            {
+                var normText = NormalizePlaceText(addrText);
+                var matchedProv = provinces.FirstOrDefault(p =>
+                    normText.Contains(NormalizePlaceText(p.Name), StringComparison.OrdinalIgnoreCase));
+
+                if (matchedProv == null)
+                {
+                    if (normText.Contains("hcm") || normText.Contains("ho chi minh") || normText.Contains("sai gon"))
+                        matchedProv = provinces.FirstOrDefault(p => p.Code == "700000" || NormalizePlaceText(p.Name).Contains("ho chi minh"));
+                    else if (normText.Contains("ha noi") || (provCode != null && provCode.StartsWith("HN", StringComparison.OrdinalIgnoreCase)))
+                        matchedProv = provinces.FirstOrDefault(p => p.Code == "100000" || NormalizePlaceText(p.Name).Contains("ha noi"));
+                }
+
+                if (matchedProv != null)
+                {
+                    var districts = await _addressCatalog.GetDistrictsAsync(matchedProv.Code, cancellationToken);
+                    if (districts.Count > 0)
+                    {
+                        var matchedDist = districts.FirstOrDefault(d =>
+                            normText.Contains(NormalizePlaceText(d.Name), StringComparison.OrdinalIgnoreCase))
+                            ?? districts[0];
+                        return (matchedProv.Code, matchedDist.Code);
+                    }
+                }
+            }
+        }
+
+        // Built-in Goship v2 province/district fallback mapping
+        var combined = NormalizePlaceText($"{provCode} {addrText}");
+        if (combined.Contains("ha noi") || combined.Contains("hn-01") || combined.Contains("thanh xuan") || combined.Contains("ba dinh") || combined.Contains("cau giay"))
+            return ("100000", "100100");
+        if (combined.Contains("da nang") || combined.Contains("dn-48") || combined.Contains("hai chau"))
+            return ("550000", "550100");
+        if (combined.Contains("hai phong") || combined.Contains("hp-31") || combined.Contains("ngo quyen"))
+            return ("180000", "180100");
+        if (combined.Contains("can tho") || combined.Contains("ct-92") || combined.Contains("ninh kieu"))
+            return ("900000", "900100");
+
+        // Default to TP. Hồ Chí Minh (700000 / 700100)
+        return ("700000", "700100");
+    }
+
+    private static bool IsGoshipCode(string? code) =>
+        !string.IsNullOrWhiteSpace(code) && code.Length >= 4 && code.All(char.IsDigit);
+
+    private static (string Unit, decimal Quantity) NormalizeShippingUnit(string? unit, decimal quantity)
+    {
+        var u = (unit ?? "kg").Trim().ToLowerInvariant();
+        return u switch
+        {
+            "g" or "gram" or "grams" => ("g", quantity),
+            "kg" or "kilogram" or "kilograms" => ("kg", quantity),
+            "yến" or "yen" => ("kg", quantity * 10m),
+            "tạ" or "ta" => ("kg", quantity * 100m),
+            "tấn" or "tan" => ("kg", quantity * 1000m),
+            _ => ("kg", quantity)
+        };
+    }
+
+    private static string NormalizePlaceText(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+        var decomposed = input.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(decomposed.Length);
+        foreach (var ch in decomposed)
+        {
+            var cat = CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (cat != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(ch switch
+                {
+                    'đ' => 'd',
+                    'Đ' => 'd',
+                    _ => char.ToLowerInvariant(ch)
+                });
+            }
+        }
+        return sb.ToString()
+            .Replace("thanh pho ", "")
+            .Replace("tp.", "")
+            .Replace("tp ", "")
+            .Replace("tinh ", "")
+            .Replace("quan ", "")
+            .Replace("huyen ", "")
+            .Trim();
+    }
+
+    private async Task<(Voucher? Voucher, decimal Discount, string? AppliedCode, string? Warning)> EvaluateVoucherAsync(
+        string? voucherCode,
+        decimal subtotal,
+        long farmerProfileId,
+        long buyerUserId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(voucherCode))
+        {
+            return (null, 0m, null, null);
+        }
+
+        var code = voucherCode.Trim();
+        var voucher = await _repository.GetVoucherByCodeAsync(code, cancellationToken);
+        var nowUtc = DateTime.UtcNow;
+
+        if (voucher == null ||
+            !voucher.IsActive ||
+            voucher.StartDate > nowUtc ||
+            voucher.EndDate <= nowUtc ||
+            subtotal <= 0 ||
+            voucher.DiscountValue <= 0 ||
+            voucher.DiscountType is not ("Percentage" or "FixedAmount") ||
+            (voucher.DiscountType == "Percentage" && voucher.DiscountValue > 100) ||
+            (voucher.FarmerProfileId.HasValue && voucher.FarmerProfileId.Value != farmerProfileId))
+        {
+            return (null, 0m, null, "MSG116: Voucher không hợp lệ hoặc không áp dụng cho nông trại này; đã bỏ giảm giá.");
+        }
+
+        if (subtotal < voucher.MinOrderAmount)
+        {
+            return (null, 0m, null, $"Đơn hàng chưa đạt giá trị tối thiểu {voucher.MinOrderAmount:N0} ₫ để áp dụng mã {voucher.VoucherCode}.");
+        }
+
+        var reserved = await _repository.GetReservedVoucherCountAsync(voucher.VoucherId, cancellationToken);
+        if (voucher.UsageLimit.HasValue && voucher.UsedCount + reserved >= voucher.UsageLimit.Value)
+        {
+            return (null, 0m, null, $"Mã voucher {voucher.VoucherCode} đã hết lượt sử dụng.");
+        }
+
+        var customerUses = await _repository.GetCustomerVoucherUsesAsync(buyerUserId, cancellationToken);
+        if (customerUses.GetValueOrDefault(voucher.VoucherId) >= voucher.PerCustomerLimit)
+        {
+            return (null, 0m, null, $"Bạn đã sử dụng hết lượt áp dụng cho mã voucher {voucher.VoucherCode}.");
+        }
+
+        var rawDiscount = voucher.DiscountType == "Percentage"
+            ? Math.Round(subtotal * voucher.DiscountValue / 100m, 0)
+            : Math.Round(voucher.DiscountValue, 0);
+
+        var discount = Math.Min(subtotal, Math.Min(rawDiscount, voucher.MaxDiscountAmount ?? subtotal));
+        return (voucher, discount, voucher.VoucherCode, null);
+    }
+
     private static decimal CalculateLogisticsFee(decimal quantity)
     {
-        if (quantity < 500) return 250_000m;
-        if (quantity <= 2000) return 600_000m;
-        return 1_200_000m;
+        if (quantity <= 0) return 0m;
+        var blocksOf100Kg = Math.Ceiling(quantity / 100m);
+        return Math.Max(150_000m, blocksOf100Kg * 125_000m);
     }
 }
