@@ -90,10 +90,7 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
 
             string normalizedStatus = NormalizeStatusForClient(rawStatus);
 
-            var accountStatus = user.Status == "Suspended" ? "Suspended"
-                : (normalizedStatus == VerificationStatuses.Approved ? "Active"
-                    : normalizedStatus == VerificationStatuses.Rejected ? "Rejected"
-                    : "Pending");
+            var accountStatus = user.Status == "Suspended" ? "Suspended" : user.Status;
 
             var organizationName = farm?.FarmName ?? wholesale?.CompanyName ?? user.FullName;
             var representativeName = farm?.RepresentativeName ?? wholesale?.RepresentativeName ?? user.FullName;
@@ -197,10 +194,7 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
 
         string verificationStatus = NormalizeStatusForClient(rawVerificationStatus);
 
-        string accountStatus = user.Status == "Suspended" ? "Suspended"
-            : (verificationStatus == VerificationStatuses.Approved ? "Active"
-                : verificationStatus == VerificationStatuses.Rejected ? "Rejected"
-                : "Pending");
+        string accountStatus = user.Status == "Suspended" ? "Suspended" : user.Status;
 
         var documents = new List<KycDocumentDto>();
         if (farm is not null && farm.FarmCertificates.Count > 0)
