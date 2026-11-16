@@ -200,6 +200,9 @@ builder.Services.AddSingleton<IDossierStorage>(services =>
     services.GetRequiredService<AgriSustain.Infrastructure.FileStorage.DossierStorage>());
 builder.Services.AddScoped<AgriSustain.Application.Services.BusinessProfiles.IBusinessProfileRepository, AgriSustain.Infrastructure.Repositories.BusinessProfileRepository>();
 builder.Services.AddScoped<AgriSustain.Application.Services.BusinessProfiles.IBusinessProfileService, AgriSustain.Application.Services.BusinessProfiles.BusinessProfileService>();
+// UC-AUTH-02: e-mail the Verification Officers when a business dossier is submitted.
+if (builder.Configuration.GetValue("Kyc:EnableNotificationWorker", true))
+    builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.KycReviewNotificationWorker>();
 builder.Services.AddScoped<AgriSustain.Application.Services.Certificates.IFarmCertificateRepository,
     AgriSustain.Infrastructure.Repositories.FarmCertificateRepository>();
 builder.Services.AddScoped<AgriSustain.Application.Services.Certificates.IFarmCertificateService,

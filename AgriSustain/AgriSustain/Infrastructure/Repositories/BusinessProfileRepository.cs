@@ -20,8 +20,15 @@ public sealed class BusinessProfileRepository(AgriSustainContext db) : IBusiness
     public Task<bool> TaxCodeTakenAsync(string taxCode, long userId, CancellationToken cancellationToken) =>
         db.WholesaleBuyerProfiles.AnyAsync(p => p.TaxCode == taxCode && p.UserId != userId, cancellationToken);
 
+    public async Task<IReadOnlyList<long>> GetVerificationOfficerIdsAsync(CancellationToken cancellationToken) =>
+        await db.Users.AsNoTracking()
+            .Where(u => u.Status == "Active" && (u.Role == "VerificationOfficer" || u.Role == "Verification Officer"))
+            .Select(u => u.UserId)
+            .ToListAsync(cancellationToken);
+
     public async Task<BusinessProfileDto> SubmitAsync(long userId, SubmitBusinessProfileRequest request,
-        string? documentUrl, DateTime now, CancellationToken cancellationToken)
+        string? documentUrl, DateTime now, IReadOnlyCollection<Notification> notifications,
+        CancellationToken cancellationToken)
     {
         var profile = await db.WholesaleBuyerProfiles.FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken);
         string oldStatus = profile?.VerificationStatus ?? VerificationStatuses.NotSubmitted;
@@ -54,6 +61,7 @@ public sealed class BusinessProfileRepository(AgriSustainContext db) : IBusiness
             }),
             OccurredAt = now
         });
+        db.Notifications.AddRange(notifications);
         await db.SaveChangesAsync(cancellationToken);
 
         return new BusinessProfileDto(profile.CompanyName, profile.TaxCode, profile.RepresentativeName,

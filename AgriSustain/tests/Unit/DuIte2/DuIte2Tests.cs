@@ -88,10 +88,72 @@ public sealed class BusinessProfileServiceTests
     public async Task Submit_WrongRole() =>
         Assert.Equal("FORBIDDEN", (await Service("RetailCustomer").SubmitAsync(Valid(), Save, default)).Error!.Code);
 
+    [Fact(DisplayName = "UTC-B2B09 Submitting notifies every Verification Officer in-app and by email")]
+    public async Task Submit_NotifiesOfficers()
+    {
+        _repo.OfficerIds.AddRange([5, 6]);
+
+        await Service().SubmitAsync(Valid(), Save, default);
+
+        Assert.Equal(4, _repo.Notifications.Count);
+        foreach (long officer in new long[] { 5, 6 })
+        {
+            var mine = _repo.Notifications.Where(n => n.UserId == officer).ToList();
+            Assert.Equal("Sent", Assert.Single(mine, n => n.DeliveryChannel == "InApp").DeliveryStatus);
+            Assert.Equal("Pending", Assert.Single(mine, n => n.DeliveryChannel == "Email").DeliveryStatus);
+        }
+        var notice = _repo.Notifications[0];
+        Assert.Equal(BusinessProfileNotifications.Type, notice.NotificationType);
+        Assert.Equal(BusinessProfileNotifications.Title, notice.Title);
+        Assert.Equal("User", notice.RelatedRecordType);
+        Assert.Equal(77L, notice.RelatedRecordId);
+        Assert.Contains("Organic Mart", notice.Content);
+        Assert.Contains("MST 0101234567", notice.Content);
+        Assert.Contains("01/11/2026 10:00", notice.Content);
+    }
+
+    [Fact(DisplayName = "UTC-B2B10 A rejected submission sends no notification")]
+    public async Task Submit_Invalid_NoNotification()
+    {
+        _repo.OfficerIds.Add(5);
+        _repo.OtherTaxCodes.Add("0101234567");
+
+        await Service().SubmitAsync(Valid(), Save, default);
+        await Service().SubmitAsync(Valid("12345"), Save, default);
+
+        Assert.Empty(_repo.Notifications);
+    }
+
+    [Fact(DisplayName = "UTC-B2B11 Without an Active officer the dossier is still saved")]
+    public async Task Submit_NoOfficer_StillSaved()
+    {
+        var result = await Service().SubmitAsync(Valid(), Save, default);
+
+        Assert.Equal("PendingApproval", result.Value!.VerificationStatus);
+        Assert.Empty(_repo.Notifications);
+    }
+
+    [Fact(DisplayName = "UTC-B2B12 A resubmitted dossier notifies the officers again")]
+    public async Task Resubmit_NotifiesAgain()
+    {
+        _repo.OfficerIds.Add(5);
+        await Service().SubmitAsync(Valid(), Save, default);
+        _repo.Profile = _repo.Profile! with { VerificationStatus = "Rejected", RejectReason = "Ảnh mờ" };
+
+        await Service().SubmitAsync(Valid(), null, default);
+
+        Assert.Equal(4, _repo.Notifications.Count);
+    }
+
     private sealed class FakeBusinessRepository : IBusinessProfileRepository
     {
         public BusinessProfileDto? Profile { get; set; }
         public HashSet<string> OtherTaxCodes { get; } = [];
+        public List<long> OfficerIds { get; } = [];
+        public List<AgriSustain.Domain.Entities.Notification> Notifications { get; } = [];
+
+        public Task<IReadOnlyList<long>> GetVerificationOfficerIdsAsync(CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<long>>(OfficerIds.ToList());
 
         public Task<BusinessProfileDto?> GetAsync(long userId, CancellationToken ct) => Task.FromResult(Profile);
 
@@ -99,8 +161,9 @@ public sealed class BusinessProfileServiceTests
             Task.FromResult(OtherTaxCodes.Contains(taxCode));
 
         public Task<BusinessProfileDto> SubmitAsync(long userId, SubmitBusinessProfileRequest r, string? documentUrl,
-            DateTime now, CancellationToken ct)
+            DateTime now, IReadOnlyCollection<AgriSustain.Domain.Entities.Notification> notifications, CancellationToken ct)
         {
+            Notifications.AddRange(notifications);
             Profile = new BusinessProfileDto(r.CompanyName, r.TaxCode, r.RepresentativeName, r.BusinessType,
                 r.BusinessAddress, documentUrl ?? Profile?.DocumentUrl, "PendingApproval", null);
             return Task.FromResult(Profile);

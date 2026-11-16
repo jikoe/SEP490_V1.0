@@ -1,4 +1,7 @@
+using System.Globalization;
+using System.Text.Json;
 using AgriSustain.Application.Common;
+using AgriSustain.Domain.Entities;
 using FluentValidation;
 using ICurrentActor = AgriSustain.Application.Interfaces.ICurrentActor;
 
@@ -6,6 +9,7 @@ namespace AgriSustain.Application.Services.BusinessProfiles;
 
 // UC-AUTH-02 Register WholesaleBuyer Account, part 2: after signing up as a WholesaleBuyer
 // (UC-AUTH-01 + OTP), the buyer submits the company dossier from the Profile screen for KYC review.
+// Every Active Verification Officer is told about the new dossier in-app and by email.
 
 /// <summary>Company dossier of the signed-in WholesaleBuyer; fields are null before the first submission.</summary>
 public sealed record BusinessProfileDto(
@@ -60,12 +64,16 @@ public interface IBusinessProfileRepository
     /// <summary>True when another buyer already uses the tax code.</summary>
     Task<bool> TaxCodeTakenAsync(string taxCode, long userId, CancellationToken cancellationToken);
 
+    /// <summary>User ids of the Active Verification Officers who review KYC dossiers (UC-VO-01).</summary>
+    Task<IReadOnlyList<long>> GetVerificationOfficerIdsAsync(CancellationToken cancellationToken);
+
     /// <summary>
     /// Creates or updates the WholesaleBuyerProfile with VerificationStatus = PendingApproval,
     /// clears the previous reject reason and writes an audit entry. A null document keeps the old one.
+    /// <paramref name="notifications"/> are saved with the audit entry; e-mail rows are sent later by a worker.
     /// </summary>
     Task<BusinessProfileDto> SubmitAsync(long userId, SubmitBusinessProfileRequest request, string? documentUrl,
-        DateTime now, CancellationToken cancellationToken);
+        DateTime now, IReadOnlyCollection<Notification> notifications, CancellationToken cancellationToken);
 }
 
 public interface IBusinessProfileService
@@ -156,8 +164,11 @@ public sealed class BusinessProfileService(
             request.CompanyName.Trim(), taxCode, request.RepresentativeName.Trim(),
             string.IsNullOrWhiteSpace(request.BusinessType) ? null : request.BusinessType.Trim(),
             request.BusinessAddress.Trim());
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var officers = await repository.GetVerificationOfficerIdsAsync(cancellationToken);
+        var notifications = BusinessProfileNotifications.ForOfficers(officers, currentActor.UserId, normalized, now);
         return Result<BusinessProfileDto>.SuccessResult(await repository.SubmitAsync(
-            currentActor.UserId, normalized, documentUrl, timeProvider.GetUtcNow().UtcDateTime, cancellationToken));
+            currentActor.UserId, normalized, documentUrl, now, notifications, cancellationToken));
     }
 
     private static readonly BusinessProfileDto Empty =
@@ -169,4 +180,40 @@ public sealed class BusinessProfileService(
             : currentActor.Role != BusinessProfileRules.Role
                 ? new Error("FORBIDDEN", "Chức năng chỉ dành cho tài khoản mua sỉ (WholesaleBuyer).", "Forbidden")
                 : null;
+}
+
+/// <summary>Notices that tell Verification Officers a business dossier is waiting for KYC review.</summary>
+public static class BusinessProfileNotifications
+{
+    public const string Type = "KycReviewRequest";
+    public const string Title = "Có hồ sơ doanh nghiệp cần thẩm định KYC";
+
+    /// <summary>One in-app notice (shown under the bell) and one e-mail per officer.</summary>
+    public static IReadOnlyCollection<Notification> ForOfficers(IEnumerable<long> officerIds, long buyerUserId,
+        SubmitBusinessProfileRequest dossier, DateTime now)
+    {
+        string content = $"Doanh nghiệp {dossier.CompanyName} (MST {dossier.TaxCode}) đã gửi hồ sơ KYC lúc "
+            + now.AddHours(7).ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)
+            + ". Vui lòng mở màn hình Thẩm định KYC để xem xét.";
+        string payload = JsonSerializer.Serialize(new
+        {
+            EventKey = $"kyc-submit:{buyerUserId}:{now.Ticks}",
+            ReviewPath = $"/VerificationOfficer/kyc.html?userId={buyerUserId}"
+        });
+        return officerIds.Distinct()
+            .SelectMany(officer => new[] { "InApp", "Email" }.Select(channel => new Notification
+            {
+                UserId = officer,
+                Title = Title,
+                Content = content,
+                NotificationType = Type,
+                DeliveryChannel = channel,
+                DeliveryStatus = channel == "InApp" ? "Sent" : "Pending",
+                SentAt = now,
+                RelatedRecordType = "User",
+                RelatedRecordId = buyerUserId,
+                PayloadJson = payload
+            }))
+            .ToList();
+    }
 }
