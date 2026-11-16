@@ -21,7 +21,10 @@ public sealed record OrderSummaryDto(
     string RecipientPhone,
     string ShippingAddress,
     string? TrackingNumber,
-    IReadOnlyList<SellerOrderGroupDto> SellerOrders);
+    IReadOnlyList<SellerOrderGroupDto> SellerOrders,
+    bool HasComplaints = false,
+    bool ComplaintNeedsResponse = false,
+    bool CanSubmitComplaint = false);
 
 public sealed record SellerOrderGroupDto(
     long SellerOrderId,
@@ -66,7 +69,10 @@ public sealed record OrderDetailDto(
     IReadOnlyList<OrderStatusTimelineDto> Timeline,
     DateTimeOffset? DeliveredAt = null,
     DateTimeOffset? ReservationExpiresAt = null,
-    IReadOnlyList<string>? AllowedActions = null);
+    IReadOnlyList<string>? AllowedActions = null,
+    bool HasComplaints = false,
+    bool ComplaintNeedsResponse = false,
+    bool CanSubmitComplaint = false);
 
 /// <summary>Post-order actions shown on the Order Details screen (SRS UC-RC-04 step 7).</summary>
 public static class OrderActions

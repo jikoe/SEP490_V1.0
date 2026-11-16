@@ -1,6 +1,8 @@
+using System.Text.Json;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Services.Complaints;
 using AgriSustain.Application.Validators;
 using AgriSustain.Domain.Entities;
 
@@ -155,15 +157,16 @@ public sealed class OrderFeedbackService(
                 saved.Add(await storage.SaveAsync(userId, file, cancellationToken));
             }
             var complaints = new List<DisputeTicket>();
-            foreach (var sellerItems in items.GroupBy(item => item.SellerOrderId))
+            foreach (var sellerItems in items.GroupBy(item => item.SellerOrder))
             {
                 var complaint = new DisputeTicket
                 {
                     SubmittedByUserId = userId,
-                    SellerOrderId = sellerItems.Key,
+                    SellerOrder = sellerItems.Key,
+                    SellerOrderId = sellerItems.Key.SellerOrderId,
                     DisputeReason = request.Reason!,
                     Description = OrderFeedbackRules.DescribeComplaint(sellerItems, request.Description!),
-                    TicketStatus = "Open",
+                    TicketStatus = DisputeTicket.StatusOpen,
                     CreatedAt = now
                 };
                 foreach (string url in saved)
@@ -177,6 +180,11 @@ public sealed class OrderFeedbackService(
                 }
                 repository.Add(complaint);
                 complaints.Add(complaint);
+            }
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            foreach (var complaint in complaints)
+            {
+                RequestFarmerExplanation(complaint, now);
             }
             await unitOfWork.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -207,6 +215,44 @@ public sealed class OrderFeedbackService(
                 storage.Delete(userId, saved);
             }
         }
+    }
+
+    private void RequestFarmerExplanation(DisputeTicket ticket, DateTime now)
+    {
+        long id = ticket.DisputeTicketId;
+        long farmerId = ticket.SellerOrder!.FarmerProfile.UserId;
+        var request = ticket.RequestFarmerExplanation(
+            farmerId, now, ComplaintResolutionService.EvidenceResponseWindow);
+        string deadline = $"{request.ResponseDeadline.AddHours(7):dd/MM/yyyy HH:mm} (UTC+7)";
+        string content = $"Khiếu nại #{id} cần bổ sung bằng chứng. "
+            + $"Vui lòng gửi giải trình và bằng chứng trước {deadline}.";
+        foreach (var notice in ComplaintNotifications.Create(
+            farmerId, id, "Yêu cầu giải trình khiếu nại", content, now))
+        {
+            repository.AddNotification(notice);
+        }
+        repository.AddAudit(new AuditLog
+        {
+            EntityType = "DisputeTicket",
+            EntityId = id,
+            Action = "SubmitComplaint",
+            NewValue = JsonSerializer.Serialize(new { ticket.SubmittedByUserId, ticket.SellerOrderId }),
+            OccurredAt = now
+        });
+        repository.AddAudit(new AuditLog
+        {
+            EntityType = "DisputeTicket",
+            EntityId = id,
+            Action = "RequestComplaintInformation",
+            OldValue = DisputeTicket.StatusOpen,
+            NewValue = JsonSerializer.Serialize(new
+            {
+                ticket.TicketStatus,
+                request.RequestedPartyUserId,
+                request.DueAt
+            }),
+            OccurredAt = now
+        });
     }
 
     private static Result<ComplaintSubmissionResponse> ComplaintFailure(

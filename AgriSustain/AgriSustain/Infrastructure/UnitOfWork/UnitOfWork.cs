@@ -21,13 +21,13 @@ public sealed class UnitOfWork : IUnitOfWork, AgriSustain.Application.Interfaces
     public IProfileRepository Profiles { get; }
     public IOrderTrackingRepository Orders { get; }
 
-    public UnitOfWork(AgriSustainContext db, SqlDemoDependencies demoStore)
+    public UnitOfWork(AgriSustainContext db, SqlDemoDependencies demoStore, TimeProvider? clock = null)
     {
         _db = db;
         _demoStore = demoStore;
         Auth = new AuthRepository(db, demoStore);
         Profiles = new ProfileRepository(db);
-        Orders = new OrderTrackingRepository(db);
+        Orders = new OrderTrackingRepository(db, clock ?? TimeProvider.System);
     }
 
     public async Task<Result<T>> ReadAsync<T>(

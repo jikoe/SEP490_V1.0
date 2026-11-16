@@ -30,6 +30,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         timeZone: "Asia/Ho_Chi_Minh",
       });
       card.append(title, content, time);
+      if (item.relatedRecordType === "CustomerComplaintRequest" && item.relatedRecordId > 0) {
+        const link = document.createElement("a");
+        link.href = "../RetailCustomer/complaints.html?id=" + encodeURIComponent(item.relatedRecordId);
+        link.textContent = "Xem yêu cầu bổ sung";
+        card.append(" ", link);
+      }
       if (!item.isRead) {
         const button = document.createElement("button");
         button.textContent = "Đánh dấu đã đọc";

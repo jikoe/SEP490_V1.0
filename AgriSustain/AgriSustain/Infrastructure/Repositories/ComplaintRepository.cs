@@ -184,6 +184,7 @@ public sealed class ComplaintRepository : IComplaintRepository
                     .Select(evidence => new
                     {
                         evidence.DisputeEvidenceId,
+                        evidence.EvidenceRequestId,
                         evidence.SubmittedByUserId,
                         evidence.SubmittedByUser.FullName,
                         evidence.Description,
@@ -217,11 +218,13 @@ public sealed class ComplaintRepository : IComplaintRepository
         var ticket = detail.Ticket;
         var responseAudits = await _context.AuditLogs.AsNoTracking()
             .Where(x => x.EntityType == FarmerComplaintResponseText.Entity && x.EntityId == ticketId
-                && x.Action == FarmerComplaintResponseText.Action)
+                && (x.Action == FarmerComplaintResponseText.Action
+                    || x.Action == CustomerComplaintService.ResponseAction))
             .OrderBy(x => x.AuditLogId).ToListAsync(cancellationToken);
         var responseTextByFile = responseAudits.Select(FarmerComplaintResponseText.Read)
-            .Where(x => x != null).SelectMany(x => x!.EvidenceUrls.Select(url => (Url: url, x.Explanation)))
-            .GroupBy(x => x.Url).ToDictionary(x => x.Key, x => x.Last().Explanation);
+            .OfType<FarmerComplaintResponseText>()
+            .SelectMany(x => x.EvidenceUrls.Select(url => (x.RequestId, Url: url, x.Explanation)))
+            .GroupBy(x => (x.RequestId, x.Url)).ToDictionary(x => x.Key, x => x.Last().Explanation);
         string PartyOf(long userId) => userId == detail.BuyerUserId
             ? ComplaintParties.Buyer : ComplaintParties.Seller;
         return new ComplaintDetailDto(
@@ -238,7 +241,9 @@ public sealed class ComplaintRepository : IComplaintRepository
                     detail.SellerOrderDiscountShare))).ToList(),
             detail.Evidences.Select(evidence => new ComplaintEvidenceDto(
                 evidence.DisputeEvidenceId, evidence.FullName, PartyOf(evidence.SubmittedByUserId),
-                responseTextByFile.TryGetValue(evidence.FileUrl, out var fullExplanation) ? fullExplanation : evidence.Description, evidence.SubmittedAt,
+                evidence.EvidenceRequestId is long requestId
+                    && responseTextByFile.TryGetValue((requestId, evidence.FileUrl), out var text)
+                        ? text : evidence.Description, evidence.SubmittedAt,
                 evidence.FileUrl.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))).ToList(),
             detail.Requests.Select(request => new ComplaintEvidenceRequestDto(
                 request.EvidenceRequestId, PartyOf(request.RequestedPartyUserId), request.Instructions,
@@ -397,6 +402,13 @@ public sealed class ComplaintRepository : IComplaintRepository
     /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
     public Task SaveChangesAsync(CancellationToken cancellationToken)
     {
+        // Recheck the ticket status even when it was already waiting before the new request.
+        foreach (var request in _context.ChangeTracker.Entries<DisputeEvidenceRequest>()
+            .Where(entry => entry.State == EntityState.Added))
+        {
+            _context.Entry(request.Entity.DisputeTicket).Property(ticket => ticket.TicketStatus)
+                .IsModified = true;
+        }
         return _context.SaveChangesAsync(cancellationToken);
     }
 }

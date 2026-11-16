@@ -57,6 +57,12 @@ builder.Services.AddScoped<IComplaintRepository, ComplaintRepository>();
 // UC-FAR-10: controller -> application service -> owned complaint repository.
 builder.Services.AddScoped<IFarmerComplaintRepository, FarmerComplaintRepository>();
 builder.Services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
+builder.Services.AddScoped<ICustomerComplaintRepository, CustomerComplaintRepository>();
+builder.Services.AddScoped<ICustomerComplaintService,
+    AgriSustain.Application.Services.Complaints.CustomerComplaintService>();
+builder.Services.AddScoped<AgriSustain.Infrastructure.Email.OrderEmailDispatcher>();
+builder.Services.AddScoped<IComplaintEmailDelivery>(services => services
+    .GetRequiredService<AgriSustain.Infrastructure.Email.OrderEmailDispatcher>());
 builder.Services.AddScoped<AgriSustain.Application.Services.Complaints.FarmerComplaintService>();
 builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmerComplaintInputFilter>();
 if (builder.Configuration.GetValue("FarmerComplaints:EnableNotificationWorker", true))

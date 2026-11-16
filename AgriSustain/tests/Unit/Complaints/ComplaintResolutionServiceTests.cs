@@ -394,7 +394,25 @@ public sealed class ComplaintResolutionServiceTests
         public long UserId => SupportId;
     }
 
-    private sealed class ComplaintStore : IComplaintRepository
+    [Fact]
+    [Trait("UseCase", "UC-RC-06")]
+    public async Task Overdue_SystemRequest_RefundsUsingActiveSupportInsteadOfBuyer()
+    {
+        var ticket = _store.Ticket = Ticket();
+        var request = ticket.RequestFarmerExplanation(
+            FarmerUserId, T0.UtcDateTime, ComplaintResolutionService.EvidenceResponseWindow);
+        _clock.Advance(TimeSpan.FromHours(49));
+
+        Assert.Equal(1, await Service().ResolveOverdueAsync(default));
+
+        var refund = Assert.Single(_store.Refunds);
+        Assert.Equal(200_000m, refund.Amount);
+        Assert.Equal(SupportId, refund.ProcessedByUserId);
+        Assert.Equal(DisputeTicket.EvidenceRequestExpired, request.RequestStatus);
+        Assert.Null(Assert.Single(_store.Audits).PerformedByUserId);
+    }
+
+    internal sealed class ComplaintStore : IComplaintRepository
     {
         public Task<UserBankAccount?> GetDefaultBankAccountAsync(long userId, CancellationToken ct) =>
             Task.FromResult<UserBankAccount?>(null);
@@ -403,6 +421,7 @@ public sealed class ComplaintResolutionServiceTests
         public List<RefundTransaction> Refunds { get; } = [];
         public List<AuditLog> Audits { get; } = [];
         public List<Notification> Notifications { get; } = [];
+        public bool HasActiveSupport { get; set; } = true;
         public int Saves { get; private set; }
 
         public Task<(int Total, IReadOnlyList<ComplaintListItemDto> Items)> SearchAsync(
@@ -419,7 +438,7 @@ public sealed class ComplaintResolutionServiceTests
         public Task<IReadOnlyList<long>> GetActiveUserIdsByRolesAsync(
             IReadOnlyCollection<string> roles, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<long>>(roles.Contains("FinanceStaff") ? [FinanceId]
-                : roles.Contains("CustomerSupport") ? [SupportId] : []);
+                : HasActiveSupport && roles.Contains("CustomerSupport") ? [SupportId] : []);
         public Task<IReadOnlyList<long>> GetOverdueTicketIdsAsync(
             DateTime now, TimeSpan window, int take, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<long>>(

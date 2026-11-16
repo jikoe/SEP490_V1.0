@@ -18,9 +18,6 @@ public sealed class OrderTrackingService(
     /// (ICurrentActor reports 0 when nobody is signed in).</summary>
     private long? SignedInUserId() => currentActor.UserId > 0 ? currentActor.UserId : null;
 
-    /// <summary>Complaint window after delivery (GBR-24).</summary>
-    public static readonly TimeSpan ComplaintWindow = TimeSpan.FromHours(48);
-
     private static readonly Error s_signInRequired = new(
         "UNAUTHORIZED", "Vui lòng đăng nhập để xem đơn hàng của bạn.", "Unauthorized");
 
@@ -170,8 +167,7 @@ public sealed class OrderTrackingService(
             actions.Add(OrderActions.EditReview);
         }
 
-        if (order.OrderStatus is ("Delivered" or "Completed") && order.DeliveredAt is { } deliveredAt
-            && deliveredAt <= now && now - deliveredAt <= ComplaintWindow)
+        if (order.CanSubmitComplaint)
         {
             actions.Add(OrderActions.SubmitComplaint);
         }
