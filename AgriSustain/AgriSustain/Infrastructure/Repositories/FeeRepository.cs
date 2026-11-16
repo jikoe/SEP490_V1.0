@@ -1,5 +1,6 @@
 using AgriSustain.Application.DTOs.Finance;
 using AgriSustain.Application.Interfaces;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -135,6 +136,29 @@ public sealed class FeeRepository(AgriSustainContext db) : IFeeRepository
             .Where(user => user.Status == "Active"
                 && (user.Role == "SystemAdmin" || user.Role == "Administrator" || user.Role == "Admin"))
             .Select(user => user.UserId).ToListAsync(cancellationToken);
+
+    /// <summary>
+    /// Audit rows of the fee type (EntityType FeeType) and of its policies (EntityType FeePolicy), newest first,
+    /// joined to the acting user's name.
+    /// </summary>
+    /// <param name="feeTypeId">Fee type id.</param>
+    /// <param name="policyIds">Ids of the fee type's policies.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Audit rows with the actor name.</returns>
+    public async Task<IReadOnlyList<(AuditLog Audit, string? ActorName)>> HistoryAsync(long feeTypeId,
+        IReadOnlyCollection<long> policyIds, CancellationToken cancellationToken)
+    {
+        var rows = await (from audit in db.AuditLogs.AsNoTracking()
+                          where audit.EntityType == PlatformFeeService.AuditFeeType && audit.EntityId == feeTypeId
+                              || audit.EntityType == PlatformFeeService.AuditFeePolicy && audit.EntityId != null
+                                  && policyIds.Contains(audit.EntityId.Value)
+                          join user in db.Users.AsNoTracking() on audit.PerformedByUserId equals user.UserId into actors
+                          from user in actors.DefaultIfEmpty()
+                          orderby audit.OccurredAt descending, audit.AuditLogId descending
+                          select new { audit, Name = user == null ? null : user.FullName })
+            .ToListAsync(cancellationToken);
+        return rows.Select(row => (row.audit, row.Name)).ToList();
+    }
 
     /// <summary>
     /// Non-archived categories for the policy form.

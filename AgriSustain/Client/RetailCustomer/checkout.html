@@ -1243,12 +1243,19 @@
           sessionStorage.removeItem(quoteStorage);
           closeConfirmModal();
           const result = res.data;
+          // MSG119 (DBR-32): the same request was already processed; show it, then the existing order.
+          if (result && result.isDuplicate) {
+            Utils.showToast('Yêu cầu đặt hàng này đã được xử lý. Hệ thống không tạo thêm đơn hoặc giữ hàng lần nữa; đang mở đơn đã có.', 'info');
+          }
           const transferMethods = ['SePay'];
           if (result && (result.status === 'PendingPayment' || transferMethods.includes(result.paymentMethod) || state.form.paymentMethod === 'SePay')) {
             const code = result.code || result.orderCode || '';
             const total = result.total || state.quote?.total || 0;
             const exp = result.reservationExpiresAt || '';
-            window.location.href = `payment.html?orderCode=${encodeURIComponent(code)}&amount=${encodeURIComponent(total)}&method=SePay&orderId=${encodeURIComponent(code)}&expiresAt=${encodeURIComponent(exp)}`;
+            const target = `payment.html?orderCode=${encodeURIComponent(code)}&amount=${encodeURIComponent(total)}&method=SePay&orderId=${encodeURIComponent(code)}&expiresAt=${encodeURIComponent(exp)}`;
+            // Leave time to read MSG119 before the payment screen opens.
+            if (result.isDuplicate) setTimeout(() => { window.location.href = target; }, 2000);
+            else window.location.href = target;
             return;
           }
           renderSuccessView();
@@ -1258,11 +1265,15 @@
             sessionStorage.removeItem(attemptStorage);
             sessionStorage.removeItem(quoteStorage);
           }
-          state.placeError = { message: res.error || 'Đặt hàng thất bại.', retry: unknown };
+          // MSG123: the order could not be saved; nothing was kept (the transaction rolled back).
+          const message = res.status >= 500
+            ? 'Không thể lưu đơn hàng. Không có đơn hoặc giữ hàng nào được lưu; vui lòng tải lại và thử lại.'
+            : res.error || 'Đặt hàng không thành công.';
+          state.placeError = { message, retry: unknown };
 
           const modalErr = document.getElementById('confirm-modal-error');
           if (modalErr) {
-            modalErr.textContent = res.error || 'Đặt hàng không thành công.';
+            modalErr.textContent = message;
             modalErr.style.display = 'block';
           }
 

@@ -133,4 +133,27 @@ public sealed partial class CommerceApiTests
         Assert.Equal(msg123, problem!.Title == AgriSustain.Application.Services.Refunds.RefundProcessingService.SaveFailedMessage);
         Assert.DoesNotContain("private test failure", problem.Title);
     }
+
+    // UC-FIN-05 AF12: a fee type or policy that cannot be saved answers MSG123 (fee policy); loads and conflicts do not.
+    [Theory]
+    [InlineData("/api/finance/fees", "POST", false, 500, true)]
+    [InlineData("/api/finance/fees/policies/9/approve", "POST", false, 500, true)]
+    [InlineData("/api/finance/fees/policies/9", "PUT", false, 500, true)]
+    [InlineData("/api/finance/fees", "GET", false, 500, false)]
+    [InlineData("/api/finance/fees/policies/9/submit", "POST", true, 409, false)]
+    public async Task ExceptionPipeline_FeeSaveFailure_ReturnsMsg123(
+        string path, string method, bool conflict, int status, bool msg123)
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer(); builder.Logging.ClearProviders();
+        await using var app = builder.Build();
+        app.UseMiddleware<FeatureExceptionMiddleware>();
+        app.Run((HttpContext _) => Task.FromException(conflict ? new DbUpdateConcurrencyException("private test failure") : new IOException("private test failure")));
+        await app.StartAsync(); using var client = app.GetTestClient();
+        using var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), path));
+        Assert.Equal((HttpStatusCode)status, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+        Assert.Equal(msg123, problem!.Title == AgriSustain.Application.Services.Finance.PlatformFeeService.SaveFailedMessage);
+        Assert.DoesNotContain("private test failure", problem.Title);
+    }
 }

@@ -108,3 +108,20 @@ public sealed record FeeTypeRow(
 public sealed record FeeCategoryOption(long Id, string Name, bool IsActive);
 
 public sealed record FeeResultDto(string Message, FeeTypeDto? Fee);
+
+/// <summary>
+/// UC-FIN-05 AF14: one row of a fee type's history, read from the audit log.
+/// </summary>
+/// <param name="OccurredAt">When it happened (UTC).</param>
+/// <param name="Action">Audit action, e.g. CreateFeeType, SubmitFeePolicy, ApproveFeePolicy, RejectFeePolicy.</param>
+/// <param name="PolicyCode">Policy concerned, or null for a fee-type change.</param>
+/// <param name="ActorName">Finance Staff or Administrator who acted.</param>
+/// <param name="ApprovalStatus">Approval status after the action, when it concerns a policy.</param>
+/// <param name="Reason">Reason for the change, rejection reason or approval note.</param>
+public sealed record FeeHistoryEntry(
+    DateTime OccurredAt,
+    string Action,
+    string? PolicyCode,
+    string ActorName,
+    string? ApprovalStatus,
+    string? Reason);

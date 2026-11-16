@@ -219,7 +219,7 @@ public sealed class PasswordResetService(
         });
         await userRepository.SaveChangesAsync(cancellationToken);
         return Result<string>.SuccessResult(
-            "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.");
+            "Đặt lại mật khẩu thành công. Vui lòng dùng mật khẩu mới cho các lần đăng nhập sau."); // MSG11
     }
 
     /// <summary>

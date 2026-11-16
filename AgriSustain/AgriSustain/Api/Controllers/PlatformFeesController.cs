@@ -34,6 +34,16 @@ public sealed class PlatformFeesController(IPlatformFeeService service) : UseCas
         Respond(await service.GetAsync(id, cancellationToken));
 
     /// <summary>
+    /// GET api/finance/fees/{id}/history — UC-FIN-05 AF14: audited changes of the fee type and its policies.
+    /// </summary>
+    /// <param name="id">Fee type id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>200 with the history rows; 403 / 404.</returns>
+    [HttpGet("{id:long}/history")]
+    public async Task<IActionResult> History(long id, CancellationToken cancellationToken) =>
+        Respond(await service.HistoryAsync(id, cancellationToken));
+
+    /// <summary>
     /// POST api/finance/fees — create a fee type with its first policy (Finance Staff).
     /// </summary>
     /// <param name="request">Fee type, first policy, Submit and RequestKey.</param>

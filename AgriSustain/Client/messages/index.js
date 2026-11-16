@@ -26,7 +26,7 @@ const DefaultCommonMessages = {
   loginFailedFallback: 'Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản và mật khẩu.',
   registerSuccess: 'Đăng ký thành công. Vui lòng đăng nhập để tiếp tục.',
   registerFailed: 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.',
-  resetPasswordSuccess: 'Đặt lại mật khẩu thành công. Đang chuyển hướng về trang đăng nhập…',
+  resetPasswordSuccess: 'Đặt lại mật khẩu thành công. Vui lòng dùng mật khẩu mới cho các lần đăng nhập sau.',
   resetSessionExpired: 'Phiên đặt lại mật khẩu đã hết hạn. Vui lòng xác thực lại email.',
   resendOtpFailed: 'Không thể gửi lại mã OTP.',
   otpSentSuccess: 'Mã OTP mới đã được gửi tới email của bạn.',

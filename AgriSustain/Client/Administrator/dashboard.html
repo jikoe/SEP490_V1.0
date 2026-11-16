@@ -263,8 +263,10 @@
       const rows = pendingItems.filter(item => !type || item.type === type);
       document.getElementById('pending-count').textContent = `${rows.length} việc`;
       if (rows.length === 0) {
-        // MSG-DB-02
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">Không có việc chờ xử lý.</td></tr>';
+        // MSG-DB-02 when there is no pending work at all; Step 4 message when only the type filter matches nothing.
+        tbody.innerHTML = type && pendingItems.length
+          ? '<tr><td colspan="8" class="empty">Không có việc chờ phù hợp với bộ lọc đã chọn.</td></tr>'
+          : '<tr><td colspan="8" class="empty">Không có việc chờ xử lý.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(item => `

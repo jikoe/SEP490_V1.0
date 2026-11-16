@@ -62,6 +62,16 @@ public interface IFeeRepository
     /// <returns>User ids.</returns>
     Task<IReadOnlyList<long>> AdministratorIdsAsync(CancellationToken cancellationToken);
 
+    /// <summary>
+    /// UC-FIN-05 AF14: audit rows of a fee type and of its policies, newest first, with the name of the acting user.
+    /// </summary>
+    /// <param name="feeTypeId">Fee type id.</param>
+    /// <param name="policyIds">Ids of the fee type's policies.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>Audit rows with the actor's full name (null when the user no longer exists).</returns>
+    Task<IReadOnlyList<(AuditLog Audit, string? ActorName)>> HistoryAsync(long feeTypeId,
+        IReadOnlyCollection<long> policyIds, CancellationToken cancellationToken);
+
     /// <summary>Categories a policy may target: Active or Inactive, never Archived (BR-FEE-11).</summary>
     Task<IReadOnlyList<FeeCategoryOption>> SelectableCategoriesAsync(CancellationToken cancellationToken);
 
@@ -114,6 +124,15 @@ public interface IPlatformFeeService
     /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
     /// <returns>The fee type; 403 FORBIDDEN; 404 NOT_FOUND.</returns>
     Task<UseCaseResult<FeeTypeDto>> GetAsync(long id, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// AF14 View History: every audited change of the fee type and its policies (creation, edits, submissions,
+    /// approvals, rejections, end dates) with the acting user, the approval status after it and the reason, newest first.
+    /// </summary>
+    /// <param name="id">Fee type id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The history rows; 403 FORBIDDEN; 404 NOT_FOUND.</returns>
+    Task<UseCaseResult<IReadOnlyList<FeeHistoryEntry>>> HistoryAsync(long id, CancellationToken cancellationToken);
     /// <summary>
     /// Finance Staff creates a fee type together with its first policy. Steps: 1) role check; 2) idempotency — a
     /// RequestKey already used returns what it created; 3) validate name, description, group, refund mode and code

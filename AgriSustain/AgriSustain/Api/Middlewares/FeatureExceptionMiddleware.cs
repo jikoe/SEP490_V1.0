@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using AgriSustain.Application.Common;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Application.Services.Refunds;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -69,6 +70,11 @@ public sealed class FeatureExceptionMiddleware(RequestDelegate next,
             string? refundMessage = context.Request.Path.StartsWithSegments("/api/finance/refunds")
                 && !conflict && !HttpMethods.IsGet(context.Request.Method)
                 ? RefundProcessingService.SaveFailedMessage : null;
+            // UC-FIN-05 AF12: a fee type or policy that cannot be saved shows MSG123 ("fee policy"); the
+            // transaction is rolled back, so the existing policies stay unchanged.
+            string? feeMessage = context.Request.Path.StartsWithSegments("/api/finance/fees")
+                && !conflict && !HttpMethods.IsGet(context.Request.Method)
+                ? PlatformFeeService.SaveFailedMessage : null;
             string? financeMessage = context.Request.Path.StartsWithSegments("/api/finance")
                 ? conflict ? "Dữ liệu tài chính đã thay đổi. Vui lòng tải lại trước khi thử lại."
                     : HttpMethods.IsGet(context.Request.Method)
@@ -80,7 +86,7 @@ public sealed class FeatureExceptionMiddleware(RequestDelegate next,
             await context.Response.WriteAsJsonAsync(new ProblemDetails
             {
                 Status = context.Response.StatusCode,
-                Title = farmerPayoutMessage ?? farmerBusinessMessage ?? farmerComplaintMessage ?? farmMessage ?? productMessage ?? cartMessage ?? orderMessage ?? refundMessage ?? financeMessage ?? (context.Request.Path.StartsWithSegments("/api/farmer/orders")
+                Title = farmerPayoutMessage ?? farmerBusinessMessage ?? farmerComplaintMessage ?? farmMessage ?? productMessage ?? cartMessage ?? orderMessage ?? refundMessage ?? feeMessage ?? financeMessage ?? (context.Request.Path.StartsWithSegments("/api/farmer/orders")
                     || context.Request.Path.StartsWithSegments("/api/files/evidence")
                     ? conflict ? "Yêu cầu xung đột với dữ liệu hiện tại hoặc đã được xử lý. Vui lòng tải lại; không thực hiện thao tác trùng lặp."
                         : HttpMethods.IsGet(context.Request.Method)
