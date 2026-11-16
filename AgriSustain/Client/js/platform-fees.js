@@ -59,15 +59,18 @@
     tbody.innerHTML = '<tr><td colspan="6" class="empty">Đang tải…</td></tr>';
     const res = await API.request(`/finance/fees?${q}`, { suppressErrorToast: true });
     if (!res.success) {
-      // MSG126: unavailable rates are never shown as 0.
-      tbody.innerHTML = `<tr><td colspan="6" class="empty">${esc(res.error || 'Không thể tải danh sách phí. Hãy thử lại.')}</td></tr>`;
+      // MSG126 with a Retry option; unavailable rates are never shown as 0.
+      tbody.innerHTML = `<tr><td colspan="6" class="empty">Không thể tải danh sách phí. Vui lòng thử lại.
+        <button type="button" id="fee-retry">Thử lại</button></td></tr>`;
+      document.getElementById('fee-retry').onclick = () => load(page);
       return;
     }
     state.rows = res.data.items || [];
     document.getElementById('fee-count').textContent = `${res.data.total} loại phí`;
     if (state.rows.length === 0) {
-      // MSG124 / MSG01
-      tbody.innerHTML = `<tr><td colspan="6" class="empty">${res.data.total === 0 && !val('f-keyword') && !val('f-state')
+      // MSG124 only when no filter is set; otherwise MSG01.
+      const filtered = ['f-keyword', 'f-group', 'f-order-type', 'f-category', 'f-state'].some(id => val(id));
+      tbody.innerHTML = `<tr><td colspan="6" class="empty">${res.data.total === 0 && !filtered
         ? 'Chưa có loại phí nào.' : 'Không có kết quả phù hợp.'}</td></tr>`;
     } else {
       tbody.innerHTML = state.rows.map(r => `
@@ -136,14 +139,40 @@
       </div>
       ${f.description ? `<p class="muted">${esc(f.description)}</p>` : ''}
       <div class="table-wrap"><table><thead><tr><th>Chính sách</th><th>Mức phí</th><th>Phạm vi</th><th>Hiệu lực</th><th>Trạng thái</th><th></th></tr></thead>
-      <tbody>${policies || '<tr><td colspan="6" class="empty">Chưa có chính sách.</td></tr>'}</tbody></table></div>`;
-    document.getElementById('detail-actions').innerHTML = canEditType
+      <tbody>${policies || '<tr><td colspan="6" class="empty">Chưa có chính sách.</td></tr>'}</tbody></table></div>
+      <div id="history-box"></div>`;
+    document.getElementById('detail-actions').innerHTML = '<button type="button" data-top="history">Xem lịch sử</button>' + (canEditType
       ? `<button type="button" data-top="new-version">+ Phiên bản / chính sách mới</button>
          <button type="button" data-top="edit-type">Sửa thông tin phí</button>
          ${f.status === 'Draft' && !f.applied && !f.isMandatory ? '<button type="button" class="danger-link" data-top="delete">Xóa phí</button>' : ''}`
-      : '';
+      : '');
     document.querySelectorAll('#detail-body [data-act]').forEach(b => b.addEventListener('click', () => policyAction(b.dataset.act, Number(b.dataset.id))));
     document.querySelectorAll('#detail-actions [data-top]').forEach(b => b.addEventListener('click', () => topAction(b.dataset.top)));
+  }
+
+  const APPROVALS = { Draft: 'Nháp', PendingApproval: 'Chờ duyệt', Approved: 'Đã duyệt', Rejected: 'Bị từ chối' };
+  const ACTIONS = {
+    CreateFeeType: 'Tạo loại phí', UpdateFeeType: 'Sửa thông tin phí', DeleteFeeType: 'Xóa loại phí',
+    CreateFeePolicy: 'Tạo chính sách (nháp)', UpdateFeePolicy: 'Sửa chính sách', SubmitFeePolicy: 'Gửi duyệt',
+    ApproveFeePolicy: 'Duyệt', RejectFeePolicy: 'Từ chối', EndPreviousFeePolicy: 'Kết thúc phiên bản cũ',
+    RequestFeePolicyEndDate: 'Yêu cầu kết thúc', ApproveFeePolicyEndDate: 'Duyệt kết thúc'
+  };
+
+  // AF14: read-only history of the fee type and its policies (who, when, what, why).
+  async function loadHistory() {
+    const box = document.getElementById('history-box');
+    box.innerHTML = '<p class="muted">Đang tải lịch sử…</p>';
+    const res = await API.request(`/finance/fees/${state.current.id}/history`, { suppressErrorToast: true });
+    if (!res.success) {
+      // MSG126
+      box.innerHTML = '<p class="notice error">Không thể tải lịch sử. Vui lòng thử lại.</p>';
+      return;
+    }
+    const rows = res.data || [];
+    box.innerHTML = `<h3>Lịch sử thay đổi</h3><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Thao tác</th><th>Chính sách</th><th>Người thực hiện</th><th>Trạng thái duyệt</th><th>Lý do</th></tr></thead><tbody>${
+      rows.length ? rows.map(r => `<tr><td>${esc(Utils.formatDateTime ? Utils.formatDateTime(r.occurredAt) : r.occurredAt)}</td><td>${esc(ACTIONS[r.action] || r.action)}</td>
+        <td>${esc(r.policyCode || '—')}</td><td>${esc(r.actorName)}</td><td>${esc(APPROVALS[r.approvalStatus] || r.approvalStatus || '—')}</td><td>${esc(r.reason || '—')}</td></tr>`).join('')
+      : '<tr><td colspan="6" class="empty">Chưa có lịch sử.</td></tr>'}</tbody></table></div>`;
   }
 
   function policyOf(id) { return state.current.policies.find(p => p.id === id); }
@@ -159,8 +188,21 @@
     if (act === 'end') return askEndDate(p);
   }
 
+  // AF2: a new version starts from the current policy (Active first, else Scheduled, latest start date).
+  function currentPolicy() {
+    const rank = s => (s === 'Active' ? 0 : s === 'Scheduled' ? 1 : 2);
+    const list = (state.current ? state.current.policies : []).filter(p => rank(p.state) < 2);
+    list.sort((a, b) => rank(a.state) - rank(b.state) || String(b.effectiveFrom).localeCompare(String(a.effectiveFrom)));
+    return list[0] || null;
+  }
+
   function topAction(act) {
-    if (act === 'new-version') return openForm('version', null);
+    if (act === 'history') return loadHistory();
+    if (act === 'new-version') {
+      const base = currentPolicy();
+      // Same values, but a new start date (today) and an empty reason for the change.
+      return openForm('version', base ? { ...base, effectiveFrom: today(), effectiveTo: null } : null);
+    }
     if (act === 'edit-type') return openForm('type', null);
     if (act === 'delete') return askConfirm(`Xóa phí ${state.current.feeCode}? Thao tác này không thể hoàn tác.`, false,
       () => send(`/finance/fees/${state.current.id}/delete`, {}, true));
@@ -280,12 +322,29 @@
     const box = document.getElementById('preview-box');
     if (!res.success) { box.innerHTML = `<p class="notice error">${esc(firstError(res))}</p>`; return; }
     const d = res.data;
-    box.innerHTML = `<table><tbody>
+    box.innerHTML = `${rateChangeText(body.draftPolicy)}<table><tbody>
       <tr><td>Tiền hàng</td><td class="num">${money(d.itemsTotal)}</td></tr>
       <tr><td>Tổng đơn trang trại (gồm phí giao)</td><td class="num">${money(d.sellerOrderTotal)}</td></tr>
       ${d.fees.map(fee => `<tr><td>− ${esc(fee.feeName)} (${esc(fee.feeCode)})${fee.fromDraft ? ' <span class="badge Pending">mức đang soạn</span>' : ''}</td><td class="num">${money(fee.amount)}</td></tr>`).join('')}
       <tr><td><b>Nông trại thực nhận</b></td><td class="num"><b>${money(d.netAmount)}</b></td></tr>
     </tbody></table><p class="muted">Áp dụng ngày ${Utils.formatDate(d.date)}. Thuế khấu trừ thay: ${money(d.taxWithheld)} (nộp hộ, không phải doanh thu của sàn).</p>`;
+  }
+
+  // Step 6: old rate vs new rate and the effective timeline, from the policies already loaded.
+  function rateChangeText(draft) {
+    if (!draft) return '';
+    const sameScope = p => p.orderType === draft.orderType && (draft.appliesToAllCategories
+      ? p.appliesToAllCategories
+      : !p.appliesToAllCategories && p.categoryIds.some(id => draft.categoryIds.includes(id)));
+    const editing = state.form.mode === 'edit' && state.form.policy ? state.form.policy.id : null;
+    const old = (state.form.mode === 'create' ? [] : state.current.policies)
+      .find(p => p.id !== editing && p.state === 'Active' && sameScope(p));
+    const newText = `${esc(valueText(draft))}, từ ${dateText(draft.effectiveFrom)} đến ${dateText(draft.effectiveTo)}`;
+    if (!old) return `<p class="muted">Mức hiện tại: chưa có. Mức mới: <b>${newText}</b>.</p>`;
+    const dayBefore = draft.effectiveFrom
+      ? new Date(new Date(`${draft.effectiveFrom}T00:00:00Z`).getTime() - 86400000).toISOString().slice(0, 10) : null;
+    return `<p class="muted">Mức hiện tại (${esc(old.policyCode)}): <b>${esc(valueText(old))}</b>, từ ${dateText(old.effectiveFrom)}`
+      + ` → kết thúc ngày ${dateText(dayBefore)}. Mức mới: <b>${newText}</b>.</p>`;
   }
 
   // ---- small dialogs --------------------------------------------------------------------

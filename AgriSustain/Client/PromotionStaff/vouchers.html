@@ -519,8 +519,11 @@
         // MSG-PV-15: reload the latest data.
         await openForm(editing.voucherId);
         showErrors({}, res.error);
+      } else if (res.status >= 500) {
+        // MSG-PV-16: the save failed on the server; nothing was saved.
+        showErrors({}, 'Không thể lưu voucher. Chưa có thay đổi nào được lưu, vui lòng thử lại.');
       } else {
-        // MSG-PV-07 / MSG-PV-16
+        // MSG-PV-07 and other refusals carry their own text.
         showErrors({}, res.error || 'Không thể lưu voucher. Chưa có thay đổi nào được lưu, vui lòng thử lại.');
       }
     }

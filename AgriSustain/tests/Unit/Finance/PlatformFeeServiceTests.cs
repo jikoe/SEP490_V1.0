@@ -276,6 +276,38 @@ public sealed class PlatformFeeServiceTests
         }
     }
 
+    [Fact(DisplayName = "UTC-FIN05-16 View History lists every change with the acting user and reason, newest first (AF14)")]
+    public async Task History_ListsChangesWithActorAndReason()
+    {
+        var fee = await CreatedAsync();
+        var policy = fee.Policies[0];
+        await Service(Admin).RejectPolicyAsync(policy.Id, new(policy.Version, "Tỷ lệ quá cao"), default);
+
+        var result = await Service(Admin).HistoryAsync(fee.Id, default);
+
+        Assert.True(result.IsSuccess, result.Error?.Message);
+        var rows = result.Value!;
+        Assert.Equal("RejectFeePolicy", rows[0].Action);
+        Assert.Equal(policy.PolicyCode, rows[0].PolicyCode);
+        Assert.Equal($"User {Admin}", rows[0].ActorName);
+        Assert.Equal("Tỷ lệ quá cao", rows[0].Reason);
+        Assert.Equal(FeePolicy.ApprovalDraft, rows[0].ApprovalStatus);
+        Assert.Contains(rows, r => r.Action == "SubmitFeePolicy" && r.Reason == "Áp dụng mức mới" && r.ActorName == $"User {Finance}");
+        Assert.Contains(rows, r => r.Action == "CreateFeeType" && r.PolicyCode is null);
+    }
+
+    [Fact(DisplayName = "UTC-FIN05-17 View History is refused to other roles and for an unknown fee type")]
+    public async Task History_ForbiddenAndMissing()
+    {
+        _users.Users[99] = new User { UserId = 99, Role = "RetailCustomer", Status = "Active" };
+
+        var forbidden = await Service(99).HistoryAsync(1, default);
+        var missing = await Service(Admin).HistoryAsync(424242, default);
+
+        Assert.Equal("Forbidden", forbidden.Error!.Kind);
+        Assert.Equal("NotFound", missing.Error!.Kind);
+    }
+
     private sealed class FeeStore : IFeeRepository
     {
         private long _typeId = 100, _policyId = 500;
@@ -315,6 +347,12 @@ public sealed class PlatformFeeServiceTests
         public Task<IReadOnlyList<OrderItemFee>> SellerOrderFeesAsync(long id, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<OrderItemFee>>([]);
         public Task<IReadOnlyList<long>> AdministratorIdsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<long>>([Admin, Admin2]);
+        public Task<IReadOnlyList<(AuditLog Audit, string? ActorName)>> HistoryAsync(long feeTypeId,
+            IReadOnlyCollection<long> policyIds, CancellationToken ct) =>
+            Task.FromResult<IReadOnlyList<(AuditLog Audit, string? ActorName)>>(Audits
+                .Where(a => a.EntityType == PlatformFeeService.AuditFeeType && a.EntityId == feeTypeId
+                    || a.EntityType == PlatformFeeService.AuditFeePolicy && a.EntityId is long id && policyIds.Contains(id))
+                .Reverse().Select(a => (a, (string?)$"User {a.PerformedByUserId}")).ToList());
         public Task<IReadOnlyList<FeeCategoryOption>> SelectableCategoriesAsync(CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<FeeCategoryOption>>([]);
         public void AddType(FeeType type) => Types.Add(type);
