@@ -47,7 +47,7 @@ public sealed class ProfileServiceTests
 
     private static UpdateFarmerProfileRequest FarmerRequest(
         decimal? area = 2.5m, string phone = "0987654321", string license = "BL-999", string? gps = null) =>
-        new("Tran B", phone, "Nong Trai Xanh", "Tran B", "Thôn 4, Đà Lạt", null, "Đà Lạt", "Cá nhân",
+        new("Tran B", phone, "Nong Trai Xanh", "Tran B", "Thôn 4, Đà Lạt", null, "Đà Lạt", "Nhỏ",
             area, gps, license)
         { PickupProvinceCode = "100000", PickupDistrictCode = "100100", PickupWardCode = "1001001" };
 
@@ -248,6 +248,23 @@ public sealed class ProfileServiceTests
 
         Assert.Equal(ok, result.IsSuccess);
         if (ok) Assert.Equal(model, _uow.ProfileRepo.LastFarmerUpdate!.ProductionModel);
+    }
+
+    [Theory(DisplayName = "UTC-AUTH03-B20 Production scale is Nhỏ, Vừa or Lớn")]
+    [InlineData("Nhỏ", true)]
+    [InlineData("Vừa", true)]
+    [InlineData("Lớn", true)]
+    [InlineData(null, true)]
+    [InlineData("3.5 ha nhà kính", false)]
+    [InlineData("Cá nhân", false)]
+    public async Task UTC_B20_ProductionScale(string? scale, bool ok)
+    {
+        var result = await Service(Farmer).UpdateFarmerProfileAsync(
+            FarmerRequest() with { ProductionScale = scale }, default);
+
+        Assert.Equal(ok, result.IsSuccess);
+        if (ok) Assert.Equal(scale, _uow.ProfileRepo.LastFarmerUpdate!.ProductionScale);
+        else Assert.Contains("productionScale", result.Error!.Fields!.Keys);
     }
 
     [Theory(DisplayName = "UTC-AUTH03-B15 Short description up to 300 characters")]

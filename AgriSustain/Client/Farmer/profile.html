@@ -229,13 +229,14 @@
 
                   <div class="farmer-form-grid-2">
                     <label class="field">
-                      <span>Quy mô canh tác</span>
-                      <input
-                        type="text"
-                        id="farm-scale"
-                        maxlength="100"
-                        placeholder="Ví dụ: 3.5 ha canh tác nhà kính"
-                      >
+                      <span>Quy mô sản xuất</span>
+                      <select id="farm-scale">
+                        <option value="">-- Chọn quy mô --</option>
+                        <option value="Nhỏ">Nhỏ</option>
+                        <option value="Vừa">Vừa</option>
+                        <option value="Lớn">Lớn</option>
+                      </select>
+                      <small id="farm-scale-hint" class="muted">Diện tích nhập ở ô "Diện tích canh tác (ha)".</small>
                     </label>
 
                     <label class="field">
@@ -537,7 +538,7 @@
 
       document.getElementById('farm-name').value = currentProfile.farmName;
       document.getElementById('farm-rep-name').value = currentProfile.representativeName;
-      document.getElementById('farm-scale').value = currentProfile.productionScale;
+      setProductionScale(currentProfile.productionScale);
       document.getElementById('farm-zone').value = currentProfile.cultivationZone;
       document.getElementById('farm-license').value = currentProfile.businessLicenseNumber;
       document.getElementById('farm-gps').value = currentProfile.gpsCoordinates;
@@ -665,6 +666,17 @@
       return null;
     }
 
+    // Older profiles may hold free text (e.g. "3.5 ha nhà kính"); ask the farmer to pick a size class.
+    function setProductionScale(value) {
+      const select = document.getElementById('farm-scale');
+      const hint = document.getElementById('farm-scale-hint');
+      const known = ['Nhỏ', 'Vừa', 'Lớn'].includes(value);
+      select.value = known ? value : '';
+      hint.textContent = value && !known
+        ? `Giá trị cũ "${value}" không còn dùng, vui lòng chọn Nhỏ, Vừa hoặc Lớn.`
+        : 'Diện tích nhập ở ô "Diện tích canh tác (ha)".';
+    }
+
     async function handleSaveProfile(e) {
       e.preventDefault();
       const err = validateProfileForm();
@@ -679,7 +691,7 @@
         phoneNumber: document.getElementById('profile-phone').value.trim(),
         farmName: document.getElementById('farm-name').value.trim(),
         representativeName: document.getElementById('farm-rep-name').value.trim(),
-        productionScale: document.getElementById('farm-scale').value.trim(),
+        productionScale: document.getElementById('farm-scale').value || null,
         cultivatedArea: areaVal ? Number(areaVal) : null,
         productionModel: document.getElementById('farm-model').value || null,
         shortDescription: document.getElementById('farm-desc').value.trim() || null,
