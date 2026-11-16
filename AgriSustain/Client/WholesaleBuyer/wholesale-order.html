@@ -39,7 +39,7 @@
     .cert-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; margin-right: 6px; margin-bottom: 4px; }
 
     /* Tier Matrix */
-    .tier-matrix-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+    .tier-matrix-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 16px 0; }
     @media (max-width: 640px) {
       .tier-matrix-grid { grid-template-columns: 1fr; }
     }
@@ -445,10 +445,6 @@
                     <strong>−<span id="summary-savings">0</span> ₫</strong>
                   </div>
 
-                  <div class="summary-line">
-                    <span>Thuế VAT nông sản (0%):</span>
-                    <span>0 ₫</span>
-                  </div>
 
                   <div class="summary-line">
                     <span>Phí vận chuyển logistics (Goship):</span>
@@ -1241,8 +1237,12 @@
           incentiveEl.style.display = 'none';
         }
       } else {
-        incentiveEl.style.display = 'flex';
-        incentiveText.innerHTML = `🎉 Bạn đang hưởng <strong>mức chiết khấu cao nhất (${tiers[activeTierIndex].discountPercent}%)</strong> cho đơn hàng khối lượng lớn!`;
+        if (tiers[activeTierIndex] && tiers[activeTierIndex].discountPercent > 0) {
+          incentiveEl.style.display = 'flex';
+          incentiveText.innerHTML = `🎉 Bạn đang hưởng <strong>mức chiết khấu cao nhất (${tiers[activeTierIndex].discountPercent}%)</strong> cho đơn hàng khối lượng lớn!`;
+        } else {
+          incentiveEl.style.display = 'none';
+        }
       }
     }
 
@@ -1336,7 +1336,7 @@
 
       document.getElementById('summary-quantity').textContent = Number(qty).toLocaleString('vi-VN');
       document.getElementById('summary-unit-price').textContent = Number(unitPrice).toLocaleString('vi-VN');
-      document.getElementById('summary-discount-pct').textContent = `-${discPct}% (${calc.activeTierName || 'Bậc giá'})`;
+      document.getElementById('summary-discount-pct').textContent = discPct > 0 ? `-${discPct}% (${calc.activeTierName || 'Bậc giá'})` : '0%';
       document.getElementById('summary-subtotal').textContent = Number(subtotal).toLocaleString('vi-VN');
       document.getElementById('summary-savings').textContent = Number(savings).toLocaleString('vi-VN');
       document.getElementById('summary-shipping').textContent = Number(shipping).toLocaleString('vi-VN');

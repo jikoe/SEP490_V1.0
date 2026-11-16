@@ -74,6 +74,8 @@
      * GET /api/orders (server-side status filter, keyword search, paging) and GET /api/orders/{id}.
      */
     const STATUS = {
+      Pending: { label: 'Chờ xác nhận', color: '#b7791f', bg: '#fdf6e3' },
+      PendingConfirmation: { label: 'Chờ xác nhận', color: '#b7791f', bg: '#fdf6e3' },
       PendingPayment: { label: 'Chờ thanh toán', color: '#b7791f', bg: '#fdf6e3' },
       Paid: { label: 'Đã thanh toán', color: '#1976d2', bg: '#e6f3fa' },
       Processing: { label: 'Đang xử lý', color: '#1976d2', bg: '#e6f3fa' },
@@ -185,7 +187,7 @@
                   <strong style="font-size:17px; color:#1e6546;">${Utils.formatVND(o.finalAmount)}</strong>
                 </div>
                 <button type="button" onclick="openDetail(${Number(o.orderId)})">Xem chi tiết</button>
-                ${(o.orderStatus === 'PendingPayment' || (o.paymentStatus && o.paymentStatus !== 'Paid' && o.orderStatus !== 'Cancelled')) ? `<button type="button" class="primary" onclick="goToPayment('${esc(o.orderCode)}', ${Number(o.finalAmount || 0)})" style="background:#1e6546; color:#fff;">💳 Thanh toán</button>` : ''}
+                ${(o.orderStatus === 'PendingPayment' || (o.paymentStatus && o.paymentStatus !== 'Paid' && o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Pending')) ? `<button type="button" class="primary" onclick="goToPayment('${esc(o.orderCode)}', ${Number(o.finalAmount || 0)})" style="background:#1e6546; color:#fff;">💳 Thanh toán</button>` : ''}
                 ${canReview ? `<button type="button" class="primary" onclick="window.location.href='${feedbackUrl(o.orderId, 'review')}'">⭐ Đánh giá</button>` : ''}
               </div>
             </div>

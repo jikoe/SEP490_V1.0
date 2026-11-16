@@ -136,6 +136,34 @@ public sealed class KycVerificationService(
                 "Hồ sơ KYC đã ở trạng thái Đã xác minh, không thể thẩm định lại.");
         }
 
+        if (previousVerificationStatus is VerificationStatuses.Rejected)
+        {
+            return UseCaseResult<KycReviewResultDto>.Failure(
+                "ALREADY_REJECTED",
+                "Hồ sơ KYC đã bị từ chối và đang chờ người dùng cập nhật, nộp lại hồ sơ.");
+        }
+
+        if (previousVerificationStatus is VerificationStatuses.AdditionalInfoRequired)
+        {
+            return UseCaseResult<KycReviewResultDto>.Failure(
+                "ADDITIONAL_INFO_REQUIRED",
+                "Hồ sơ KYC đang chờ người dùng bổ sung thông tin và nộp lại.");
+        }
+
+        if (previousVerificationStatus is VerificationStatuses.NotSubmitted)
+        {
+            return UseCaseResult<KycReviewResultDto>.Failure(
+                "NOT_SUBMITTED",
+                "Hồ sơ người dùng chưa được gửi thẩm định KYC (trạng thái Chưa nộp).");
+        }
+
+        if (!VerificationStatuses.IsPending(previousVerificationStatus))
+        {
+            return UseCaseResult<KycReviewResultDto>.Failure(
+                "INVALID_STATUS",
+                "Chỉ có thể thẩm định hồ sơ khi đang ở trạng thái Chờ thẩm định.");
+        }
+
         if (user.FarmerProfile is not null)
         {
             user.FarmerProfile.VerificationStatus = targetStatus;
@@ -384,7 +412,7 @@ public sealed class KycVerificationService(
             return user.WholesaleBuyerProfile.VerificationStatus;
         }
 
-        return VerificationStatuses.PendingApproval;
+        return VerificationStatuses.NotSubmitted;
     }
 
     private static string ComputeEffectiveAccountStatus(User user, string verificationStatus)

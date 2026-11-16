@@ -713,10 +713,10 @@ public class WholesaleOrderService(
 
         if (!alreadyPaid)
         {
-            order.OrderStatus = "Confirmed";
+            order.OrderStatus = "Pending";
             foreach (var sellerOrder in order.SellerOrders)
             {
-                sellerOrder.Status = "Confirmed";
+                sellerOrder.Status = "Pending";
             }
 
             var txCode = $"SEPAY-WS-{order.OrderId}-{Random.Shared.Next(1000, 9999)}";
@@ -856,20 +856,6 @@ public class WholesaleOrderService(
         decimal moq,
         decimal basePrice)
     {
-        if (quantity >= 5 * moq)
-        {
-            const decimal disc = 8m;
-            var price = Math.Round(basePrice * (1 - disc / 100m), 0);
-            return ("Khối lượng lớn (Tier 3)", disc, price);
-        }
-
-        if (quantity >= 2 * moq)
-        {
-            const decimal disc = 4m;
-            var price = Math.Round(basePrice * (1 - disc / 100m), 0);
-            return ("Số lượng vừa (Tier 2)", disc, price);
-        }
-
         return ("Tiêu chuẩn MOQ (Tier 1)", 0m, basePrice);
     }
 
@@ -880,24 +866,10 @@ public class WholesaleOrderService(
             new WholesalePriceTierDto(
                 TierName: "Tiêu chuẩn MOQ (Tier 1)",
                 MinQuantity: moq,
-                MaxQuantity: 2 * moq,
+                MaxQuantity: null,
                 DiscountPercent: 0m,
                 UnitPrice: baseWholesalePrice,
-                Description: $"Đặt mua từ {moq:N0} đến dưới {2 * moq:N0} đơn vị sản phẩm."),
-            new WholesalePriceTierDto(
-                TierName: "Số lượng vừa (Tier 2)",
-                MinQuantity: 2 * moq,
-                MaxQuantity: 5 * moq,
-                DiscountPercent: 4m,
-                UnitPrice: Math.Round(baseWholesalePrice * 0.96m, 0),
-                Description: $"Đặt mua từ {2 * moq:N0} đến dưới {5 * moq:N0} đơn vị sản phẩm (Chiết khấu thêm 4%)."),
-            new WholesalePriceTierDto(
-                TierName: "Khối lượng lớn (Tier 3)",
-                MinQuantity: 5 * moq,
-                MaxQuantity: null,
-                DiscountPercent: 8m,
-                UnitPrice: Math.Round(baseWholesalePrice * 0.92m, 0),
-                Description: $"Đặt mua từ {5 * moq:N0} đơn vị sản phẩm trở lên (Chiết khấu cao nhất 8%).")
+                Description: $"Đặt mua từ {moq:N0} đơn vị sản phẩm trở lên.")
         ];
     }
 

@@ -24,7 +24,16 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
             .Include(u => u.FarmerProfile)
                 .ThenInclude(f => f!.FarmCertificates)
             .Include(u => u.WholesaleBuyerProfile)
-            .Where(user => user.Role == "Farmer" || user.Role == "WholesaleBuyer");
+            .Where(user =>
+                (user.Role == "Farmer" && user.FarmerProfile != null
+                    && user.FarmerProfile.VerificationStatus != null
+                    && user.FarmerProfile.VerificationStatus != ""
+                    && user.FarmerProfile.VerificationStatus != VerificationStatuses.NotSubmitted)
+                ||
+                (user.Role == "WholesaleBuyer" && user.WholesaleBuyerProfile != null
+                    && user.WholesaleBuyerProfile.VerificationStatus != null
+                    && user.WholesaleBuyerProfile.VerificationStatus != ""
+                    && user.WholesaleBuyerProfile.VerificationStatus != VerificationStatuses.NotSubmitted));
 
         if (!string.IsNullOrWhiteSpace(search.Role))
         {
@@ -83,9 +92,9 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
 
             string rawStatus = user.Role switch
             {
-                "Farmer" => farm?.VerificationStatus ?? VerificationStatuses.PendingApproval,
-                "WholesaleBuyer" => wholesale?.VerificationStatus ?? VerificationStatuses.PendingApproval,
-                _ => VerificationStatuses.PendingApproval
+                "Farmer" => farm?.VerificationStatus ?? VerificationStatuses.NotSubmitted,
+                "WholesaleBuyer" => wholesale?.VerificationStatus ?? VerificationStatuses.NotSubmitted,
+                _ => VerificationStatuses.NotSubmitted
             };
 
             string normalizedStatus = NormalizeStatusForClient(rawStatus);
@@ -187,9 +196,9 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
 
         string rawVerificationStatus = user.Role switch
         {
-            "Farmer" => farm?.VerificationStatus ?? VerificationStatuses.PendingApproval,
-            "WholesaleBuyer" => wholesale?.VerificationStatus ?? VerificationStatuses.PendingApproval,
-            _ => VerificationStatuses.PendingApproval
+            "Farmer" => farm?.VerificationStatus ?? VerificationStatuses.NotSubmitted,
+            "WholesaleBuyer" => wholesale?.VerificationStatus ?? VerificationStatuses.NotSubmitted,
+            _ => VerificationStatuses.NotSubmitted
         };
 
         string verificationStatus = NormalizeStatusForClient(rawVerificationStatus);
@@ -341,9 +350,12 @@ public sealed class KycVerificationRepository(AgriSustainContext context) : IKyc
 
     private static string NormalizeStatusForClient(string? rawStatus)
     {
-        if (string.IsNullOrWhiteSpace(rawStatus)
-            || VerificationStatuses.IsPending(rawStatus)
-            || rawStatus == VerificationStatuses.NotSubmitted)
+        if (string.IsNullOrWhiteSpace(rawStatus) || rawStatus == VerificationStatuses.NotSubmitted)
+        {
+            return VerificationStatuses.NotSubmitted;
+        }
+
+        if (VerificationStatuses.IsPending(rawStatus))
         {
             return "Pending";
         }

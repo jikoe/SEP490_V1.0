@@ -1,5 +1,5 @@
 import { request, localTime, safeUrl } from './page-ui.js';
-import { esc, icon, productImage, account, updateCartBadge, price, rating, bindImageFallback, addProduct } from './marketplace-ui.js';
+import { esc, icon, productImage, account, updateCartBadge, price, rating, bindImageFallback, addProduct, isWholesaleBuyer } from './marketplace-ui.js';
 
 const container = document.getElementById('mkt-detail-container');
 const id = new URLSearchParams(location.search).get('id');
@@ -59,6 +59,7 @@ function renderTab(tab) {
   }
 }
 function render() {
+  const isB2B = isWholesaleBuyer();
   const { product, certificates, similarProducts } = detail;
   const maxQuantity = Math.max(0, Math.min(999999999, Math.floor(product.availableQuantity)));
   document.title = `${product.name} - Nông Sản Việt`;
@@ -72,12 +73,12 @@ function render() {
       <input id="detail-quantity" name="quantity" aria-label="Số lượng" type="number" min="1" max="${maxQuantity || 1}" step="1" value="1" required>
       <button id="detail-quantity-plus" type="button" aria-label="Tăng số lượng">+</button></div>
       <label class="mkt-quantity-unit" for="detail-quantity">(${esc(product.unit)})</label>
-      <button id="detail-add-cart" class="mkt-primary" type="submit">${icon('cart')}${maxQuantity < 1 ? 'Hết hàng' : 'Thêm vào giỏ hàng'}</button>
+      <button id="detail-add-cart" class="mkt-primary" type="submit">${icon('cart')}${maxQuantity < 1 ? 'Hết hàng' : (isB2B ? 'Mua sỉ' : 'Thêm vào giỏ hàng')}</button>
     </fieldset></form>
     ${detail.wholesalePrice != null && detail.wholesaleMinQuantity != null ? `
       <div style="margin-top: 10px;">
         <a href="../WholesaleBuyer/wholesale-order.html?productId=${product.id}" class="b2b-wholesale-order-btn" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px 16px; background: #064e3b; color: #ffffff; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; box-shadow: 0 4px 12px rgba(6, 78, 59, 0.18); transition: background 0.2s;" onmouseover="this.style.background='#047857'" onmouseout="this.style.background='#064e3b'">
-          📦 Đặt hàng sỉ / Mua buôn B2B (từ ${detail.wholesaleMinQuantity} ${esc(product.unit)}) →
+          📦 Đặt hàng sỉ / Mua buôn B2B →
         </a>
       </div>
     ` : ''}
@@ -108,6 +109,10 @@ function render() {
   updateQuantityButtons();
   document.getElementById('detail-buy').addEventListener('submit', async event => {
     event.preventDefault();
+    if (isB2B) {
+      window.location.href = `../WholesaleBuyer/wholesale-order.html?productId=${product.id}`;
+      return;
+    }
     if (adding || maxQuantity < 1 || !quantityInput.reportValidity()) return;
     adding = true;
     buyFields.disabled = true;
@@ -118,7 +123,7 @@ function render() {
     } finally {
       adding = false;
       buyFields.disabled = false;
-      button.innerHTML = `${icon('cart')}Thêm vào giỏ hàng`;
+      button.innerHTML = `${icon('cart')}${isB2B ? 'Mua sỉ' : 'Thêm vào giỏ hàng'}`;
       updateQuantityButtons();
     }
   });

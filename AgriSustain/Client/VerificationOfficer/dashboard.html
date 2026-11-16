@@ -694,26 +694,17 @@
       let pending = 0, additional = 0, approved = 0, rejected = 0, total = 0;
       try {
         const res = await API.get('/kyc-applications?page=1&pageSize=1000', { suppressErrorToast: true });
-        if (res && (res.items || Array.isArray(res))) {
-          const items = res.items || res;
-          if (items.length > 0) {
-            pending = items.filter(i => i.verificationStatus === 'Pending' || i.verificationStatus === 'PendingApproval').length;
+        if (res) {
+          const items = res.items || (Array.isArray(res) ? res : []);
+          pending = items.filter(i => i.verificationStatus === 'Pending' || i.verificationStatus === 'PendingApproval').length;
           additional = items.filter(i => i.verificationStatus === 'AdditionalInfoRequired').length;
           approved = items.filter(i => i.verificationStatus === 'Approved').length;
           rejected = items.filter(i => i.verificationStatus === 'Rejected').length;
           total = res.total ?? items.length;
-          renderMetrics({ pending, additional, approved, rejected, total });
-          return;
-          }
         }
-      } catch (_) {}
-
-      const store = readDemoStore();
-      pending = store.filter(i => i.verificationStatus === 'Pending' || i.verificationStatus === 'PendingApproval').length;
-      additional = store.filter(i => i.verificationStatus === 'AdditionalInfoRequired').length;
-      approved = store.filter(i => i.verificationStatus === 'Approved').length;
-      rejected = store.filter(i => i.verificationStatus === 'Rejected').length;
-      total = store.length;
+      } catch (err) {
+        console.warn('Không thể tải số liệu thống kê từ API:', err);
+      }
       renderMetrics({ pending, additional, approved, rejected, total });
     }
 
@@ -743,36 +734,19 @@
           status: filters.verificationStatus || undefined
         };
         const queryStr = API.toQueryString(qParams);
-        const res = await API.get(`/kyc-applications?${queryStr}`, { suppressErrorToast: true });
+        const res = await API.get(`/kyc-applications?${queryStr}`);
 
-        if (res && res.items && res.items.length > 0) {
-          usingFallback = false;
-          listData = { items: res.items, total: res.total ?? res.items.length };
-          renderList();
+        if (res && res.success === false) {
+          tbody.innerHTML = `<tr><td colspan="9" class="empty" style="text-align:center; padding:36px; color:#c0392b;">${res.error || 'Lỗi khi tải danh sách hồ sơ.'}</td></tr>`;
           return;
         }
-      } catch (_) {}
 
-      // Fallback demo filtering
-      usingFallback = true;
-      const store = readDemoStore();
-      const keyword = filters.search.trim().toLowerCase();
-      const filtered = store.filter(item => {
-        if (filters.role && item.role !== filters.role) return false;
-        if (filters.verificationStatus && item.verificationStatus !== filters.verificationStatus) return false;
-        if (keyword) {
-          const haystack = [item.fullName, item.username, item.email, item.phoneNumber, item.entityName, item.organizationName, item.identificationNumber, String(item.userId)].filter(Boolean).join(' ').toLowerCase();
-          if (!haystack.includes(keyword)) return false;
-        }
-        return true;
-      });
-
-      const start = (filters.page - 1) * PAGE_SIZE;
-      listData = {
-        items: filtered.slice(start, start + PAGE_SIZE),
-        total: filtered.length
-      };
-      renderList();
+        const items = res?.items || (Array.isArray(res) ? res : []);
+        listData = { items, total: res?.total ?? items.length };
+        renderList();
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="9" class="empty" style="text-align:center; padding:36px; color:#c0392b;">Lỗi khi tải danh sách: ${err.message || 'Không thể kết nối máy chủ.'}</td></tr>`;
+      }
     }
 
     function renderList() {
@@ -897,19 +871,16 @@
       // Load detail
       let detail = null;
       try {
-        const res = await API.get(`/kyc-applications/${userId}`, { suppressErrorToast: true });
+        const res = await API.get(`/kyc-applications/${userId}`);
         if (res && res.success !== false && (res.userId || res.data?.userId)) {
           detail = res.data?.userId ? res.data : res;
         }
-      } catch (_) {}
-
-      if (!detail) {
-        const store = readDemoStore();
-        detail = store.find(i => i.userId === Number(userId)) || null;
+      } catch (err) {
+        showNotice('error', 'Lỗi khi tải chi tiết hồ sơ KYC: ' + (err.message || 'Không thể kết nối máy chủ.'));
       }
 
       if (!detail) {
-        showNotice('error', 'Không tìm thấy hoặc không thể tải chi tiết hồ sơ KYC.');
+        showNotice('error', 'Không tìm thấy hồ sơ KYC trên máy chủ.');
         backToList();
         return;
       }
@@ -979,8 +950,8 @@
 
       const decisionPanel = document.getElementById('kyc-decision-panel');
       if (decisionPanel) {
-        const isAlreadyVerified = d.verificationStatus === 'Approved' || d.verificationStatus === 'Verified';
-        decisionPanel.style.display = isAlreadyVerified ? 'none' : 'flex';
+        const isPending = d.verificationStatus === 'Pending' || d.verificationStatus === 'PendingApproval' || d.verificationStatus === 'PendingReview' || d.verificationStatus === 'PendingVerification';
+        decisionPanel.style.display = isPending ? 'flex' : 'none';
       }
 
       const reasonBox = document.getElementById('detail-reason-box');
@@ -1031,8 +1002,9 @@
     /* Decision Modal Logic */
     function openDecisionModal(action) {
       if (!selectedDetail) return;
-      if (selectedDetail.verificationStatus === 'Approved' || selectedDetail.verificationStatus === 'Verified') {
-        showNotice('error', 'Hồ sơ KYC này đã ở trạng thái Đã xác minh, không thể quyết định lại.');
+      const isPending = selectedDetail.verificationStatus === 'Pending' || selectedDetail.verificationStatus === 'PendingApproval' || selectedDetail.verificationStatus === 'PendingReview' || selectedDetail.verificationStatus === 'PendingVerification';
+      if (!isPending) {
+        showNotice('error', 'Chỉ có thể đưa ra quyết định thẩm định khi hồ sơ đang ở trạng thái Chờ thẩm định.');
         return;
       }
       decisionModal = action;
@@ -1102,70 +1074,30 @@
           : 'Đã gửi yêu cầu bổ sung thông tin KYC cho người dùng.';
 
       try {
-        const isDemoRecord = DEMO_KYC_APPLICATIONS.some(i => i.userId === Number(selectedDetail.userId));
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = 'Đang xử lý...';
 
-        // Auto-authenticate as verification officer if needed
-        let token = Auth.getAccessToken();
-        if (!token) {
-          try {
-            const loginRes = await API.login({ identifier: 'verification_officer', password: '123456' });
-            if (loginRes && loginRes.success) token = Auth.getAccessToken();
-          } catch {}
-        }
-
-        if (token && !usingFallback && !isDemoRecord) {
-          try {
-            const res = await API.post(`/kyc-applications/${selectedDetail.userId}/review`, {
-              action: decisionModal,
-              reason: reason || null
-            }, { suppressErrorToast: true });
-
-            if (res && res.success !== false) {
-              if (res.message) successMessage = res.message;
-            }
-          } catch (apiErr) {
-            console.warn('API review failed, falling back to local state:', apiErr);
-          }
-        }
-
-        // Always update local demo store to ensure UI is immediately reflected
-        // Option 2: Account remains Active (not locked out) so user can log in and resubmit KYC
-        const nextAccountStatus = selectedDetail.accountStatus === 'Suspended'
-          ? 'Suspended'
-          : 'Active';
-
-        const store = readDemoStore();
-        const updatedStore = store.map(item => {
-          if (item.userId === selectedDetail.userId) {
-            return {
-              ...item,
-              verificationStatus: nextStatus,
-              accountStatus: nextAccountStatus,
-              approvedAt: decisionModal === 'approve' ? nowIso : null,
-              reviewedAt: nowIso,
-              reviewedBy: reviewerName,
-              rejectReason: decisionModal === 'approve' ? null : reason,
-              documents: (item.documents || []).map(doc => ({
-                ...doc,
-                status: nextStatus,
-                verificationStatus: nextStatus
-              }))
-            };
-          }
-          return item;
+        const res = await API.post(`/kyc-applications/${selectedDetail.userId}/review`, {
+          action: decisionModal,
+          reason: reason || null
         });
 
-        writeDemoStore(updatedStore);
-        const updatedRecord = updatedStore.find(i => i.userId === selectedDetail.userId);
-        if (updatedRecord) {
-          selectedDetail = updatedRecord;
+        if (res && res.success !== false) {
+          if (res.message) successMessage = res.message;
         } else {
-          selectedDetail.verificationStatus = nextStatus;
-          selectedDetail.accountStatus = nextAccountStatus;
-          selectedDetail.rejectReason = decisionModal === 'approve' ? null : reason;
-          selectedDetail.reviewedAt = nowIso;
-          selectedDetail.reviewedBy = reviewerName;
+          const errMsg = res?.message || res?.error || 'Thao tác thẩm định thất bại.';
+          errBox.textContent = errMsg;
+          errBox.style.display = 'block';
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = cfg.submitLabel;
+          return;
         }
+
+        selectedDetail.verificationStatus = nextStatus;
+        if (res.accountStatus) selectedDetail.accountStatus = res.accountStatus;
+        selectedDetail.rejectReason = decisionModal === 'approve' ? null : reason;
+        selectedDetail.reviewedAt = nowIso;
+        selectedDetail.reviewedBy = reviewerName;
 
         closeDecisionModal();
         showNotice('success', successMessage);

@@ -218,24 +218,24 @@ public sealed class BankTransferReconciler(
 
     private void ConfirmOrder(Order order, BankTransfer transfer, DateTime now)
     {
-        order.OrderStatus = "Confirmed";
+        order.OrderStatus = "Pending";
         foreach (var sellerOrder in order.SellerOrders)
         {
             sellerOrder.OrderStatusHistories.Add(new OrderStatusHistory
             {
                 OldStatus = sellerOrder.Status,
-                NewStatus = "Confirmed",
+                NewStatus = "Pending",
                 OccurredAt = now,
-                Reason = $"Thanh toán thành công qua {transfer.Gateway}"
+                Reason = $"Thanh toán thành công qua {transfer.Gateway}, chờ người bán xác nhận"
             });
-            sellerOrder.Status = "Confirmed";
+            sellerOrder.Status = "Pending";
         }
 
         db.Notifications.Add(new Notification
         {
             UserId = order.BuyerUserId,
             Title = "Thanh toán chuyển khoản thành công",
-            Content = $"Đơn hàng #{order.OrderCode} đã thanh toán thành công {transfer.Amount:N0} đ qua {transfer.Gateway}.",
+            Content = $"Đơn hàng #{order.OrderCode} đã thanh toán thành công {transfer.Amount:N0} đ qua {transfer.Gateway}. Đơn hàng đang chờ người bán xác nhận.",
             NotificationType = "OrderPayment",
             DeliveryChannel = "InApp",
             DeliveryStatus = "Sent",
