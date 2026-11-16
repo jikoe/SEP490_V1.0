@@ -11,7 +11,13 @@ const quantity = form.elements.namedItem('quantity');
 const next = byId('proposal-next');
 const back = byId('proposal-back');
 const save = byId('proposal-save');
-const search = byId('catalog-search');
+const picker = byId('catalog-picker');
+const keyword = byId('catalog-keyword');
+const catalogResults = byId('catalog-results');
+const validFrom = form.elements.namedItem('validFrom');
+const validUntil = form.elements.namedItem('validUntil');
+const deliveryDate = form.elements.namedItem('deliveryDate');
+const todayInVietnam = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
 const articles = byId('proposal-articles');
 const addArticle = byId('proposal-add-article');
 const panels = [...form.querySelectorAll('[data-step]')];
@@ -21,7 +27,8 @@ const edit = params.get('edit') || params.get('revision');
 let draft;
 let editingRevision = false;
 let buyerParty;
-let catalog = [];
+let catalogRequest;
+let searchTimer;
 let selected;
 let step = 0;
 let submittedBody;
@@ -64,39 +71,62 @@ async function showBuyerParty() {
   }
 }
 
+function renderCatalog(products, emptyText = 'Không tìm thấy sản phẩm phù hợp.') {
+  catalogResults.replaceChildren();
+  for (const item of products) {
+    const row = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = `${item.name} — ${item.farmer} (${item.unit})`;
+    button.addEventListener('click', () => {
+      updateSummary(item, selected?.id === item.id ? unit.value : undefined);
+      catalogResults.hidden = true;
+      quantity.focus();
+    });
+    row.append(button);
+    catalogResults.append(row);
+  }
+  if (!products.length) {
+    const row = document.createElement('li');
+    row.textContent = emptyText;
+    row.setAttribute('role', 'status');
+    catalogResults.append(row);
+  }
+}
+
 async function loadCatalog() {
-  if (search.disabled) return;
-  search.disabled = true;
-  notice(message, 'Đang tải sản phẩm…');
+  catalogRequest?.abort();
+  const controller = new AbortController();
+  catalogRequest = controller;
+  if (form.hidden) notice(message, 'Đang tải sản phẩm…');
   try {
-    const keyword = byId('catalog-keyword').value.trim();
-    const data = await request('/b2b/contracts/catalog?' + new URLSearchParams({ keyword }));
-    const previous = selected;
-    const previousUnit = unit.value;
-    catalog = previous && !data.products.some(item => item.id === previous.id)
-      ? [previous, ...data.products] : data.products;
-    product.replaceChildren(new Option('Chọn sản phẩm và nhà cung cấp', ''));
-    catalog.forEach(item => product.add(new Option(item.name + ' — ' + item.farmer, item.id)));
-    if (previous) product.value = previous.id;
-    updateSummary(previousUnit);
+    const data = await request('/b2b/contracts/catalog?' + new URLSearchParams({ keyword: keyword.value.trim() }),
+      { signal: controller.signal });
+    if (controller.signal.aborted) return;
+    renderCatalog(data.products);
     if (data.supportEmail && /^[^\s@?]+@[^\s@?]+\.[^\s@?]+$/.test(data.supportEmail)) {
       byId('proposal-support-link').href = 'mailto:' + data.supportEmail;
       byId('proposal-support').hidden = false;
     }
-    form.hidden = false;
-    notice(message, data.products.length ? '' : 'Không tìm thấy sản phẩm phù hợp.');
+    if (form.hidden) {
+      form.hidden = false;
+      notice(message, '');
+    }
     return true;
   } catch (error) {
+    if (controller.signal.aborted) return;
+    if (!form.hidden) {
+      renderCatalog([], error.message);
+      return;
+    }
     notice(message, error.message, true);
-    if (form.hidden && error.status !== 403 && !byId('catalog-retry')) {
+    if (error.status !== 403 && !byId('catalog-retry')) {
       const retry = document.createElement('button');
       retry.id = 'catalog-retry';
       retry.textContent = 'Thử lại';
       retry.addEventListener('click', () => { retry.remove(); loadCatalog(); });
       message.after(retry);
     }
-  } finally {
-    search.disabled = false;
   }
 }
 
@@ -123,14 +153,14 @@ function updateUnits(preferred) {
   updateQuantityStep();
 }
 
-function updateSummary(preferredUnit) {
-  const current = catalog.find(item => String(item.id) === product.value);
+function updateSummary(current, preferredUnit) {
   if (current?.id !== selected?.id || current?.unit !== selected?.unit) {
     quantity.value = '';
     form.elements.namedItem('unitPrice').value = '';
   }
   selected = current;
   updateUnits(preferredUnit);
+  product.value = selected?.name ?? '';
   farmer.value = selected?.farmer ?? '';
   const card = byId('proposal-product-card');
   card.hidden = !selected;
@@ -142,6 +172,14 @@ function updateSummary(preferredUnit) {
     ['Nhà cung cấp', selected?.farmer || 'Chưa chọn'],
     ['Sản phẩm', selected?.name || 'Chưa chọn'],
   ]);
+}
+
+function updateDateLimits() {
+  validFrom.min = todayInVietnam.format(new Date());
+  const earliestDelivery = validFrom.valueAsDate;
+  if (earliestDelivery) earliestDelivery.setUTCDate(earliestDelivery.getUTCDate() + 3);
+  validUntil.min = deliveryDate.min = earliestDelivery?.toISOString().slice(0, 10) ?? '';
+  deliveryDate.max = validUntil.value;
 }
 
 function showStep(index, focus = true) {
@@ -181,6 +219,7 @@ function missingArticle() {
 async function advance(event) {
   event.preventDefault();
   notice(message, '');
+  updateDateLimits();
   const invalid = [...panels[step].querySelectorAll('input, select, textarea')]
     .find(field => !field.checkValidity());
   if (invalid) {
@@ -188,6 +227,11 @@ async function advance(event) {
     return;
   }
   if (step === 0) {
+    if (!selected) {
+      notice(message, 'Vui lòng chọn sản phẩm trong danh sách tìm kiếm.', true);
+      keyword.focus();
+      return;
+    }
     if (!hasBuyerParty(buyerParty)) {
       notice(message, 'Cần có đầy đủ thông tin Bên B trong hồ sơ doanh nghiệp.', true);
       return;
@@ -207,9 +251,8 @@ async function advance(event) {
       notice(message, 'Tổng nội dung các điều khoản vượt quá 10.000 ký tự. Vui lòng rút gọn.', true);
       return;
     }
-    if (!body.deliveryTerms || body.deliveryDate < body.validFrom || body.deliveryDate > body.validUntil
-      || body.depositAmount > body.quantity * body.unitPrice) {
-      notice(message, 'Kiểm tra điều khoản, ngày giao trong thời hạn hiệu lực và số tiền cọc.', true);
+    if (body.depositAmount > body.quantity * body.unitPrice) {
+      notice(message, 'Tiền cọc không được vượt quá giá trị hợp đồng.', true);
       return;
     }
     showReview(body);
@@ -233,6 +276,13 @@ function showReview(body) {
 }
 
 async function saveProposal(body, asDraft) {
+  updateDateLimits();
+  const invalidDate = [validFrom, validUntil, deliveryDate].find(field => !field.checkValidity());
+  if (invalidDate) {
+    showStep(1);
+    invalidDate.reportValidity();
+    return;
+  }
   if (!hasBuyerParty(buyerParty) || missingArticle()) {
     notice(message, 'Vui lòng kiểm tra thông tin Bên B và điền đầy đủ các điều khoản.', true);
     return;
@@ -280,8 +330,7 @@ async function loadDraft() {
     byId('proposal-title').textContent = 'Chỉnh sửa đề xuất hợp đồng Offtake';
     byId('proposal-code').value = draft.code;
     byId('proposal-today').value = date(draft.createdAt);
-    selected = draft.product;
-    updateUnits(draft.proposal.quantityUnit);
+    updateSummary(draft.product, draft.proposal.quantityUnit);
     articles.replaceChildren();
     for (const article of readContractTerms(draft.proposal.deliveryTerms, draft.proposal.paymentTerms)) appendArticle(article);
     if (!articles.childElementCount) appendArticle({ title: 'Nội dung hợp đồng' });
@@ -290,7 +339,8 @@ async function loadDraft() {
       const field = form.elements.namedItem(name);
       if (field) field.value = value ?? '';
     }
-    quantity.value = Number((draft.proposal.quantity / quantityFactor()).toPrecision(15));
+    if (selected) quantity.value = Number((draft.proposal.quantity / quantityFactor()).toPrecision(15));
+    updateDateLimits();
     if (editingRevision) {
       byId('proposal-title').textContent = 'Chỉnh sửa và gửi lại đề xuất Offtake';
       byId('proposal-description').textContent = 'Cập nhật điều khoản theo yêu cầu của nông dân rồi gửi lại để nông dân xác nhận.';
@@ -302,11 +352,7 @@ async function loadDraft() {
       byId('proposal-amendment').hidden = false;
       byId('proposal-cancel').href = 'contracts.html?record=' + edit;
       byId('proposal-send-note').textContent = 'Nông dân sẽ nhận phiên bản mới để xem và xác nhận.';
-      byId('catalog-picker').hidden = true;
-      catalog = [draft.product];
-      product.add(new Option(draft.product.name + ' — ' + draft.product.farmer, draft.product.id));
-      product.disabled = true;
-      updateSummary(draft.proposal.quantityUnit);
+      picker.hidden = true;
       form.hidden = false;
       notice(message, '');
       return;
@@ -351,11 +397,33 @@ if (Auth.requireAuth('WholesaleBuyer')) {
   byId('proposal-today').value = new Intl.DateTimeFormat('vi-VN', {
     dateStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh',
   }).format(new Date());
-  product.addEventListener('change', () => updateSummary());
+  updateSummary();
+  validFrom.value = todayInVietnam.format(new Date());
+  updateDateLimits();
+  validFrom.addEventListener('input', updateDateLimits);
+  validUntil.addEventListener('input', updateDateLimits);
   unit.addEventListener('change', () => { quantity.value = ''; updateQuantityStep(); });
-  search.addEventListener('click', loadCatalog);
-  byId('catalog-keyword').addEventListener('keydown', event => {
-    if (event.key === 'Enter') { event.preventDefault(); loadCatalog(); }
+  keyword.addEventListener('focus', () => { catalogResults.hidden = !catalogResults.childElementCount; });
+  keyword.addEventListener('input', () => {
+    catalogRequest?.abort();
+    clearTimeout(searchTimer);
+    renderCatalog([], 'Đang tìm sản phẩm…');
+    catalogResults.hidden = false;
+    searchTimer = setTimeout(loadCatalog, 250);
+  });
+  picker.addEventListener('focusout', event => {
+    if (!picker.contains(event.relatedTarget)) catalogResults.hidden = true;
+  });
+  picker.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !catalogResults.hidden) {
+      event.preventDefault();
+      keyword.focus();
+      catalogResults.hidden = true;
+    } else if (event.target === keyword && ['Enter', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      catalogResults.hidden = !catalogResults.childElementCount;
+      catalogResults.querySelector('button')?.focus();
+    }
   });
   form.addEventListener('submit', advance);
   save.addEventListener('click', () => saveProposal(readProposal(), true));

@@ -150,7 +150,10 @@ public sealed record ContractLineRecord(
 public sealed record ContractScheduleRecord(ContractRecord Contract, IReadOnlyList<ContractLineRecord> Lines);
 
 public sealed record ContractHistoryItem(DateTime At, string Kind, string Description, decimal? Amount,
-    string? Reference, string? By);
+    string? Reference, string? By)
+{
+    public string? SePayTransactionId { get; init; }
+}
 
 /// <summary>Everything written for one received payment (Step 6) in a single save.</summary>
 public sealed record ContractPaymentWrite(

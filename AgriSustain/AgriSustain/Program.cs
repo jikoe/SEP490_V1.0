@@ -248,6 +248,9 @@ builder.Services.AddScoped<IBankTransferHandler>(services =>
     services.GetRequiredService<AgriSustain.Application.Services.B2B.BuyerSubscriptionService>());
 builder.Services.AddScoped<IBankTransferHandler>(services =>
     services.GetRequiredService<AgriSustain.Application.Services.Finance.ContractPaymentService>());
+builder.Services.AddHttpClient<AgriSustain.Infrastructure.Payments.SePayContractDepositReconciler>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.ContractDepositReconciliationWorker>();
 if (builder.Configuration.GetValue("B2B:EnableReminderWorkers", true))
 {
     builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.SubscriptionReminderWorker>();

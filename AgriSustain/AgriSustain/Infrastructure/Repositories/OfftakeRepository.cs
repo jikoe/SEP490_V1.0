@@ -2,6 +2,7 @@ using System.Text.Json;
 using AgriSustain.Application.DTOs.Offtake;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Services;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -229,6 +230,9 @@ public sealed class OfftakeRepository(AgriSustainContext db) : IOfftakeRepositor
                     new OfftakeEvidence(e.DisputeEvidenceId, e.SubmittedByUserId == userId, e.Description)).ToList())).ToList(),
             FeedbackReason = version?.FeedbackReason,
             ProposedChanges = contract.Status == "Rejected" ? null : proposedChanges,
+            DepositConfirmed = contract.DepositAmount > 0 && orderedMilestones.Any(m =>
+                m.ContractVersionId == version?.ContractVersionId && ContractPaymentRules.IsDeposit(m.MilestoneType)
+                && m.PaidAmount >= contract.DepositAmount),
             CanEditRevision = !forFarmer && contract.Status is ("Negotiating" or "UnderNegotiation")
                 && version is { VersionStatus: "Pending" }
                 && version.ProposedByUserId == farmer.UserId
