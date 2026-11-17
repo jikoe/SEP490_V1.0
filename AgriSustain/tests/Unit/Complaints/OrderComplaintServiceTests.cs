@@ -68,8 +68,8 @@ public sealed class OrderComplaintServiceTests
 
     // ---------- UC-RC-06: OrderFeedbackService.ComplainAsync ----------
 
-    [Fact(DisplayName = "[UC-RC-06 #001] Create open ticket with buyer text and selected item metadata")]
-    public async Task ComplainAsync_SingleProduct_CreatesOpenTicket()
+    [Fact(DisplayName = "[UC-RC-06 #001] Create a ticket waiting for the farmer with selected item metadata")]
+    public async Task ComplainAsync_SingleProduct_CreatesTicketWaitingForFarmer()
     {
         Eligible();
         var result = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
@@ -77,7 +77,7 @@ public sealed class OrderComplaintServiceTests
         Assert.True(result.IsSuccess);
         var ticket = Assert.Single(_store.Tickets);
 
-        Assert.Equal("Open", ticket.TicketStatus);
+        Assert.Equal(DisputeTicket.StatusWaitingInfo, ticket.TicketStatus);
         Assert.Equal("Damaged", ticket.DisputeReason);
         Assert.Contains("#11): Product 11", ticket.Description);
         Assert.EndsWith("\n\nPackaging was damaged.", ticket.Description);
@@ -111,7 +111,7 @@ public sealed class OrderComplaintServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value!.Ids.Count);
         Assert.Equal(2, _store.Tickets.Count);
-        Assert.Equal(1, _store.Saves);
+        Assert.Equal(2, _store.Saves);
         Assert.Equal(1, _store.Commits);
         Assert.All(_store.Tickets, t => Assert.Equal(_store.SavedFiles,
             t.DisputeEvidences.Select(evidence => evidence.FileUrl)));
@@ -197,7 +197,7 @@ public sealed class OrderComplaintServiceTests
         var response = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
 
         Assert.True(response.IsSuccess);
-        Assert.Equal("Open", Assert.Single(_store.Tickets).TicketStatus);
+        Assert.Equal(DisputeTicket.StatusWaitingInfo, Assert.Single(_store.Tickets).TicketStatus);
         Assert.Equal(1, _store.Commits);
     }
 
@@ -408,6 +408,26 @@ public sealed class OrderComplaintServiceTests
         Assert.True(result.IsSuccess);
         Assert.Equal(2, result.Value!.Ids.Count);
         Assert.Equal(2, _store.Tickets.Count);
+        Assert.All(_store.Tickets, ticket =>
+        {
+            Assert.Equal(DisputeTicket.StatusWaitingInfo, ticket.TicketStatus);
+            Assert.Null(ticket.AssignedStaffUserId);
+            var request = Assert.Single(ticket.DisputeEvidenceRequests);
+            Assert.Equal(30 + ticket.SellerOrderId, request.RequestedPartyUserId);
+            Assert.Equal(ticket.SubmittedByUserId, request.RequestedByUserId);
+            Assert.Equal("Pending", request.RequestStatus);
+            Assert.Equal(T0.UtcDateTime.AddHours(48), request.DueAt);
+            Assert.Contains($"#{ticket.DisputeTicketId}", request.Instructions);
+            var notices = _store.Notifications.Where(n => n.RelatedRecordId == ticket.DisputeTicketId);
+            Assert.Collection(notices,
+                n => Assert.Equal(("InApp", "Sent", request.RequestedPartyUserId),
+                    (n.DeliveryChannel, n.DeliveryStatus, n.UserId)),
+                n => Assert.Equal(("Email", "Pending", request.RequestedPartyUserId),
+                    (n.DeliveryChannel, n.DeliveryStatus, n.UserId)));
+            var audits = _store.Audits.Where(a => a.EntityId == ticket.DisputeTicketId);
+            Assert.Equal(["SubmitComplaint", "RequestComplaintInformation"], audits.Select(a => a.Action));
+            Assert.All(audits, a => Assert.Null(a.PerformedByUserId));
+        });
         Assert.Equal(1, _store.Commits);
     }
 
@@ -420,6 +440,19 @@ public sealed class OrderComplaintServiceTests
         var item = Assert.Single(result.Value!.Items);
         Assert.True(item.CanComplain);
         Assert.True(item.CanReview);
+    }
+
+    [Fact]
+    public async Task ComplainAsync_WaitingForFarmer_BlocksDuplicateProductComplaint()
+    {
+        var result = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
+        Assert.True(result.IsSuccess);
+        _store.Item.SellerOrder.DisputeTickets.Add(Assert.Single(_store.Tickets));
+
+        var duplicate = await Service().ComplainAsync(20, 1, Request(11), RequiredEvidence(), default);
+
+        Assert.Equal("COMPLAINT_NOT_ELIGIBLE", duplicate.Error?.Code);
+        Assert.Single(_store.Tickets);
     }
 
     // ---------- Test doubles ----------
@@ -442,6 +475,8 @@ public sealed class OrderComplaintServiceTests
         };
         public List<ProductReview> Reviews { get; } = [];
         public List<DisputeTicket> Tickets { get; } = [];
+        public List<Notification> Notifications { get; } = [];
+        public List<AuditLog> Audits { get; } = [];
         public List<string> SavedFiles { get; } = [];
         public List<string> DeletedFiles { get; } = [];
         public Exception? SaveError { get; set; }
@@ -467,7 +502,11 @@ public sealed class OrderComplaintServiceTests
                     Status = "Completed",
                     ReceivedAt = Clock.Now.UtcDateTime,
                     DeliveredAt = Clock.Now.UtcDateTime.AddHours(-1),
-                    FarmerProfile = new FarmerProfile { VerificationStatus = "Approved" }
+                    FarmerProfile = new FarmerProfile
+                    {
+                        UserId = 30 + sellerId,
+                        VerificationStatus = "Approved"
+                    }
                 };
                 Order.SellerOrders.Add(seller);
             }
@@ -526,6 +565,8 @@ public sealed class OrderComplaintServiceTests
             Task.FromResult(new Dictionary<long, string>());
         public void Add(ProductReview review) { review.ProductReviewId = 101; Reviews.Add(review); }
         public void Add(DisputeTicket ticket) { ticket.DisputeTicketId = 200 + Tickets.Count; Tickets.Add(ticket); }
+        public void AddNotification(Notification notification) => Notifications.Add(notification);
+        public void AddAudit(AuditLog audit) => Audits.Add(audit);
         public Task<ITransaction> BeginAsync(CancellationToken ct) =>
             Task.FromResult<ITransaction>(new Transaction(this));
         public Task SaveChangesAsync(CancellationToken ct)

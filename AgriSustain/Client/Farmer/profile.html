@@ -229,13 +229,14 @@
 
                   <div class="farmer-form-grid-2">
                     <label class="field">
-                      <span>Quy mô canh tác</span>
-                      <input
-                        type="text"
-                        id="farm-scale"
-                        maxlength="100"
-                        placeholder="Ví dụ: 3.5 ha canh tác nhà kính"
-                      >
+                      <span>Quy mô sản xuất</span>
+                      <select id="farm-scale">
+                        <option value="">-- Chọn quy mô --</option>
+                        <option value="Nhỏ">Nhỏ</option>
+                        <option value="Vừa">Vừa</option>
+                        <option value="Lớn">Lớn</option>
+                      </select>
+                      <small id="farm-scale-hint" class="muted">Diện tích nhập ở ô "Diện tích canh tác (ha)".</small>
                     </label>
 
                     <label class="field">
@@ -262,13 +263,18 @@
                     </label>
 
                     <label class="field">
-                      <span>Tọa độ GPS vườn (Vĩ độ, Kinh độ)</span>
+                      <span>Tọa độ GPS vườn</span>
                       <input
                         type="text"
                         id="farm-gps"
                         maxlength="100"
                         placeholder="Ví dụ: 11.9404, 108.4583"
+                        oninput="updateGpsMapLink()"
                       >
+                      <small style="display: flex; gap: 16px; align-items: center; margin-top: 6px">
+                        <button type="button" id="btn-gps-locate" style="padding: 4px 10px; font-size: 13px; border-radius: 6px; border: 1px solid #b7d7c2; background: #f2faf5; color: #1b6b3a; cursor: pointer" onclick="fillCurrentLocation()">📍 Lấy vị trí hiện tại</button>
+                        <a id="farm-gps-map" href="#" target="_blank" rel="noopener noreferrer" style="display: none">🗺️ Xem trên bản đồ</a>
+                      </small>
                     </label>
                   </div>
 
@@ -537,10 +543,11 @@
 
       document.getElementById('farm-name').value = currentProfile.farmName;
       document.getElementById('farm-rep-name').value = currentProfile.representativeName;
-      document.getElementById('farm-scale').value = currentProfile.productionScale;
+      setProductionScale(currentProfile.productionScale);
       document.getElementById('farm-zone').value = currentProfile.cultivationZone;
       document.getElementById('farm-license').value = currentProfile.businessLicenseNumber;
       document.getElementById('farm-gps').value = currentProfile.gpsCoordinates;
+      updateGpsMapLink();
       document.getElementById('farm-address').value = currentProfile.farmAddress;
       fillPickup(currentProfile);
       document.getElementById('farm-area').value = currentProfile.cultivatedArea;
@@ -567,6 +574,45 @@
           notice.style.display = 'none';
         }
       }
+    }
+
+    // UC-AUTH-03 (9): GPS of the farm. The browser's own geolocation fills it (no map API, no key);
+    // "Xem trên bản đồ" is a plain Google Maps link opened in a new tab.
+    const GPS_PATTERN = /^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
+
+    function updateGpsMapLink() {
+      const link = document.getElementById('farm-gps-map');
+      const match = GPS_PATTERN.exec(document.getElementById('farm-gps').value);
+      const lat = match ? Number(match[1]) : NaN;
+      const lng = match ? Number(match[2]) : NaN;
+      const valid = Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+      link.style.display = valid ? 'inline' : 'none';
+      link.href = valid ? `https://www.google.com/maps?q=${lat},${lng}` : '#';
+    }
+
+    function fillCurrentLocation() {
+      if (!navigator.geolocation) {
+        showNotice('Trình duyệt không hỗ trợ lấy vị trí. Vui lòng nhập tọa độ thủ công.', true);
+        return;
+      }
+      const btn = document.getElementById('btn-gps-locate');
+      btn.disabled = true;
+      btn.textContent = 'Đang lấy vị trí...';
+      const done = () => { btn.disabled = false; btn.textContent = '📍 Lấy vị trí hiện tại'; };
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          document.getElementById('farm-gps').value =
+            `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+          updateGpsMapLink();
+          done();
+        },
+        err => {
+          showNotice(err.code === err.PERMISSION_DENIED
+            ? 'Bạn chưa cho phép truy cập vị trí. Hãy bật quyền vị trí cho trang này hoặc nhập tọa độ thủ công.'
+            : 'Không lấy được vị trí hiện tại. Vui lòng thử lại hoặc nhập tọa độ thủ công.', true);
+          done();
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
     }
 
     function handleDescInput(e) {
@@ -665,6 +711,17 @@
       return null;
     }
 
+    // Older profiles may hold free text (e.g. "3.5 ha nhà kính"); ask the farmer to pick a size class.
+    function setProductionScale(value) {
+      const select = document.getElementById('farm-scale');
+      const hint = document.getElementById('farm-scale-hint');
+      const known = ['Nhỏ', 'Vừa', 'Lớn'].includes(value);
+      select.value = known ? value : '';
+      hint.textContent = value && !known
+        ? `Giá trị cũ "${value}" không còn dùng, vui lòng chọn Nhỏ, Vừa hoặc Lớn.`
+        : 'Diện tích nhập ở ô "Diện tích canh tác (ha)".';
+    }
+
     async function handleSaveProfile(e) {
       e.preventDefault();
       const err = validateProfileForm();
@@ -679,7 +736,7 @@
         phoneNumber: document.getElementById('profile-phone').value.trim(),
         farmName: document.getElementById('farm-name').value.trim(),
         representativeName: document.getElementById('farm-rep-name').value.trim(),
-        productionScale: document.getElementById('farm-scale').value.trim(),
+        productionScale: document.getElementById('farm-scale').value || null,
         cultivatedArea: areaVal ? Number(areaVal) : null,
         productionModel: document.getElementById('farm-model').value || null,
         shortDescription: document.getElementById('farm-desc').value.trim() || null,

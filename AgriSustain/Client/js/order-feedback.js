@@ -4,6 +4,7 @@ import { bindImageFallback } from './marketplace-ui.js';
 const params = new URLSearchParams(location.search);
 const orderId = params.get('orderId');
 const complaint = params.get('mode') === 'complaint';
+const complaintsUrl = 'complaints.html?orderId=' + encodeURIComponent(orderId || '');
 const content = document.getElementById('feedback-content');
 const notice = document.getElementById('feedback-notice');
 const ratings = ['Rất không hài lòng', 'Không hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng'];
@@ -63,8 +64,11 @@ function render() {
     ? 'Nếu bạn gặp vấn đề với sản phẩm hoặc đơn hàng, vui lòng gửi khiếu nại để được hỗ trợ.'
     : 'Chia sẻ trải nghiệm của bạn để giúp người mua khác lựa chọn tốt hơn.';
   if (!eligible.length) {
+    const complaintHint = context.status === 'PendingPayment'
+      ? 'Đơn đang chờ thanh toán. Sau khi đơn được giao, bạn có 48 giờ để gửi khiếu nại.'
+      : 'Bạn có thể gửi khiếu nại cho sản phẩm đã giao trong vòng 48 giờ, khi sản phẩm chưa có khiếu nại đang xử lý.';
     content.innerHTML = `<section class="feedback-panel feedback-empty"><h2>${complaint ? 'Đơn hàng chưa đủ điều kiện gửi khiếu nại' : 'Không còn sản phẩm đủ điều kiện đánh giá'}</h2>
-      <p>${complaint ? 'Chỉ có thể gửi khiếu nại khi đơn ở trạng thái Đã giao hoặc Hoàn thành, trong vòng 48 giờ kể từ lúc giao hàng và chưa có khiếu nại đang xử lý.' : 'Bạn có thể gửi hoặc sửa đánh giá của mình cho sản phẩm trong đơn đã hoàn thành và đã nhận.'}</p>
+      <p>${complaint ? complaintHint : 'Bạn có thể gửi hoặc sửa đánh giá của mình cho sản phẩm trong đơn đã hoàn thành và đã nhận.'}</p>
       <a href="orders.html">Trở về đơn hàng</a></section>`;
     return;
   }
@@ -182,7 +186,9 @@ async function submit(event) {
       method: !complaint && item.canEditReview ? 'PUT' : 'POST', body,
     });
     clearPreviews(); files = [];
-    content.innerHTML = `<section class="feedback-panel feedback-success" role="status">${icon('shield')}<h2>${complaint ? 'Đã nhận khiếu nại' : 'Đã lưu đánh giá'}</h2><p>${esc(cleanMessage(response.message))}</p><a href="orders.html" class="feedback-support">Trở về đơn hàng</a></section>`;
+    const link = complaint ? complaintsUrl : 'orders.html';
+    const linkLabel = complaint ? 'Theo dõi khiếu nại' : 'Trở về đơn hàng';
+    content.innerHTML = `<section class="feedback-panel feedback-success" role="status">${icon('shield')}<h2>${complaint ? 'Đã nhận khiếu nại' : 'Đã lưu đánh giá'}</h2><p>${esc(cleanMessage(response.message))}</p><a href="${link}" class="feedback-support">${linkLabel}</a></section>`;
   } catch (error) {
     showNotice(notice, Object.values(error.fields || {}).flat().join(' ') || error.message);
     if (error.status === 409) {

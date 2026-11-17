@@ -449,7 +449,9 @@
       const instructions = document.getElementById('r-instructions').value.trim();
       if (!party) return showError('r-error', 'Vui lòng chọn bên cần bổ sung thông tin.');
       if (!instructions) return showError('r-error', 'Vui lòng nhập nội dung thông tin cần bổ sung.');
-      const hasOpen = detail.evidenceRequests.some(r => r.party === party && r.requestStatus === 'Pending' && !r.respondedAt);
+      // MSG-CS-02 only for an unanswered request that has not expired (BR-CS-02), as the server checks.
+      const hasOpen = detail.evidenceRequests.some(r => r.party === party && r.requestStatus === 'Pending'
+        && !r.respondedAt && !r.isOverdue);
       if (hasOpen) return showError('r-error', `${partyLabels[party]} đang có một yêu cầu bổ sung chưa phản hồi.`);
 
       const button = document.getElementById('btn-send-request');

@@ -79,6 +79,8 @@ public partial class AgriSustainContext
             .Property(x => x.RequestStatus)
             .IsConcurrencyToken();
         modelBuilder.Entity<DisputeTicket>().Property(x => x.TicketStatus).IsConcurrencyToken();
+        modelBuilder.Entity<DisputeEvidenceRequest>().Property(x => x.RequestStatus)
+            .IsConcurrencyToken();
         modelBuilder.Entity<RefundTransaction>().Property(x => x.RefundStatus).IsConcurrencyToken();
         modelBuilder.Entity<RefundTransaction>().Property(x => x.RefundMethod)
             .HasMaxLength(50)

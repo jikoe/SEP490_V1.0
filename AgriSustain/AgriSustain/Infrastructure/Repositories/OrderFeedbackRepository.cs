@@ -34,4 +34,6 @@ public sealed class OrderFeedbackRepository(AgriSustainContext context) : IOrder
 
     public void Add(ProductReview review) => context.ProductReviews.Add(review);
     public void Add(DisputeTicket complaint) => context.DisputeTickets.Add(complaint);
+    public void AddNotification(Notification notification) => context.Notifications.Add(notification);
+    public void AddAudit(AuditLog audit) => context.AuditLogs.Add(audit);
 }

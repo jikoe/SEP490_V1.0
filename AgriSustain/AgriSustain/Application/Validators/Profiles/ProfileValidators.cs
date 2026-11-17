@@ -63,8 +63,11 @@ public sealed class UpdateFarmerProfileValidator : AbstractValidator<UpdateFarme
         RuleFor(x => x.CultivationZone)
             .MaximumLength(200).WithMessage("Vùng trồng không quá 200 ký tự.");
 
+        // Production scale is a size class only; the area goes in CultivatedArea and the
+        // Individual/Cooperative form in ProductionModel (DBR-05). Fixed values keep the UC-WB-01 filter clean.
         RuleFor(x => x.ProductionScale)
-            .MaximumLength(200).WithMessage("Quy mô / loại hình không quá 200 ký tự.");
+            .Must(v => string.IsNullOrWhiteSpace(v) || FarmProductionScales.All.Contains(v.Trim()))
+            .WithMessage("Quy mô sản xuất phải là Nhỏ, Vừa hoặc Lớn.");
 
         RuleFor(x => x.BusinessLicenseNumber)
             .MaximumLength(100).WithMessage("Số giấy phép không quá 100 ký tự.");
@@ -113,4 +116,13 @@ internal static class ProfileRules
         rule.Must(v => !string.IsNullOrWhiteSpace(v)).WithMessage("Số điện thoại không được để trống.")
             .Must(v => v is null || System.Text.RegularExpressions.Regex.IsMatch(v.Trim(), @"^0\d{9}$"))
             .WithMessage(SystemMessages.Msg180InvalidPhone);
+}
+
+/// <summary>Allowed FarmerProfile.ProductionScale values (UC-AUTH-03), used by the UC-WB-01 scale filter.</summary>
+public static class FarmProductionScales
+{
+    public const string Small = "Nhỏ";
+    public const string Medium = "Vừa";
+    public const string Large = "Lớn";
+    public static readonly IReadOnlyList<string> All = [Small, Medium, Large];
 }

@@ -97,10 +97,14 @@
                 <tbody id="cp-lines"></tbody>
               </table>
             </div>
-            <h3 style="font-size:15px; margin:18px 0 8px;">Lịch sử thanh toán</h3>
+            <div class="cp-head" style="margin-top:18px; align-items:center;">
+              <h3 style="font-size:15px; margin:0;">Lịch sử thanh toán</h3>
+              <a href="https://my.sepay.vn/transactions" target="_blank" rel="noopener noreferrer">Mở giao dịch trên SePay (tab mới)</a>
+            </div>
+            <p class="cp-legend">Tìm theo mã giao dịch trên sao kê hoặc nội dung chuyển khoản của đợt thanh toán.</p>
             <div class="cp-panel">
               <table class="cp">
-                <thead><tr><th>Thời gian</th><th>Nội dung</th><th class="num">Số tiền</th><th>Mã GD</th><th>Người thực hiện</th></tr></thead>
+                <thead><tr><th>Thời gian</th><th>Nội dung</th><th class="num">Số tiền</th><th>Mã GD / ID SePay</th><th>Người thực hiện</th></tr></thead>
                 <tbody id="cp-history"></tbody>
               </table>
             </div>
@@ -233,7 +237,8 @@
         </tr>`).join('') : '<tr><td colspan="8" class="cp-empty">Hợp đồng chưa có lịch thanh toán.</td></tr>';
       $('cp-history').innerHTML = s.history.length ? s.history.map(h => `
         <tr><td>${dTime(h.at)}</td><td>${esc(h.description)}</td><td class="num">${h.amount != null ? money(h.amount) : ''}</td>
-          <td>${esc(h.reference || '')}</td><td>${esc(h.by || '')}</td></tr>`).join('')
+          <td>${esc(h.reference || '')}${h.sePayTransactionId ? `<br><small>ID SePay ${esc(h.sePayTransactionId)}</small>` : ''}</td>
+          <td>${esc(h.by || '')}</td></tr>`).join('')
         : '<tr><td colspan="5" class="cp-empty">Chưa có giao dịch.</td></tr>';
     }
 

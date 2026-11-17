@@ -64,7 +64,12 @@ export async function addProduct(button, productId, quantity = 1) {
   button.disabled = true;
   try {
     const result = await API.addToCart(productId, quantity, { suppressErrorToast: true });
-    Utils.showToast(cleanMessage(result.success ? result.data.messages?.join(' ') || 'Đã thêm sản phẩm vào giỏ hàng.' : result.error || 'Không thể thêm sản phẩm vào giỏ hàng.'), result.success ? 'success' : 'error');
-    if (result.success) await updateCartBadge();
+    if (result.success) {
+      const message = result.data.messages?.join(' ') || 'Đã thêm sản phẩm vào giỏ hàng.';
+      Utils.showToast(cleanMessage(message), 'success', document.querySelector('.mkt-header'));
+      await updateCartBadge();
+    } else {
+      Utils.showToast(cleanMessage(result.error || 'Không thể thêm sản phẩm vào giỏ hàng.'), 'error');
+    }
   } finally { button.disabled = false; }
 }

@@ -175,7 +175,8 @@ public sealed class ComplaintResolutionService(
             $"Khiếu nại #{ticket.DisputeTicketId} của đơn {sellerOrder.SellerOrderCode} cần bổ sung "
                 // Shown to the buyer or farmer in Vietnam time (UTC+7), like the CS-01 screen.
                 + $"thông tin trong 48 giờ (hạn {evidenceRequest.DueAt?.AddHours(7):dd/MM/yyyy HH:mm}): {instructions}",
-            ticket.DisputeTicketId);
+            ticket.DisputeTicketId, request.Party == ComplaintParties.Buyer
+                && sellerOrder.Order.OrderType == "Retail" ? "CustomerComplaintRequest" : "DisputeTicket");
         AddAudit(ticket, "RequestComplaintInformation", previousStatus,
             new { ticket.TicketStatus, request.Party, evidenceRequest.DueAt }, instructions,
             actor.UserId, now);
@@ -229,8 +230,15 @@ public sealed class ComplaintResolutionService(
                 request.RequestStatus = DisputeTicket.EvidenceRequestExpired;
             }
 
-            var applied = await ApplyDecisionAsync(ticket, decision.Request, decision.Request.Reason,
-                decision.StaffUserId, null, "AutoResolveComplaint", now, cancellationToken);
+            long staffUserId = decision.StaffUserId ?? ticket.AssignedStaffUserId
+                ?? (await repository.GetActiveUserIdsByRolesAsync(
+                    ComplaintNotifications.SupportRoles, cancellationToken))
+                    .Order().FirstOrDefault();
+            var applied = staffUserId > 0
+                ? await ApplyDecisionAsync(ticket, decision.Request, decision.Request.Reason,
+                    staffUserId, null, "AutoResolveComplaint", now, cancellationToken)
+                : Result<RefundTransaction?>.FailureResult(new Error(
+                    "NO_SUPPORT_STAFF", "Không có nhân viên Customer Support đang hoạt động."));
             if (applied.IsSuccess)
             {
                 resolved++;
@@ -258,7 +266,6 @@ public sealed class ComplaintResolutionService(
     /// Prefix of the reason recorded on an automatic decision.
     /// </summary>
     private const string EvidenceOverdue = "Evidence Overdue";
-    private static readonly string[] s_supportRoles = ["CustomerSupport", "Customer Support"];
 
     private static readonly Error s_notFound = new(
         "COMPLAINT_NOT_FOUND", "Không tìm thấy khiếu nại.", "NotFound");
@@ -271,7 +278,7 @@ public sealed class ComplaintResolutionService(
     /// <param name="OverdueRequests">Requests to mark Expired.</param>
     private sealed record OverdueOutcome(
         ResolveComplaintRequest Request,
-        long StaffUserId,
+        long? StaffUserId,
         IReadOnlyList<DisputeEvidenceRequest> OverdueRequests);
 
     /// <summary>
@@ -301,7 +308,12 @@ public sealed class ComplaintResolutionService(
             request.RequestedPartyUserId == sellerOrder.Order.BuyerUserId);
         bool sellerOverdue = overdue.Any(request =>
             request.RequestedPartyUserId == sellerOrder.FarmerProfile.UserId);
-        long staffUserId = overdue.OrderByDescending(request => request.RequestedAt).First().RequestedByUserId;
+        // The required requester FK stores the buyer for system-created farmer requests.
+        long? staffUserId = overdue
+            .Where(request => request.RequestedByUserId != sellerOrder.Order.BuyerUserId)
+            .OrderByDescending(request => request.RequestedAt)
+            .Select(request => (long?)request.RequestedByUserId)
+            .FirstOrDefault();
         var request = (buyerOverdue, sellerOverdue) switch
         {
             (true, true) => new ResolveComplaintRequest(ComplaintResolutions.RejectClaim,
@@ -383,7 +395,8 @@ public sealed class ComplaintResolutionService(
     private async Task NotifySupportAsync(DisputeTicket ticket, string content,
         CancellationToken cancellationToken)
     {
-        var supportUsers = await repository.GetActiveUserIdsByRolesAsync(s_supportRoles, cancellationToken);
+        var supportUsers = await repository.GetActiveUserIdsByRolesAsync(
+            ComplaintNotifications.SupportRoles, cancellationToken);
         foreach (long userId in supportUsers)
         {
             AddNotice(userId, "Khiếu nại cần xử lý thủ công", content,
@@ -656,36 +669,15 @@ public sealed class ComplaintResolutionService(
     /// <param name="title">Notification title.</param>
     /// <param name="content">Notification body.</param>
     /// <param name="ticketId">Related complaint id.</param>
-    private void AddNotice(long userId, string title, string content, long ticketId)
+    private void AddNotice(long userId, string title, string content, long ticketId,
+        string relatedRecordType = "DisputeTicket")
     {
-        repository.AddNotification(Notice(userId, title, content, ticketId, "InApp"));
-        repository.AddNotification(Notice(userId, title, content, ticketId, "Email"));
+        foreach (var notice in ComplaintNotifications.Create(
+            userId, ticketId, title, content, Now(), relatedRecordType))
+        {
+            repository.AddNotification(notice);
+        }
     }
-
-    /// <summary>
-    /// Builds one Notification row. In-app rows are Sent at once; email rows are Pending for the notification
-    /// worker and carry a unique PayloadJson key so a retry never sends the same email twice.
-    /// </summary>
-    /// <param name="userId">Recipient.</param>
-    /// <param name="title">Title.</param>
-    /// <param name="content">Body.</param>
-    /// <param name="ticketId">Related complaint id.</param>
-    /// <param name="channel">"InApp" or "Email".</param>
-    /// <returns>The row, not yet added to the unit of work.</returns>
-    private Notification Notice(long userId, string title, string content, long ticketId, string channel) => new()
-    {
-        UserId = userId,
-        Title = title,
-        Content = content,
-        NotificationType = channel == "Email" ? EmailNotificationType : "Complaint",
-        IsRead = false,
-        SentAt = Now(),
-        DeliveryChannel = channel,
-        DeliveryStatus = channel == "Email" ? "Pending" : "Sent",
-        RelatedRecordType = "DisputeTicket",
-        RelatedRecordId = ticketId,
-        PayloadJson = channel == "Email" ? $"complaint:{ticketId}:{Guid.NewGuid():N}" : null
-    };
 
     /// <summary>
     /// Queues the audit row of a complaint action (BR-CS: every decision and request is traceable).

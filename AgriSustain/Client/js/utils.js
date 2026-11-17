@@ -23,7 +23,7 @@ const Utils = {
   /**
    * Display floating Toast Notification matching Frontend 1:1
    */
-  showToast(message, type = 'info') {
+  showToast(message, type = 'info', anchor = null) {
     if (!message) return;
 
     let container = document.getElementById('toast-container');
@@ -36,6 +36,9 @@ const Utils = {
     const toast = document.createElement('div');
     const isMkt = Boolean(document.querySelector('.marketplace, .mkt-header, .co-page'));
     toast.className = `toast toast-${type} ${isMkt ? 'mkt-cart-toast' : ''}`;
+    if (anchor && isMkt) {
+      toast.style.top = Math.max(16, anchor.getBoundingClientRect().bottom + 10) + 'px';
+    }
     toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
 
     let iconSvg = '';

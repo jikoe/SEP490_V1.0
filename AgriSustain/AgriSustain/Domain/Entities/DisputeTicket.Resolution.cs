@@ -64,6 +64,31 @@ public partial class DisputeTicket
     public DisputeEvidenceRequest RequestInformation(
         long partyUserId, string instructions, long staffUserId, DateTime now, TimeSpan responseWindow)
     {
+        var request = AddEvidenceRequest(partyUserId, instructions, staffUserId, now, responseWindow);
+        AssignedStaffUserId = staffUserId;
+        return request;
+    }
+
+    public DisputeEvidenceRequest RequestFarmerExplanation(
+        long farmerUserId, DateTime now, TimeSpan responseWindow) =>
+        AddEvidenceRequest(farmerUserId,
+            $"Vui lòng giải trình và cung cấp bằng chứng cho khiếu nại #{DisputeTicketId}.",
+            SubmittedByUserId, now, responseWindow);
+
+    public void MarkUnderReviewWhenAnswered()
+    {
+        // Leave overdue Pending requests for JOB-11 to decide.
+        if (TicketStatus == StatusWaitingInfo && !DisputeEvidenceRequests.Any(request =>
+            request.IsOpenFor(request.RequestedPartyUserId)))
+        {
+            TicketStatus = StatusUnderReview;
+        }
+    }
+
+    private DisputeEvidenceRequest AddEvidenceRequest(
+        long partyUserId, string instructions, long requestedByUserId, DateTime now,
+        TimeSpan responseWindow)
+    {
         if (!IsAwaitingDecision)
         {
             throw new InvalidOperationException($"Complaint {DisputeTicketId} is already decided.");
@@ -72,7 +97,7 @@ public partial class DisputeTicket
         var request = new DisputeEvidenceRequest
         {
             RequestedPartyUserId = partyUserId,
-            RequestedByUserId = staffUserId,
+            RequestedByUserId = requestedByUserId,
             RequestedAt = now,
             DueAt = now.Add(responseWindow),
             RequestStatus = EvidenceRequestPending,
@@ -80,7 +105,6 @@ public partial class DisputeTicket
         };
         DisputeEvidenceRequests.Add(request);
         TicketStatus = StatusWaitingInfo;
-        AssignedStaffUserId = staffUserId;
         return request;
     }
 

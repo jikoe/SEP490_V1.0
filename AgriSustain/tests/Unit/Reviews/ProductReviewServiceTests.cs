@@ -313,6 +313,8 @@ public sealed class ProductReviewServiceTests
             Task.FromResult(new Dictionary<long, string>());
         public void Add(ProductReview review) { review.ProductReviewId = 101; Reviews.Add(review); }
         public void Add(DisputeTicket ticket) { ticket.DisputeTicketId = 200 + Tickets.Count; Tickets.Add(ticket); }
+        public void AddNotification(Notification notification) => throw new NotSupportedException();
+        public void AddAudit(AuditLog audit) => throw new NotSupportedException();
         public Task<ITransaction> BeginAsync(CancellationToken ct) =>
             Task.FromResult<ITransaction>(new Transaction(this));
         public Task SaveChangesAsync(CancellationToken ct)

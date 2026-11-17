@@ -8,6 +8,7 @@ using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.BackgroundWorkers;
 using AgriSustain.Infrastructure.Data;
+using AgriSustain.Infrastructure.Payments;
 using AgriSustain.Infrastructure.Repositories;
 using AgriSustain.Infrastructure.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
@@ -208,9 +209,10 @@ public sealed class OfftakeSqlTests
     }
 
     [CommerceSqlTheory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ExistingSignedContractCanGenerateDepositAndActivateOnlyAfterFullReceipt(bool useWebhook)
+    [InlineData("manual")]
+    [InlineData("webhook")]
+    [InlineData("lookup")]
+    public async Task ExistingSignedContractCanGenerateDepositAndActivateOnlyAfterFullReceipt(string receiptMethod)
     {
         await using var fixture = await CommerceDatabase.Create(new Dictionary<string, string?>
         {
@@ -246,6 +248,12 @@ public sealed class OfftakeSqlTests
         var url = $"api/b2b/contracts/{id}/deposit";
         var client = fixture.As(fixture.BuyerId, "WholesaleBuyer");
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync(url, null)).StatusCode);
+
+        async Task<OfftakeTrackingDetail> BuyerDetail()
+        {
+            var buyer = fixture.As(fixture.BuyerId, "WholesaleBuyer");
+            return (await buyer.GetFromJsonAsync<Result<OfftakeTrackingDetail>>($"api/b2b/contracts/{id}"))!.Data!;
+        }
 
         var contract = await db.B2bcontracts.Include(c => c.ContractVersions).SingleAsync(c => c.B2bcontractId == id);
         contract.Status = "AwaitingDeposit";
@@ -285,12 +293,12 @@ public sealed class OfftakeSqlTests
         Assert.Equal(HttpStatusCode.OK, (await finance.PostAsJsonAsync(confirmationUrl,
             new ConfirmReceivedRequest(40000, "DEPOSIT-1", null))).StatusCode);
         Assert.Equal("AwaitingDeposit", (await db.B2bcontracts.AsNoTracking().SingleAsync(c => c.B2bcontractId == id)).Status);
-        fixture.As(fixture.BuyerId, "WholesaleBuyer");
+        Assert.False((await BuyerDetail()).DepositConfirmed);
         Assert.Equal(60000, (await Instructions()).Amount);
         fixture.As(financeUser.UserId, "FinanceStaff");
         Assert.Equal(HttpStatusCode.Conflict, (await finance.PostAsJsonAsync(confirmationUrl,
             new ConfirmReceivedRequest(40000, "DEPOSIT-1", null))).StatusCode);
-        if (useWebhook)
+        if (receiptMethod is "webhook" or "lookup")
         {
             async Task<HttpStatusCode> SendCredit(string accountNumber)
             {
@@ -307,6 +315,46 @@ public sealed class OfftakeSqlTests
                 return response.StatusCode;
             }
             Assert.Equal(HttpStatusCode.BadRequest, await SendCredit("0000000000"));
+            if (receiptMethod == "lookup")
+            {
+                await using var scope = fixture.Host.Services.CreateAsyncScope();
+                var settings = new Microsoft.Extensions.Configuration.ConfigurationManager();
+                settings["Payment:SePay:AccountNumber"] = qr.AccountNumber;
+                settings["Payment:SePay:BankShortName"] = "MB";
+                settings["Payment:SePay:ApiToken"] = "test-lookup-token";
+                var sample = new
+                {
+                    id = 613, account_number = qr.AccountNumber, bank_brand_name = "MBBank",
+                    transaction_date = "2026-10-27 08:00:00", amount_in = "60000.00",
+                    transaction_content = qr.Reference, reference_number = "DEPOSIT-2"
+                };
+                var transactions = new List<object>
+                {
+                    sample with { id = 601, account_number = "0000000000" },
+                    sample with { id = 602, bank_brand_name = "TPBank" },
+                    sample with { id = 603, transaction_date = "2026-10-27 07:59:59" },
+                    sample with { id = 604, transaction_content = "CTP999999" },
+                    sample with { id = 605, amount_in = "0.00" }
+                };
+                using var lookupClient = new HttpClient(new SePayLookupStub(request =>
+                {
+                    Assert.Equal(HttpMethod.Get, request.Method);
+                    Assert.Equal("my.sepay.vn", request.RequestUri!.Host);
+                    Assert.Contains("account_number=" + qr.AccountNumber, request.RequestUri.Query);
+                    Assert.Equal("test-lookup-token", request.Headers.Authorization!.Parameter);
+                    return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { status = 200, transactions }) };
+                }));
+                var reconciler = new SePayContractDepositReconciler(lookupClient, settings,
+                    scope.ServiceProvider.GetRequiredService<AgriSustainContext>(),
+                    scope.ServiceProvider.GetRequiredService<ContractPaymentService>());
+
+                await reconciler.ReconcileAsync(default);
+                Assert.False((await BuyerDetail()).DepositConfirmed);
+                transactions.Add(sample);
+                await reconciler.ReconcileAsync(default);
+                Assert.True((await BuyerDetail()).DepositConfirmed);
+                fixture.As(financeUser.UserId, "FinanceStaff");
+            }
             Assert.Equal(HttpStatusCode.OK, await SendCredit(qr.AccountNumber));
             Assert.Equal(HttpStatusCode.OK, await SendCredit(qr.AccountNumber));
         }
@@ -320,6 +368,21 @@ public sealed class OfftakeSqlTests
         Assert.Equal("Active", paid.Status);
         Assert.Equal(100000, OfftakeContractRules.DepositPaid(paid));
         Assert.Equal(100000, paid.PaymentTransactions.SelectMany(p => p.ContractDepositAllocations).Sum(a => a.Amount));
+
+        var schedule = await finance.GetFromJsonAsync<ContractScheduleDto>($"api/finance/contract-payments/{id}");
+        Assert.NotNull(schedule);
+        Assert.Null(Assert.Single(schedule.History, h => h.Reference == "DEPOSIT-1").SePayTransactionId);
+        Assert.Equal(receiptMethod == "manual" ? null : "613",
+            Assert.Single(schedule.History, h => h.Reference == "DEPOSIT-2").SePayTransactionId);
+        var buyerDetail = await BuyerDetail();
+        Assert.Equal("Active", buyerDetail.Status);
+        Assert.True(buyerDetail.DepositConfirmed);
+    }
+
+    private sealed class SePayLookupStub(Func<HttpRequestMessage, HttpResponseMessage> response) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(response(request));
     }
 
     private sealed record BuyerActor(long UserId) : IActorContext;

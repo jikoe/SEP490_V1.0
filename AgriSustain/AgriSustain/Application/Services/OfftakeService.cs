@@ -67,6 +67,10 @@ public sealed class OfftakeService(IOfftakeRepository repository, IUseCaseUnitOf
                     : Result<OfftakeProposalReceipt>.Fail("Đề xuất đã được gửi với nội dung khác.", 409);
             }
 
+            if (OfftakeProposalValidator.ScheduleError(request, DateOnly.FromDateTime(now.AddHours(7))) is { } scheduleError)
+            {
+                return Result<OfftakeProposalReceipt>.Fail(scheduleError);
+            }
             if (!OfftakeProposalValidator.HasCompleteArticles(request))
             {
                 return Result<OfftakeProposalReceipt>.Fail(IncompleteArticles);
@@ -181,6 +185,11 @@ public sealed class OfftakeService(IOfftakeRepository repository, IUseCaseUnitOf
             {
                 return Result<OfftakeProposalReceipt>.Fail(conflict, 409);
             }
+            var now = clock.GetUtcNow().UtcDateTime;
+            if (OfftakeProposalValidator.ScheduleError(request, DateOnly.FromDateTime(now.AddHours(7))) is { } scheduleError)
+            {
+                return Result<OfftakeProposalReceipt>.Fail(scheduleError);
+            }
             if (!OfftakeProposalValidator.HasCompleteArticles(request))
             {
                 return Result<OfftakeProposalReceipt>.Fail(IncompleteArticles);
@@ -195,7 +204,6 @@ public sealed class OfftakeService(IOfftakeRepository repository, IUseCaseUnitOf
                 return Result<OfftakeProposalReceipt>.Fail(InvalidProposal);
             }
 
-            var now = clock.GetUtcNow().UtcDateTime;
             if (revision || current.DocumentHash != hash)
             {
                 contract.FarmerProfileId = product.FarmerId;

@@ -36,6 +36,8 @@ public sealed class FarmerBuyerContractFlowTests
         Assert.Equal(2, store.Current.ContractSignatures.Count);
         Assert.Equal(4, store.Notices.Count);
 
+        // Simulate reaching the scheduled delivery date before dispatching.
+        store.Milestone.DueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
         var dispatch = store.Dispatch();
         var shipped = await store.Farmer.DispatchDeliveryAsync(7, 10, dispatch, default);
         Assert.True(shipped.IsSuccess, shipped.Error?.Message);
@@ -232,7 +234,7 @@ public sealed class FarmerBuyerContractFlowTests
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
             var request = new OfftakeProposalRequest(Guid.NewGuid(), 1, 2, 10, 10000,
-                today.AddDays(-1), today.AddDays(10), today,
+                today, today.AddDays(10), today.AddDays(3),
                 string.Join("\n\n", new[] { 1, 2, 3, 4, 6, 7, 8 }
                     .Select(n => $"Điều {n}: Điều khoản\nNội dung đã thống nhất.")),
                 "Thanh toán sau kiểm nhận.", deposit);
@@ -329,6 +331,7 @@ public sealed class FarmerBuyerContractFlowTests
                 Batches = [new HarvestBatch
                 {
                     HarvestBatchId = 4, ProductId = 2, CropSeasonId = 3, BatchCode = "TEST-BATCH",
+                    Product = new Product { ProductId = 2, Unit = "kg" },
                     ActualHarvestDate = today.AddDays(-1), ExpirationDate = today.AddDays(7),
                     StockEnteredAt = DateTime.UtcNow, Status = "Available", AvailableQuantity = 100,
                     TraceabilityQrcode = new TraceabilityQrcode { IsRevoked = false }
@@ -348,7 +351,7 @@ public sealed class FarmerBuyerContractFlowTests
                     if (!version.ContractLines.Contains(line)) version.ContractLines.Add(line);
                     line.ContractLineId = version.VersionNo * 10;
                     line.ContractVersionId = version.ContractVersionId;
-                    line.Product = new Product { ProductId = 2, ProductName = "Gạo" };
+                    line.Product = new Product { ProductId = 2, ProductName = "Gạo", Unit = "kg" };
                 }
                 foreach (var milestone in version.ContractMilestones.Concat(Contract.ContractMilestones.Where(m => m.ContractVersion == version)).Distinct())
                 {

@@ -26,6 +26,11 @@ public sealed class PlatformFeeService(
     /// EntityType of audit rows and notifications about a fee policy.
     /// </summary>
     public const string AuditFeePolicy = "FeePolicy";
+    /// <summary>
+    /// MSG123 ({RecordType} = "fee policy"): shown when saving a fee type or policy fails; nothing was saved.
+    /// </summary>
+    public const string SaveFailedMessage =
+        "Không thể lưu chính sách phí. Chưa có thay đổi nào được lưu, vui lòng thử lại.";
     private static readonly string[] s_financeRoles = ["FinanceStaff", "Finance Staff"];
     private static readonly string[] s_adminRoles = ["SystemAdmin", "Administrator", "Admin"];
 
@@ -91,6 +96,65 @@ public sealed class PlatformFeeService(
         var type = await repository.FindTypeAsync(id, cancellationToken);
         return type is null ? Missing<FeeTypeDto>()
             : UseCaseResult<FeeTypeDto>.Success(await ToDtoAsync(type, cancellationToken));
+    }
+
+    /// <summary>
+    /// AF14 View History: every audited change of the fee type and its policies (creation, edits, submissions,
+    /// approvals, rejections, end dates) with the acting user, the approval status after it and the reason, newest first.
+    /// The reason is the audit reason (end-date reason, rejection reason, approval note) or, for a policy, the reason
+    /// for the change stored in its snapshot.
+    /// </summary>
+    /// <param name="id">Fee type id.</param>
+    /// <param name="cancellationToken">Cancels the database work when the HTTP request is aborted.</param>
+    /// <returns>The history rows; 403 FORBIDDEN; 404 NOT_FOUND.</returns>
+    public async Task<UseCaseResult<IReadOnlyList<FeeHistoryEntry>>> HistoryAsync(long id,
+        CancellationToken cancellationToken)
+    {
+        if (await RoleAsync(cancellationToken) is null)
+        {
+            return Denied<IReadOnlyList<FeeHistoryEntry>>();
+        }
+        var type = await repository.FindTypeAsync(id, cancellationToken);
+        if (type is null)
+        {
+            return Missing<IReadOnlyList<FeeHistoryEntry>>();
+        }
+        var codes = type.Policies.ToDictionary(policy => policy.FeePolicyId, policy => policy.PolicyCode);
+        var rows = await repository.HistoryAsync(id, codes.Keys.ToList(), cancellationToken);
+        IReadOnlyList<FeeHistoryEntry> history = rows.Select(row =>
+        {
+            bool isPolicy = row.Audit.EntityType == AuditFeePolicy;
+            return new FeeHistoryEntry(row.Audit.OccurredAt, row.Audit.Action,
+                isPolicy && row.Audit.EntityId is long policyId && codes.TryGetValue(policyId, out var code) ? code : null,
+                row.ActorName ?? "Không rõ",
+                isPolicy ? JsonText(row.Audit.NewValue, "ApprovalStatus") : null,
+                row.Audit.Reason ?? (isPolicy ? JsonText(row.Audit.NewValue, "Reason") : null));
+        }).ToList();
+        return UseCaseResult<IReadOnlyList<FeeHistoryEntry>>.Success(history);
+    }
+
+    /// <summary>
+    /// Reads one text property of an audit snapshot.
+    /// </summary>
+    /// <param name="json">Snapshot JSON, or null.</param>
+    /// <param name="name">Property name.</param>
+    /// <returns>The text, or null when missing or not readable.</returns>
+    private static string? JsonText(string? json, string name)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+                ? value.GetString() : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -463,7 +527,7 @@ public sealed class PlatformFeeService(
             return Changed<FeeResultDto>();
         }
         policy.ReviewNote = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
-        Audit(AuditFeePolicy, policy.FeePolicyId, action, before, Snapshot(policy));
+        Audit(AuditFeePolicy, policy.FeePolicyId, action, before, Snapshot(policy), policy.ReviewNote);
         Notify(policy.CreatedByUserId, "Chính sách phí đã được duyệt", message, policy);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -517,7 +581,7 @@ public sealed class PlatformFeeService(
             return Changed<FeeResultDto>();
         }
         policy.ReviewNote = request.Note.Trim();
-        Audit(AuditFeePolicy, policy.FeePolicyId, "RejectFeePolicy", before, Snapshot(policy));
+        Audit(AuditFeePolicy, policy.FeePolicyId, "RejectFeePolicy", before, Snapshot(policy), policy.ReviewNote);
         // MSG191
         string message = $"Chính sách phí {policy.PolicyCode} đã bị Quản trị viên từ chối. Lý do: {policy.ReviewNote}. "
             + "Hãy sửa và gửi duyệt lại.";
@@ -1059,8 +1123,13 @@ public sealed class PlatformFeeService(
     /// <param name="action">Action name.</param>
     /// <param name="before">JSON snapshot before, or null.</param>
     /// <param name="after">JSON snapshot after, or null.</param>
-    private void Audit(string type, long id, string action, string? before, string? after) =>
-        repository.AddAudit(NewAudit(type, id, action, before, after));
+    /// <param name="reason">Reason or review note shown in the history, or null.</param>
+    private void Audit(string type, long id, string action, string? before, string? after, string? reason = null)
+    {
+        var audit = NewAudit(type, id, action, before, after);
+        audit.Reason = reason;
+        repository.AddAudit(audit);
+    }
 
     /// <summary>
     /// Builds an audit row with the current user, time and trace id.

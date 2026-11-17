@@ -50,12 +50,13 @@
               <h3>Thông tin sản phẩm và nhà cung cấp</h3>
               <div class="offtake-picker" id="catalog-picker">
                 <label>Tìm sản phẩm
-                  <input id="catalog-keyword" type="search" maxlength="100" placeholder="Nhập tên sản phẩm">
+                  <input id="catalog-keyword" type="search" maxlength="100" placeholder="Nhập tên sản phẩm"
+                    autocomplete="off" aria-controls="catalog-results">
                 </label>
-                <button id="catalog-search" type="button">Tìm kiếm</button>
+                <ul id="catalog-results" aria-label="Sản phẩm phù hợp" hidden></ul>
               </div>
               <div class="offtake-fields">
-                <label>Sản phẩm <select id="proposal-product" required></select></label>
+                <label>Sản phẩm đã chọn <input id="proposal-product" readonly></label>
                 <label>Nhà cung cấp <input id="proposal-farmer" readonly placeholder="Hiện sau khi chọn sản phẩm"></label>
               </div>
               <div class="offtake-product" id="proposal-product-card" hidden></div>
@@ -75,9 +76,11 @@
               <fieldset class="offtake-article-input">
                 <legend>Thông tin giao hàng, hiệu lực và đặt cọc</legend>
                 <div class="offtake-fields">
-                  <label>Ngày giao hàng dự kiến <input name="deliveryDate" type="date" required></label>
                   <label>Hiệu lực từ ngày <input name="validFrom" type="date" required></label>
                   <label>Hiệu lực đến ngày <input name="validUntil" type="date" required></label>
+                  <label>Ngày giao hàng dự kiến <input name="deliveryDate" type="date" required>
+                    <small>Cách ngày bắt đầu hiệu lực ít nhất 3 ngày.</small>
+                  </label>
                   <label>Tiền cọc dự kiến (VND) <input name="depositAmount" type="number" min="0" step="1" value="0" required></label>
                 </div>
               </fieldset>

@@ -9,4 +9,6 @@ public interface IOrderFeedbackRepository
         long[] productIds, CancellationToken cancellationToken);
     void Add(ProductReview review);
     void Add(DisputeTicket complaint);
+    void AddNotification(Notification notification);
+    void AddAudit(AuditLog audit);
 }

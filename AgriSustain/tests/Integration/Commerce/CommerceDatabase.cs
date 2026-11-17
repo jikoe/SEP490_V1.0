@@ -314,6 +314,7 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         builder.Services.AddScoped<FarmerOrderService>();
         builder.Services.AddScoped<OrderRefundService>();
         builder.Services.AddScoped<OrderNotificationService>();
+        builder.Services.AddScoped<AgriSustain.Infrastructure.Email.OrderEmailDispatcher>();
         builder.Services.AddSingleton<INotificationGateway>(NotificationGateway);
         builder.Services.Configure<AgriSustain.Infrastructure.Email.EmailSettings>(options =>
             options.FrontendBaseUrl = "https://agrisustain.example.test");

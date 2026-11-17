@@ -366,9 +366,37 @@
               <p style="margin:4px 0;">${getKycBadge(u.verificationStatus)}</p>
             </div>
           </div>
+          ${detailActions(u)}
         </article>
       `;
       document.getElementById('user-detail-modal').showModal();
+    }
+
+    // Step 4: the details show the actions eligible for the account (BR-UM-02, BR-UM-03, BR-UM-05);
+    // an account without any status action shows why (MSG-UM-02).
+    function detailActions(u) {
+      const actions = eligibleActions(u);
+      if (actions.length) {
+        const label = { suspend: 'Tạm ngưng', activate: 'Kích hoạt lại', unlock: 'Mở khóa' };
+        return `<div class="modal-actions" style="margin-top:16px; display:flex; justify-content:flex-end; gap:10px;">
+          ${actions.map(a => `<button type="button" class="${a === 'suspend' ? 'danger' : 'primary'}"
+            onclick="detailAction(${u.id}, '${a}')">${label[a]}</button>`).join('')}</div>`;
+      }
+      const reason = u.status === 'Pending' || u.status === 'Rejected'
+        // MSG-UM-02
+        ? 'Tài khoản này đang chờ duyệt hoặc đã bị từ chối. Hãy hoàn tất quy trình đăng ký hoặc thẩm định KYC tương ứng; '
+          + 'không thể Tạm ngưng, Kích hoạt lại hoặc Mở khóa tại đây.'
+        : u.id === u.currentActorId
+          ? 'Đây là tài khoản của bạn; không thể Tạm ngưng, Kích hoạt lại hoặc Mở khóa tài khoản của chính mình.'
+          : !u.canSuspend
+            ? 'Tài khoản quản trị và nhân viên chỉ xem được; không có thao tác Tạm ngưng, Kích hoạt lại hoặc Mở khóa.'
+            : 'Tài khoản hiện không có thao tác trạng thái nào phù hợp.';
+      return `<p id="detail-no-action" class="notice" style="margin-top:16px;">${reason}</p>`;
+    }
+
+    function detailAction(userId, action) {
+      closeDetailModal();
+      prepareStatus(userId, action);
     }
 
     function closeDetailModal() {

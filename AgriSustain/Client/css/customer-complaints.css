@@ -1,0 +1,128 @@
+.customer-complaint-page #app-header {
+  height: auto;
+  min-height: 68px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  padding: 10px clamp(16px, 2vw, 28px);
+}
+.customer-complaint-page .retail-brand-area,
+.customer-complaint-page .retail-nav-links { min-width: 0; }
+.customer-complaint-page .retail-nav-links {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-block: 4px;
+}
+.customer-complaint-page .retail-nav-links button { flex: none; white-space: nowrap; }
+@media (max-width: 760px) {
+  .customer-complaint-page #app-header { flex-wrap: wrap; gap: 8px; }
+  .customer-complaint-page .retail-brand-area { display: contents; }
+  .customer-complaint-page .retail-nav-links { order: 1; width: 100%; flex-basis: 100%; }
+}
+
+.order-feedback.customer-complaints {
+  padding: clamp(18px, 3vw, 36px) clamp(16px, 3vw, 32px) 40px;
+}
+
+.complaint-toolbar,
+.complaint-card-heading,
+.complaint-row,
+.complaint-row-actions,
+.complaint-files,
+.complaint-paging,
+.complaint-input-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.complaint-toolbar,
+.complaint-card-heading,
+.complaint-row,
+.complaint-input-meta { justify-content: space-between; }
+.complaint-toolbar .feedback-field { width: min(100%, 240px); margin: 0; }
+.complaint-toolbar,
+.complaint-card-heading { margin-bottom: 14px; }
+.complaint-toolbar .feedback-section-title,
+.complaint-card-heading .feedback-section-title,
+.complaint-paging .muted { margin: 0; }
+.complaint-items { margin: 0; padding: 0; list-style: none; }
+.complaint-row {
+  padding: 16px 0;
+  border-top: 1px solid var(--feedback-line);
+}
+.complaint-row h3 { margin: 0 0 4px; }
+.complaint-row p { margin: 0; overflow-wrap: anywhere; }
+.complaint-row-actions { justify-content: flex-end; }
+.complaint-paging {
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--feedback-line);
+}
+.complaint-row .feedback-support { font-weight: 650; white-space: nowrap; }
+.complaint-detail {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 1.8fr);
+  align-items: start;
+  gap: 20px;
+}
+.complaint-stack { display: grid; gap: 14px; min-width: 0; }
+.complaint-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.complaint-separated {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--feedback-line);
+}
+.complaint-request {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--feedback-line);
+  border-radius: 7px;
+}
+.complaint-request .complaint-card-heading { margin-bottom: 7px; }
+.complaint-request h3,
+.complaint-separated h3 { margin: 0; color: #35654e; font-size: 13px; }
+.complaint-separated h3 { margin-bottom: 8px; }
+.complaint-request time,
+.complaint-request .complaint-request-deadline { display: block; color: #547263; font-size: 12px; margin: 7px 0; }
+.complaint-request button { margin-top: 5px; }
+.customer-complaints .complaint-needed { background: #fff0d8; color: #814610; white-space: normal; }
+.customer-complaints .feedback-upload-copy span { color: #547263; }
+.complaint-files button { max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.complaint-input-meta { margin-top: -3px; }
+.complaint-input-meta small { color: #547263; }
+.complaint-previews {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 144px), 1fr));
+  gap: 10px;
+}
+.complaint-previews:empty { display: none; }
+.complaint-preview {
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--feedback-line);
+  border-radius: 6px;
+}
+.complaint-preview div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.complaint-preview button { padding: 4px 8px; flex-shrink: 0; }
+.complaint-preview img,
+.complaint-preview video {
+  display: block;
+  width: 100%;
+  max-height: 140px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+@media (max-width: 760px) {
+  .complaint-detail { grid-template-columns: 1fr; gap: 14px; }
+  .complaint-row-actions { justify-content: flex-start; }
+}
