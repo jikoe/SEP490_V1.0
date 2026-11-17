@@ -22,12 +22,31 @@ export async function updateCartBadge() {
     badge.style.display = quantity ? 'inline-block' : 'none';
   }
 }
+export function isWholesaleBuyer() {
+  try {
+    if (typeof Auth !== 'undefined' && Auth.isAuthenticated && Auth.isAuthenticated()) {
+      const role = String(Auth.getUserRole() || '').toLowerCase();
+      if (role.includes('wholesale') || role.includes('buyer')) return true;
+    }
+    if (sessionStorage.getItem('agrisustain:demo-fixture') === 'wholesale_buyer') return true;
+  } catch (e) {
+    // ignore
+  }
+  return false;
+}
+
 export function productCard(product) {
+  const isB2B = isWholesaleBuyer();
+  const root = typeof Utils !== 'undefined' && Utils.getRootPath ? Utils.getRootPath() : '../';
+  const buttonHtml = isB2B
+    ? `<button type="button" class="mkt-primary mkt-list-add" onclick="window.location.href='${root}WholesaleBuyer/wholesale-order.html?productId=${product.id}'" ${product.availableQuantity <= 0 ? 'disabled' : ''}>${icon('cart')}${product.availableQuantity <= 0 ? 'Hết hàng' : 'Mua sỉ'}</button>`
+    : `<button type="button" class="mkt-primary mkt-list-add" data-add-product="${product.id}" ${product.availableQuantity <= 0 ? 'disabled' : ''}>${icon('cart')}${product.availableQuantity <= 0 ? 'Hết hàng' : 'Thêm vào giỏ hàng'}</button>`;
+
   return `<article class="mkt-product-card"><a class="mkt-card-photo" href="product-detail.html?id=${product.id}">${productImage(product.imageUrl, product.name)}
     ${product.certifications?.length ? `<span class="mkt-cert-badge">${icon('shield')}${esc(product.certifications[0])}</span>` : ''}</a>
     <div class="mkt-card-content"><h3><a href="product-detail.html?id=${product.id}">${esc(product.name)}</a></h3><p class="mkt-supplier">${esc(product.supplier)}</p>
     ${rating(product)}${product.region ? `<p class="mkt-region">⌖ ${esc(product.region)}</p>` : ''}${price(product)}
-    <button type="button" class="mkt-primary mkt-list-add" data-add-product="${product.id}" ${product.availableQuantity <= 0 ? 'disabled' : ''}>${icon('cart')}${product.availableQuantity <= 0 ? 'Hết hàng' : 'Thêm vào giỏ hàng'}</button></div></article>`;
+    ${buttonHtml}</div></article>`;
 }
 export function bindImageFallback(container) {
   container.querySelectorAll('img').forEach(img => img.addEventListener('error', () => {

@@ -142,7 +142,7 @@
               <!-- Nút quay lại màn hình chi tiết -->
               <div style="margin-bottom: 16px;">
                 <button id="btn-back-detail" class="back-btn" type="button" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600; padding: 8px 16px; border-radius: 8px; background: white; border: 1px solid #cbd5e1; color: #1e293b; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s;">
-                  ← Quay lại
+                  ← Quay lại tìm nông trại
                 </button>
               </div>
 
@@ -159,7 +159,6 @@
                       <div class="hero-badges">
                         <span id="hero-verify-badge" class="hero-badge badge-verified-green">✓ Thẩm định bởi Verification Officer</span>
                         <span id="hero-gps-badge" class="hero-badge badge-outline-white">🌐 GPS: <span id="hero-gps">--</span></span>
-                        <span id="hero-rep-badge" class="hero-badge badge-outline-white">⭐ Điểm uy tín: <span id="hero-rep-score">--</span>/100</span>
                       </div>
                     </div>
                   </div>
@@ -503,9 +502,8 @@
       } else if (userId) {
         await loadSupplierCapacityProfileByUserId(userId);
       } else {
-        // No supplier specified: open directory by default
-        openDirectoryView();
-        await loadDirectory();
+        // Không truyền ID: điều hướng về trang Tìm nông trại cung ứng
+        window.location.replace('suppliers.html');
       }
     });
 
@@ -519,19 +517,7 @@
         return;
       }
 
-      // If currently viewing profile detail, return smoothly to directory
-      if (document.getElementById('profile-content').style.display !== 'none') {
-        window.history.pushState({}, '', window.location.pathname);
-        openDirectoryView();
-        loadDirectory();
-        return;
-      }
-
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        window.location.href = 'dashboard.html';
-      }
+      window.location.href = 'suppliers.html';
     }
 
     async function loadSupplierCapacityProfile(farmerProfileId) {
@@ -578,7 +564,7 @@
       // Hero
       const breadcrumbEl = document.getElementById('breadcrumb-current');
       if (breadcrumbEl) {
-        breadcrumbEl.innerHTML = `<a href="supplier-capacity.html" style="color: #64748b; text-decoration: none;">Danh bạ NCC</a> <span style="margin: 0 6px;">/</span> <span style="color: #0f172a; font-weight: 600;">${p.farmName || 'Hồ Sơ Năng Lực'}</span>`;
+        breadcrumbEl.innerHTML = `<a href="suppliers.html" style="color: #64748b; text-decoration: none;">Tìm nông trại cung ứng</a> <span style="margin: 0 6px;">/</span> <span style="color: #0f172a; font-weight: 600;">${p.farmName || 'Hồ Sơ Năng Lực'}</span>`;
       }
       document.getElementById('hero-farm-name').textContent = p.farmName;
       document.getElementById('hero-rep-name').textContent = p.representativeName || p.legalName;
@@ -587,7 +573,6 @@
       document.getElementById('hero-province').textContent = p.provinceName || p.provinceCode;
       document.getElementById('hero-zone').textContent = p.cultivationZone || 'Vùng khí hậu nông nghiệp tiêu chuẩn';
       document.getElementById('hero-gps').textContent = p.gpsCoordinates || 'Đã ghi nhận trên bản đồ số';
-      document.getElementById('hero-rep-score').textContent = p.reputationScore ? Number(p.reputationScore).toFixed(0) : '90';
 
       // Avatar
       const avatarEl = document.getElementById('hero-avatar');

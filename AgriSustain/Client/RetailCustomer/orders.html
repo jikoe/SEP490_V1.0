@@ -90,6 +90,8 @@
      * GET /api/orders (server-side status filter, keyword search, paging) and GET /api/orders/{id}.
      */
     const STATUS = {
+      Pending: { label: 'Chờ xác nhận', color: '#b7791f', bg: '#fdf6e3' },
+      PendingConfirmation: { label: 'Chờ xác nhận', color: '#b7791f', bg: '#fdf6e3' },
       PendingPayment: { label: 'Chờ thanh toán', color: '#b7791f', bg: '#fdf6e3' },
       Paid: { label: 'Đã thanh toán', color: '#1976d2', bg: '#e6f3fa' },
       Processing: { label: 'Đang xử lý', color: '#1976d2', bg: '#e6f3fa' },
