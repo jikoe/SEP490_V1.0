@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AgriSustain.Infrastructure.Repositories;
 
-public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrackingRepository
+public sealed class OrderTrackingRepository(AgriSustainContext db, TimeProvider clock)
+    : IOrderTrackingRepository
 {
     private static readonly string[] s_settledPaymentStatuses =
         ["Success", "Succeeded", "Paid", "Completed"];
@@ -42,6 +43,9 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
                 .Take(query.PageSize))
             .ToListAsync(cancellationToken);
 
+        var complaints = await GetComplaintFlagsAsync(
+            buyerId, orders.Select(order => order.OrderId).ToArray(), cancellationToken);
+        var now = clock.GetUtcNow().UtcDateTime;
         var dtoList = orders.Select(o => new OrderSummaryDto(
             OrderId: o.OrderId,
             OrderCode: o.OrderCode,
@@ -57,7 +61,10 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
             RecipientPhone: o.RecipientPhoneSnapshot,
             ShippingAddress: o.ShippingAddress,
             TrackingNumber: TrackingNumber(o),
-            SellerOrders: SellerOrders(o))).ToList();
+            SellerOrders: SellerOrders(o),
+            HasComplaints: complaints.ContainsKey(o.OrderId),
+            ComplaintNeedsResponse: complaints.GetValueOrDefault(o.OrderId),
+            CanSubmitComplaint: OrderFeedbackRules.HasComplaintEligibleItems(o, now))).ToList();
 
         return new PagedResponse<OrderSummaryDto>(
             dtoList,
@@ -71,8 +78,6 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
     {
         var o = await WithTrackingData(db.Orders.AsNoTracking())
             .Include(o => o.PaymentTransactions)
-            .Include(o => o.SellerOrders)
-                .ThenInclude(so => so.OrderStatusHistories)
             .FirstOrDefaultAsync(
                 o => o.OrderId == orderId && o.BuyerUserId == buyerId,
                 cancellationToken);
@@ -106,6 +111,7 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
             .Select(history => (DateTime?)history.OccurredAt)
             .Max();
 
+        var complaints = await GetComplaintFlagsAsync(buyerId, [orderId], cancellationToken);
         return new OrderDetailDto(
             OrderId: o.OrderId,
             OrderCode: o.OrderCode,
@@ -127,7 +133,39 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
             SellerOrders: SellerOrders(o),
             Timeline: timeline,
             DeliveredAt: deliveredAt.HasValue ? Utc(deliveredAt.Value) : null,
-            ReservationExpiresAt: o.ReservationExpiresAt.HasValue ? Utc(o.ReservationExpiresAt.Value) : null);
+            ReservationExpiresAt: o.ReservationExpiresAt.HasValue
+                ? Utc(o.ReservationExpiresAt.Value) : null,
+            HasComplaints: complaints.ContainsKey(orderId),
+            ComplaintNeedsResponse: complaints.GetValueOrDefault(orderId),
+            CanSubmitComplaint: OrderFeedbackRules.HasComplaintEligibleItems(
+                o, clock.GetUtcNow().UtcDateTime));
+    }
+
+    private Task<Dictionary<long, bool>> GetComplaintFlagsAsync(
+        long buyerId, long[] orderIds, CancellationToken ct)
+    {
+        if (orderIds.Length == 0)
+        {
+            return Task.FromResult(new Dictionary<long, bool>());
+        }
+        var now = clock.GetUtcNow().UtcDateTime;
+        return db.Orders.AsNoTracking()
+            .Where(order => orderIds.Contains(order.OrderId) && order.BuyerUserId == buyerId
+                && order.OrderType == "Retail"
+                && order.SellerOrders.Any(seller => seller.DisputeTickets.Any()))
+            .Select(order => new
+            {
+                order.OrderId,
+                NeedsResponse = order.SellerOrders.Any(seller => seller.DisputeTickets.Any(ticket =>
+                    (ticket.TicketStatus == DisputeTicket.StatusOpen
+                        || ticket.TicketStatus == DisputeTicket.StatusUnderReview
+                        || ticket.TicketStatus == DisputeTicket.StatusWaitingInfo)
+                    && ticket.DisputeEvidenceRequests.Any(request =>
+                        request.RequestedPartyUserId == buyerId
+                        && request.RequestStatus == DisputeTicket.EvidenceRequestPending
+                        && request.RespondedAt == null
+                        && (request.DueAt ?? request.RequestedAt.AddHours(48)) >= now)))
+            }).ToDictionaryAsync(order => order.OrderId, order => order.NeedsResponse, ct);
     }
 
     public async Task<OrderDetailDto?> GetOrderDetailByCodeAsync(
@@ -164,6 +202,10 @@ public sealed class OrderTrackingRepository(AgriSustainContext db) : IOrderTrack
     private static IQueryable<Order> WithTrackingData(IQueryable<Order> orders) => orders
         .Include(o => o.SellerOrders)
             .ThenInclude(so => so.FarmerProfile)
+        .Include(o => o.SellerOrders)
+            .ThenInclude(so => so.OrderStatusHistories)
+        .Include(o => o.SellerOrders)
+            .ThenInclude(so => so.DisputeTickets)
         .Include(o => o.SellerOrders)
             .ThenInclude(so => so.Shipments)
         .Include(o => o.SellerOrders)

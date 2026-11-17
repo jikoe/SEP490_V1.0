@@ -19,6 +19,10 @@ public static class OrderFeedbackRules
         && item.Quantity > 0
         && item.ItemStatus != "Cancelled";
 
+    public static bool HasComplaintEligibleItems(Order order, DateTime now) =>
+        order.OrderType == "Retail" && order.SellerOrders.SelectMany(seller => seller.OrderItems)
+            .Any(item => CanComplain(order, item, now));
+
     public static bool CanComplain(Order order, OrderItem item, DateTime now) =>
         order.OrderStatus is ("Delivered" or "Completed")
         && item.SellerOrder.Status is ("Delivered" or "Completed")
@@ -27,7 +31,8 @@ public static class OrderFeedbackRules
         && DeliveredAt(item.SellerOrder) is { } deliveredAt
         && deliveredAt <= now && now <= deliveredAt.AddHours(48)
         && !item.SellerOrder.DisputeTickets.Any(ticket =>
-            (ticket.TicketStatus is "Open" or "Reviewing") && ConcernsItem(ticket, item.OrderItemId));
+            (ticket.IsAwaitingDecision || ticket.TicketStatus == "Reviewing")
+            && ConcernsItem(ticket, item.OrderItemId));
 
     public static string DescribeComplaint(IEnumerable<OrderItem> items, string description) =>
         string.Join("\n", items.OrderBy(item => item.OrderItemId).Select(item =>

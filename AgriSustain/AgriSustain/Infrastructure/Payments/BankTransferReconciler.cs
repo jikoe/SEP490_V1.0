@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -104,6 +105,7 @@ public sealed class BankTransferReconciler(
 
                 var content = GetStr("transaction_content");
                 var code = GetStr("code");
+                if (ContractPaymentRules.FindLineId([code, content]) is not null) continue;
                 var refNum = GetStr("reference_number");
 
                 await RecordAsync(

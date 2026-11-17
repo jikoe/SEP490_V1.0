@@ -107,6 +107,27 @@ public sealed class OfftakeProposalTests
         Assert.False(OfftakeProposalValidator.IsValid(proposal with { DepositAmount = 100001 }));
     }
 
+    [Theory]
+    [InlineData(-1, 3, false)]
+    [InlineData(0, 2, false)]
+    [InlineData(0, 3, true)]
+    [InlineData(1, 3, true)]
+    public async Task EnforcesCurrentEffectiveDateAndThreeDayDeliveryLeadTime(int startOffset, int leadTime, bool accepted)
+    {
+        var store = new OfftakeTestStore();
+        var service = store.Service();
+        var proposal = Proposal();
+        var start = proposal.ValidFrom.AddDays(startOffset);
+        var edited = proposal with { ValidFrom = start, DeliveryDate = start.AddDays(leadTime) };
+
+        Assert.Equal(accepted, (await service.ProposeAsync(edited, default)).Success);
+
+        var draftStore = new OfftakeTestStore();
+        var draftService = draftStore.Service();
+        var draft = await draftService.ProposeAsync(proposal, default, draft: true);
+        Assert.Equal(accepted, (await draftService.UpdateDraftAsync(draft.Data!.Id, 1, edited, true, default)).Success);
+    }
+
     [Fact(DisplayName = "[UC-WB-05 #008] Submit version one once and reject changed terms with the same key")]
     public async Task SubmitConfirmsExactVersionAndRejectsReusingKeyForChangedTerms()
     {
@@ -217,6 +238,8 @@ internal sealed class OfftakeTestStore : IOfftakeRepository, IUseCaseUnitOfWork,
     {
         Assert.Null(Contract);
         contract.B2bcontractId = 10;
+        foreach (var line in contract.ContractLines) line.ContractVersion.ContractLines.Add(line);
+        foreach (var milestone in contract.ContractMilestones) milestone.ContractVersion.ContractMilestones.Add(milestone);
         Contract = contract;
     }
 
@@ -242,7 +265,7 @@ internal sealed class OfftakeTestStore : IOfftakeRepository, IUseCaseUnitOfWork,
         CancellationToken ct) => Task.FromResult(Contract?.B2bcontractId == contractId ? Contract : null);
 
     public Task<bool> HasCommitmentsAsync(long contractId, CancellationToken ct, bool editingRevision = false) =>
-        throw new NotSupportedException();
+        Task.FromResult(false);
 
     public Task<Shipment?> FindShipmentForInspectionAsync(long buyerId, long contractId, long shipmentId,
         CancellationToken ct) => throw new NotSupportedException();

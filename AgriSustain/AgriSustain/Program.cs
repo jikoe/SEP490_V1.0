@@ -57,6 +57,12 @@ builder.Services.AddScoped<IComplaintRepository, ComplaintRepository>();
 // UC-FAR-10: controller -> application service -> owned complaint repository.
 builder.Services.AddScoped<IFarmerComplaintRepository, FarmerComplaintRepository>();
 builder.Services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
+builder.Services.AddScoped<ICustomerComplaintRepository, CustomerComplaintRepository>();
+builder.Services.AddScoped<ICustomerComplaintService,
+    AgriSustain.Application.Services.Complaints.CustomerComplaintService>();
+builder.Services.AddScoped<AgriSustain.Infrastructure.Email.OrderEmailDispatcher>();
+builder.Services.AddScoped<IComplaintEmailDelivery>(services => services
+    .GetRequiredService<AgriSustain.Infrastructure.Email.OrderEmailDispatcher>());
 builder.Services.AddScoped<AgriSustain.Application.Services.Complaints.FarmerComplaintService>();
 builder.Services.AddScoped<AgriSustain.Api.Controllers.FarmerComplaintInputFilter>();
 if (builder.Configuration.GetValue("FarmerComplaints:EnableNotificationWorker", true))
@@ -242,6 +248,9 @@ builder.Services.AddScoped<IBankTransferHandler>(services =>
     services.GetRequiredService<AgriSustain.Application.Services.B2B.BuyerSubscriptionService>());
 builder.Services.AddScoped<IBankTransferHandler>(services =>
     services.GetRequiredService<AgriSustain.Application.Services.Finance.ContractPaymentService>());
+builder.Services.AddHttpClient<AgriSustain.Infrastructure.Payments.SePayContractDepositReconciler>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.ContractDepositReconciliationWorker>();
 if (builder.Configuration.GetValue("B2B:EnableReminderWorkers", true))
 {
     builder.Services.AddHostedService<AgriSustain.Infrastructure.BackgroundWorkers.SubscriptionReminderWorker>();

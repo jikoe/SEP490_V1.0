@@ -94,10 +94,13 @@ public sealed class OrderTrackingServiceTests
 
     // ---------- GetOrderDetailAsync ----------
 
-    [Fact(DisplayName = "UTC025 Delivered order (12h ago) offers Review + Complaint and marks notifications read")]
+    [Fact(DisplayName = "UTC025 An eligible delivered order offers Complaint and Confirm Received")]
     public async Task UTC025_DeliveredWithinWindow()
     {
-        Add(Detail(101, "Delivered", "Paid", deliveredAt: Now.AddHours(-12)));
+        Add(Detail(101, "Delivered", "Paid", deliveredAt: Now.AddHours(-12)) with
+        {
+            CanSubmitComplaint = true
+        });
 
         var result = await Service().GetOrderDetailAsync(101, default);
 
@@ -148,13 +151,15 @@ public sealed class OrderTrackingServiceTests
 
     // ---------- ResolveActions (business rules) ----------
 
-    [Theory(DisplayName = "UTC-RC04-B4 Complaint window is 48 hours after delivery (GBR-24)")]
-    [InlineData(47, true)]
-    [InlineData(48, true)]
-    [InlineData(49, false)]
-    public void UTC_B4_ComplaintWindow(int hoursAgo, bool allowed)
+    [Theory(DisplayName = "UTC-RC04-B4 The complaint action follows item eligibility")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void UTC_B4_ComplaintEligibility(bool allowed)
     {
-        var order = Detail(1, "Delivered", "Paid", deliveredAt: Now.AddHours(-hoursAgo));
+        var order = Detail(1, "Delivered", "Paid", deliveredAt: Now.AddHours(-1)) with
+        {
+            CanSubmitComplaint = allowed
+        };
 
         var actions = OrderTrackingService.ResolveActions(order, Now);
 

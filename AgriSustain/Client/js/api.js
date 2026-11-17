@@ -476,6 +476,37 @@ const API = {
     });
   },
 
+  /* ---------------- RETAIL COMPLAINT RESPONSES ---------------- */
+  async getMyComplaints(params = {}) {
+    const query = this.toQueryString(params);
+    return this.get('/customer/complaints' + (query ? '?' + query : ''), { suppressErrorToast: true });
+  },
+
+  async getMyComplaint(ticketId) {
+    return this.get('/customer/complaints/' + encodeURIComponent(ticketId), { suppressErrorToast: true });
+  },
+
+  async uploadComplaintEvidence(file) {
+    const body = new FormData();
+    body.append('file', file);
+    return this.post('/customer/complaints/evidence', body, { suppressErrorToast: true });
+  },
+
+  async respondComplaint(ticketId, input) {
+    return this.post('/customer/complaints/' + encodeURIComponent(ticketId) + '/responses',
+      input, { suppressErrorToast: true });
+  },
+
+  async openMyComplaintEvidence(ticketId, evidenceId) {
+    const url = CONFIG.API_BASE_URL + '/customer/complaints/' + encodeURIComponent(ticketId)
+      + '/evidence/' + encodeURIComponent(evidenceId);
+    const response = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + Auth.getAccessToken() }
+    });
+    if (!response.ok) throw new Error('Không thể mở bằng chứng.');
+    return response.blob();
+  },
+
   /* ---------------- CUSTOMER SUPPORT MODULE ---------------- */
   async getComplaints(params = {}, options = {}) {
     const query = this.toQueryString(params);

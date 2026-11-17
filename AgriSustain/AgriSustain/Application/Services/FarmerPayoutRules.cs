@@ -29,6 +29,19 @@ public sealed class FarmerPayoutRules(IConfiguration configuration)
     public static string BankKey(string? value) =>
         new((value ?? "").Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
 
+    public static bool SameBank(string actual, string expected)
+    {
+        string Canonical(string text) => BankKey(text) switch
+        {
+            "MB" or "MBBANK" or "MILITARYBANK" => "MB",
+            "TPB" or "TPBANK" => "TPB",
+            "ICB" or "VIETINBANK" or "CTG" => "ICB",
+            "STB" or "SACOMBANK" => "STB",
+            var value => value,
+        };
+        return Canonical(actual) == Canonical(expected);
+    }
+
     public string? ValidateVerifiedRecipient(FarmerPayoutContext context, DateTime now)
     {
         if (

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Khiếu nại của tôi - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/order-feedback.css">
+  <link rel="stylesheet" href="../css/customer-complaints.css">
+</head>
+<body class="customer-complaint-page">
+  <div class="app-shell">
+    <aside id="app-sidebar" class="sidebar" style="display:none"></aside>
+    <div class="workspace no-sidebar">
+      <header id="app-header"></header>
+      <main class="order-feedback customer-complaints">
+        <nav class="feedback-breadcrumb" aria-label="Đường dẫn">
+          <a href="orders.html">Đơn hàng của tôi</a><span aria-hidden="true">›</span>
+          <a id="complaint-back" href="complaints.html">Khiếu nại của tôi</a>
+        </nav>
+        <header class="feedback-heading">
+          <h1 id="complaint-heading">Khiếu nại của tôi</h1>
+        </header>
+        <p id="complaint-status" class="notice" role="status" hidden></p>
+        <p id="complaint-error" class="notice error" role="alert" hidden></p>
+        <button id="complaint-retry" type="button" hidden>Tải lại khiếu nại</button>
+
+        <section id="complaint-list" class="feedback-panel complaint-list-panel" aria-labelledby="complaint-list-title" hidden>
+          <div class="complaint-toolbar">
+            <h2 id="complaint-list-title" class="feedback-section-title">Danh sách khiếu nại</h2>
+            <label class="feedback-field" for="complaint-filter">Trạng thái
+              <select id="complaint-filter"><option value="">Tất cả</option></select>
+            </label>
+          </div>
+          <ul id="complaint-items" class="complaint-items"></ul>
+          <div id="complaint-pagination" class="complaint-paging" aria-label="Phân trang" hidden>
+            <button id="complaint-prev" type="button">Trang trước</button>
+            <span id="complaint-page"></span>
+            <button id="complaint-next" type="button">Trang sau</button>
+          </div>
+        </section>
+
+        <section id="complaint-detail" class="complaint-detail" aria-label="Chi tiết khiếu nại" hidden>
+          <div class="complaint-stack">
+            <section class="feedback-panel">
+              <div class="complaint-card-heading">
+                <h2 id="complaint-title" class="feedback-section-title" tabindex="-1"></h2>
+                <span id="complaint-case-status" class="feedback-badge"></span>
+              </div>
+              <dl class="feedback-metadata">
+                <dt>Đơn theo nông trại</dt><dd id="complaint-order-code"></dd>
+                <dt>Lý do</dt><dd id="complaint-reason"></dd>
+              </dl>
+              <p id="complaint-description" class="complaint-text complaint-separated" hidden></p>
+              <div id="complaint-original" class="complaint-separated" hidden>
+                <h3>Bằng chứng đã gửi</h3>
+                <div id="complaint-original-files" class="complaint-files"></div>
+              </div>
+            </section>
+            <section id="complaint-outcome" class="feedback-panel" hidden>
+              <h2 class="feedback-section-title">Kết quả xử lý</h2>
+              <p id="complaint-resolution" class="complaint-text"></p>
+            </section>
+          </div>
+          <div class="complaint-stack">
+            <section class="feedback-panel" aria-labelledby="complaint-requests-title">
+              <h2 class="feedback-section-title" id="complaint-requests-title">Yêu cầu bổ sung và lịch sử phản hồi</h2>
+              <div id="complaint-requests" class="complaint-stack"></div>
+            </section>
+            <form id="complaint-form" class="feedback-panel" novalidate hidden>
+              <div class="complaint-card-heading">
+                <h2 id="complaint-form-title" class="feedback-section-title">Gửi thông tin bổ sung</h2>
+                <span id="complaint-countdown" class="feedback-badge complaint-needed"></span>
+              </div>
+              <p id="complaint-form-error" class="notice error" role="alert" hidden></p>
+              <fieldset id="complaint-fields">
+                <label for="complaint-explanation" class="feedback-field">Giải thích
+                  <textarea id="complaint-explanation" rows="5" minlength="15" maxlength="2000" required
+                    aria-describedby="complaint-explanation-rules"></textarea>
+                </label>
+                <div class="complaint-input-meta">
+                  <small id="complaint-explanation-rules">15–2.000 ký tự</small>
+                  <small id="complaint-characters">0 / 2.000</small>
+                </div>
+                <div class="feedback-attachments">
+                  <div class="feedback-upload-copy">
+                    <div><strong>Tệp bằng chứng</strong><span id="complaint-rules"></span></div>
+                  </div>
+                  <button class="feedback-upload-button" id="complaint-add-file" type="button" aria-describedby="complaint-rules">Thêm tệp</button>
+                  <input id="complaint-upload" type="file" accept=".jpg,.jpeg,.png,.pdf,.mp4" multiple hidden>
+                  <ul id="complaint-previews" class="complaint-items complaint-previews" aria-label="Tệp đã chọn"></ul>
+                </div>
+                <button class="feedback-primary" id="complaint-submit" type="submit">Gửi phản hồi</button>
+              </fieldset>
+            </form>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script src="../messages/customer-complaints.js"></script>
+  <script src="../js/customer-complaints.js"></script>
+</body>
+</html>

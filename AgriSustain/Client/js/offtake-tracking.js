@@ -4,6 +4,9 @@ import { badge, byId, date, dateRange, detailMarkup, facts, hasBuyerParty, loadB
 const params = new URLSearchParams(location.search);
 const path = '/b2b/contracts';
 const filters = byId('tracking-filters');
+const statusFilter = byId('tracking-status');
+const contractStatuses = ['Draft', 'PendingApproval', 'Negotiating', 'Signed', 'AwaitingDeposit',
+  'Active', 'Completed', 'Rejected', 'Cancelled', 'Terminated'];
 const results = byId('tracking-result');
 const retry = byId('tracking-retry');
 const exportButton = byId('export-list');
@@ -25,6 +28,8 @@ let query = {};
 let page = 1;
 let pending;
 let pendingDetail;
+let pendingTransfer;
+let depositTimer;
 let contractDetail;
 let detailId;
 let cancellation;
@@ -47,14 +52,15 @@ function renderStats(counts) {
     '<div class="panel offtake-stat"><span aria-hidden="true" class="offtake-badge ' + color + '">'
     + ['▣', '↔', '◷', '✓'][i] + '</span><div>' + esc(label) + '<strong>'
     + number(value) + '</strong></div></div>').join('');
-  const select = byId('tracking-status');
-  select.replaceChildren(new Option('Tất cả', ''));
-  counts.sort((a, b) => statusName(a.status).localeCompare(statusName(b.status), 'vi'))
-    .forEach(item => select.add(new Option(statusName(item.status), item.status)));
-  if (query.status && !counts.some(item => item.status === query.status)) {
-    select.add(new Option(statusName(query.status), query.status));
-  }
-  select.value = query.status || '';
+}
+
+function renderStatusOptions(counts = []) {
+  const selected = statusFilter.value;
+  const statuses = new Set([...contractStatuses, ...counts.map(item => item.status), selected]);
+  statuses.delete('');
+  statusFilter.replaceChildren(new Option('Tất cả', ''), ...[...statuses]
+    .map(status => new Option(statusName(status), status)));
+  statusFilter.value = selected;
 }
 
 function pageButton(label, target, active = false, disabled = false) {
@@ -131,6 +137,7 @@ async function load(target = page) {
     const data = await request(url(target, pageSize.value), { signal: controller.signal });
     if (controller.signal.aborted) return;
     renderStats(data.statusCounts);
+    renderStatusOptions(data.statusCounts);
     renderPage(data);
   } catch (error) {
     if (controller.signal.aborted) return;
@@ -139,8 +146,9 @@ async function load(target = page) {
   }
 }
 
-async function openDetail(id, download = false) {
+async function openDetail(id, download = false, fromDeposit = false) {
   pendingDetail?.abort();
+  stopTransfer();
   const controller = new AbortController();
   pendingDetail = controller;
   contractDetail = null;
@@ -160,6 +168,7 @@ async function openDetail(id, download = false) {
     detailContent.innerHTML = detailMarkup(data);
     renderFulfillment(data);
     contractDetail = data;
+    if (fromDeposit && data.depositConfirmed) notice(pdfNotice, 'Đặt cọc thành công. Hệ thống đã xác nhận nhận đủ tiền cọc.');
     depositButton.hidden = data.status !== 'AwaitingDeposit' || !(data.deposit > 0);
     downloadButton.hidden = false;
     if (data.canEditRevision) {
@@ -323,14 +332,50 @@ async function viewEvidence(id) {
   }
 }
 
+function stopTransfer() {
+  pendingTransfer?.abort();
+  clearTimeout(depositTimer);
+}
+
+function watchDeposit(id, signal) {
+  depositTimer = setTimeout(async () => {
+    try {
+      const detail = await request(path + '/' + id, { signal });
+      if (signal.aborted || !dialog.open) return;
+      if (detail.depositConfirmed) {
+        const url = new URL(location.href);
+        url.search = new URLSearchParams({ record: id, deposit: 'confirmed' });
+        history.replaceState(null, '', url);
+        location.reload();
+        return;
+      }
+      if (detail.status !== 'AwaitingDeposit') {
+        openDetail(id);
+        load();
+        return;
+      }
+    } catch (error) {
+      if (signal.aborted || !dialog.open) return;
+      if ([401, 403, 404].includes(error.status)) {
+        notice(pdfNotice, error.message, true);
+        return;
+      }
+    }
+    watchDeposit(id, signal);
+  }, 4000);
+}
+
 async function showTransfer(button, endpoint, deposit) {
   if (button.disabled) return;
-  const controller = pendingDetail;
+  stopTransfer();
+  const controller = new AbortController();
+  pendingTransfer = controller;
+  const id = detailId;
   button.disabled = true;
   depositPanel.hidden = true;
   notice(pdfNotice, 'Đang tải thông tin chuyển khoản…');
   try {
-    const data = await request(path + '/' + detailId + endpoint, { method: deposit ? 'POST' : 'GET', signal: controller.signal });
+    const data = await request(path + '/' + id + endpoint, { method: deposit ? 'POST' : 'GET', signal: controller.signal });
     if (controller.signal.aborted) return;
     byId('tracking-deposit-title').textContent = deposit ? 'Chuyển khoản đặt cọc' : 'Chuyển khoản thanh toán hóa đơn';
     byId('tracking-deposit-bank').innerHTML = facts([
@@ -341,11 +386,12 @@ async function showTransfer(button, endpoint, deposit) {
     byId('tracking-deposit-qr').src = data.qrUrl;
     depositPanel.hidden = false;
     depositPanel.scrollIntoView({ block: 'nearest' });
-    notice(pdfNotice, '');
+    notice(pdfNotice, deposit ? 'Đang chờ hệ thống xác nhận nhận đủ tiền cọc…' : '');
+    if (deposit) watchDeposit(id, controller.signal);
   } catch (error) {
     if (!controller.signal.aborted) notice(pdfNotice, error.message, true);
   } finally {
-    if (pendingDetail === controller) button.disabled = false;
+    button.disabled = false;
   }
 }
 
@@ -437,6 +483,7 @@ async function exportList() {
 }
 
 if (Auth.requireAuth('WholesaleBuyer')) {
+  renderStatusOptions();
   depositButton.addEventListener('click', () => showTransfer(depositButton, '/deposit', true));
   detailContent.addEventListener('click', event => {
     const button = event.target.closest('button');
@@ -495,7 +542,10 @@ if (Auth.requireAuth('WholesaleBuyer')) {
   cancelDialog.addEventListener('cancel', event => {
     if (cancelConfirm.disabled) event.preventDefault();
   });
-  dialog.addEventListener('close', () => pendingDetail?.abort());
+  dialog.addEventListener('close', () => {
+    pendingDetail?.abort();
+    stopTransfer();
+  });
   list.addEventListener('click', event => {
     const button = event.target.closest('[data-record]');
     if (!button || button.disabled) return;
@@ -515,8 +565,13 @@ if (Auth.requireAuth('WholesaleBuyer')) {
   if (params.has('saved')) notice(byId('tracking-notice'), 'Đã lưu bản nháp hợp đồng.');
   const id = params.get('resent') || params.get('submitted') || params.get('record');
   if (id && /^\d+$/.test(id)) {
+    const fromDeposit = params.get('deposit') === 'confirmed';
+    if (fromDeposit) {
+      params.delete('deposit');
+      history.replaceState(null, '', '?' + params);
+    }
     if (params.has('resent')) notice(byId('tracking-notice'), 'Đã gửi lại đề xuất để nông dân xác nhận.');
     if (params.has('submitted')) notice(byId('tracking-notice'), 'Đã gửi đề xuất cho nhà cung cấp.');
-    openDetail(id);
+    openDetail(id, false, fromDeposit);
   }
 }

@@ -44,6 +44,15 @@ public static class OfftakeProposalValidator
                 && sections.Zip(LegacyArticleNumbers).All(section => HasArticle(section.First, section.Second)));
     }
 
+    public static string? ScheduleError(OfftakeProposalRequest proposal, DateOnly today)
+    {
+        if (proposal.ValidFrom < today)
+            return "Ngày bắt đầu hiệu lực phải từ hôm nay trở đi.";
+        if (proposal.DeliveryDate.DayNumber - proposal.ValidFrom.DayNumber < 3)
+            return "Ngày giao hàng dự kiến phải cách ngày bắt đầu hiệu lực ít nhất 3 ngày.";
+        return null;
+    }
+
     private static bool HasArticle(string section, int number)
     {
         var prefix = $"Điều {number}: ";

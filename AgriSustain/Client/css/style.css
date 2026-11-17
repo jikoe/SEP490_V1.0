@@ -7,9 +7,10 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 button, input, textarea, select { font: inherit; }
-button { cursor: pointer; border: 1px solid #d4dfd7; background: #fff; color: #2d5140;
+button, a.button-link { cursor: pointer; border: 1px solid #d4dfd7; background: #fff; color: #2d5140;
   border-radius: 7px; padding: 9px 13px; transition: background .15s; white-space: nowrap; }
-button:hover:not(:disabled) { background: #edf4ee; }
+a.button-link { display: inline-block; text-decoration: none; }
+button:hover:not(:disabled), a.button-link:hover { background: #edf4ee; }
 button:disabled { cursor: not-allowed; opacity: .48; }
 button:focus-visible, a:focus-visible, input:focus, select:focus, textarea:focus {
   outline: 2px solid #478c60; outline-offset: 2px; }

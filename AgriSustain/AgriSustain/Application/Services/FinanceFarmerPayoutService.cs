@@ -427,7 +427,7 @@ public sealed class FinanceFarmerPayoutService(
                     payout.PayoutStatus is "Processing" or "NeedsReconciliation"
                     && FarmerPayoutRules.Digits(transfer.SourceAccountNumber)
                         == FarmerPayoutRules.Digits(plan.SourceAccountNumber)
-                    && SameBank(transfer.Gateway, plan.SourceBankCode)
+                    && FarmerPayoutRules.SameBank(transfer.Gateway, plan.SourceBankCode)
                     && transfer.Amount == plan.Amount
                     && transfer.Amount == payout.NetAmount
                     && transfer.At >= plan.OpenedAt.AddSeconds(-5)
@@ -491,20 +491,6 @@ public sealed class FinanceFarmerPayoutService(
         Operation
             .Matches(content)
             .Any(x => string.Equals(x.Value, operation, StringComparison.OrdinalIgnoreCase));
-
-    private static bool SameBank(string actual, string expected)
-    {
-        string Canonical(string text) =>
-            FarmerPayoutRules.BankKey(text) switch
-            {
-                "MB" or "MBBANK" or "MILITARYBANK" => "MB",
-                "TPB" or "TPBANK" => "TPB",
-                "ICB" or "VIETINBANK" or "CTG" => "ICB",
-                "STB" or "SACOMBANK" => "STB",
-                var value => value,
-            };
-        return Canonical(actual) == Canonical(expected);
-    }
 
     private void Record(
         long id,

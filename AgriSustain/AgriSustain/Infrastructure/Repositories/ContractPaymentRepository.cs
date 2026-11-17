@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Services;
 using AgriSustain.Application.Services.Finance;
@@ -55,6 +56,7 @@ public sealed class ContractPaymentRepository(AgriSustainContext db) : IContract
                 p.PaymentStatus,
                 p.Amount,
                 p.GatewayProvider,
+                p.TransactionCode,
                 Reference = p.ProviderTransactionReference ?? p.TransactionCode,
                 Line = p.ContractMilestone != null ? p.ContractMilestone.MilestoneTitle : null
             })
@@ -81,9 +83,16 @@ public sealed class ContractPaymentRepository(AgriSustainContext db) : IContract
             })
             .ToListAsync(cancellationToken);
 
+        const string sePayPrefix = "SEPAY-";
         var items = payments.Select(p => new ContractHistoryItem(p.At, "Payment",
                 $"{PaymentLabel(p.PaymentStatus)}{(p.Line is null ? "" : $" – {p.Line}")} ({p.GatewayProvider})",
-                p.Amount, p.Reference, null))
+                p.Amount, p.Reference, null)
+            {
+                SePayTransactionId = p.GatewayProvider == "SePay"
+                    && p.TransactionCode.StartsWith(sePayPrefix, StringComparison.Ordinal)
+                    && long.TryParse(p.TransactionCode.AsSpan(sePayPrefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out var id)
+                    && id > 0 ? p.TransactionCode[sePayPrefix.Length..] : null
+            })
             .Concat(audits.Where(a => a.Action != ContractPaymentRules.ActionConfirm
                     && a.Action != ContractPaymentRules.ActionAutoApply)
                 .Select(a => new ContractHistoryItem(a.OccurredAt, a.Action.Replace("ContractPayment:", ""),

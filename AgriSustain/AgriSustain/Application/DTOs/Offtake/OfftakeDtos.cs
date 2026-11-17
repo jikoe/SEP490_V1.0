@@ -140,6 +140,7 @@ public sealed record OfftakeTrackingDetail(
 {
     public OfftakeDocumentDetails? Document { get; init; }
     public bool CanEditRevision { get; init; }
+    public bool DepositConfirmed { get; init; }
     public string? FeedbackReason { get; init; }
     public string? ProposedChanges { get; init; }
     public IReadOnlyList<OfftakeSeasonProgress> Production { get; init; } = [];
