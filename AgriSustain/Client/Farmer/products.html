@@ -213,7 +213,7 @@
 
                   <label class="field commerce-full">
                     <span id="certificate-label"></span>
-                    <select id="edit-certificate" aria-describedby="certificate-hint"></select>
+                    <select id="edit-certificate" aria-describedby="certificate-hint" required></select>
                     <small class="muted" id="certificate-hint"></small>
                   </label>
 
@@ -451,7 +451,7 @@
         const select = document.getElementById("edit-certificate");
         document.getElementById("certificate-label").textContent = MSG.certificateLabel;
         document.getElementById("certificate-hint").textContent = MSG.certificateHint;
-        select.replaceChildren(new Option(MSG.certificateNone, ""));
+        select.replaceChildren(new Option(MSG.certificatePlaceholder, ""));
         for (const certificate of certificateOptions) {
           const expiry = certificate.expiryDate
             ? `${MSG.certificateExpiry}: ${certificate.expiryDate}`
@@ -985,16 +985,19 @@
         }
         return marked;
       }
-      function validateProductForm() {
+      function validateProductForm({ requireCertificate = true } = {}) {
         clearFieldErrors();
         const val = (id) => document.getElementById(id).value.trim();
         const errors = {};
         const certificateId = val("edit-certificate");
-        if (
+        if (requireCertificate && !certificateId) {
+          errors.FarmCertificateId = MSG.certificateRequired;
+        } else if (
           certificateId &&
           !certificateOptions.some((c) => String(c.farmCertificateId) === certificateId)
-        )
+        ) {
           errors.FarmCertificateId = MSG.certificateInvalid;
+        }
         if (!val("edit-name") || val("edit-name").length > 255)
           errors.ProductName = "Nhập tên sản phẩm từ 1 đến 255 ký tự.";
         if (
@@ -1104,7 +1107,7 @@
       async function handleSavePriceOnly() {
         const id = document.getElementById("edit-product-id").value;
         if (!id) return;
-        if (validateProductForm()) {
+        if (validateProductForm({ requireCertificate: false })) {
           showEditorNotice("");
           return;
         }
