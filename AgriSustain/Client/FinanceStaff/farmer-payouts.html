@@ -24,25 +24,9 @@
           <h1>Yêu cầu thanh toán của nông dân</h1>
           <p>Kiểm tra yêu cầu, xử lý chi trả và theo dõi kết quả chuyển khoản.</p>
         </div>
-        <div class="screen-tabs" role="tablist" aria-label="Các trang chức năng">
-          <button
-            type="button"
-            role="tab"
-            data-screen-go="list"
-            aria-controls="screen-list"
-            id="tab-list"
-          >
-            Danh sách yêu cầu
-          </button>
-          <button
-            type="button"
-            role="tab"
-            data-screen-go="detail"
-            aria-controls="screen-detail"
-            id="tab-detail"
-          >
-            Chi tiết / xử lý
-          </button>
+        <div class="screen-indicators" role="group" aria-label="Các màn hình chức năng">
+          <span id="screen-label-list" data-screen-indicator="list" aria-current="step">Danh sách yêu cầu</span>
+          <span id="screen-label-detail" data-screen-indicator="detail">Chi tiết / xử lý</span>
         </div>
         <div id="feedback" class="notice feedback" role="status" aria-live="polite" hidden="">
           <span id="feedbackText"></span>
@@ -51,8 +35,7 @@
           class="screen"
           data-screen="list"
           id="screen-list"
-          role="tabpanel"
-          aria-labelledby="tab-list"
+          aria-labelledby="screen-label-list"
           hidden=""
         >
           <section class="panel">
@@ -125,8 +108,7 @@
           class="screen"
           data-screen="detail"
           id="screen-detail"
-          role="tabpanel"
-          aria-labelledby="tab-detail"
+          aria-labelledby="screen-label-detail"
           hidden=""
         >
           <div class="screen-back">
@@ -162,10 +144,6 @@
                   <strong id="savedNet"></strong>
                 </div>
               </div>
-              <div class="wide notice">
-                Chỉ thanh toán nguồn còn đủ điều kiện. Khoản đang có khiếu nại, hoàn tiền hoặc hạn
-                giữ tài khoản không được chi trả.
-              </div>
               <div class="wide">
                 <h3>Tài khoản nhận tiền đã lưu</h3>
                 <dl id="savedRecipient" class="kv"></dl>
@@ -192,17 +170,13 @@
               </table>
             </div>
             <div class="body grid two">
-              <div class="wide notice">
-                Yêu cầu đã gửi hoặc QR đã mở chưa có nghĩa là đã thanh toán. Chỉ ghi nhận sau khi
-                xác minh giao dịch tiền ra phù hợp.
-              </div>
               <div>
                 <h3>Kết quả chuyển khoản</h3>
                 <dl id="transferDetails" class="kv"></dl>
               </div>
               <div>
                 <h3>Đối soát giao dịch</h3>
-                <p id="reconciliationText"></p>
+                <p id="reconciliationText" role="status"></p>
                 <button id="checkGateway" class="btn">Kiểm tra kết quả chuyển tiền</button>
               </div>
               <div>
@@ -213,6 +187,7 @@
                 <h3>Thông báo kết quả</h3>
                 <p id="payoutNotification"></p>
               </div>
+              <div id="payoutBlockNotice" class="notice warn wide" role="status" hidden></div>
               <div class="actions end wide">
                 <button id="rejectRequest" class="btn danger">Từ chối yêu cầu</button>
                 <button id="processPayout" class="btn primary">Mở QR chi trả</button>
@@ -267,7 +242,7 @@
           maxlength="500"
           placeholder="Nhập lý do từ chối, tối đa 500 ký tự"
         ></textarea>
-        <p id="rejectError" class="muted" role="alert"></p>
+        <p id="rejectError" class="field-error" role="alert"></p>
         <div class="actions end">
           <button class="btn" id="closeReject">Quay lại</button>
           <button class="btn danger" id="confirmReject">Xác nhận từ chối</button>

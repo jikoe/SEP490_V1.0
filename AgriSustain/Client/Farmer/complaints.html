@@ -23,8 +23,12 @@
             <h1>Phản hồi khiếu nại đơn hàng</h1>
             <p class="muted">Gửi giải trình, bằng chứng và theo dõi kết quả xử lý.</p>
           </div>
-          <button id="back" hidden>← Danh sách khiếu nại</button>
+          <button id="back" type="button" hidden>← Danh sách khiếu nại</button>
         </header>
+        <div class="complaint-views" role="group" aria-label="Các màn hình chức năng">
+          <span id="complaintListLabel" aria-current="step">Danh sách khiếu nại</span>
+          <span id="complaintDetailLabel">Chi tiết / phản hồi</span>
+        </div>
         <div id="feedback" role="status" hidden>
           <span id="feedbackText"></span>
         </div>
@@ -106,23 +110,23 @@
             <form id="responseForm" novalidate>
               <label for="explanation">
                 <span>Nội dung giải trình *</span>
+                <small class="error" id="explanationError" role="alert"></small>
                 <textarea
-                  id="explanation"
+                  id="explanation" aria-describedby="explanationError"
                   rows="5"
                   maxlength="2000"
                   placeholder="Nhập giải trình về tình trạng hàng hóa, quá trình chuẩn bị và giao hàng (15–2.000 ký tự)"
                 ></textarea>
                 <small id="chars">0 / 2.000 ký tự</small>
-                <small class="error" id="explanationError"></small>
               </label>
               <label for="evidence">
                 <span>Bằng chứng đính kèm *</span>
-                <input id="evidence" type="file" accept=".jpg,.jpeg,.png,.pdf,.mp4" multiple />
+                <small class="error" id="evidenceError" role="alert"></small>
+                <input id="evidence" aria-describedby="evidenceError" type="file" accept=".jpg,.jpeg,.png,.pdf,.mp4" multiple />
                 <small>
                   Chọn tổng cộng 1–5 tệp: ảnh JPG/JPEG/PNG hoặc PDF tối đa 5 MB/tệp; có thể kèm tối
                   đa 1 video MP4, tối đa 20 MB. Video không bắt buộc.
                 </small>
-                <small class="error" id="evidenceError"></small>
               </label>
               <ul id="files" class="files"></ul>
               <p class="hint">

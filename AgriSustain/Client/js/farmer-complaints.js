@@ -45,9 +45,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const requestText = (value) => messages.requests[value] || value;
   const dirty = () => Boolean($("#explanation").value.trim() || attachments.length);
 
-  function notice(message, bad = false) {
+  function indicateView(detail) {
+    $("#complaintListLabel").toggleAttribute("aria-current", !detail);
+    $("#complaintDetailLabel").toggleAttribute("aria-current", detail);
+    $(detail ? "#complaintDetailLabel" : "#complaintListLabel").setAttribute("aria-current", "step");
+  }
+  function clearFieldError(id) {
+    $("#" + id + "Error").textContent = "";
+    $("#" + id).removeAttribute("aria-invalid");
+  }
+
+  function notice(message, severity = false) {
     $("#feedbackText").textContent = displayMessage(message);
-    $("#feedback").classList.toggle("bad", bad);
+    $("#feedback").classList.toggle("bad", severity === true);
+    $("#feedback").classList.toggle("warn", severity === "warning");
+    $("#feedback").setAttribute("role", severity === true ? "alert" : "status");
     $("#feedback").hidden = false;
     $("#feedback").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -255,6 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
     resetForm();
     $("#listView").hidden = true;
     $("#detailView").hidden = false;
+    indicateView(true);
     $("#back").hidden = false;
     const labels = messages.labels;
     details($("#caseDetails"), [
@@ -335,9 +348,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const url = new URL(location.href);
       url.searchParams.set("id", id);
       history.replaceState(null, "", url);
-      if (data.notificationPending) notice(messages.pendingNotification, true);
+      if (data.notificationPending) notice(messages.pendingNotification, "warning");
       else if (selectedRequest?.status === "Expired") notice(messages.expired, true);
-      else if (!canRespond()) notice(selectedRequest ? messages.closed : messages.noRequest);
+      else if (!canRespond()) notice(selectedRequest ? messages.closed : messages.noRequest, "warning");
     } catch (error) {
       notice(error.message, true);
     }
@@ -350,6 +363,7 @@ document.addEventListener("DOMContentLoaded", () => {
     selectedRequest = null;
     $("#listView").hidden = false;
     $("#detailView").hidden = true;
+    indicateView(false);
     $("#back").hidden = true;
     $("#feedback").hidden = true;
     const url = new URL(location.href);
@@ -404,9 +418,11 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#back").onclick = back;
   $("#cancel").onclick = back;
   $("#explanation").oninput = () => {
+    clearFieldError("explanation");
     $("#chars").textContent = $("#explanation").value.trim().length + " / 2.000 ký tự";
   };
   $("#evidence").onchange = (event) => {
+    clearFieldError("evidence");
     attachments.push(...event.target.files);
     event.target.value = "";
     renderFiles();
@@ -447,7 +463,11 @@ document.addEventListener("DOMContentLoaded", () => {
     $("#evidenceError").textContent = validFiles ? "" : messages.evidenceInvalid;
     $("#explanation").setAttribute("aria-invalid", String(!validText));
     $("#evidence").setAttribute("aria-invalid", String(!validFiles));
-    if (!validText || !validFiles) return notice(messages.invalid, true);
+    if (!validText || !validFiles) {
+      $("#feedback").hidden = true;
+      $(validText ? "#evidence" : "#explanation").focus();
+      return;
+    }
     saving = true;
     lock();
     try {
@@ -473,7 +493,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
       });
       renderDetail(data);
-      notice(data.message || messages.saved, data.notificationPending);
+      notice(data.message || messages.saved, data.notificationPending ? "warning" : false);
     } catch (error) {
       notice(error.message || messages.saveFailed, true);
       if (error.status === 409) {

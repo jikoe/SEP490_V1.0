@@ -72,7 +72,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       .map(
         (row) =>
           /* HTML */ `<tr>
-            <td>${ui.escape(row.reference || row.id)}<small>${ui.escape(row.channel)}</small></td>
+            <td>
+              ${ui.escape(row.reference || row.id)}<small
+                >${ui.escape(row.channel ? ui.label(row.channel) : "")}</small
+              >
+            </td>
             <td>
               ${ui.escape(
                 data.status === "Processed"
@@ -105,18 +109,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       ["#savedDeduction", "deduction"],
       ["#savedNet", "net"],
     ].forEach(([selector, key]) => display(selector, ui.money(data[key])));
+    const paid = data.status === "Processed" || data.status === "Paid";
     ui.kv("#transferDetails", [
-      ["Trạng thái", ui.label(data.status)],
+      ["Trạng thái", paid ? ui.m.transferPaid : ui.label(data.status)],
       ["Mã giao dịch", data.bankTransferRef],
       ["Thời điểm tiền ra đã xác minh", ui.date(data.processedAt)],
-      ["Cơ sở ghi nhận", data.status === "Processed" ? ui.m.sourceDebit : ui.m.pending],
+      ...(paid ? [["Cơ sở ghi nhận", ui.m.sourceDebit]] : []),
     ]);
-    display(
-      "#reconciliationText",
-      data.status === "Processed"
-        ? ui.m.sourceDebit
-        : data.integrationMessage || data.holdReason || ui.m.pending,
-    );
+    const awaitingVerification =
+      !!data.plan && ["Processing", "NeedsReconciliation"].includes(data.status);
+    const reconciliation = $("#reconciliationText");
+    reconciliation.classList.toggle("notice", awaitingVerification);
+    reconciliation.classList.toggle("warn", awaitingVerification);
+    reconciliation.textContent = awaitingVerification ? ui.m.pending : "";
+    reconciliation.hidden = !awaitingVerification;
     display(
       "#failureText",
       data.rejectionReason || (data.status === "Failed" ? ui.m.failed : ui.m.noFailure),
@@ -131,6 +137,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? ui.m.notificationRejected
             : ui.m.notifications,
     );
+    const blockReason = data.status === "Pending"
+      ? data.holdReason || data.integrationMessage || (!data.canProcess ? ui.m.payoutNotReady : "")
+      : "";
+    display("#payoutBlockNotice", blockReason);
+    $("#payoutBlockNotice").hidden = !blockReason;
     $("#processPayout").disabled =
       busy || !data.canProcess || !!data.holdReason || !!data.integrationMessage;
     $("#rejectRequest").disabled = busy || !data.canReject;
@@ -193,7 +204,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             };
       const result = await ui.request(`${base}/${id}/${action}`, { method: "POST", body });
       await detail(id);
-      ui.notice(result.message);
+      const pending = ["Prepared", "Processing", "NeedsReconciliation"].includes(current?.status);
+      ui.notice(result.message, current?.status === "Failed" ? true : pending ? "warning" : false);
       if (action === "process" && current.plan)
         $("#qrPaymentBox").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
@@ -211,6 +223,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     rejectSnapshot = { ...current };
     rejection = null;
     $("#rejectReason").value = "";
+    ui.fields.clear($("#rejectReason"));
     $("#rejectError").textContent = "";
     $("#rejectDialog").showModal();
   };
@@ -224,7 +237,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (busy || !rejectSnapshot) return;
     const reason = $("#rejectReason").value.trim();
     if (!reason || reason.length > 500) {
-      $("#rejectError").textContent = !reason ? ui.m.rejectionRequired : ui.m.rejectionTooLong;
+      $("#rejectError").textContent = "";
+      ui.fields.show([
+        [$("#rejectReason"), !reason ? ui.m.rejectionRequired : ui.m.rejectionTooLong],
+      ]);
       return;
     }
     const signature = JSON.stringify({
@@ -245,7 +261,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       await detail(result.id);
       ui.notice(result.message);
     } catch (error) {
-      $("#rejectError").textContent = error.message || ui.m.saveFailed;
+      if (!ui.fields.applyServerErrors(error, { reason: "#rejectReason" }))
+        $("#rejectError").textContent = error.message || ui.m.saveFailed;
     } finally {
       busy = false;
       $("#confirmReject").disabled = false;
@@ -278,14 +295,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       detail(Number(button.dataset.payout)).catch((error) => ui.notice(error.message, true));
   };
   $("#applyPayoutFilter").onclick = () => {
-    if (field("#payoutFrom") && field("#payoutTo") && field("#payoutFrom") > field("#payoutTo")) {
-      ui.notice(ui.m.dates, true);
+    if (
+      !ui.fields.validateDates($("#payoutFrom"), $("#payoutTo"), {
+        rangeMessage: ui.m.dates,
+        grouped: true,
+      })
+    ) {
+      ui.notice("");
       return;
     }
     page = 1;
     list();
   };
   $("#resetPayoutFilter").onclick = () => {
+    ui.fields.clearWithin();
     [
       "#payoutSearch",
       "#payoutFarmerFilter",

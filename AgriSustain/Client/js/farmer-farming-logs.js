@@ -107,12 +107,11 @@ document.addEventListener("DOMContentLoaded", () => {
         ${ui.escape(data.seasonName)} · ${ui.date(data.actionDate)} ·
         ${ui.escape(data.detailDescription)}<br />Người thực hiện:
         ${ui.escape(data.performedBy)}${ui.proofs(data.evidenceUrls)}`;
-      if (![...el(cf, "correctactivity").options].some((x) => x.value === data.actionType))
-        el(cf, "correctactivity").add(new Option(data.actionType, data.actionType));
+      const activity = ui.optionsData.activities.includes(data.actionType) ? data.actionType : "";
       ui.fill(cf, {
         correctseason: data.cropSeasonId,
         correctexecution: data.actionDate,
-        correctactivity: data.actionType,
+        correctactivity: activity,
         correctmaterial: data.inputMaterial,
         correctdosage: data.dosage,
         correctperformer: data.performedBy,
@@ -264,7 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
         : Number(ui.value(form, prefix + "season"));
       const season = ui.optionsData.seasons.find((x) => x.cropSeasonId === seasonId);
       if (!correcting && !["Planting", "Growing", "Harvesting"].includes(season?.status)) {
-        ui.notice(ui.m.MSG133, true);
+        ui.fieldProblem(form, prefix + "season", ui.m.MSG133);
         return;
       }
       if (correcting && !(await ui.confirm(ui.m.confirmCorrection))) return;

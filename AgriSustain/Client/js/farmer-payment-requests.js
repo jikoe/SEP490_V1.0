@@ -23,7 +23,7 @@ window.FarmerPaymentRequestsUI = class {
       if (!checkbox || this.busy) return;
       if (checkbox.checked && this.selected.size >= 100) {
         checkbox.checked = false;
-        ui.notice(this.m.selectionLimit, true);
+        ui.fields.show([[$("#requestSourceRows").closest("table"), this.m.selectionLimit]]);
         return;
       }
       checkbox.checked
@@ -108,7 +108,7 @@ window.FarmerPaymentRequestsUI = class {
     ]) {
       $(selector).textContent = data ? this.ui.money(data[key]) : "—";
     }
-    $("#submitRequest").disabled = this.busy || !data?.canCreate;
+    $("#submitRequest").disabled = this.busy || (this.selected.size > 0 && !data?.canCreate);
   }
 
   async context() {
@@ -141,7 +141,7 @@ window.FarmerPaymentRequestsUI = class {
             </td>
             <td>
               <strong>${ui.escape(row.reference)}</strong
-              ><small>${ui.escape(row.channel)} · ${ui.escape(row.product)}</small>
+              ><small>${ui.escape(ui.label(row.channel))} · ${ui.escape(row.product)}</small>
             </td>
             <td>${ui.escape(row.holdReason || this.m.eligible)}</td>
             <td class="amount">${ui.money(row.gross)}</td>
@@ -171,7 +171,13 @@ window.FarmerPaymentRequestsUI = class {
   }
 
   async submit() {
-    if (this.busy || this.confirming || !this.preview?.canCreate) return;
+    if (this.busy || this.confirming) return;
+    if (!this.selected.size) {
+      const table = this.$("#requestSourceRows").closest("table");
+      this.ui.fields.show([[table, "Vui lòng chọn khoản đủ điều kiện thanh toán."]]);
+      return;
+    }
+    if (!this.preview?.canCreate) return;
     const candidate = this.preview;
     const ids = [...this.selected].sort((a, b) => a - b);
     this.confirming = true;
@@ -204,6 +210,9 @@ window.FarmerPaymentRequestsUI = class {
       await this.detail(result.id);
       await this.refreshRevenue();
       this.ui.notice(result.message);
+    } catch (error) {
+      if (!this.ui.fields.applyServerErrors(error, { selectedsourceids: "#requestSourceRows" }))
+        throw error;
     } finally {
       this.busy = false;
       this.totals(this.preview);
@@ -252,6 +261,6 @@ window.FarmerPaymentRequestsUI = class {
       )
       .join("");
     ui.go("request-detail");
-    if (data.notificationFailed) ui.notice(this.m.notificationFailed);
+    if (data.notificationFailed) ui.notice(this.m.notificationFailed, "warning");
   }
 };

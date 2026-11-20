@@ -12,7 +12,9 @@ const FinancePayoutMessages = {
   copied: "Đã sao chép nội dung chuyển khoản.",
   copyFailed: "Không thể sao chép tự động. Bạn có thể chọn và sao chép nội dung trên màn hình.",
   pending:
-    "Chưa có giao dịch tiền ra SePay khớp đủ điều kiện. Giữ nguồn tiền, kiểm tra giao dịch cũ và không chuyển lại.",
+    "Chưa xác minh được giao dịch chuyển khoản. Kiểm tra giao dịch hiện tại trước khi thực hiện bất kỳ chuyển khoản nào khác.",
+  payoutNotReady: "Yêu cầu này chưa đủ điều kiện mở QR chi trả.",
+  transferPaid: "Đã thanh toán",
   rejectionRequired: "Vui lòng nhập lý do từ chối, không chỉ chứa khoảng trắng.",
   rejectionTooLong: "Lý do từ chối không được vượt quá 500 ký tự.",
   confirmReject: "Từ chối yêu cầu và giải phóng các nguồn tiền của yêu cầu này?",
@@ -48,6 +50,9 @@ const FinancePayoutMessages = {
     `Mở QR chi trả ${net} cho ${holder}, ${bank} – ${account}?`,
 
   status: {
+    Retail: "Bán lẻ",
+    Wholesale: "Bán sỉ",
+    Contract: "Hợp đồng bao tiêu",
     Verified: "Đã xác minh",
     Unverified: "Chưa xác minh",
     PendingVerification: "Chờ xác minh",

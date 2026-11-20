@@ -198,7 +198,7 @@ public sealed class FarmerRevenueRepository(
                     season = linked[0];
             }
             var seller = item.SellerOrder;
-            string channel = Channel(seller, item);
+            string channel = Channel(seller);
             string stage = seller.B2bcontractId.HasValue ? "Milestone" : "Goods";
             string reference = line.Invoice.InvoiceNumber;
             output.Add(
@@ -402,7 +402,7 @@ public sealed class FarmerRevenueRepository(
                     seller.ReceivedAt ?? seller.DeliveredAt ?? seller.Order.OrderDate,
                     seller.SellerOrderCode,
                     "Sales",
-                    Channel(seller, item),
+                    Channel(seller),
                     season?.CropSeasonId,
                     season?.SeasonName ?? "Chưa liên kết mùa vụ",
                     "Goods",
@@ -438,7 +438,16 @@ public sealed class FarmerRevenueRepository(
                     season = seasons[0];
             }
             decimal amount = payment.Amount;
-            string channel = payment.Order?.OrderType == "Retail" ? "B2C" : "B2B";
+            bool isContractPayment =
+                payment.B2bcontractId.HasValue
+                || payment.ContractMilestoneId.HasValue
+                || payment.Order?.SellerOrders.Any(s =>
+                    s.FarmerProfileId == farmer.FarmerProfileId && s.B2bcontractId.HasValue
+                ) == true;
+            string channel = RevenueAggregationRules.ClassifyChannel(
+                payment.Order?.OrderType,
+                isContractPayment
+            );
             // Shared checkout receipts are split by the stored seller amounts, not attributed in full to every farm.
             if (payment.Order != null)
             {
@@ -528,7 +537,7 @@ public sealed class FarmerRevenueRepository(
                         allocation.CreatedAt,
                         payment.TransactionCode,
                         "DepositApplied",
-                        "B2B",
+                        "Contract",
                         allocation.ContractMilestone.ContractLine?.CropSeasonId,
                         allocation.ContractMilestone.ContractLine?.CropSeason?.SeasonName
                             ?? "Chưa liên kết mùa vụ",
@@ -573,6 +582,6 @@ public sealed class FarmerRevenueRepository(
         return output;
     }
 
-    private static string Channel(SellerOrder seller, OrderItem item) =>
-        seller.Order.OrderType == "Retail" ? "B2C" : "B2B";
+    private static string Channel(SellerOrder seller) =>
+        RevenueAggregationRules.ClassifyChannel(seller.Order.OrderType, seller.B2bcontractId.HasValue);
 }
