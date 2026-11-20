@@ -32,12 +32,12 @@
             </button>
           </div>
         </div>
-        <nav class="views">
-          <button class="btn" type="button" data-go="list">Danh sách lô</button>
-          <button class="btn" type="button" data-go="form">Ghi nhận / chi tiết lô</button>
-          <button class="btn" type="button" data-go="label">Nhãn QR</button>
-          <button class="btn" type="button" data-go="issue">Chất lượng / điều chỉnh</button>
-        </nav>
+        <div class="views" role="group" aria-label="Các màn hình chức năng">
+          <span data-view-indicator="list" aria-current="step">Danh sách lô</span>
+          <span data-view-indicator="form">Ghi nhận / chi tiết lô</span>
+          <span data-view-indicator="label">Nhãn QR</span>
+          <span data-view-indicator="issue">Chất lượng / điều chỉnh</span>
+        </div>
         <div id="feedback" class="notice" role="alert" aria-live="polite" hidden></div>
         <div class="view" data-view="list">
           <form id="filters" class="toolbar">
@@ -112,6 +112,9 @@
           </div>
         </div>
         <div class="view" data-view="form">
+          <div class="actions view-back">
+            <button class="btn" type="button" data-go="list">← Danh sách lô</button>
+          </div>
           <form id="batchForm" novalidate>
             <section class="section">
               <h2 id="batchFormTitle">Ghi nhận thu hoạch thực tế</h2>
@@ -194,6 +197,7 @@
               <span id="qrConditions"></span>
             </div>
             <div class="actions space">
+              <button class="btn" type="button" id="openBatchIssue" data-go="issue" disabled>Chất lượng / điều chỉnh</button>
               <button class="btn" type="button" id="generateQr">Cấp / xem QR của lô đã lưu</button>
             </div>
             <div class="notice">
@@ -226,10 +230,13 @@
           <div class="actions space">
             <button class="btn" type="button" id="downloadQr">Tải nhãn PNG</button>
             <button class="btn primary" type="button" id="printQr">In nhãn / Lưu PDF</button>
-            <button class="btn" type="button" data-go="form">Ghi nhận / chi tiết lô</button>
+            <button class="btn" type="button" data-go="form">← Chi tiết lô</button>
           </div>
         </div>
         <div class="view" data-view="issue">
+          <div class="actions view-back">
+            <button class="btn" type="button" data-go="form">← Chi tiết lô</button>
+          </div>
           <form id="issueForm" novalidate>
             <section class="section">
               <h2>Ghi nhận vấn đề / điều chỉnh có lý do</h2>
@@ -305,7 +312,7 @@
             </div>
             <div id="issueHistory" class="notice"></div>
             <div class="actions end">
-              <button class="btn" type="button" data-go="list">Hủy</button>
+              <button class="btn" type="button" data-go="form">Hủy</button>
               <button class="btn primary" type="submit">Xác nhận ghi nhận vấn đề</button>
             </div>
           </form>

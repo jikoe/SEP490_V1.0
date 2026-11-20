@@ -22,63 +22,15 @@
       <main>
         <div class="page-title">
           <h1>Doanh thu và dòng tiền nông trại</h1>
-          <p>Chọn trang chức năng hoặc mở chi tiết từ danh sách để tiếp tục.</p>
+          <p>Mở chi tiết hoặc dùng các nút trên màn hình để tiếp tục.</p>
         </div>
-        <div class="screen-tabs" role="tablist" aria-label="Các trang chức năng">
-          <button
-            type="button"
-            role="tab"
-            data-screen-go="dashboard"
-            aria-controls="screen-dashboard"
-            id="tab-dashboard"
-          >
-            Tổng quan doanh thu
-          </button>
-          <button
-            type="button"
-            role="tab"
-            data-screen-go="transactions"
-            aria-controls="screen-transactions"
-            id="tab-transactions"
-          >
-            Lịch sử giao dịch
-          </button>
-          <button
-            type="button"
-            role="tab"
-            data-screen-go="detail"
-            aria-controls="screen-detail"
-            id="tab-detail"
-          >
-            Chi tiết giao dịch
-          </button>
-          <button
-            type="button"
-            role="tab"
-            data-screen-go="requests"
-            aria-controls="screen-requests"
-            id="tab-requests"
-          >
-            Yêu cầu thanh toán
-          </button>
-          <button
-            type="button"
-            role="tab"
-            data-screen-go="request-create"
-            aria-controls="screen-request-create"
-            id="tab-request-create"
-          >
-            Gửi yêu cầu
-          </button>
-          <button
-            type="button"
-            role="tab"
-            data-screen-go="request-detail"
-            aria-controls="screen-request-detail"
-            id="tab-request-detail"
-          >
-            Chi tiết yêu cầu
-          </button>
+        <div class="screen-indicators" role="group" aria-label="Các màn hình chức năng">
+          <span id="screen-label-dashboard" data-screen-indicator="dashboard" aria-current="step">Tổng quan doanh thu</span>
+          <span id="screen-label-transactions" data-screen-indicator="transactions">Lịch sử giao dịch</span>
+          <span id="screen-label-detail" data-screen-indicator="detail">Chi tiết giao dịch</span>
+          <span id="screen-label-requests" data-screen-indicator="requests">Yêu cầu thanh toán</span>
+          <span id="screen-label-request-create" data-screen-indicator="request-create">Gửi yêu cầu</span>
+          <span id="screen-label-request-detail" data-screen-indicator="request-detail">Chi tiết yêu cầu</span>
         </div>
         <div id="feedback" class="notice feedback" role="status" aria-live="polite" hidden="">
           <span id="feedbackText"></span>
@@ -87,8 +39,7 @@
           class="screen"
           data-screen="dashboard"
           id="screen-dashboard"
-          role="tabpanel"
-          aria-labelledby="tab-dashboard"
+          aria-labelledby="screen-label-dashboard"
           hidden=""
         >
           <div class="actions dashboard-actions">
@@ -107,8 +58,9 @@
                 <label>Kênh bán</label>
                 <select id="revenueChannel">
                   <option value="">Tất cả</option>
-                  <option value="B2C">B2C</option>
-                  <option value="B2B">B2B</option>
+                  <option value="Retail">Bán lẻ</option>
+                  <option value="Wholesale">Bán sỉ</option>
+                  <option value="Contract">Hợp đồng bao tiêu</option>
                 </select>
               </div>
               <div class="field">
@@ -221,8 +173,7 @@
           class="screen"
           data-screen="transactions"
           id="screen-transactions"
-          role="tabpanel"
-          aria-labelledby="tab-transactions"
+          aria-labelledby="screen-label-transactions"
           hidden=""
         >
           <div class="screen-back">
@@ -243,8 +194,9 @@
                 <label>Kênh bán</label>
                 <select id="historyChannel">
                   <option value="">Tất cả</option>
-                  <option value="B2C">B2C</option>
-                  <option value="B2B">B2B</option>
+                  <option value="Retail">Bán lẻ</option>
+                  <option value="Wholesale">Bán sỉ</option>
+                  <option value="Contract">Hợp đồng bao tiêu</option>
                 </select>
               </div>
               <div class="field">
@@ -333,8 +285,7 @@
           class="screen"
           data-screen="detail"
           id="screen-detail"
-          role="tabpanel"
-          aria-labelledby="tab-detail"
+          aria-labelledby="screen-label-detail"
           hidden=""
         >
           <div class="screen-back">
@@ -356,12 +307,11 @@
           class="screen"
           data-screen="requests"
           id="screen-requests"
-          role="tabpanel"
-          aria-labelledby="tab-requests"
+          aria-labelledby="screen-label-requests"
           hidden=""
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="dashboard">← Tổng quan doanh thu</button>
+            <button class="btn" id="backFromPaymentRequests" data-screen-go="dashboard" type="button">← Tổng quan doanh thu</button>
             <button class="btn primary" data-screen-go="request-create">
               + Gửi yêu cầu thanh toán
             </button>
@@ -397,8 +347,7 @@
           class="screen"
           data-screen="request-create"
           id="screen-request-create"
-          role="tabpanel"
-          aria-labelledby="tab-request-create"
+          aria-labelledby="screen-label-request-create"
           hidden=""
         >
           <div class="screen-back">
@@ -475,8 +424,7 @@
           class="screen"
           data-screen="request-detail"
           id="screen-request-detail"
-          role="tabpanel"
-          aria-labelledby="tab-request-detail"
+          aria-labelledby="screen-label-request-detail"
           hidden=""
         >
           <div class="screen-back">

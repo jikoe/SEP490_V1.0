@@ -228,10 +228,11 @@ const API = {
     });
   },
 
-  async uploadImage(file) {
+  async uploadImage(file, options = {}) {
     const formData = new FormData();
     formData.append('file', file);
     return this.request('/files/images', {
+      ...options,
       method: 'POST',
       body: formData
     });
@@ -293,20 +294,23 @@ const API = {
     return this.request(`/farmer/products${query ? `?${query}` : ''}`, options);
   },
 
-  async getFarmerProductDetail(id) {
-    return this.request(`/farmer/products/${id}`);
+  async getFarmerProductDetail(id, options = {}) {
+    return this.request(`/farmer/products/${id}`, options);
   },
 
-  async createFarmerProduct(data) {
-    return this.request('/farmer/products', { method: 'POST', body: data });
+  async createFarmerProduct(data, options = {}) {
+    return this.request('/farmer/products', {
+      ...options, method: 'POST', body: data });
   },
 
-  async updateFarmerProduct(id, data) {
-    return this.request(`/farmer/products/${id}`, { method: 'PUT', body: data });
+  async updateFarmerProduct(id, data, options = {}) {
+    return this.request(`/farmer/products/${id}`, {
+      ...options, method: 'PUT', body: data });
   },
 
-  async setProductVisibility(id, isPublished, version = 1) {
+  async setProductVisibility(id, isPublished, version = 1, options = {}) {
     return this.request(`/farmer/products/${id}/visibility`, {
+      ...options,
       method: 'PUT',
       body: { isPublished, version }
     });
@@ -317,12 +321,13 @@ const API = {
     return this.request(`/farmer/orders${query ? `?${query}` : ''}`, options);
   },
 
-  async getFarmerOrderDetail(id) {
-    return this.request(`/farmer/orders/${id}`);
+  async getFarmerOrderDetail(id, options = {}) {
+    return this.request(`/farmer/orders/${id}`, options);
   },
 
-  async confirmFarmerOrder(id, version = '1') {
+  async confirmFarmerOrder(id, version = '1', options = {}) {
     return this.request(`/farmer/orders/${id}/confirm`, {
+      ...options,
       method: 'POST',
       body: {
         version: String(version || '1'),
@@ -331,8 +336,9 @@ const API = {
     });
   },
 
-  async readyFarmerOrder(id, version = '1') {
+  async readyFarmerOrder(id, version = '1', options = {}) {
     return this.request(`/farmer/orders/${id}/ready`, {
+      ...options,
       method: 'POST',
       body: {
         version: String(version || '1'),
@@ -341,8 +347,9 @@ const API = {
     });
   },
 
-  async dispatchFarmerOrder(id, version = '1') {
+  async dispatchFarmerOrder(id, version = '1', options = {}) {
     return this.request(`/farmer/orders/${id}/start-shipping`, {
+      ...options,
       method: 'POST',
       body: {
         version: String(version || '1'),
@@ -351,8 +358,9 @@ const API = {
     });
   },
 
-  async rejectFarmerOrder(id, reason = '', version = '1') {
+  async rejectFarmerOrder(id, reason = '', version = '1', options = {}) {
     return this.request(`/farmer/orders/${id}/reject`, {
+      ...options,
       method: 'POST',
       body: {
         version: String(version || '1'),
@@ -363,8 +371,8 @@ const API = {
     });
   },
 
-  async getPackingSlip(id) {
-    return this.request(`/farmer/orders/${id}/packing-slip`);
+  async getPackingSlip(id, options = {}) {
+    return this.request(`/farmer/orders/${id}/packing-slip`, options);
   },
 
   /* ---------------- MARKETPLACE & RETAIL CUSTOMER ---------------- */

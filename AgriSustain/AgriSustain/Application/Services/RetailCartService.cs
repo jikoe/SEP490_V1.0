@@ -155,7 +155,9 @@ public sealed class RetailCartService(
 
         if (!pricing.Availability.ValidateQuantity(quantity, item.Product.Unit))
         {
-            return Fail("VALIDATION", CartMessages.InvalidQuantity(item.Product.Unit));
+            string message = CartMessages.InvalidQuantity(item.Product.Unit);
+            return new(default, new FeatureError("VALIDATION", message,
+                new Dictionary<string, string[]> { ["quantity"] = [message] }));
         }
 
         var messages = new List<string>();

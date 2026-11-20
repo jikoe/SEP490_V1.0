@@ -58,6 +58,12 @@ public sealed class FarmerProductService(
     )
     {
         var validation = await rules.ValidateSubmission(request, validator, ct);
+        if ((!id.HasValue || !request.PriceOnly) && !request.FarmCertificateId.HasValue)
+        {
+            validation.Errors.Add(
+                new ValidationFailure(nameof(request.FarmCertificateId), ProductListingMessages.CertificateRequired)
+            );
+        }
         if (!validation.IsValid)
             return Invalid<ProductResponse>(validation);
         await unitOfWork.BeginAsync(ct);

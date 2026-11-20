@@ -22,74 +22,25 @@
       <main>
         <div class="page-title">
           <h1>Quản lý hợp đồng bao tiêu</h1>
-          <p>Chọn trang chức năng hoặc mở chi tiết từ danh sách để tiếp tục.</p>
+          <p>Mở chi tiết hoặc dùng các nút trên màn hình để tiếp tục.</p>
         </div>
-        <div aria-label="Các trang chức năng" class="screen-tabs" role="tablist">
-          <button
-            aria-controls="screen-list"
-            data-screen-go="list"
-            id="tab-list"
-            role="tab"
-            type="button"
-          >
-            Danh sách hợp đồng
-          </button>
-          <button
-            aria-controls="screen-terms"
-            data-screen-go="terms"
-            id="tab-terms"
-            role="tab"
-            type="button"
-          >
-            Điều khoản
-          </button>
-          <button
-            aria-controls="screen-delivery"
-            data-screen-go="delivery"
-            id="tab-delivery"
-            role="tab"
-            type="button"
-          >
-            Giao hàng
-          </button>
-          <button
-            aria-controls="screen-discrepancy"
-            data-screen-go="discrepancy"
-            id="tab-discrepancy"
-            role="tab"
-            type="button"
-          >
-            Phản hồi chênh lệch
-          </button>
-          <button
-            aria-controls="screen-changes"
-            data-screen-go="changes"
-            id="tab-changes"
-            role="tab"
-            type="button"
-          >
-            Điều chỉnh / chấm dứt
-          </button>
-          <button
-            aria-controls="screen-history"
-            data-screen-go="history"
-            id="tab-history"
-            role="tab"
-            type="button"
-          >
-            Lịch sử / tài chính
-          </button>
+        <div class="screen-indicators" role="group" aria-label="Các màn hình chức năng">
+          <span id="screen-label-list" data-screen-indicator="list" aria-current="step">Danh sách hợp đồng</span>
+          <span id="screen-label-terms" data-screen-indicator="terms">Điều khoản</span>
+          <span id="screen-label-delivery" data-screen-indicator="delivery">Giao hàng</span>
+          <span id="screen-label-discrepancy" data-screen-indicator="discrepancy">Phản hồi chênh lệch</span>
+          <span id="screen-label-changes" data-screen-indicator="changes">Điều chỉnh / chấm dứt</span>
+          <span id="screen-label-history" data-screen-indicator="history">Lịch sử / tài chính</span>
         </div>
         <div aria-live="polite" class="notice feedback" hidden="" id="feedback" role="status">
           <span id="feedbackText"> </span>
         </div>
         <section
-          aria-labelledby="tab-list"
+          aria-labelledby="screen-label-list"
           class="screen"
           data-screen="list"
           hidden=""
           id="screen-list"
-          role="tabpanel"
         >
           <section class="panel">
             <div class="body toolbar">
@@ -101,11 +52,15 @@
                 <label> Trạng thái </label>
                 <select id="contractStatus">
                   <option value="">Tất cả</option>
-                  <option>Chờ xác nhận</option>
-                  <option>Chờ cọc</option>
-                  <option>Đang thực hiện</option>
-                  <option>Chờ chấm dứt</option>
-                  <option>Đã từ chối</option>
+                  <option value="PendingApproval">Chờ nhà cung cấp xác nhận</option>
+                  <option value="Negotiating">Đang thương thảo</option>
+                  <option value="Signed">Đã ký kết</option>
+                  <option value="AwaitingDeposit">Chờ đặt cọc</option>
+                  <option value="Active">Đang thực hiện</option>
+                  <option value="Completed">Hoàn thành</option>
+                  <option value="Rejected">Đã từ chối</option>
+                  <option value="Cancelled">Đã hủy</option>
+                  <option value="Terminated">Đã chấm dứt</option>
                 </select>
               </div>
               <div class="field">
@@ -152,12 +107,11 @@
           </section>
         </section>
         <section
-          aria-labelledby="tab-terms"
+          aria-labelledby="screen-label-terms"
           class="screen"
           data-screen="terms"
           hidden=""
           id="screen-terms"
-          role="tabpanel"
         >
           <div class="screen-back">
             <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
@@ -223,19 +177,21 @@
           </section>
           <div class="actions end">
             <button class="btn" data-screen-go="list">← Danh sách hợp đồng</button>
-            <button class="btn primary" data-screen-go="delivery">Xem lịch giao hàng →</button>
+            <button class="btn" data-screen-go="discrepancy" type="button">Phản hồi chênh lệch</button>
+            <button class="btn" data-screen-go="changes" type="button">Điều chỉnh / chấm dứt</button>
+            <button class="btn" data-screen-go="history" type="button">Xem lịch sử / tài chính</button>
+            <button class="btn primary" data-screen-go="delivery" type="button">Xem lịch giao hàng →</button>
           </div>
         </section>
         <section
-          aria-labelledby="tab-delivery"
+          aria-labelledby="screen-label-delivery"
           class="screen"
           data-screen="delivery"
           hidden=""
           id="screen-delivery"
-          role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
+            <button class="btn" data-screen-go="terms" type="button">← Điều khoản</button>
             <h2>Giao hàng</h2>
           </div>
           <section class="panel" data-contract-execution="true">
@@ -294,15 +250,14 @@
           </section>
         </section>
         <section
-          aria-labelledby="tab-discrepancy"
+          aria-labelledby="screen-label-discrepancy"
           class="screen"
           data-screen="discrepancy"
           hidden=""
           id="screen-discrepancy"
-          role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
+            <button class="btn" data-screen-go="terms" type="button">← Điều khoản</button>
             <h2>Phản hồi chênh lệch</h2>
           </div>
           <section class="panel" data-contract-execution="true">
@@ -374,15 +329,14 @@
           </section>
         </section>
         <section
-          aria-labelledby="tab-changes"
+          aria-labelledby="screen-label-changes"
           class="screen"
           data-screen="changes"
           hidden=""
           id="screen-changes"
-          role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
+            <button class="btn" data-screen-go="terms" type="button">← Điều khoản</button>
             <h2>Điều chỉnh / chấm dứt</h2>
           </div>
           <section class="panel" data-contract-execution="true">
@@ -480,15 +434,14 @@
           </section>
         </section>
         <section
-          aria-labelledby="tab-history"
+          aria-labelledby="screen-label-history"
           class="screen"
           data-screen="history"
           hidden=""
           id="screen-history"
-          role="tabpanel"
         >
           <div class="screen-back">
-            <button class="btn" data-screen-go="list" type="button">← Danh sách hợp đồng</button>
+            <button class="btn" data-screen-go="terms" type="button">← Điều khoản</button>
             <h2>Lịch sử / tài chính</h2>
           </div>
           <section class="panel" data-contract-execution="true">
@@ -537,6 +490,6 @@
     <script src="../js/api.js"></script>
     <script src="../js/components.js"></script>
     <script src="../js/farmer-business.js"></script>
-    <script src="../js/farmer-offtake-contracts.js"></script>
+    <script type="module" src="../js/farmer-offtake-contracts.js"></script>
   </body>
 </html>

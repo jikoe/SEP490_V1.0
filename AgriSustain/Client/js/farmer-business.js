@@ -1,3 +1,111 @@
+class FieldFeedback {
+  constructor(root) {
+    this.root = root;
+    this.active = new Map();
+    const clearEdited = ({ target }) => {
+      this.clear(target);
+      if (target.type === "date" && /(?:From|To)$/.test(target.id)) {
+        const prefix = target.id.replace(/(?:From|To)$/, "");
+        this.clear(this.root.querySelector(`#${prefix}From`));
+        this.clear(this.root.querySelector(`#${prefix}To`));
+      }
+      const sources = target.closest("#requestSourceRows");
+      if (sources) this.clear(sources.closest("table"));
+    };
+    root.addEventListener("input", clearEdited);
+    root.addEventListener("change", clearEdited, true);
+    root.addEventListener("reset", (event) => this.clearWithin(event.target));
+  }
+
+  clear(control) {
+    const entry = this.active.get(control);
+    if (!entry) return;
+    entry.notice.remove();
+    for (const [attr, previous] of Object.entries(entry.attributes)) {
+      if (previous === null) control.removeAttribute(attr);
+      else control.setAttribute(attr, previous);
+    }
+    this.active.delete(control);
+  }
+
+  clearWithin(container = this.root) {
+    for (const control of this.active.keys()) {
+      if (!control.isConnected || container.contains(control)) this.clear(control);
+    }
+  }
+
+  show(entries) {
+    const errors = entries.filter(([control, message]) => control && message);
+    for (const [control, message, anchor = control] of errors) {
+      this.clear(control);
+      const notice = control.ownerDocument.createElement("div");
+      notice.className = "field-error";
+      notice.id = `${control.id || control.querySelector("tbody")?.id}-field-error`;
+      notice.setAttribute("role", "alert");
+      notice.textContent = message;
+      const attributes = {
+        "aria-invalid": control.getAttribute("aria-invalid"),
+        "aria-describedby": control.getAttribute("aria-describedby"),
+      };
+      control.setAttribute("aria-invalid", "true");
+      control.setAttribute(
+        "aria-describedby",
+        [attributes["aria-describedby"], notice.id].filter(Boolean).join(" "),
+      );
+      anchor.before(notice);
+      this.active.set(control, { notice, attributes });
+    }
+    if (!errors.length) return false;
+    const [first] = errors
+      .map(([control]) => control)
+      .sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_PRECEDING ? 1 : -1));
+    const target = first.matches("table") ? first.querySelector("input:not(:disabled)") : first;
+    if (target && !target.disabled) target.focus();
+    else first.scrollIntoView({ block: "nearest" });
+    return true;
+  }
+
+  validateForm(form, messageFor) {
+    this.clearWithin(form);
+    const entries = Array.from(form.elements)
+      .filter((control) => control.willValidate && control.id)
+      .map((control) => [control, messageFor(control)]);
+    return !this.show(entries);
+  }
+
+  validateDates(from, to, { required = false, rangeMessage, grouped = false }) {
+    this.clear(from);
+    this.clear(to);
+    const entries = [];
+    if (from.validity.badInput || (required && !from.value))
+      entries.push([from, "Vui lòng nhập Từ ngày hợp lệ.", grouped ? from.parentElement : from]);
+    if (to.validity.badInput || (required && !to.value))
+      entries.push([to, "Vui lòng nhập Đến ngày hợp lệ.", grouped ? to.parentElement : to]);
+    if (from.value && to.value && from.value > to.value)
+      entries.push([to, rangeMessage, grouped ? from.parentElement : to]);
+    return !this.show(entries);
+  }
+
+  applyServerErrors(error, selectors) {
+    const entries = Object.entries(error.fields || {}).map(([key, messages]) => {
+      const normalized = key.toLowerCase();
+      const name = Object.keys(selectors).find(
+        (candidate) => normalized === candidate || normalized.endsWith(`.${candidate}`),
+      );
+      return [
+        name ? this.root.querySelector(selectors[name]) : null,
+        messages?.[0] || error.message,
+      ];
+    });
+    return this.show(
+      entries.map(([control, message]) => [
+        control?.closest("table") && control.matches("tbody") ? control.closest("table") : control,
+        message,
+      ]),
+    );
+  }
+}
+
 /* Shared UI plumbing. Domain feedback is kept in messages/farmer-business.js. */
 window.FarmerBusinessUI = class {
   constructor() {
@@ -6,6 +114,7 @@ window.FarmerBusinessUI = class {
     this.$ = (selector) => this.root.querySelector(selector);
     this.$$ = (selector) => [...this.root.querySelectorAll(selector)];
     this.m = Messages.business;
+    this.fields = new FieldFeedback(this.root);
     this.uploads = new WeakMap();
     this.root.addEventListener("click", (event) => {
       const button = event.target.closest("[data-screen-go]");
@@ -52,11 +161,19 @@ window.FarmerBusinessUI = class {
   notice(text, error = false) {
     this.$("#feedback").hidden = !text;
     this.$("#feedbackText").textContent = text || "";
-    this.$("#feedback").classList.toggle("error", error);
+    this.$("#feedback").classList.toggle("bad", error === true);
+    this.$("#feedback").classList.toggle("warn", error === "warning");
+    this.$("#feedback").setAttribute("role", error === true ? "alert" : "status");
+    this.$("#feedback").setAttribute("aria-live", error === true ? "assertive" : "polite");
   }
   go(name) {
     this.$$("[data-screen]").forEach((node) => {
       node.hidden = node.dataset.screen !== name;
+    });
+    this.$$("[data-screen-indicator]").forEach((node) => {
+      const active = node.dataset.screenIndicator === name;
+      if (active) node.setAttribute("aria-current", "step");
+      else node.removeAttribute("aria-current");
     });
     this.$$("[data-screen-go][role=tab]").forEach((node) => {
       node.setAttribute("aria-selected", String(node.dataset.screenGo === name));
@@ -68,7 +185,12 @@ window.FarmerBusinessUI = class {
       suppressErrorToast: true,
       ...options,
     });
-    if (!result.success) throw new Error(result.status ? result.error : this.m.loadFailed);
+    if (!result.success) {
+      const error = new Error(result.status ? result.error : this.m.loadFailed);
+      error.fields = result.data?.errors;
+      error.status = result.status;
+      throw error;
+    }
     return result.data;
   }
   options(selector, rows, label, prompt = "Chọn") {

@@ -24,7 +24,8 @@ public sealed record FarmerComplaintRequest(
     DateTime DueAt,
     DateTime? RespondedAt,
     string Status,
-    bool CanRespond
+    bool CanRespond,
+    bool IsSystemRequest
 );
 
 public sealed record FarmerComplaintHistory(

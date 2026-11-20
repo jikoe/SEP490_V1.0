@@ -25,7 +25,6 @@ public static class FarmState
 
     public static readonly string[] Activities =
     [
-        "Tưới nước",
         "Bón phân",
         "Phòng trừ sâu bệnh",
         "Gieo trồng",

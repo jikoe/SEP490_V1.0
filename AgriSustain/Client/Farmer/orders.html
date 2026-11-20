@@ -6,6 +6,7 @@
     <title>Xử lý đơn hàng - Nông trại AgriSustain</title>
     <link rel="stylesheet" href="../css/style.css" />
     <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/form-feedback.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -25,17 +26,11 @@
             </div>
 
             <!-- Views Navigation: EXACTLY 3 VIEWS -->
-            <nav class="views" aria-label="Các chế độ xem đơn hàng">
-              <button type="button" id="view-btn-list" class="active" onclick="switchView('list')">
-                Đơn hàng của nông trại
-              </button>
-              <button type="button" id="view-btn-detail" onclick="switchView('detail')">
-                Xem và xử lý đơn
-              </button>
-              <button type="button" id="view-btn-reject" onclick="switchView('reject')">
-                Từ chối đơn hàng
-              </button>
-            </nav>
+            <div class="flow-indicators" role="group" aria-label="Các màn hình xử lý đơn hàng">
+              <span id="view-label-list" aria-current="step">Đơn hàng của nông trại</span>
+              <span id="view-label-detail">Xem và xử lý đơn</span>
+              <span id="view-label-reject">Từ chối đơn hàng</span>
+            </div>
 
             <section
               aria-label="Thông báo"
@@ -117,6 +112,7 @@
 
             <!-- ================= VIEW 2: DETAIL ================= -->
             <div id="view-detail" class="view" style="display: none">
+              <button type="button" class="btn flow-back" onclick="backToOrders()">← Đơn hàng của nông trại</button>
               <div class="topline">
                 <h2 id="detail-order-code">Chi tiết đơn ---</h2>
                 <span id="detail-order-pill" class="pill">Chờ xác nhận</span>
@@ -232,7 +228,7 @@
                 <span id="reject-order-pill" class="pill">Chờ xác nhận</span>
               </div>
 
-              <form onsubmit="handleRejectSubmit(event)">
+              <form onsubmit="handleRejectSubmit(event)" novalidate>
                 <div class="field">
                   <label for="rejectionReasonInput"> Lý do từ chối * </label>
                   <textarea
@@ -280,6 +276,7 @@
     <script src="../js/auth.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/components.js"></script>
+    <script src="../js/farmer-business.js"></script>
 
     <script src="../js/farmer-orders.js"></script>
   </body>

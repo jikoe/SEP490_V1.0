@@ -29,11 +29,11 @@
             <button class="btn" type="button" id="newCorrection">Thêm bản đính chính</button>
           </div>
         </div>
-        <nav class="views">
-          <button class="btn" type="button" data-go="list">Lịch sử canh tác</button>
-          <button class="btn" type="button" data-go="form">Ghi hoạt động</button>
-          <button class="btn" type="button" data-go="correction">Bản đính chính</button>
-        </nav>
+        <div class="views" role="group" aria-label="Các màn hình chức năng">
+          <span data-view-indicator="list" aria-current="step">Lịch sử canh tác</span>
+          <span data-view-indicator="form">Ghi hoạt động</span>
+          <span data-view-indicator="correction">Bản đính chính</span>
+        </div>
         <div id="feedback" class="notice" role="alert" aria-live="polite" hidden></div>
         <div class="view" data-view="list">
           <form id="filters" class="toolbar">
@@ -50,8 +50,7 @@
               <label for="filterStatus">Trạng thái / hoạt động</label>
               <select id="filterStatus" name="filterStatus">
                 <option value="">Tất cả hoạt động</option>
-                <option value="Tưới nước">Tưới nước</option>
-                <option value="Bón phân">Bón phân</option>
+                                <option value="Bón phân">Bón phân</option>
                 <option value="Phòng trừ sâu bệnh">Phòng trừ sâu bệnh</option>
                 <option value="Gieo trồng">Gieo trồng</option>
                 <option value="Thu hoạch">Thu hoạch</option>
@@ -101,6 +100,9 @@
           </div>
         </div>
         <div class="view" data-view="form">
+          <div class="actions view-back">
+            <button class="btn" type="button" data-go="list">← Lịch sử canh tác</button>
+          </div>
           <div class="notice">
             Chỉ thêm hoạt động thường lệ cho mùa vụ đang trồng, sinh trưởng hoặc thu hoạch. Nhật ký
             đã lưu không có thao tác sửa/xóa.
@@ -124,7 +126,6 @@
                     <label for="logactivity">Loại hoạt động *</label>
                     <select id="logactivity" name="logactivity" required>
                       <option value="">Chọn hoạt động</option>
-                      <option value="Tưới nước">Tưới nước</option>
                       <option value="Bón phân">Bón phân</option>
                       <option value="Phòng trừ sâu bệnh">Phòng trừ sâu bệnh</option>
                       <option value="Gieo trồng">Gieo trồng</option>
@@ -196,6 +197,9 @@
           </form>
         </div>
         <div class="view" data-view="correction">
+          <div class="actions view-back">
+            <button class="btn" type="button" data-go="list">← Lịch sử canh tác</button>
+          </div>
           <div class="notice">
             <strong>Nhật ký gốc</strong>
             <div id="originalLog"></div>
@@ -234,7 +238,6 @@
                     <label for="correctactivity">Loại hoạt động *</label>
                     <select id="correctactivity" name="correctactivity" required>
                       <option value="">Chọn hoạt động</option>
-                      <option value="Tưới nước">Tưới nước</option>
                       <option value="Bón phân">Bón phân</option>
                       <option value="Phòng trừ sâu bệnh">Phòng trừ sâu bệnh</option>
                       <option value="Gieo trồng">Gieo trồng</option>

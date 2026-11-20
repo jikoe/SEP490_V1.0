@@ -141,6 +141,7 @@ public sealed class FarmerComplaintService(
                 urls
             );
             request.MarkAnswered(now);
+            ticket.MarkUnderReviewWhenAnswered();
             repository.SaveResponseAsync(
                 new AuditLog
                 {
@@ -318,7 +319,9 @@ public sealed class FarmerComplaintService(
             .Select(a => (Audit: a, Response: FarmerComplaintResponseText.Read(a)))
             .Where(x => x.Response is not null)
             .ToList();
-        bool approved = ticket.SellerOrder!.FarmerProfile.VerificationStatus == "Approved";
+        var sellerOrder = ticket.SellerOrder!;
+        bool approved = sellerOrder.FarmerProfile.VerificationStatus == "Approved";
+        long buyerId = sellerOrder.Order.BuyerUserId;
         DateTime now = Now;
         FarmerComplaintFile FileDto(DisputeEvidence evidence) =>
             new(
@@ -346,7 +349,9 @@ public sealed class FarmerComplaintService(
                 approved
                     && ticket.IsAwaitingDecision
                     && r.IsOpenFor(actor)
-                    && now <= r.ResponseDeadline
+                    && now <= r.ResponseDeadline,
+                // Automatic requests currently store the buyer as the requester.
+                r.RequestedByUserId == buyerId && ticket.SubmittedByUserId == buyerId
             ))
             .ToList();
         var histories = requests
@@ -391,20 +396,20 @@ public sealed class FarmerComplaintService(
             ?.RefundStatus;
         return new FarmerComplaintDetail(
             ticket.DisputeTicketId,
-            ticket.SellerOrder.SellerOrderCode,
-            ticket.SellerOrder.Order.BuyerUser.FullName,
+            sellerOrder.SellerOrderCode,
+            sellerOrder.Order.BuyerUser.FullName,
             ticket.DisputeReason,
             ticket.Description,
             ticket.TicketStatus,
-            ticket.SellerOrder.DeliveredAt,
-            ticket.SellerOrder.DeliveredAt?.AddHours(48),
+            sellerOrder.DeliveredAt,
+            sellerOrder.DeliveredAt?.AddHours(48),
             ticket.ResolutionNotes,
             ticket.RefundAmount,
             refund,
             requests,
             ticket
                 .DisputeEvidences.Where(e =>
-                    e.SubmittedByUserId == ticket.SellerOrder.Order.BuyerUserId
+                    e.SubmittedByUserId == buyerId
                 )
                 .Select(FileDto)
                 .ToList(),

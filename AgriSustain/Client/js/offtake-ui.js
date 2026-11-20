@@ -28,6 +28,7 @@ const statuses = {
   Negotiating: ['Đang thương thảo', 'blue'],
   PendingApproval: ['Chờ nhà cung cấp xác nhận', 'warm'],
   AwaitingConfirmation: ['Chờ xác nhận', 'warm'],
+  PendingConfirmation: ['Chờ xác nhận', 'warm'],
   AwaitingDeposit: ['Chờ đặt cọc', 'warm'],
   Signed: ['Đã ký kết', 'green'],
   Executed: ['Đã xác nhận', 'green'],
@@ -55,8 +56,24 @@ const statuses = {
   Shipped: ['Đã gửi hàng', 'blue'],
   PendingPayment: ['Chờ thanh toán', 'warm'],
   Shipping: ['Đang giao hàng', 'blue'],
+  InTransit: ['Đang giao hàng', 'blue'],
+  PartiallyShipped: ['Đã giao một phần', 'blue'],
+  Reconciled: ['Đã đối soát', 'green'],
+  PendingReview: ['Chờ xem xét', 'warm'],
+  Closed: ['Đã đóng', 'green'],
+  Succeeded: ['Đã xác minh thành công', 'green'],
+  Verified: ['Đã xác minh', 'green'],
+  Refunded: ['Đã hoàn tiền', 'green'],
+  PartiallyRefunded: ['Đã hoàn tiền một phần', 'warm'],
+  Processing: ['Đang xử lý', 'blue'],
+  Processed: ['Đã chuyển thành công', 'green'],
+  NeedsReconciliation: ['Cần đối soát', 'warm'],
+  Failed: ['Thất bại', 'red'],
+  Approved: ['Đã phê duyệt', 'green'],
+  Expired: ['Đã hết hạn', 'red'],
 };
-export const statusName = status => Object.hasOwn(statuses, status) ? statuses[status][0] : status;
+export const statusName = (status, fallback = status) =>
+  Object.hasOwn(statuses, status) ? statuses[status][0] : fallback;
 export const badge = status => '<span class="offtake-badge '
   + (Object.hasOwn(statuses, status) ? statuses[status][1] : '') + '">'
   + esc(statusName(status)) + '</span>';

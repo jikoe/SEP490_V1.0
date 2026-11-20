@@ -1,0 +1,18 @@
+.flow-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 5px;
+  border: 1px solid #d8e5dd;
+  border-radius: 9px;
+  color: #61766a;
+  background: #fff;
+}
+.flow-indicators span { padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; }
+.flow-indicators [aria-current="step"] { background: #e5f3eb; color: #155f40; }
+.field-error { display: block; color: #a62925; font-size: 12px; margin-bottom: 5px; }
+[aria-invalid="true"] { border-color: #ba3c32; }
+.flow-back { margin-bottom: 14px; }
+.commerce-quantity { flex-wrap: wrap; }
+.commerce-quantity .field-error { flex: 0 0 100%; order: -1; }

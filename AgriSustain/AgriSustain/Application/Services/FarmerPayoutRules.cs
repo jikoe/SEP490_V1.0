@@ -289,7 +289,10 @@ public sealed class FarmerPayoutRules(IConfiguration configuration)
                     held,
                     line.Quantity,
                     line.UnitPriceSnapshot,
-                    seller.Order.OrderType == "Retail" ? "B2C" : "B2B"
+                    RevenueAggregationRules.ClassifyChannel(
+                        seller.Order.OrderType,
+                        seller.B2bcontractId.HasValue
+                    )
                 )
             );
         }

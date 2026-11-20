@@ -30,8 +30,19 @@ window.FarmUI = class FarmUI {
         this.handlers.navigate?.(go.dataset.go);
       }
     });
+    for (const eventName of ["input", "change"]) {
+      this.root.addEventListener(eventName, (event) => this.clearError(event.target));
+    }
+    this.root.addEventListener("reset", (event) => this.clearErrors(event.target));
     this.$("#filters").onsubmit = (e) => {
       e.preventDefault();
+      const form = e.currentTarget;
+      const from = this.value(form, "from");
+      const to = this.value(form, "to");
+      if (from && to && from > to) {
+        this.fieldProblem(form, "to", this.m.DateRange);
+        return;
+      }
       this.page = 1;
       this.handlers.load?.();
     };
@@ -52,9 +63,9 @@ window.FarmUI = class FarmUI {
         this.handlers.load?.();
       }
     };
-    this.$$("input[type=file]").forEach((input) =>
-      input.addEventListener("change", () => this.previewFiles(input)),
-    );
+    this.root.addEventListener("change", (event) => {
+      if (event.target.matches("input[type=file]")) this.previewFiles(event.target);
+    });
     window.addEventListener("beforeunload", () =>
       this.blobs.forEach((u) => URL.revokeObjectURL(u)),
     );
@@ -97,24 +108,43 @@ window.FarmUI = class FarmUI {
   }
   go(view) {
     this.$$(".view").forEach((x) => x.classList.toggle("active", x.dataset.view === view));
-    this.$$(".views [data-go]").forEach((x) => x.classList.toggle("active", x.dataset.go === view));
+    this.$$("[data-view-indicator]").forEach((item) => {
+      if (item.dataset.viewIndicator === view) item.setAttribute("aria-current", "step");
+      else item.removeAttribute("aria-current");
+    });
+    this.$(".create-actions").style.display = view === "list" ? "" : "none";
+    this.hideNotice();
+    if (view !== "list") this.$('.view.active [data-go]')?.focus();
+  }
+  hideNotice() {
+    const box = this.$("#feedback");
+    box.hidden = true;
+    box.style.display = "";
   }
   notice(message, error = false) {
     const box = this.$("#feedback");
     box.hidden = false;
     box.style.display = "block";
-    box.className = "feedback " + (error ? "error" : "success");
+    box.className = error ? "notice error" : "notice";
     box.setAttribute("role", error ? "alert" : "status");
     box.textContent = displayMessage(message);
     box.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
+  clearError(control) {
+    const error = control.previousElementSibling;
+    if (!error?.classList.contains("field-error")) return;
+    error.remove();
+    control.removeAttribute("aria-invalid");
+    control.removeAttribute("aria-describedby");
+    control.classList.remove("invalid");
+  }
   clearErrors(form) {
-    if (!form) return;
-    form.querySelectorAll(".field-error").forEach((x) => x.remove());
-    form.querySelectorAll("[aria-invalid]").forEach((x) => {
-      x.removeAttribute("aria-invalid");
-      x.classList.remove("invalid");
-    });
+    form?.querySelectorAll("[aria-invalid]").forEach((control) => this.clearError(control));
+  }
+  fieldProblem(form, field, message) {
+    this.hideNotice();
+    this.mark(form, field, message);
+    form.querySelector("[aria-invalid]")?.focus();
   }
   mark(form, key, message) {
     if (!form) return;
@@ -155,13 +185,18 @@ window.FarmUI = class FarmUI {
         : (map[lookup] || [lookup])
             .map((x) => form.elements.namedItem(x))
             .find((x) => x && !x.disabled);
-    if (!el) return;
+    if (!el) return false;
+    this.clearError(el);
     el.classList.add("invalid");
     el.setAttribute("aria-invalid", "true");
     const label = document.createElement("small");
     label.className = "field-error";
+    label.id = el.id + "-error";
+    label.setAttribute("role", "alert");
     label.textContent = displayMessage(message);
-    el.insertAdjacentElement("afterend", label);
+    el.before(label);
+    el.setAttribute("aria-describedby", label.id);
+    return true;
   }
   validate(form) {
     this.clearErrors(form);
@@ -178,13 +213,14 @@ window.FarmUI = class FarmUI {
           (el.max !== "" && n > Number(el.max));
       }
       if (el.maxLength > 0 && value.length > el.maxLength) bad = true;
-      if (bad) {
-        this.mark(form, el.name, this.m.required);
+      const invalidImage = el.type === "file" && [...el.files].some((file) => !this.validImage(file));
+      if (bad || invalidImage) {
+        this.mark(form, el.name, invalidImage ? this.m.MSG96 : this.m.required);
         valid = false;
       }
     }
     if (!valid) {
-      this.notice(this.m.MSG120, true);
+      this.hideNotice();
       form.querySelector("[aria-invalid]")?.focus();
     }
     return valid;
@@ -228,11 +264,17 @@ window.FarmUI = class FarmUI {
     return result.data;
   }
   failure(error, form) {
-    this.notice(error.message || this.m.MSG126, true);
     this.clearErrors(form);
-    for (const [key, values] of Object.entries(error.fields || {}))
-      this.mark(form, key, values.join(" "));
-    form?.querySelector("[aria-invalid]")?.focus();
+    const unmapped = [];
+    for (const [key, values] of Object.entries(error.fields || {})) {
+      const message = Array.isArray(values) ? values.join(" ") : String(values);
+      if (!this.mark(form, key, message)) unmapped.push(message);
+    }
+    const invalid = form?.querySelector("[aria-invalid]");
+    if (!invalid || unmapped.length) {
+      this.notice(unmapped.join(" ") || error.message || this.m.MSG126, true);
+    } else this.hideNotice();
+    invalid?.focus();
   }
   async command(path, body, form, actionKey = path) {
     if (this.busy) return null;
@@ -355,15 +397,18 @@ window.FarmUI = class FarmUI {
       this.failure(error);
     }
   }
+  validImage(file) {
+    return /\.(jpe?g|png)$/i.test(file.name) && file.size > 0 && file.size <= 5 * 1024 * 1024;
+  }
   previewFiles(input) {
     const gallery = this.$(`[data-preview="${input.name}"]`);
     if (!gallery) return;
     gallery.replaceChildren();
+    if ([...input.files].some((file) => !this.validImage(file))) {
+      this.fieldProblem(input.form, input.name, this.m.MSG96);
+      return;
+    }
     for (const file of input.files) {
-      if (!/\.(jpe?g|png)$/i.test(file.name) || file.size > 5 * 1024 * 1024 || file.size === 0) {
-        this.notice(this.feature === "farming-logs" ? this.m.MSG96 : this.m.MSG120, true);
-        return;
-      }
       const url = URL.createObjectURL(file);
       this.blobs.push(url);
       const image = document.createElement("img");
@@ -380,8 +425,11 @@ window.FarmUI = class FarmUI {
     const old = this.uploads.get(input);
     if (old?.signature === signature) return old.urls;
     for (const file of input.files)
-      if (!/\.(jpe?g|png)$/i.test(file.name) || file.size > 5 * 1024 * 1024 || file.size === 0)
-        throw new Error(feature === "log" ? this.m.MSG96 : this.m.MSG120);
+      if (!this.validImage(file)) {
+        const error = new Error(this.m.MSG96);
+        error.fields = { [input.name]: [this.m.MSG96] };
+        throw error;
+      }
     const form = new FormData();
     for (const file of input.files) form.append("files", file);
     const data = await this.request("/farmer/evidence?feature=" + feature, {

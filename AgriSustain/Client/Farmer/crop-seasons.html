@@ -28,11 +28,11 @@
             <button class="btn primary" type="button" id="newSeason">+ Tạo mùa vụ</button>
           </div>
         </div>
-        <nav class="views">
-          <button class="btn" type="button" data-go="list">Danh sách mùa vụ</button>
-          <button class="btn" type="button" data-go="form">Kế hoạch / tiến độ</button>
-          <button class="btn" type="button" data-go="close">Hoàn thành / mất mùa</button>
-        </nav>
+        <div class="views" role="group" aria-label="Các màn hình chức năng">
+          <span data-view-indicator="list" aria-current="step">Danh sách mùa vụ</span>
+          <span data-view-indicator="form">Kế hoạch / tiến độ</span>
+          <span data-view-indicator="close">Hoàn thành / mất mùa</span>
+        </div>
         <div id="feedback" class="notice" role="alert" aria-live="polite" hidden></div>
         <div class="view" data-view="list">
           <form id="filters" class="toolbar">
@@ -98,6 +98,9 @@
           </div>
         </div>
         <div class="view" data-view="form">
+          <div class="actions view-back">
+            <button class="btn" type="button" data-go="list">← Danh sách mùa vụ</button>
+          </div>
           <form id="seasonForm" novalidate>
             <section class="section">
               <h2>Kế hoạch sản xuất</h2>
@@ -199,6 +202,9 @@
           </form>
         </div>
         <div class="view" data-view="close">
+          <div class="actions view-back">
+            <button class="btn" type="button" data-go="form">← Kế hoạch / tiến độ</button>
+          </div>
           <div class="notice">
             <strong id="closeSeasonTitle"></strong>
             <div id="harvestSummary"></div>
@@ -230,7 +236,7 @@
                   </div>
                 </div>
                 <div class="actions end">
-                  <button class="btn" type="button" data-go="list">Hủy</button>
+                  <button class="btn" type="button" data-go="form">Hủy</button>
                   <button class="btn primary" type="submit">Xác nhận hoàn thành</button>
                 </div>
               </form>
@@ -291,7 +297,7 @@
                   thay đổi thỏa thuận mua hàng hoặc xác nhận hoàn tiền.
                 </div>
                 <div class="actions end">
-                  <button class="btn" type="button" data-go="list">Hủy</button>
+                  <button class="btn" type="button" data-go="form">Hủy</button>
                   <button class="btn primary" type="submit">Xác nhận hủy / mất mùa</button>
                 </div>
               </form>

@@ -6,6 +6,7 @@
     <title>Quản lý sản phẩm - Nông trại AgriSustain</title>
     <link rel="stylesheet" href="../css/style.css" />
     <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/form-feedback.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -33,9 +34,10 @@
               </button>
             </div>
 
-            <nav class="commerce-actions" aria-label="Quản lý sản phẩm" style="margin-bottom: 16px">
-              <button type="button" class="primary">Danh sách sản phẩm</button>
-            </nav>
+            <div class="flow-indicators" role="group" aria-label="Màn hình sản phẩm">
+              <span aria-current="step">Danh sách sản phẩm</span>
+              <span>Đăng / chỉnh sửa</span>
+            </div>
             <div id="list-notice" class="notice" style="display: none; margin-bottom: 16px"></div>
 
             <section class="panel">
@@ -135,9 +137,10 @@
               <button type="button" onclick="closeEditor()">← Danh sách sản phẩm</button>
             </div>
 
-            <nav class="commerce-actions" aria-label="Quản lý sản phẩm" style="margin-bottom: 16px">
-              <button type="button" onclick="closeEditor()">Danh sách sản phẩm</button>
-            </nav>
+            <div class="flow-indicators" role="group" aria-label="Màn hình sản phẩm">
+              <span>Danh sách sản phẩm</span>
+              <span aria-current="step">Đăng / chỉnh sửa</span>
+            </div>
             <div id="editor-notice" class="notice" style="display: none; margin-bottom: 16px"></div>
 
             <form id="product-form" onsubmit="handleSaveProduct(event)" novalidate>
@@ -210,7 +213,7 @@
 
                   <label class="field commerce-full">
                     <span id="certificate-label"></span>
-                    <select id="edit-certificate" aria-describedby="certificate-hint"></select>
+                    <select id="edit-certificate" aria-describedby="certificate-hint" required></select>
                     <small class="muted" id="certificate-hint"></small>
                   </label>
 
@@ -389,6 +392,7 @@
     <script src="../js/auth.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/components.js"></script>
+    <script src="../js/farmer-business.js"></script>
 
     <script>
       let currentPage = 1;
@@ -447,7 +451,7 @@
         const select = document.getElementById("edit-certificate");
         document.getElementById("certificate-label").textContent = MSG.certificateLabel;
         document.getElementById("certificate-hint").textContent = MSG.certificateHint;
-        select.replaceChildren(new Option(MSG.certificateNone, ""));
+        select.replaceChildren(new Option(MSG.certificatePlaceholder, ""));
         for (const certificate of certificateOptions) {
           const expiry = certificate.expiryDate
             ? `${MSG.certificateExpiry}: ${certificate.expiryDate}`
@@ -668,7 +672,8 @@
         if (!el) return;
         el.className = `notice ${isError ? "error" : ""}`;
         el.textContent = msg;
-        el.style.display = "block";
+        el.setAttribute("role", isError ? "alert" : "status");
+        el.style.display = msg ? "block" : "none";
       }
 
       function showEditorNotice(msg, isError = false) {
@@ -676,7 +681,8 @@
         if (!el) return;
         el.className = `notice ${isError ? "error" : ""}`;
         el.textContent = msg;
-        el.style.display = "block";
+        el.setAttribute("role", isError ? "alert" : "status");
+        el.style.display = msg ? "block" : "none";
       }
 
       /* ================= EDITOR VIEW LOGIC ================= */
@@ -700,7 +706,7 @@
           // Fetch fresh details from API if available
           let prod = productsCache.find((x) => (x.productId || x.id) === productId);
           try {
-            const detailRes = await API.getFarmerProductDetail(productId);
+            const detailRes = await API.getFarmerProductDetail(productId, { suppressErrorToast: true });
             if (!detailRes.success || !detailRes.data) {
               showEditorNotice(detailRes.error || "Không thể tải dữ liệu. Vui lòng thử lại.", true);
               return;
@@ -858,7 +864,7 @@
 
         const limit = 10;
         if (selectedFiles.length + productImages.length > limit) {
-          showEditorNotice("Tối đa 10 tệp ảnh sản phẩm.", true);
+          showFieldError("Images", "Tối đa 10 tệp ảnh sản phẩm.");
           event.target.value = "";
           return;
         }
@@ -866,7 +872,7 @@
         const allowedTypes = ["image/jpeg", "image/png", "image/jpg"];
         for (const file of selectedFiles) {
           if (file.size > 5 * 1024 * 1024 || file.size === 0 || !allowedTypes.includes(file.type)) {
-            showEditorNotice(`Tệp "${file.name}" không hợp lệ. ${MSG.MSG78}`, true);
+            showFieldError("Images", `Tệp "${file.name}" không hợp lệ. ${MSG.MSG78}`);
             event.target.value = "";
             return;
           }
@@ -877,7 +883,7 @@
 
         for (const file of selectedFiles) {
           try {
-            const res = await API.uploadImage(file);
+            const res = await API.uploadImage(file, { suppressErrorToast: true });
             if (res && res.success && res.data && res.data.imageUrl) {
               productImages.push({
                 imageUrl: res.data.imageUrl,
@@ -885,7 +891,12 @@
                 altText: file.name,
               });
             } else {
-              showEditorNotice(res.error || "Không thể tải ảnh lên. Vui lòng thử lại.", true);
+              if (res.status === 400 || res.status === 413 || res.status === 415) {
+                showEditorNotice("");
+                showFieldError("Images", res.error || MSG.MSG78);
+              } else {
+                showEditorNotice(res.error || "Không thể tải ảnh lên. Vui lòng thử lại.", true);
+              }
               break;
             }
           } catch (err) {
@@ -958,50 +969,35 @@
         Images: "product-images-input",
         FarmCertificateId: "edit-certificate",
       };
+      const productFields = new FieldFeedback(document);
       function clearFieldErrors() {
-        document.querySelectorAll("[data-product-field-error]").forEach((el) => el.remove());
-        Object.values(productFieldIds).forEach((id) => {
-          const el = document.getElementById(id);
-          el?.removeAttribute("aria-invalid");
-          el?.removeAttribute("aria-describedby");
-        });
+        productFields.clearWithin(document.getElementById("product-form"));
       }
       function showFieldError(field, message) {
         const name = field.replace(/^request\./i, "").split(/[.\[]/)[0];
-        const key = Object.keys(productFieldIds).find(
-          (key) => key.toLowerCase() === name.toLowerCase(),
-        );
-        const input = document.getElementById(productFieldIds[key]);
-        if (!input) return;
-        const id = input.id + "-error";
-        let error = document.getElementById(id);
-        if (!error) {
-          error = document.createElement("small");
-          error.id = id;
-          error.dataset.productFieldError = "";
-          error.setAttribute("role", "alert");
-          error.style.cssText = "display:block;color:#a1372b;margin-top:6px";
-          input.insertAdjacentElement("afterend", error);
-        }
-        error.textContent = message;
-        input.setAttribute("aria-invalid", "true");
-        input.setAttribute("aria-describedby", id);
+        const key = Object.keys(productFieldIds).find((key) => key.toLowerCase() === name.toLowerCase());
+        return productFields.show([[document.getElementById(productFieldIds[key]), message]]);
       }
       function showServerFieldErrors(res) {
-        for (const [field, messages] of Object.entries(res.data?.errors || {}))
-          showFieldError(field, Array.isArray(messages) ? messages.join(" ") : String(messages));
-        document.querySelector('[aria-invalid="true"]')?.focus();
+        let marked = false;
+        for (const [field, messages] of Object.entries(res.data?.errors || {})) {
+          marked = showFieldError(field, Array.isArray(messages) ? messages.join(" ") : String(messages)) || marked;
+        }
+        return marked;
       }
-      function validateProductForm() {
+      function validateProductForm({ requireCertificate = true } = {}) {
         clearFieldErrors();
         const val = (id) => document.getElementById(id).value.trim();
         const errors = {};
         const certificateId = val("edit-certificate");
-        if (
+        if (requireCertificate && !certificateId) {
+          errors.FarmCertificateId = MSG.certificateRequired;
+        } else if (
           certificateId &&
           !certificateOptions.some((c) => String(c.farmCertificateId) === certificateId)
-        )
+        ) {
           errors.FarmCertificateId = MSG.certificateInvalid;
+        }
         if (!val("edit-name") || val("edit-name").length > 255)
           errors.ProductName = "Nhập tên sản phẩm từ 1 đến 255 ký tự.";
         if (
@@ -1053,7 +1049,7 @@
         e.preventDefault();
         const errorMsg = validateProductForm();
         if (errorMsg) {
-          showEditorNotice(errorMsg, true);
+          showEditorNotice("");
           return;
         }
 
@@ -1087,19 +1083,18 @@
         try {
           let res;
           if (id) {
-            res = await API.updateFarmerProduct(id, payload);
+            res = await API.updateFarmerProduct(id, payload, { suppressErrorToast: true });
           } else {
-            res = await API.createFarmerProduct(payload);
+            res = await API.createFarmerProduct(payload, { suppressErrorToast: true });
           }
 
           if (res.success) {
-            Utils.showToast(res.data?.message || (id ? MSG.MSG72 : MSG.MSG71), "success");
-            if (res.data?.notificationMessage)
-              Utils.showToast(res.data.notificationMessage, "warning");
             closeEditor(true);
+            showListNotice([res.data?.message || (id ? MSG.MSG72 : MSG.MSG71), res.data?.notificationMessage]
+              .filter(Boolean).join(" "));
           } else {
-            showServerFieldErrors(res);
-            showEditorNotice(res.error || Messages.common.operationFailed, true);
+            if (showServerFieldErrors(res)) showEditorNotice("");
+            else showEditorNotice(res.error || Messages.common.operationFailed, true);
           }
         } catch (err) {
           showEditorNotice(err.message || Messages.common.networkError, true);
@@ -1112,8 +1107,8 @@
       async function handleSavePriceOnly() {
         const id = document.getElementById("edit-product-id").value;
         if (!id) return;
-        if (validateProductForm()) {
-          showEditorNotice("Vui lòng kiểm tra các trường được đánh dấu.", true);
+        if (validateProductForm({ requireCertificate: false })) {
+          showEditorNotice("");
           return;
         }
         if (
@@ -1172,13 +1167,13 @@
             baseRetailPrice: retail,
             wholesaleMinQuantity: wholesaleMin,
             wholesalePrice: wholesale,
-          });
+          }, { suppressErrorToast: true });
           if (res.success) {
-            Utils.showToast(Messages.product.updatePriceKeepApproval, "success");
             closeEditor(true);
+            showListNotice(Messages.product.updatePriceKeepApproval);
           } else {
-            showServerFieldErrors(res);
-            showEditorNotice(res.error || Messages.common.operationFailed, true);
+            if (showServerFieldErrors(res)) showEditorNotice("");
+            else showEditorNotice(res.error || Messages.common.operationFailed, true);
           }
         } catch (err) {
           showEditorNotice(err.message || Messages.common.networkError, true);
@@ -1191,16 +1186,18 @@
         const confirmText = currentlyPublished ? MSG.MSG73 : Messages.product.publishPrompt;
         if (!confirm(confirmText)) return;
 
+        const notify = document.getElementById("product-editor-view").style.display === "block"
+          ? showEditorNotice : showListNotice;
         try {
-          const res = await API.setProductVisibility(id, !currentlyPublished, version);
+          const res = await API.setProductVisibility(id, !currentlyPublished, version, { suppressErrorToast: true });
           if (res.success) {
-            Utils.showToast(currentlyPublished ? MSG.MSG74 : MSG.MSG164, "success");
+            notify(currentlyPublished ? MSG.MSG74 : MSG.MSG164);
             loadProducts(currentPage);
           } else {
-            Utils.showToast(res.error || Messages.common.operationFailed, "error");
+            notify(res.error || Messages.common.operationFailed, true);
           }
         } catch (err) {
-          Utils.showToast(err.message || Messages.common.networkError, "error");
+          notify(err.message || Messages.common.networkError, true);
         }
       }
 

@@ -36,6 +36,7 @@ function isBeforeShipping(status) {
   ].includes(status);
 }
 
+const orderFields = new FieldFeedback(document);
 document.addEventListener("DOMContentLoaded", async () => {
   await loadOrders();
 });
@@ -48,7 +49,7 @@ function setFeedback(msg, bad = false) {
     fb.style.display = "block";
     document.getElementById("orders-feedback-section").style.display = "block";
 
-    Utils.showToast(msg, bad ? "error" : "success");
+    fb.setAttribute("role", bad ? "alert" : "status");
   } else {
     fb.style.display = "none";
     document.getElementById("orders-feedback-section").style.display = "none";
@@ -56,16 +57,28 @@ function setFeedback(msg, bad = false) {
 }
 
 function switchView(viewName) {
+  if (viewName !== "list" && !selectedOrder) return;
+  if (viewName !== currentView) {
+    orderFields.clearWithin();
+    setFeedback("");
+  }
   currentView = viewName;
   ["list", "detail", "reject"].forEach((v) => {
     document.getElementById(`view-${v}`).style.display = v === viewName ? "block" : "none";
-    const btn = document.getElementById(`view-btn-${v}`);
-    if (btn) btn.className = v === viewName ? "active" : "";
+    const indicator = document.getElementById(`view-label-${v}`);
+    if (v === viewName) indicator.setAttribute("aria-current", "step");
+    else indicator.removeAttribute("aria-current");
   });
 
   if ((viewName === "detail" || viewName === "reject") && selectedOrder) {
     populateDetailView(selectedOrder);
   }
+}
+
+function backToOrders() {
+  if (actionBusy) return;
+  switchView("list");
+  loadOrders(currentPage);
 }
 
 let orderListGeneration = 0;
@@ -85,14 +98,14 @@ async function loadOrders(page = 1) {
   else if (statusFilter === "Đang giao") apiStatus = "Shipping";
   else if (statusFilter === "Đã hủy") apiStatus = "Cancelled";
 
-  const tbody = document.getElementById("orders-tbody");
-  tbody.innerHTML =
-    '<tr><td colspan="5" style="text-align: center; padding: 24px; color: #62766a;">Đang tải dữ liệu đơn hàng…</td></tr>';
-
-  if (fromDate && toDate && fromDate > toDate) {
-    setFeedback(Messages.order.invalidDates, true);
+  const from = document.getElementById("fromDate");
+  const to = document.getElementById("toDate");
+  if (!orderFields.validateDates(from, to, { rangeMessage: Messages.order.invalidDates })) {
+    setFeedback("");
     return;
   }
+  const tbody = document.getElementById("orders-tbody");
+  tbody.innerHTML = '<tr><td colspan="5">Đang tải dữ liệu đơn hàng…</td></tr>';
   const params = { page: currentPage, pageSize: 10 };
   if (keyword) params.keyword = keyword;
   if (apiStatus) params.status = apiStatus;
@@ -104,7 +117,7 @@ async function loadOrders(page = 1) {
   }
 
   try {
-    const res = await API.getFarmerOrders(params);
+    const res = await API.getFarmerOrders(params, { suppressErrorToast: true });
     if (generation !== orderListGeneration) return;
 
     if (res.success && res.data) {
@@ -112,35 +125,19 @@ async function loadOrders(page = 1) {
       const items = payload.items || (Array.isArray(payload) ? payload : []);
       ordersList = items;
       totalRecords = payload.total || items.length;
+      setFeedback("");
       renderOrdersTable(items);
-      if (items.length > 0) {
-        if (
-          !selectedOrder ||
-          !items.some(
-            (o) => (o.sellerOrderId || o.id) === (selectedOrder.sellerOrderId || selectedOrder.id),
-          )
-        ) {
-          selectedOrder = items[0];
-        } else {
-          const fresh = items.find(
-            (o) => (o.sellerOrderId || o.id) === (selectedOrder.sellerOrderId || selectedOrder.id),
-          );
-          if (fresh) selectedOrder = fresh;
-        }
-      } else {
-        selectedOrder = null;
-      }
     } else {
       ordersList = [];
       totalRecords = 0;
-      selectedOrder = null;
       renderOrdersTable([]);
-      setFeedback(res.error || Messages.order.loadFailed, true);
+      if (!orderFields.applyServerErrors({ fields: res.data?.errors, message: res.error }, { to: "#toDate" })) {
+        setFeedback(res.error || Messages.order.loadFailed, true);
+      }
     }
   } catch (err) {
     ordersList = [];
     totalRecords = 0;
-    selectedOrder = null;
     renderOrdersTable([]);
     setFeedback(Messages.order.connectionFailed, true);
   }
@@ -230,7 +227,7 @@ function renderOrderPager() {
 }
 
 async function openOrder(orderId, targetView = "detail") {
-  const res = await API.getFarmerOrderDetail(orderId);
+  const res = await API.getFarmerOrderDetail(orderId, { suppressErrorToast: true });
   if (!res.success || !res.data) {
     setFeedback(res.error || Messages.order.loadFailed, true);
     return;
@@ -347,6 +344,7 @@ async function confirmCurrentOrder() {
     const res = await API.confirmFarmerOrder(
       selectedOrder.sellerOrderId || selectedOrder.id,
       selectedOrder.version || "1",
+      { suppressErrorToast: true },
     );
     if (res.success && res.data) {
       selectedOrder = res.data;
@@ -375,6 +373,7 @@ async function readyCurrentOrder() {
     const res = await API.readyFarmerOrder(
       selectedOrder.sellerOrderId || selectedOrder.id,
       selectedOrder.version || "1",
+      { suppressErrorToast: true },
     );
     if (res.success && res.data) {
       selectedOrder = res.data;
@@ -403,6 +402,7 @@ async function dispatchCurrentOrder() {
     const res = await API.dispatchFarmerOrder(
       selectedOrder.sellerOrderId || selectedOrder.id,
       selectedOrder.version || "1",
+      { suppressErrorToast: true },
     );
     if (res.success && res.data) {
       selectedOrder = res.data;
@@ -425,9 +425,12 @@ async function dispatchCurrentOrder() {
 async function handleRejectSubmit(e) {
   e.preventDefault();
   if (!selectedOrder || actionBusy) return;
-  const reason = document.getElementById("rejectionReasonInput").value.trim();
-  if (!reason) {
-    setFeedback(Messages.order.rejectReasonRequired, true);
+  const field = document.getElementById("rejectionReasonInput");
+  const reason = field.value.trim();
+  orderFields.clear(field);
+  if (!reason || reason.length > 500) {
+    setFeedback("");
+    orderFields.show([[field, !reason ? Messages.order.rejectReasonRequired : "Lý do từ chối tối đa 500 ký tự."]]);
     return;
   }
 
@@ -444,16 +447,19 @@ async function handleRejectSubmit(e) {
       selectedOrder.sellerOrderId || selectedOrder.id,
       reason,
       selectedOrder.version || "1",
+      { suppressErrorToast: true },
     );
     if (res.success && res.data) {
       selectedOrder = res.data;
       ordersList = ordersList.map((o) =>
         (o.sellerOrderId || o.id) === (res.data.sellerOrderId || res.data.id) ? res.data : o,
       );
-      showActionFeedback(Messages.order.rejectedPending, selectedOrder);
       switchView("detail");
+      showActionFeedback(Messages.order.rejectedPending, selectedOrder);
     } else {
-      setFeedback(res.error || Messages.order.rejectFailed, true);
+      if (!orderFields.applyServerErrors(
+        { fields: res.data?.errors, message: res.error }, { explanation: "#rejectionReasonInput" }
+      )) setFeedback(res.error || Messages.order.rejectFailed, true);
     }
   } catch (err) {
     setFeedback(err.message || Messages.order.rejectApiFailed, true);
@@ -468,11 +474,11 @@ async function printOrderSlip() {
   if (!selectedOrder) return;
   const popup = window.open("", "_blank", "width=1000,height=760");
   if (!popup) {
-    alert(Messages.order.popupBlockedNotice);
+    setFeedback(Messages.order.popupBlockedNotice, true);
     return;
   }
 
-  const res = await API.getPackingSlip(selectedOrder.sellerOrderId);
+  const res = await API.getPackingSlip(selectedOrder.sellerOrderId, { suppressErrorToast: true });
   if (!res.success || !res.data) {
     popup.close();
     setFeedback(res.error || Messages.order.printFailed, true);

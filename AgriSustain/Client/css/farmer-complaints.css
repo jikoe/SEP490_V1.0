@@ -284,3 +284,27 @@ dialog video {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+.complaint-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px;
+  margin: 0 0 16px;
+  border: 1px solid #d8e5dd;
+  border-radius: 9px;
+  background: #fff;
+}
+.complaint-views span {
+  padding: 10px 14px;
+  border-radius: 6px;
+  color: #61766a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.complaint-views [aria-current="step"] {
+  background: #e5f3eb;
+  color: #155f40;
+}
+#feedback.warn { background: #fff6df; color: #795114; }
+#responseForm .error:empty { display: none; }

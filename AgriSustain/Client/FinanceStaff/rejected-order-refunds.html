@@ -19,6 +19,7 @@
     </div>
     <template id="business-template">
       <link href="../css/finance-rejected-order-refunds.css" rel="stylesheet" />
+      <link href="../css/form-feedback.css" rel="stylesheet" />
       <main>
         <div class="intro">
           <h1>Hoàn tiền đơn hàng bị từ chối</h1>
@@ -26,12 +27,10 @@
             Xem yêu cầu, hoàn tiền cho RetailCustomer và theo dõi kết quả chuyển khoản.
           </p>
         </div>
-        <nav class="tabs" aria-label="Các trang chức năng">
-          <button class="active" id="tab-list" data-screen-go="list" role="tab">
-            Danh sách yêu cầu
-          </button>
-          <button id="tab-detail" data-screen-go="detail" role="tab">Chi tiết / hoàn tiền</button>
-        </nav>
+        <div class="tabs flow-indicators" role="group" aria-label="Các màn hình hoàn tiền">
+          <span data-screen-indicator="list" aria-current="step">Danh sách yêu cầu</span>
+          <span data-screen-indicator="detail">Chi tiết / hoàn tiền</span>
+        </div>
         <div class="notice" role="status" aria-live="polite" id="feedback" hidden="">
           <span id="feedbackText">Chọn yêu cầu từ danh sách để xem và xử lý.</span>
         </div>

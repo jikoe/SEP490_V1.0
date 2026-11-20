@@ -6,6 +6,7 @@
     <title>Giỏ hàng - Sàn Nông Sản Việt</title>
     <link rel="stylesheet" href="../css/style.css" />
     <link rel="stylesheet" href="../css/components.css" />
+    <link rel="stylesheet" href="../css/form-feedback.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -296,6 +297,7 @@
     <script src="../js/auth.js"></script>
     <script src="../js/api.js"></script>
     <script src="../js/components.js"></script>
+    <script src="../js/farmer-business.js"></script>
 
     <script>
       let cart = null;
@@ -391,6 +393,7 @@
         } catch (e) {}
       }
 
+      const cartFields = new FieldFeedback(document);
       function setBusy(val) {
         busy = val;
         if (cart) renderCart();
@@ -419,7 +422,7 @@
           el.textContent = err;
           el.style.display = "block";
         }
-        Utils.showToast(err, "error");
+
       }
 
       function clearNotices() {
@@ -436,6 +439,7 @@
       }
 
       function renderCart() {
+        cartFields.clearWithin();
         if (!cart || !cart.items || cart.items.length === 0) {
           document.getElementById("cart-empty").style.display = "block";
           document.getElementById("cart-content").style.display = "none";
@@ -533,10 +537,6 @@
                       ${!item.isAvailable
                         ? `<div class="notice error" style="margin-top:6px;padding:6px 10px;font-size:12px;">${Utils.escapeHtml(item.unavailableReason || "Sản phẩm tạm thời không khả dụng")}</div>`
                         : ""}
-                      <div
-                        id="line-error-${item.cartItemId}"
-                        style="display:none;color:#a0362c;font-size:12px;margin-top:4px;"
-                      ></div>
                     </div>
 
                     <div class="commerce-quantity">
@@ -554,6 +554,7 @@
                       </button>
                       <input
                         type="number"
+                        id="cart-quantity-${item.cartItemId}"
                         aria-label="Số lượng ${Utils.escapeHtml(item.productName)}"
                         min="${item.quantityStep || 1}"
                         step="${item.quantityStep || 1}"
@@ -657,7 +658,8 @@
       async function handleAcceptQuantity(cartItemId, val, unit, step) {
         const number = Number(val);
         const ratio = number / step;
-        const errBox = document.getElementById(`line-error-${cartItemId}`);
+        const input = () => document.getElementById(`cart-quantity-${cartItemId}`);
+        cartFields.clear(input());
 
         if (
           !String(val).trim() ||
@@ -666,22 +668,18 @@
           number > 999999999 ||
           Math.abs(ratio - Math.round(ratio)) > 1e-7
         ) {
-          renderCart(); // Restore the saved quantity before displaying the field error.
-          const refreshedError = document.getElementById(`line-error-${cartItemId}`);
-          if (refreshedError) {
-            refreshedError.textContent = CART_MESSAGES.invalidQuantity(unit);
-            refreshedError.style.display = "block";
-          }
+          clearNotices();
+          renderCart();
+          cartFields.show([[input(), CART_MESSAGES.invalidQuantity(unit)]]);
           return;
         }
-
-        if (errBox) errBox.style.display = "none";
 
         const currentItem = (cart?.items || []).find((x) => x.cartItemId === cartItemId);
         if (currentItem && currentItem.quantity === number) return;
 
         setBusy(true);
         clearNotices();
+        let quantityError = null;
 
         try {
           const res = await API.updateCartItemQuantity(cartItemId, number, {
@@ -693,16 +691,19 @@
               showNotice(res.data.messages.join(" "));
             }
             renderCart();
-            Utils.showToast("Đã cập nhật số lượng.", "success");
+            if (!res.data.messages?.length) showNotice("Đã cập nhật số lượng.");
           } else {
-            showError(res.error || "Không thể lưu số lượng. Vui lòng tải lại giỏ hàng.");
-            renderCart();
+            const fields = res.data?.errors || {};
+            const quantityKey = Object.keys(fields).find((key) => /(?:^|\.)quantity$/i.test(key));
+            if (quantityKey) quantityError = fields[quantityKey][0] || res.error;
+            else showError(res.error || "Không thể lưu số lượng. Vui lòng tải lại giỏ hàng.");
           }
         } catch (err) {
           showError(err.message || "Lỗi khi lưu số lượng.");
           renderCart();
         } finally {
           setBusy(false);
+          if (quantityError) cartFields.show([[input(), quantityError]]);
         }
       }
 
@@ -746,7 +747,7 @@
               showNotice(res.data.messages.join(" "));
             }
             renderCart();
-            Utils.showToast(`Đã xóa ${ids.length} sản phẩm khỏi giỏ hàng.`, "success");
+            showNotice(`Đã xóa ${ids.length} sản phẩm khỏi giỏ hàng.`);
           } else {
             showError(res.error || "Không thể xóa sản phẩm khỏi giỏ hàng.");
           }
@@ -761,8 +762,7 @@
 
       async function handleProceedCheckout() {
         if (!cart || !cart.selectedCount) {
-          showNotice(CART_MESSAGES.noSelection);
-          Utils.showToast(CART_MESSAGES.noSelection, "warning");
+          showError(CART_MESSAGES.noSelection);
           return;
         }
 

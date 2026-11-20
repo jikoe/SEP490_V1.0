@@ -79,14 +79,14 @@ a {
   background: white;
   flex-wrap: wrap;
 }
-.views button {
+.views [data-view-indicator] {
   border: 0;
   background: none;
   padding: 12px 14px;
   color: #637a6a;
   font-weight: 600;
 }
-.views button.active {
+.views [aria-current="step"] {
   color: #0b6843;
   border-bottom: 3px solid #148353;
   background: #f2faf5;
@@ -704,7 +704,7 @@ td {
   display: block;
   color: #a62925;
   font-size: 12px;
-  margin-top: 5px;
+  margin-bottom: 5px;
 }
 .proof-image {
   max-width: 100%;
@@ -784,3 +784,7 @@ button:disabled {
     break-inside: avoid;
   }
 }
+
+.view-back { margin-bottom: 16px; }
+.views [data-view-indicator] { border-radius: 6px; cursor: default; }
+.views [aria-current="step"] { background: #e5f3eb; color: #155f40; }

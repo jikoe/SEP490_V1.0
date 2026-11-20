@@ -11,8 +11,7 @@ public sealed class FarmerFarmingLogRules(TimeProvider clock, IFarmerEvidenceSto
         long actor,
         CropSeason season,
         FarmingLogRequest input,
-        bool correcting = false,
-        string? originalType = null
+        bool correcting = false
     )
     {
         FarmState.Require(
@@ -28,8 +27,7 @@ public sealed class FarmerFarmingLogRules(TimeProvider clock, IFarmerEvidenceSto
         FarmState.Text(input.ActionType, 100, "actionType");
         FarmState.Text(input.DetailDescription, 1000, "detailDescription");
         FarmState.Require(
-            FarmState.Activities.Contains(input.ActionType)
-                || (correcting && input.ActionType == originalType),
+            FarmState.Activities.Contains(input.ActionType),
             FarmManagementMessages.MSG97,
             "actionType"
         );
@@ -69,7 +67,7 @@ public sealed class FarmerFarmingLogRules(TimeProvider clock, IFarmerEvidenceSto
             "cropSeasonId"
         );
         FarmState.Text(input.CorrectionReason, 500, "correctionReason");
-        ValidateActivity(actor, season, input, true, original.ActionType);
+        ValidateActivity(actor, season, input, correcting: true);
     }
 
     public void ValidateEvidence(long actor, string[] refs, bool required) =>

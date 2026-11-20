@@ -66,6 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
       ? ui.m.updateHarvest
       : ui.m.recordHarvest;
     f.querySelector("[type=submit]").disabled = saving || ui.busy;
+    $("#openBatchIssue").disabled = saving || ui.busy || !current;
     $("#generateQr").disabled = saving || ui.busy || !current?.qrEligible;
     const quality = ui.value(issue, "issueType") === "quality";
     el(issue, "affected").disabled = !quality;
@@ -251,12 +252,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const harvest = ui.value(f, "harvest");
     const expiry = ui.value(f, "expiry");
     if (!current && (harvest < el(f, "harvest").min || harvest > ui.optionsData.today)) {
-      ui.mark(f, "actualHarvestDate", ui.m.DateRange);
-      return ui.notice(ui.m.DateRange, true);
+      ui.fieldProblem(f, "actualHarvestDate", ui.m.DateRange);
+      return;
     }
     if (expiry <= harvest) {
-      ui.mark(f, "expirationDate", ui.m.MSG102);
-      return ui.notice(ui.m.MSG102, true);
+      ui.fieldProblem(f, "expirationDate", ui.m.MSG102);
+      return;
     }
     saving = true;
     sync();
@@ -298,8 +299,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const quality = ui.value(issue, "issueType") === "quality";
     const quantity = Number(ui.value(issue, quality ? "affected" : "adjustment"));
     if (quantity === 0 || Math.abs(quantity * 1000 - Math.round(quantity * 1000)) > 0.0001) {
-      ui.mark(issue, "quantity", ui.m.MSG103);
-      return ui.notice(ui.m.MSG103, true);
+      ui.fieldProblem(issue, "quantity", ui.m.MSG103);
+      return;
     }
     saving = true;
     sync();
