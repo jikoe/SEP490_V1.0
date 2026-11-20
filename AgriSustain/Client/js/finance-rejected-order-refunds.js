@@ -22,9 +22,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function loadList() {
     const generation = ++listGeneration;
-    const from = $("#from").value;
-    const to = $("#to").value;
-    if (from && to && from > to) return ui.notice(m.invalidDates, true);
+    if (!ui.fields.validateDates($("#from"), $("#to"), { rangeMessage: m.invalidDates })) {
+      ui.notice("");
+      return;
+    }
     const params = new URLSearchParams({ page });
     [
       ["keyword", "#keyword"],
@@ -61,7 +62,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       $("#prev").disabled = page <= 1;
       $("#next").disabled = page * 10 >= total;
     } catch (error) {
-      ui.notice(error.message || m.loadFailed, true);
+      if (!ui.fields.applyServerErrors(error, { to: "#to", keyword: "#keyword", status: "#status" })) {
+        ui.notice(error.message || m.loadFailed, true);
+      }
     }
   }
 
@@ -200,6 +203,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (view === "detail" && !current) return ui.notice(m.choose, true);
     if (view === "list") {
       ++detailGeneration;
+      ui.notice("");
       ui.go("list");
       loadList();
     } else ui.go("detail");

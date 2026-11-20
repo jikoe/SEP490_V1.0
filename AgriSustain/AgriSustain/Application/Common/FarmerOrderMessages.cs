@@ -2,6 +2,7 @@ namespace AgriSustain.Application.Common;
 
 public static class FarmerOrderMessages
 {
+    public const string InvalidDates = "Ngày bắt đầu không được sau ngày kết thúc.";
     public const string InvalidFilters = "Bộ lọc hoặc khoảng ngày không hợp lệ.";
     public const string ForbiddenOrder =
         "Bạn không có quyền truy cập đơn hàng này hoặc thực hiện thao tác.";

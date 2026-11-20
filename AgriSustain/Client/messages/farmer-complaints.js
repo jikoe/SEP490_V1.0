@@ -58,6 +58,8 @@ const FarmerComplaintMessages = Object.freeze({
     NeedsReconciliation: "Đang đối soát",
     Success: "Đã hoàn tiền",
   },
+  systemRequester: "Hệ thống",
+  supportRequester: "Customer Support",
   labels: {
     complaint: "Mã khiếu nại",
     order: "Mã đơn hàng",
@@ -68,6 +70,7 @@ const FarmerComplaintMessages = Object.freeze({
     delivered: "Thời điểm giao",
     complaintDeadline: "Hạn gửi khiếu nại",
     request: "Mã yêu cầu",
+    requester: "Người yêu cầu",
     instructions: "Nội dung yêu cầu",
     requestedAt: "Thời điểm yêu cầu",
     due: "Hạn phản hồi",

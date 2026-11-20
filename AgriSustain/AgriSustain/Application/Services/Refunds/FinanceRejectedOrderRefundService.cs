@@ -29,12 +29,19 @@ public sealed class FinanceRejectedOrderRefundService(
     {
         if (!await repository.AuthorizedAsync(actor, ct))
             return Fail<object>(RejectedOrderRefundMessages.Forbidden, "FORBIDDEN");
+        if (query.From > query.To || query.To == DateOnly.MaxValue)
+        {
+            string message = query.To == DateOnly.MaxValue
+                ? "Vui lòng chọn ngày kết thúc hợp lệ."
+                : "Ngày bắt đầu không được sau ngày kết thúc.";
+            return new(default, new FeatureError("VALIDATION", message,
+                new Dictionary<string, string[]> { ["to"] = [message] }));
+        }
+
         if (
             query.Page < 1
             || query.Page > 100000
             || query.Keyword?.Length > 255
-            || query.From > query.To
-            || query.To == DateOnly.MaxValue
             || query.Status
                 is not (
                     null

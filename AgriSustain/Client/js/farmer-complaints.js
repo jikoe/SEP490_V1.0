@@ -240,6 +240,10 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedRequest
         ? [
             [labels.request, "#" + selectedRequest.id],
+            [
+              labels.requester,
+              selectedRequest.isSystemRequest ? messages.systemRequester : messages.supportRequester,
+            ],
             [labels.instructions, selectedRequest.instructions],
             [labels.requestedAt, formatDate(selectedRequest.requestedAt)],
             [labels.due, formatDate(selectedRequest.dueAt)],

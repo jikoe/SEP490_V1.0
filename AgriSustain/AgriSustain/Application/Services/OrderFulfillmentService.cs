@@ -25,11 +25,19 @@ public sealed class OrderFulfillmentService(
         CancellationToken cancellationToken
     )
     {
+        if (query.From > query.To)
+        {
+            return new(default, new FeatureError(
+                "VALIDATION",
+                FarmerOrderMessages.InvalidFilters,
+                new Dictionary<string, string[]> { ["to"] = [FarmerOrderMessages.InvalidDates] }
+            ));
+        }
+
         if (
             query.Page is < 1 or > 100000
             || query.PageSize is < 1 or > 100
             || query.Keyword?.Length > 255
-            || query.From > query.To
             || query.Status
                 is not (
                     null
@@ -98,11 +106,11 @@ public sealed class OrderFulfillmentService(
             var trimmedReason = (request.Explanation ?? request.Reason)?.Trim();
             if (string.IsNullOrWhiteSpace(trimmedReason))
             {
-                return Fail("VALIDATION", FarmerOrderMessages.ReasonRequired);
+                return InvalidRejectionReason(FarmerOrderMessages.ReasonRequired);
             }
             if (trimmedReason.Length > 500)
             {
-                return Fail("VALIDATION", FarmerOrderMessages.ReasonTooLong);
+                return InvalidRejectionReason(FarmerOrderMessages.ReasonTooLong);
             }
         }
 
@@ -534,21 +542,19 @@ public sealed class OrderFulfillmentService(
         DateTime now
     )
     {
-        var evidenceRequest = order
-            .DisputeTickets.SelectMany(x => x.DisputeEvidenceRequests)
-            .SingleOrDefault(x =>
-                x.EvidenceRequestId == request.EvidenceRequestId && x.RequestedPartyUserId == userId
-            );
-        if (
-            evidenceRequest is null
-            || evidenceRequest.RespondedAt.HasValue
-            || evidenceRequest.RequestStatus is "Closed" or "Responded"
-        )
+        var match = order.DisputeTickets
+            .SelectMany(ticket => ticket.DisputeEvidenceRequests,
+                (ticket, evidenceRequest) => new { Ticket = ticket, Request = evidenceRequest })
+            .SingleOrDefault(item =>
+                item.Request.EvidenceRequestId == request.EvidenceRequestId
+                && item.Request.RequestedPartyUserId == userId);
+        if (match is null || !match.Ticket.IsAwaitingDecision || !match.Request.IsOpenFor(userId))
         {
             return "Yêu cầu bằng chứng không hợp lệ hoặc đã trả lời.";
         }
 
-        if (now > (evidenceRequest.DueAt ?? evidenceRequest.RequestedAt.AddHours(48)))
+        var evidenceRequest = match.Request;
+        if (now > evidenceRequest.ResponseDeadline)
         {
             return "Đã hết hạn 48 giờ phản hồi yêu cầu bổ sung bằng chứng. Vui lòng liên hệ nhân viên hỗ trợ được phân công; phản hồi quá hạn chưa được tiếp nhận.";
         }
@@ -568,8 +574,8 @@ public sealed class OrderFulfillmentService(
             );
         }
 
-        evidenceRequest.RespondedAt = now;
-        evidenceRequest.RequestStatus = "Responded";
+        evidenceRequest.MarkAnswered(now);
+        match.Ticket.MarkUnderReviewWhenAnswered();
         return null;
     }
 
@@ -578,6 +584,10 @@ public sealed class OrderFulfillmentService(
         && url.StartsWith($"/api/files/evidence/{userId}/", StringComparison.Ordinal)
         && !url.Contains("..")
         && url.Length < 500;
+
+    private static FeatureResult<SellerOrderResponse> InvalidRejectionReason(string message) =>
+        new(default, new FeatureError("VALIDATION", message,
+            new Dictionary<string, string[]> { ["explanation"] = [message] }));
 
     private static FeatureResult<SellerOrderResponse> Fail(string code, string message) =>
         FeatureResult<SellerOrderResponse>.Fail(code, message);
