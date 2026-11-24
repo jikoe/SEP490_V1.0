@@ -71,6 +71,7 @@ public sealed class ReservationExpiryService(ICheckoutRepository repository,
                 });
             }
             order.OrderStatus = "Cancelled";
+            FinancePaymentRules.ExpireSePayRequest(order);
             audit.AddAudit(new AuditLog
             {
                 EntityType = "Order", EntityId = order.OrderId, Action = "ReservationExpired",

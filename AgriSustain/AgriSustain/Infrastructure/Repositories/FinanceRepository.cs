@@ -149,7 +149,9 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
         FinancePaymentQuery query, CancellationToken ct)
     {
         var payments = db.PaymentTransactions.AsNoTracking()
-            .Where(payment => payment.OrderId != null || payment.B2bsubscriptionId != null);
+            .Where(payment => payment.OrderId != null || payment.B2bsubscriptionId != null
+                || payment.PaymentPurpose == "SubscriptionPayment" && payment.GatewayProvider == "SePay"
+                    && payment.RequestKey.StartsWith("SUB") && payment.RequestKey.Contains("|"));
         if (query.From is { } from)
         {
             DateTime utc = FinanceQueryValidator.Utc(from);
@@ -166,7 +168,8 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
         }
         if (query.Category == "Subscription")
         {
-            payments = payments.Where(p => p.B2bsubscriptionId != null);
+            payments = payments.Where(p => p.OrderId == null && p.PaymentPurpose == "SubscriptionPayment"
+                || p.B2bsubscriptionId != null);
         }
         if (!string.IsNullOrEmpty(query.Provider))
         {
@@ -186,6 +189,7 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
         {
             payments = payments.Where(payment => payment.TransactionCode.Contains(keyword)
                 || (payment.ProviderTransactionReference ?? "").Contains(keyword)
+                || payment.PaymentPurpose == "SubscriptionPayment" && payment.RequestKey.StartsWith(keyword)
                 || payment.Order != null && payment.Order.OrderCode.Contains(keyword)
                 || payment.B2bsubscription != null
                     && (payment.B2bsubscription.Package.PackageName.Contains(keyword)
@@ -203,11 +207,14 @@ public sealed class FinanceRepository(AgriSustainContext db) : IFinanceRepositor
         {
             Id = row.Payment.PaymentTransactionId,
             Code = row.Payment.TransactionCode,
-            Reference = row.Payment.ProviderTransactionReference,
+            Reference = row.Payment.ProviderTransactionReference
+                ?? (row.Payment.Order != null ? row.Payment.Order.OrderCode
+                    : row.Payment.PaymentPurpose == "SubscriptionPayment" && row.Payment.RequestKey.StartsWith("SUB")
+                        ? row.Payment.RequestKey.Substring(0, 13) : null),
             Category = row.Payment.OrderId != null ? "Order" : "Subscription",
             Obligation = row.Payment.Order != null ? row.Payment.Order.OrderCode
-                : "SUB #" + row.Payment.B2bsubscriptionId + " · "
-                    + row.Payment.B2bsubscription!.Package.PackageName,
+                : row.Payment.B2bsubscription != null ? "SUB #" + row.Payment.B2bsubscriptionId + " · "
+                    + row.Payment.B2bsubscription.Package.PackageName : row.Payment.TransactionCode,
             Provider = row.Payment.GatewayProvider,
             Amount = row.Payment.Amount,
             RequestedAt = row.Payment.RequestedAt,

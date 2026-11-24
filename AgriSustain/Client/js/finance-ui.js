@@ -8,7 +8,7 @@ export const statuses = {
   Approved: 'Đã duyệt', PartiallyRefunded: 'Hoàn một phần', Refunded: 'Đã hoàn tiền',
   Delivered: 'Đã giao hàng', Received: 'Đã nhận hàng', Shipping: 'Đang giao hàng',
   Preparing: 'Đang chuẩn bị', PendingConfirmation: 'Chờ xác nhận', Draft: 'Bản nháp',
-  Requested: 'Khởi tạo yêu cầu', Mismatch: 'Có sai lệch', LatePayment: 'Thanh toán sau khi hủy',
+  Requested: 'Khởi tạo yêu cầu', Mismatch: 'Có sai lệch', LatePayment: 'Khoản thu đến muộn',
   NeedsReview: 'Cần kiểm tra', VerificationFailed: 'Chưa xác minh được', AlreadyApplied: 'Đã ghi nhận',
 };
 export const metrics = [

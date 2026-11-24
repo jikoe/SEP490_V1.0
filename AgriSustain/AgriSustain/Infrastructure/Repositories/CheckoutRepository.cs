@@ -178,6 +178,7 @@ public sealed class CheckoutRepository(AgriSustainContext context) : ICheckoutRe
             && x.RetailQuoteId != null && x.OrderStatus == "PendingPayment"
             && x.ReservationExpiresAt <= now.UtcDateTime)
             .OrderBy(x => x.OrderId).Take(limit)
+            .Include(x => x.PaymentTransactions)
             .Include(x => x.SellerOrders).ThenInclude(x => x.OrderItems)
                 .ThenInclude(x => x.OrderItemBatchAllocations).ThenInclude(x => x.HarvestBatch)
             .Include(x => x.VoucherRedemptions).Include(x => x.RewardPointEntries)

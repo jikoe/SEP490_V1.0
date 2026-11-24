@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using AgriSustain.Application.Common;
 using AgriSustain.Application.DTOs.Finance;
@@ -9,7 +11,7 @@ namespace AgriSustain.Application.Services.Finance;
 
 public sealed class FinanceService(
     IFinanceRepository repository, ICurrentActor actor,
-    TimeProvider clock, ILogger<FinanceService> logger)
+    TimeProvider clock, ILogger<FinanceService> logger, IFinancePaymentReconciliation? reconciliation = null)
     : IFinanceService
 {
     private static readonly Error Denied = new("FINANCE_ACCESS_DENIED",
@@ -98,7 +100,7 @@ public sealed class FinanceService(
             return Fail<FinancePaymentDetail>(Denied);
         }
         var payment = await repository.PaymentAsync(id, ct);
-        if (payment == null || payment.OrderId == null && payment.B2bsubscriptionId == null)
+        if (payment == null || !HasObligation(payment))
         {
             return Fail<FinancePaymentDetail>(Missing);
         }
@@ -117,14 +119,30 @@ public sealed class FinanceService(
         {
             return Invalid<ReconcilePaymentResponse>("Yêu cầu không hợp lệ. Vui lòng tải lại giao dịch.");
         }
-        var detail = await DetailAsync(id, ct);
-        if (!detail.Success)
+        var payment = await repository.PaymentAsync(id, ct);
+        if (payment == null || !HasObligation(payment))
         {
-            return Fail<ReconcilePaymentResponse>(detail.Error!);
+            return Fail<ReconcilePaymentResponse>(Missing);
         }
-        return Invalid<ReconcilePaymentResponse>(
-            "Đối soát trực tiếp đang chờ tích hợp cổng thanh toán.");
+        if (UnavailableReason(payment) is { } reason)
+        {
+            return Invalid<ReconcilePaymentResponse>(reason);
+        }
+        var result = await reconciliation!.CheckAsync(payment, actor.UserId, request, ct);
+        if (!result.Success)
+        {
+            return Fail<ReconcilePaymentResponse>(result.Error!);
+        }
+        var detail = await DetailAsync(id, ct);
+        return detail.Success
+            ? Result<ReconcilePaymentResponse>.SuccessResult(new(result.Value!.Outcome,
+                result.Value.Message, result.Value.AlreadyApplied, detail.Value!))
+            : Fail<ReconcilePaymentResponse>(detail.Error!);
     }
+
+    private static bool HasObligation(PaymentTransaction payment) =>
+        payment.OrderId != null || payment.B2bsubscriptionId != null
+        || FinancePaymentRules.SubscriptionReference(payment) != null;
 
     private FinancePaymentDetail BuildDetail(
         PaymentTransaction payment, IReadOnlyList<Invoice> invoices, IReadOnlyList<AuditLog> audits)
@@ -144,7 +162,11 @@ public sealed class FinanceService(
             : payment.B2bsubscription is { } subscription
                 ? new FinanceObligation("Subscription", $"SUB #{subscription.B2bsubscriptionId} · "
                     + subscription.Package.PackageName, subscription.PriceSnapshot,
-                    FinancePaymentRules.Unpaid(payment), subscription.SubscriptionStatus) : null;
+                    FinancePaymentRules.Unpaid(payment), subscription.SubscriptionStatus)
+                : FinancePaymentRules.SubscriptionReference(payment) is { } reference
+                    ? new FinanceObligation("Subscription", reference, payment.Amount,
+                        FinancePaymentRules.Unpaid(payment), payment.PaymentStatus)
+                    : null;
         var latest = history.FirstOrDefault();
         var evidence = payment.PaymentGatewayEvents.OrderByDescending(entry => entry.ReceivedAt)
             .ThenByDescending(entry => entry.PaymentGatewayEventId).FirstOrDefault();
@@ -152,8 +174,19 @@ public sealed class FinanceService(
             ?? (evidence == null ? null : new GatewayReceipt(evidence.GatewayProvider,
                 evidence.ProviderTransactionReference, evidence.ProviderEventId, evidence.Amount,
                 evidence.EventStatus, payment.PaidAt, evidence.ReceivedAt, evidence.PayloadHash));
-        var row = new FinancePaymentRow(payment.PaymentTransactionId, payment.TransactionCode,
-            payment.ProviderTransactionReference, obligation?.Category ?? "Other",
+        var expectedReference = payment.GatewayProvider == "SePay" && FinancePaymentRules.IsSupported(payment)
+            ? FinancePaymentRules.TransferReference(payment) : payment.ProviderTransactionReference;
+        if (receipt == null && payment.GatewayProvider == "SePay" && expectedReference is { Length: > 0 }
+            && FinancePaymentRules.IsCaptured(payment) && payment.WebhookPayload is { Length: > 0 } payload
+            && payment.TransactionCode.StartsWith("SEPAY-", StringComparison.Ordinal)
+            && long.TryParse(payment.TransactionCode.AsSpan(6), out long sePayId) && sePayId > 0)
+        {
+            receipt = new("SePay", expectedReference, payment.TransactionCode, payment.Amount, "Succeeded",
+                payment.PaidAt, payment.PaidAt!.Value,
+                Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payload))), payment.ProviderTransactionReference);
+        }
+        var row = new FinancePaymentRow(payment.PaymentTransactionId, payment.TransactionCode, expectedReference,
+            obligation?.Category ?? "Other",
             obligation?.Reference ?? "Chưa có nghĩa vụ liên kết", payment.GatewayProvider,
             payment.Amount, payment.RequestedAt, payment.PaidAt, payment.PaymentStatus,
             latest?.Outcome is "Mismatch" or "LatePayment" or "VerificationFailed" or "NeedsReview",
@@ -165,10 +198,11 @@ public sealed class FinanceService(
     }
 
     private string? UnavailableReason(PaymentTransaction payment) =>
-        !FinancePaymentRules.IsSupported(payment) ? "Giao dịch không thuộc thanh toán đơn hàng hoặc gói thành viên."
-        : string.IsNullOrWhiteSpace(payment.ProviderTransactionReference)
-            ? "Giao dịch chưa có tham chiếu của cổng thanh toán."
-            : "Đối soát trực tiếp đang chờ tích hợp cổng thanh toán.";
+        !FinancePaymentRules.IsSupported(payment) ? "Giao dịch này không có yêu cầu thanh toán phù hợp."
+        : payment.GatewayProvider != "SePay" ? "Đối soát trực tiếp chỉ khả dụng với giao dịch SePay/VietQR."
+        : string.IsNullOrEmpty(FinancePaymentRules.TransferReference(payment)) ? "Giao dịch chưa có mã chuyển khoản."
+        : reconciliation?.IsConfigured != true ? "Chưa cấu hình đối soát SePay cho tài khoản nhận tiền."
+        : null;
 
     private static ReconciliationAudit? ReadAudit(AuditLog audit)
     {

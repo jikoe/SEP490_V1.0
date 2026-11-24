@@ -1,7 +1,10 @@
+using System.Data;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using AgriSustain.Application.Services;
+using AgriSustain.Application.Services.B2B;
 using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
@@ -51,7 +54,9 @@ public sealed class BankTransferReconciler(
     public async Task TrySyncIncomingFromSePayApiAsync(CancellationToken cancellationToken)
     {
         var token = configuration?["Payment:SePay:ApiToken"] ?? configuration?["Payouts:SePayApiToken"];
-        if (string.IsNullOrWhiteSpace(token))
+        var account = configuration?["Payment:SePay:AccountNumber"]?.Trim();
+        var bank = configuration?["Payment:SePay:BankShortName"]?.Trim();
+        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrEmpty(account) || string.IsNullOrEmpty(bank))
         {
             return;
         }
@@ -65,7 +70,8 @@ public sealed class BankTransferReconciler(
 
         try
         {
-            using var req = new HttpRequestMessage(HttpMethod.Get, "https://my.sepay.vn/userapi/transactions/list?limit=15");
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "https://my.sepay.vn/userapi/transactions/list?limit=15&account_number=" + Uri.EscapeDataString(account));
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Trim());
             using var res = await SePayHttpClient.SendAsync(req, cancellationToken);
             if (!res.IsSuccessStatusCode)
@@ -83,7 +89,11 @@ public sealed class BankTransferReconciler(
             {
                 string GetStr(string prop) => item.TryGetProperty(prop, out var v) && v.ValueKind != JsonValueKind.Null ? v.ToString() : "";
 
-                if (!decimal.TryParse(GetStr("amount_in"), NumberStyles.Number, CultureInfo.InvariantCulture, out var amountIn) || amountIn <= 0)
+                if (GetStr("account_number").Trim() != account
+                    || !FarmerPayoutRules.SameBank(GetStr("bank_brand_name"), bank)
+                    || !decimal.TryParse(GetStr("amount_in"), NumberStyles.Number, CultureInfo.InvariantCulture, out var amountIn)
+                    || !decimal.TryParse(GetStr("amount_out"), NumberStyles.Number, CultureInfo.InvariantCulture, out var amountOut)
+                    || amountIn <= 0 || amountOut != 0)
                 {
                     continue;
                 }
@@ -102,10 +112,12 @@ public sealed class BankTransferReconciler(
                     out var vnTime)
                     ? new DateTimeOffset(vnTime, TimeSpan.FromHours(7)).UtcDateTime
                     : null;
+                if (paidAt is null || paidAt > now) continue;
 
                 var content = GetStr("transaction_content");
                 var code = GetStr("code");
-                if (ContractPaymentRules.FindLineId([code, content]) is not null) continue;
+                if (ContractPaymentRules.FindLineId([code, content]) is not null
+                    || SubscriptionRules.FindReference([code, content]) is not null) continue;
                 var refNum = GetStr("reference_number");
 
                 await RecordAsync(
@@ -128,35 +140,82 @@ public sealed class BankTransferReconciler(
 
     public async Task<BankTransferResult> RecordAsync(BankTransfer transfer, CancellationToken cancellationToken)
     {
+        if (db.Database.CurrentTransaction != null)
+            return await RecordInTransactionAsync(transfer, null, null, cancellationToken);
+
+        try
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            var result = await RecordInTransactionAsync(transfer, null, null, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        }
+        catch (DbUpdateException)
+        {
+            db.ChangeTracker.Clear();
+            var code = transfer.TransactionCode[..Math.Min(100, transfer.TransactionCode.Length)];
+            if (await IsRecordedAsync(code, transfer.Gateway, transfer.ProviderReference?.Trim(), cancellationToken))
+                return new(BankTransferOutcome.Duplicate, code, null, transfer.Amount);
+            throw;
+        }
+    }
+
+    private Task<bool> IsRecordedAsync(string code, string gateway, string? providerReference, CancellationToken ct) =>
+        db.PaymentTransactions.AsNoTracking().AnyAsync(p => p.TransactionCode == code
+            || providerReference != null && providerReference != "" && p.GatewayProvider == gateway
+                && p.ProviderTransactionReference == providerReference, ct);
+
+    internal async Task<BankTransferResult> RecordInTransactionAsync(
+        BankTransfer transfer, long? orderId, long? paymentId, CancellationToken cancellationToken)
+    {
         var code = transfer.TransactionCode.Length > 100 ? transfer.TransactionCode[..100] : transfer.TransactionCode;
-        if (await IsRecordedAsync(code, cancellationToken))
+        var providerReference = string.IsNullOrWhiteSpace(transfer.ProviderReference)
+            ? null : transfer.ProviderReference.Trim();
+        if (await IsRecordedAsync(code, transfer.Gateway, providerReference, cancellationToken))
         {
             logger.LogInformation("{Gateway} transfer {Code} was already processed.", transfer.Gateway, code);
             return new(BankTransferOutcome.Duplicate, code, null, transfer.Amount);
         }
 
-        var order = await FindOrderAsync(transfer, cancellationToken);
-        var outcome = order is null || (order.OrderStatus != "PendingPayment" && order.OrderStatus != "Pending") ? BankTransferOutcome.Unmatched
-            : transfer.Amount < order.FinalAmount ? BankTransferOutcome.AmountMismatch
-            : BankTransferOutcome.Success;
+        orderId ??= (await FindOrderAsync(transfer, cancellationToken))?.OrderId;
+        var order = orderId is long id ? await db.Orders
+            .FromSqlInterpolated($"SELECT * FROM dbo.[Order] WITH (UPDLOCK,HOLDLOCK) WHERE OrderId = {id}")
+            .Include(o => o.SellerOrders).Include(o => o.PaymentTransactions)
+            .AsSplitQuery().SingleOrDefaultAsync(cancellationToken) : null;
         var now = DateTime.UtcNow;
+        var paidAt = transfer.PaidAt ?? now;
+        var payment = order?.PaymentTransactions.FirstOrDefault(p => p.GatewayProvider == transfer.Gateway
+            && (p.PaymentStatus is "Pending" or "AwaitingPayment" or "Processing")
+            && (paymentId.HasValue ? p.PaymentTransactionId == paymentId : p.RequestKey == "ORDER-" + order.OrderCode));
+        var outcome = order is null || order.OrderStatus is not ("PendingPayment" or "Pending")
+            || order.PaymentTransactions.Any(p => FinancePaymentRules.Captured.Contains(p.PaymentStatus))
+            || order.ReservationExpiresAt < paidAt || paidAt.AddSeconds(1) < order.OrderDate
+            || paymentId.HasValue && payment == null
+            || payment != null && !FinancePaymentRules.MatchesReference(transfer.ReferenceTexts,
+                FinancePaymentRules.OrderReference(order.OrderCode))
+            ? BankTransferOutcome.Unmatched
+            : transfer.Amount <= 0 || transfer.Amount != order.FinalAmount || payment != null && transfer.Amount != payment.Amount
+                ? BankTransferOutcome.AmountMismatch : BankTransferOutcome.Success;
 
-        db.PaymentTransactions.Add(new PaymentTransaction
+        if (outcome != BankTransferOutcome.Success || payment == null)
         {
-            OrderId = order?.OrderId,
-            TransactionCode = code,
-            GatewayProvider = transfer.Gateway,
-            Amount = transfer.Amount,
-            PaymentType = "Transfer",
-            PaymentStatus = outcome.ToString(),
-            WebhookPayload = transfer.RawPayload,
-            PaidAt = transfer.PaidAt ?? now,
-            PaymentPurpose = "RetailOrderPayment",
-            RequestedAt = now,
-            RequestKey = Guid.NewGuid().ToString("N"),
-            ProviderTransactionReference = string.IsNullOrWhiteSpace(transfer.ProviderReference)
-                ? null : transfer.ProviderReference.Trim()
-        });
+            payment = new PaymentTransaction
+            {
+                OrderId = order?.OrderId,
+                GatewayProvider = transfer.Gateway,
+                Amount = transfer.Amount,
+                PaymentType = "Transfer",
+                PaymentPurpose = "RetailOrderPayment",
+                RequestedAt = now,
+                RequestKey = Guid.NewGuid().ToString("N")
+            };
+            db.PaymentTransactions.Add(payment);
+        }
+        payment.TransactionCode = code;
+        payment.PaymentStatus = outcome.ToString();
+        payment.WebhookPayload = transfer.RawPayload;
+        payment.PaidAt = paidAt;
+        payment.ProviderTransactionReference = providerReference;
 
         IReadOnlyList<long> appliedVouchers = [];
         if (outcome == BankTransferOutcome.Success)
@@ -165,33 +224,14 @@ public sealed class BankTransferReconciler(
             appliedVouchers = await ApplyVoucherUsesAsync(order!, now, cancellationToken);
         }
 
-        try
+        await db.SaveChangesAsync(cancellationToken);
+        foreach (var voucher in appliedVouchers.GroupBy(id => id))
         {
-            // The payment, the applied voucher uses and the UsedCount increments commit together.
-            await using var transaction = appliedVouchers.Count > 0
-                ? await db.Database.BeginTransactionAsync(cancellationToken) : null;
-            await db.SaveChangesAsync(cancellationToken);
-            foreach (var voucher in appliedVouchers.GroupBy(id => id))
-            {
-                int uses = voucher.Count();
-                // Atomic increment, so two orders paid at the same time cannot lose a use.
-                await db.Vouchers.Where(v => v.VoucherId == voucher.Key)
-                    .ExecuteUpdateAsync(set => set.SetProperty(v => v.UsedCount, v => v.UsedCount + uses),
-                        cancellationToken);
-            }
-            if (transaction is not null)
-            {
-                await transaction.CommitAsync(cancellationToken);
-            }
-        }
-        catch (DbUpdateException)
-        {
-            // A concurrent retry of the same webhook may have committed first.
-            if (!await IsRecordedAsync(code, cancellationToken))
-            {
-                throw;
-            }
-            return new(BankTransferOutcome.Duplicate, code, null, transfer.Amount);
+            int uses = voucher.Count();
+            // Atomic increment, so two orders paid at the same time cannot lose a use.
+            await db.Vouchers.Where(v => v.VoucherId == voucher.Key)
+                .ExecuteUpdateAsync(set => set.SetProperty(v => v.UsedCount, v => v.UsedCount + uses),
+                    cancellationToken);
         }
 
         logger.LogInformation("{Gateway} transfer {Code}: order={OrderCode}, amount={Amount}, outcome={Outcome}",
@@ -247,11 +287,6 @@ public sealed class BankTransferReconciler(
         });
     }
 
-    private Task<bool> IsRecordedAsync(string transactionCode, CancellationToken cancellationToken) =>
-        db.PaymentTransactions.AsNoTracking()
-            .AnyAsync(p => p.TransactionCode == transactionCode, cancellationToken);
-
-
     private async Task<Order?> FindOrderAsync(BankTransfer transfer, CancellationToken cancellationToken)
     {
         var rawTexts = transfer.ReferenceTexts
@@ -271,7 +306,7 @@ public sealed class BankTransferReconciler(
             if (retail.Success)
             {
                 var prefix = "RC-" + retail.Groups[1].Value.ToLowerInvariant();
-                var order = await db.Orders.Include(o => o.SellerOrders)
+                var order = await db.Orders.AsNoTracking()
                     .Where(o => o.OrderCode.StartsWith(prefix))
                     .OrderByDescending(o => o.OrderId)
                     .FirstOrDefaultAsync(cancellationToken);
@@ -285,7 +320,7 @@ public sealed class BankTransferReconciler(
             if (legacy.Success)
             {
                 var legacyCode = "ORD-" + legacy.Groups[1].Value.ToUpperInvariant();
-                var order = await db.Orders.Include(o => o.SellerOrders)
+                var order = await db.Orders.AsNoTracking()
                     .FirstOrDefaultAsync(o => o.OrderCode == legacyCode, cancellationToken);
                 if (order is not null)
                 {
@@ -297,7 +332,7 @@ public sealed class BankTransferReconciler(
         // 2. Exact match against database OrderCode
         foreach (var text in rawTexts)
         {
-            var order = await db.Orders.Include(o => o.SellerOrders)
+            var order = await db.Orders.AsNoTracking()
                 .FirstOrDefaultAsync(o => o.OrderCode == text, cancellationToken);
             if (order is not null)
             {
@@ -308,9 +343,9 @@ public sealed class BankTransferReconciler(
         // 3. Multi-strategy normalized matching across all pending orders
         var normalizedTexts = rawTexts
             .Select(t => Regex.Replace(t, @"[^A-Za-z0-9]", "").ToUpperInvariant())
-            .ToList();
+            .Where(t => t.Length > 0).ToList();
 
-        var pendingOrders = await db.Orders.Include(o => o.SellerOrders)
+        var pendingOrders = await db.Orders.AsNoTracking()
             .Where(o => o.OrderStatus == "PendingPayment" || o.OrderStatus == "Pending")
             .OrderByDescending(o => o.OrderId)
             .Take(100)

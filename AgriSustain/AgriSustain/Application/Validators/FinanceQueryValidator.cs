@@ -32,7 +32,7 @@ public static class FinanceQueryValidator
     public static bool IsValid(FinancePaymentQuery query) =>
         IsPageValid(query.Page, query.PageSize) && query.Search?.Length is not > 150
         && query.Category is null or "" or "Order" or "Subscription"
-        && query.Provider is null or "" or "PayOS" or "VietQR" or "VNPay" or "MoMo"
+        && query.Provider is null or "" or "SePay" or "PayOS" or "VietQR" or "VNPay" or "MoMo"
         && query.Status is null or "" or "Pending" or "Succeeded" or "Failed" or "Expired"
         && (query.From == null || query.From.Value.Year is >= 1900 and <= 9998)
         && (query.To == null || query.To.Value.Year is >= 1900 and <= 9998)
