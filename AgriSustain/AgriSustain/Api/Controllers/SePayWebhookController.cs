@@ -23,6 +23,7 @@ public sealed class SePayWebhookController(
     IEnumerable<IBankTransferHandler> transferHandlers,
     IConfiguration configuration,
     ILogger<SePayWebhookController> logger,
+    IWebHostEnvironment environment,
     FinanceFarmerPayoutService? payoutService = null) : ControllerBase
 {
     private const string Gateway = "SePay";
@@ -51,8 +52,6 @@ public sealed class SePayWebhookController(
     [HttpPost("/")]
     public async Task<IActionResult> Receive([FromBody] SePayWebhookPayload? payload, CancellationToken cancellationToken)
     {
-        logger.LogInformation("SePay webhook received: {Payload}", JsonSerializer.Serialize(payload));
-
         if (!HasValidApiKey())
         {
             logger.LogWarning("SePay webhook rejected: missing or invalid API key.");
@@ -79,6 +78,13 @@ public sealed class SePayWebhookController(
             return Ok(new { success = true });
         }
 
+        var account = configuration["Payment:SePay:AccountNumber"]?.Trim();
+        var bank = configuration["Payment:SePay:BankShortName"]?.Trim();
+        if (id <= 0 || payload.TransferAmount <= 0
+            || !string.IsNullOrEmpty(account) && payload.AccountNumber?.Trim() != account
+            || !string.IsNullOrEmpty(bank) && !FarmerPayoutRules.SameBank(payload.BankGateway ?? "", bank))
+            return BadRequest(new { success = false, message = "Invalid incoming transfer" });
+
         // B2B payments (UC-WB-08 "SUB...", UC-FIN-06 "HD...") are claimed by their own handlers first.
         var incoming = new IncomingBankTransfer(
             Gateway,
@@ -90,7 +96,6 @@ public sealed class SePayWebhookController(
             [payload.Code, payload.Content, payload.Description]);
         if (ContractPaymentRules.FindLineId(incoming.ReferenceTexts) is not null)
         {
-            var account = configuration["Payment:SePay:AccountNumber"]?.Trim();
             if (string.IsNullOrWhiteSpace(configuration["Payment:SePay:WebhookApiKey"]))
                 return Unauthorized(new { success = false });
             if (string.IsNullOrWhiteSpace(account) || payload.AccountNumber?.Trim() != account)
@@ -122,8 +127,8 @@ public sealed class SePayWebhookController(
         var expected = configuration["Payment:SePay:WebhookApiKey"];
         if (string.IsNullOrEmpty(expected))
         {
-            logger.LogWarning("Payment:SePay:WebhookApiKey is not configured; allowing in development.");
-            return true;
+            logger.LogWarning("Payment:SePay:WebhookApiKey is not configured.");
+            return environment.IsDevelopment();
         }
 
         if (Request.Query.TryGetValue("apikey", out var queryKey) && string.Equals(queryKey.ToString().Trim(), expected, StringComparison.OrdinalIgnoreCase))

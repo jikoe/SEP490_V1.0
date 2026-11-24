@@ -85,7 +85,7 @@ function renderFilters() {
   const options = (name, rows) => `<select name="${name}"><option value="">Tất cả</option>${rows.map(([key, label]) => `<option value="${key}" ${active[name] === key ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
   filters.innerHTML = `<form id="finance-search" class="fin-panel fin-filters"><label class="fin-filter-search">Tìm kiếm<input name="search" maxlength="150" value="${esc(active.search)}" placeholder="Mã giao dịch, tham chiếu hoặc nghĩa vụ"></label>
     <label>Loại thanh toán${options('category', [['Order', 'Đơn hàng'], ['Subscription', 'Gói thành viên']])}</label>
-    <label>Cổng thanh toán${options('provider', ['PayOS', 'VietQR', 'VNPay', 'MoMo'].map(value => [value, value]))}</label>
+    <label>Cổng thanh toán${options('provider', ['SePay', 'PayOS', 'VietQR', 'VNPay', 'MoMo'].map(value => [value, value]))}</label>
     <label>Trạng thái${options('status', [['Pending', 'Chờ xác minh'], ['Succeeded', 'Thành công'], ['Failed', 'Thất bại'], ['Expired', 'Hết hạn']])}</label>
     <label class="fin-filter-date">Từ ngày tạo<input name="from" type="date" min="1900-01-01" max="9998-12-31" value="${esc(active.from)}"></label>
     <label class="fin-filter-date">Đến ngày tạo<input name="to" type="date" min="1900-01-01" max="9998-12-31" value="${esc(active.to)}"></label>
@@ -101,7 +101,7 @@ function renderFilters() {
   });
 }
 function renderList() {
-  header('Đối soát thanh toán', 'Kiểm tra thanh toán đơn hàng và gói thành viên với PayOS / VietQR.');
+  header('Đối soát thanh toán', 'Kiểm tra thanh toán đơn hàng và gói thành viên qua SePay / VietQR.');
   const pages = Math.max(1, Math.ceil(data.total / 10));
   content.innerHTML = panel(`Danh sách giao dịch · ${data.total} kết quả`, data.total ? paymentTable(data.items) : '<p class="fin-empty">Không tìm thấy giao dịch phù hợp với bộ lọc.</p>', 'Đơn vị: VND')
     + `<div class="fin-records-pager"><span>Hiển thị ${data.total ? (data.page - 1) * 10 + 1 : 0}–${Math.min(data.page * 10, data.total)} / ${data.total} giao dịch · 10 dòng / trang</span><button id="payments-prev" type="button" ${data.page <= 1 ? 'disabled' : ''}>‹</button><span>Trang ${data.page} / ${pages}</span><button id="payments-next" type="button" ${data.page >= pages ? 'disabled' : ''}>›</button></div>
@@ -119,13 +119,13 @@ function renderDetail() {
   header(row.code, `Đối chiếu nghĩa vụ thanh toán và kết quả từ ${row.provider}.`, status(row.status));
   filters.innerHTML = `<a class="fin-back" href="payments.html${backParams.size ? `?${esc(backParams)}` : ''}">← Danh sách giao dịch</a>`;
   const payment = facts([['Mã giao dịch', esc(row.code)], ['Cổng / Hình thức', `${esc(row.provider)} / ${esc(data.method === 'BankTransfer' ? 'Chuyển khoản' : data.method === 'OnlineBanking' ? 'Thanh toán trực tuyến' : data.method)}`],
-    ['Tham chiếu cổng', esc(row.reference || 'Chưa có tham chiếu')], ['Số tiền yêu cầu', money(row.amount)], ['Thời gian tạo', esc(localTime(row.requestedAt))],
+    [row.provider === 'SePay' ? 'Mã chuyển khoản' : 'Tham chiếu cổng', esc(row.reference || 'Chưa có tham chiếu')], ['Số tiền yêu cầu', money(row.amount)], ['Thời gian tạo', esc(localTime(row.requestedAt))],
     ['Thời gian thanh toán đã xác minh', row.paidAt ? esc(localTime(row.paidAt)) : 'Chưa xác minh'], ['Đối soát gần nhất', data.reconciledAt ? esc(localTime(data.reconciledAt)) : 'Chưa đối soát'], ['Trạng thái thanh toán', status(row.status)]]);
   const obligation = data.obligation ? facts([['Loại nghĩa vụ', data.obligation.category === 'Order' ? 'Thanh toán đơn hàng' : 'Gói thành viên'], ['Mã / Định danh', esc(data.obligation.reference)], ['Giá trị nghĩa vụ', money(data.obligation.amount)], ['Còn phải thanh toán', money(data.obligation.unpaid)], ['Tình trạng nghĩa vụ', status(data.obligation.status)]]) : '<p class="fin-empty">Chưa xác định được nghĩa vụ của giao dịch.</p>';
   const comparison = `<div class="fin-table-wrap"><table class="fin-table fin-comparison"><thead><tr><th>Tiêu chí</th><th>Dữ liệu hệ thống</th><th>Kết quả từ ${esc(row.provider)}</th><th>Đối chiếu</th></tr></thead><tbody>
-    <tr><td>Tham chiếu</td><td>${esc(row.reference || 'Chưa có')}</td><td>${esc(receipt?.reference || 'Chưa có kết quả')}</td><td>${match(row.reference, receipt?.reference)}</td></tr>
+    <tr><td>Tham chiếu</td><td>${esc(row.reference || 'Chưa có')}</td><td>${esc(receipt?.reference || 'Chưa có kết quả')}${receipt?.bankReference ? `<small> · Sao kê: ${esc(receipt.bankReference)}</small>` : ''}</td><td>${match(row.reference, receipt?.reference)}</td></tr>
     <tr><td>Số tiền</td><td>${money(row.amount)}</td><td>${receipt ? money(receipt.amount) : 'Chưa có kết quả'}</td><td>${match(row.amount, receipt?.amount, true)}</td></tr>
-    <tr><td>Kết quả thanh toán</td><td>${status(row.status)}</td><td>${receipt ? status(receipt.status) : 'Chưa xác minh'}</td><td>${match(row.status === 'Paid' ? 'Succeeded' : row.status, receipt?.status)}</td></tr></tbody></table></div>
+    <tr><td>Kết quả thanh toán</td><td>${status(row.status)}</td><td>${receipt ? status(receipt.status) : 'Chưa xác minh'}</td><td>${match(['Success', 'Paid', 'Completed'].includes(row.status) ? 'Succeeded' : row.status, receipt?.status)}</td></tr></tbody></table></div>
     <div class="fin-reconcile-actions"><div><p>Kiểm tra lại trạng thái và quyền truy cập trước khi ghi nhận.</p><p>Mỗi khoản thu chỉ được áp dụng một lần.</p>${!data.canReconcile ? `<p>${esc(cleanMessage(data.unavailableReason) || 'Khoản thu đã được ghi nhận. Xem kết quả trong lịch sử đối soát.')}</p>` : ''}</div>
     <button id="finance-reconcile" class="fin-primary" type="button" data-disabled="${!data.canReconcile}" ${!data.canReconcile ? 'disabled' : ''}>Đối soát giao dịch</button></div>`;
   const history = `<ol class="fin-history">${data.history.map(entry => `<li><div><strong>${esc(cleanMessage(entry.message))}</strong><time>${esc(localTime(entry.at))}</time></div><p>${status(entry.before)} → ${status(entry.after)} · ${esc(entry.staff)} · ${esc(row.provider)}</p>${entry.receipt ? `<p>Bằng chứng: ${esc(entry.receipt.eventId)} · ${money(entry.receipt.amount)} · ${esc(entry.receipt.reference)}</p>` : ''}</li>`).join('')}<li><div><strong>Khởi tạo yêu cầu thanh toán</strong><time>${esc(localTime(row.requestedAt))}</time></div><p>Số tiền yêu cầu: ${money(row.amount)} · ${esc(row.obligation)}</p></li></ol>`;

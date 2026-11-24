@@ -12,12 +12,15 @@ using AgriSustain.Application.DTOs.Products;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.Interfaces;
 using AgriSustain.Application.Services;
+using AgriSustain.Application.Services.B2B;
+using AgriSustain.Application.Services.Finance;
 using AgriSustain.Application.Validators;
 using AgriSustain.Domain.Entities;
 using AgriSustain.Infrastructure.Data;
 using AgriSustain.Infrastructure.Data.Demo;
 using AgriSustain.Infrastructure.Repositories;
 using AgriSustain.Infrastructure.FileStorage;
+using AgriSustain.Infrastructure.Payments;
 using AgriSustain.Infrastructure.UnitOfWork;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -104,10 +107,11 @@ internal sealed class CommerceDatabase : IAsyncDisposable
         .UseSqlServer(Connection, sql => sql.CommandTimeout(30)).AddInterceptors(Failure).Options;
     public AgriSustainContext Open() => new(Options);
 
-    public static async Task<CommerceDatabase> Create(IDictionary<string, string?>? settings = null)
+    public static async Task<CommerceDatabase> Create(IDictionary<string, string?>? settings = null,
+        HttpMessageHandler? financeGateway = null)
     {
         var fixture = new CommerceDatabase();
-        try { await fixture.Initialize(settings); return fixture; }
+        try { await fixture.Initialize(settings, financeGateway); return fixture; }
         catch (Exception original)
         {
             try { await fixture.DisposeAsync(); }
@@ -115,7 +119,7 @@ internal sealed class CommerceDatabase : IAsyncDisposable
             throw;
         }
     }
-    private async Task Initialize(IDictionary<string, string?>? settings)
+    private async Task Initialize(IDictionary<string, string?>? settings, HttpMessageHandler? financeGateway)
     {
         var server = Environment.GetEnvironmentVariable("AGRISUSTAIN_TEST_SQL_SERVER");
         var configured = Environment.GetEnvironmentVariable("AGRISUSTAIN_TEST_SQL_CONNECTION");
@@ -300,6 +304,17 @@ internal sealed class CommerceDatabase : IAsyncDisposable
             .AddInterceptors(Failure));
         builder.Services.AddScoped<IFileStorageService, FileStorageService>();
         builder.Services.AddScoped<AgriSustain.Infrastructure.Payments.BankTransferReconciler>();
+        if (financeGateway != null)
+        {
+            builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
+            builder.Services.AddScoped<IFinanceService, FinanceService>();
+            builder.Services.AddScoped<IBuyerSubscriptionRepository, BuyerSubscriptionRepository>();
+            builder.Services.AddScoped<BuyerSubscriptionService>();
+            builder.Services.AddScoped<IBankTransferHandler>(services =>
+                services.GetRequiredService<BuyerSubscriptionService>());
+            builder.Services.AddHttpClient<IFinancePaymentReconciliation, SePayFinanceReconciliation>()
+                .ConfigurePrimaryHttpMessageHandler(() => financeGateway);
+        }
         builder.Services.AddSingleton(new SqlDemoDependencies());
         builder.Services.AddScoped<AgriSustain.Application.Interfaces.IUnitOfWork, UnitOfWork>();
         builder.Services.AddScoped<IProductRepository, ProductRepository>();

@@ -41,7 +41,7 @@ public sealed record FinanceObligation(
 
 public sealed record GatewayReceipt(
     string Provider, string Reference, string EventId, decimal Amount, string Status,
-    DateTime? PaidAt, DateTime CheckedAt, string PayloadHash);
+    DateTime? PaidAt, DateTime CheckedAt, string PayloadHash, string? BankReference = null);
 
 public sealed record ReconciliationHistory(
     long Id, string Outcome, string Message, string Before, string After,

@@ -448,6 +448,15 @@ public sealed class BuyerSubscriptionService(
     {
         string? reference = SubscriptionRules.FindReference(transfer.ReferenceTexts);
         if (reference is null) return false;
+        await using var transaction = await unitOfWork.BeginAsync(cancellationToken);
+        bool handled = await RecordInTransactionAsync(reference, transfer, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return handled;
+    }
+
+    internal async Task<bool> RecordInTransactionAsync(string reference, IncomingBankTransfer transfer,
+        CancellationToken cancellationToken)
+    {
         if (await repository.TransferRecordedAsync(transfer.TransactionCode, cancellationToken)) return true;
 
         var payment = await repository.FindPaymentAsync(reference, cancellationToken);
@@ -460,8 +469,9 @@ public sealed class BuyerSubscriptionService(
             return true;
         }
 
-        // A short grace period covers the delay between the bank transfer and the webhook.
-        if (payment.ExpiresAt is DateTime expires && now > expires + SubscriptionRules.WebhookGrace)
+        // Use the bank timestamp when present. The grace period is for legacy webhook payloads without one.
+        if (payment.ExpiresAt is DateTime expires
+            && (transfer.PaidAt ?? now - SubscriptionRules.WebhookGrace) > expires)
         {
             // AF4: a payment after the session expired does not activate the tier.
             await repository.CompletePaymentAsync(payment.PaymentTransactionId,
@@ -486,9 +496,7 @@ public sealed class BuyerSubscriptionService(
             return true;
         }
 
-        await using var transaction = await unitOfWork.BeginAsync(cancellationToken);
         await ApplyAsync(buyer, tier, payment.AutoRenew, now, transfer, cancellationToken, payment.PaymentTransactionId);
-        await transaction.CommitAsync(cancellationToken);
         return true;
     }
 

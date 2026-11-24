@@ -38,12 +38,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MailProbe = AgriSustain.TestIT2.Infrastructure.MailProbe;
 using TeamUnitOfWork = AgriSustain.Application.Interfaces.UnitOfWork.IUnitOfWork;
 
 namespace AgriSustain.IntegrationTests.UseCaseApi;
 
 /// <summary>
-/// HTTP API ↔ service ↔ SQL host for UC-ADM-03/05, UC-RC-02, UC-AUTH-07/08, UC-CS-01, UC-FIN-03, UC-PS-01.
+/// HTTP API ↔ service ↔ SQL host for the use-case integration tests.
 /// Same controllers, services, repositories and middleware order as Program.cs, on a uniquely named
 /// SQL Server database. Only the edges are replaced: the test identity header, the clock, the OTP
 /// generator, the e-mail sink and the Goship address/rate adapters.
@@ -211,6 +212,7 @@ internal sealed class ApiHost : IAsyncDisposable
             .AddApplicationPart(typeof(AuthController).Assembly);
 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
@@ -219,10 +221,23 @@ internal sealed class ApiHost : IAsyncDisposable
         services.AddScoped<IComplaintResolutionService>(sp => sp.GetRequiredService<ComplaintResolutionService>());
         services.AddScoped<IComplaintEvidenceTimeoutProcessor>(sp => sp.GetRequiredService<ComplaintResolutionService>());
         services.AddScoped<IFarmerComplaintFiles, FarmerComplaintFileStorage>();
+        services.AddScoped<ICustomerComplaintRepository, CustomerComplaintRepository>();
+        services.AddScoped<ICustomerComplaintService, CustomerComplaintService>();
+        services.AddScoped<OrderEmailDispatcher>();
+        services.AddScoped<IComplaintEmailDelivery>(sp => sp.GetRequiredService<OrderEmailDispatcher>());
+        services.AddScoped<OrderNotificationService>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<FulfillmentRules>();
+        services.AddSingleton<INotificationGateway, MailProbe>();
+        services.AddScoped<IOrderFeedbackService, OrderFeedbackService>();
+        services.AddScoped<IOrderFeedbackRepository, OrderFeedbackRepository>();
+        services.AddScoped<IOrderFeedbackStorage, OrderFeedbackStorage>();
+        services.AddScoped<IMarketplaceService, MarketplaceService>();
+        services.AddScoped<IMarketplaceRepository, MarketplaceRepository>();
         services.AddScoped<IRefundRepository, RefundRepository>();
         services.AddScoped<IRefundProcessingService, RefundProcessingService>();
-        // UC-ADM-01 dashboard reads the finance figures through this repository (Program.cs line 94).
         services.AddScoped<IFinanceRepository, FinanceRepository>();
+        services.AddScoped<IFinanceService, AgriSustain.Application.Services.Finance.FinanceService>();
         // UC-FIN-08 (customer provides the refund account), registered as in Program.cs.
         services.AddScoped<IRefundAccountRepository, RefundAccountRepository>();
         services.AddScoped<IRefundAccountService, RefundAccountService>();

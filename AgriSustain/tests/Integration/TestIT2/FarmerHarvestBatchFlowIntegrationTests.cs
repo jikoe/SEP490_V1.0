@@ -15,17 +15,15 @@ namespace AgriSustain.TestIT2.Integration;
 public sealed class FarmerHarvestBatchFlowIntegrationTests
 {
     [SqlFact]
-    public async Task IT_FAR_04_008_EditPlannedBatch()
+    public async Task IT_FAR_04_008_RemovedPlanningRoutesDoNotCreateStock()
     {
         await using var f = await FarmerDatabase.Create();
-        var plan = await f.Post<BatchResponse>("api/farmer/harvest-batches/plans", f.Harvest());
-        var response = await f.Farmer().PutAsJsonAsync($"api/farmer/harvest-batches/{plan.HarvestBatchId}/plan", f.Harvest() with { BatchCode = "PLAN-UPDATED", EstimatedYield = 20, Version = plan.Version });
-        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
-        var result = (await response.Content.ReadFromJsonAsync<BatchResponse>())!;
-        Assert.Equal(FarmManagementMessages.MSG134, result.Message);
-        Assert.Equal(20, result.EstimatedYield);
-        Assert.Equal(0, result.AvailableQuantity);
+        using var create = await f.Farmer().PostAsJsonAsync("api/farmer/harvest-batches/plans", f.Harvest());
+        using var edit = await f.Farmer().PutAsJsonAsync($"api/farmer/harvest-batches/{f.BatchId}/plan", f.Harvest());
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, create.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, edit.StatusCode);
         await using var db = f.Open();
+        Assert.Equal(1, await db.HarvestBatches.CountAsync());
         Assert.Empty(await db.InventoryMovements.ToListAsync());
         Assert.Empty(await db.TraceabilityQrcodes.ToListAsync());
     }

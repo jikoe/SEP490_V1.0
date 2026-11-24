@@ -78,8 +78,6 @@ internal static class FarmerTestData
         CropSeasonId = 201,
         BatchCode = "BATCH-01",
         Unit = "kg",
-        EstimatedHarvestDate = Today.AddDays(2),
-        EstimatedYield = 10,
         ActualHarvestDate = Today,
         ActualYield = 10,
         ExpirationDate = Today.AddDays(5)

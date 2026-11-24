@@ -557,6 +557,7 @@ public sealed class CheckoutService(
             CheckoutCommittedAt = now.UtcDateTime, DeliveryMethod = quote.Input.DeliveryMethod,
             PaymentMethod = quote.Input.PaymentMethod, OrderNotes = quote.Input.Notes
         };
+        FinancePaymentRules.AddSePayRequest(order);
         var groups = quote.Lines.GroupBy(x => x.FarmerId).OrderBy(x => x.Key).ToList();
         var subtotals = groups.Select(x => x.Sum(line => line.Subtotal)).ToList();
         var voucherShares = quote.VoucherFarmerId is null

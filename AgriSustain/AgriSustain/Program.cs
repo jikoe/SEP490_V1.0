@@ -103,6 +103,12 @@ builder.Services.AddScoped<IOrderFeedbackRepository, OrderFeedbackRepository>();
 builder.Services.AddScoped<IOrderFeedbackStorage, OrderFeedbackStorage>();
 builder.Services.AddScoped<IFinanceRepository, FinanceRepository>();
 builder.Services.AddScoped<IFinanceService, AgriSustain.Application.Services.Finance.FinanceService>();
+builder.Services.AddHttpClient<IFinancePaymentReconciliation, AgriSustain.Infrastructure.Payments.SePayFinanceReconciliation>(
+    client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(15);
+        client.MaxResponseContentBufferSize = 8 * 1024 * 1024;
+    }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddProblemDetails();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddCors(options =>

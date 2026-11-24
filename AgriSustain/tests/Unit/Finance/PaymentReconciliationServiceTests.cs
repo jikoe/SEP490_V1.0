@@ -86,6 +86,27 @@ public sealed class PaymentReconciliationServiceTests
         Assert.Equal(404, response.StatusCode);
     }
 
+    [Fact]
+    public async Task DetailAsync_UnpaidSePaySubscription_UsesPaymentRequestBeforeMembershipExists()
+    {
+        _store.Payment = new PaymentTransaction
+        {
+            PaymentTransactionId = 1,
+            TransactionCode = "SUB0123456789",
+            RequestKey = "SUB0123456789|13|2|0",
+            PaymentPurpose = "SubscriptionPayment",
+            GatewayProvider = "SePay",
+            PaymentStatus = "Pending",
+            Amount = 100000
+        };
+
+        var response = await Service().DetailAsync(1, default);
+
+        Assert.True(response.IsSuccess);
+        Assert.Equal("SUB0123456789", response.Value!.Payment.Reference);
+        Assert.Equal(100000, response.Value.Obligation!.Unpaid);
+    }
+
     // ---------- UC-FIN-02: FinanceService.ReconcileAsync ----------
 
     [Fact(DisplayName = "[UC-FIN-02 #008] Reject direct reconciliation and retain real payment status")]
