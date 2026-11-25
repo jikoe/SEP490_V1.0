@@ -2,7 +2,7 @@ namespace AgriSustain.Application.Common;
 
 public static class FarmerOrderMessages
 {
-    public const string InvalidDates = "Ngày bắt đầu không được sau ngày kết thúc.";
+    public const string InvalidDates = SharedFeatureMessages.InvalidDateRange;
     public const string InvalidFilters = "Bộ lọc hoặc khoảng ngày không hợp lệ.";
     public const string ForbiddenOrder =
         "Bạn không có quyền truy cập đơn hàng này hoặc thực hiện thao tác.";
@@ -26,5 +26,5 @@ public static class FarmerOrderMessages
         "Không thể chuyển đơn hàng sang đang giao từ trạng thái hiện tại. Đơn phải sẵn sàng giao trước.";
     public const string AlreadyDispatched = "Chỉ từ chối trước khi giao.";
     public const string ReportClosed = "Đơn chưa giao hoặc không còn nhận báo cáo.";
-    public const string ReasonTooLong = "Lý do từ chối không được vượt quá 500 ký tự.";
+    public const string ReasonTooLong = SharedFeatureMessages.RejectionReasonTooLong;
 }

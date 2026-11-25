@@ -13,7 +13,7 @@ function displayMessage(value) {
     .replace(/([.!?])\.+(?=\s|$)/g, '$1');
 }
 
-const DefaultCommonMessages = {
+const CommonMessages = {
   loginRequired: 'Vui lòng đăng nhập để tiếp tục truy cập.',
   loginRequiredCart: 'Vui lòng đăng nhập để xem giỏ hàng của bạn.',
   loginRequiredAddToCart: 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.',
@@ -128,14 +128,13 @@ const DefaultOrderMessages = {
   weightAuditRequestedNotice: 'Đã gửi yêu cầu đối soát số cân đóng gói cho HTX.'
 };
 
-const activeCommon = Object.assign({}, DefaultCommonMessages, typeof CommonMessages !== 'undefined' ? CommonMessages : {});
 const activeProduct = Object.assign({}, DefaultProductMessages, typeof ProductMessages !== 'undefined' ? ProductMessages : {});
-const activeCart = Object.assign({}, DefaultCartMessages, typeof CartMessages !== 'undefined' ? CartMessages : {});
+const activeCart = DefaultCartMessages;
 const activeCheckout = Object.assign({}, DefaultCheckoutMessages, typeof CheckoutMessages !== 'undefined' ? CheckoutMessages : {});
 const activeOrder = Object.assign({}, DefaultOrderMessages, typeof OrderMessages !== 'undefined' ? OrderMessages : {});
 
 const Messages = {
-  common: activeCommon,
+  common: CommonMessages,
   product: activeProduct,
   cart: activeCart,
   checkout: activeCheckout,
@@ -153,7 +152,7 @@ Messages.MSG = Messages.product;
 Messages.CART = Messages.cart;
 
 if (typeof window !== 'undefined') {
-  window.CommonMessages = activeCommon;
+  window.CommonMessages = CommonMessages;
   window.ProductMessages = activeProduct;
   window.CartMessages = activeCart;
   window.CheckoutMessages = activeCheckout;

@@ -41,7 +41,7 @@ public static class FarmManagementMessages
 
     public const string MSG124 = "Không có dữ liệu phù hợp với điều kiện đã chọn.";
 
-    public const string MSG126 = "Không thể tải dữ liệu. Vui lòng thử lại.";
+    public const string MSG126 = SharedFeatureMessages.LoadFailed;
 
     public const string MSG128 = "Mùa vụ đã chuyển sang giai đoạn thu hoạch.";
 

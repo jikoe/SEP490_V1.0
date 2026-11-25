@@ -3,7 +3,7 @@ const FarmerBusinessMessages = {
   required: "Vui lòng nhập đầy đủ thông tin bắt buộc, không chỉ chứa khoảng trắng.",
   invalid: "Thông tin không hợp lệ. Vui lòng kiểm tra lại.",
   reason: "Lý do từ chối hoặc sửa đổi phải có từ 20–500 ký tự sau khi bỏ khoảng trắng đầu và cuối.",
-  loadFailed: "Không thể tải dữ liệu. Vui lòng thử lại.",
+  loadFailed: SharedFeatureMessageText.loadFailed,
   saveFailed: "Không thể lưu dữ liệu. Vui lòng thử lại.",
   conflict: "Dữ liệu đã thay đổi. Vui lòng tải lại; không thực hiện thao tác trùng.",
   exportFailed: "Không thể xuất báo cáo. Vui lòng thử lại.",
@@ -21,7 +21,7 @@ const FarmerBusinessMessages = {
   dispatchConfirm:
     "Xác nhận giao hàng? Hệ thống sẽ xuất đúng số lượng đã chọn và ghi nhận một lần.",
   fileInvalid: "Chọn từ 1–5 tệp PDF, JPG hoặc PNG; mỗi tệp tối đa 5 MB.",
-  invalidDates: "Ngày bắt đầu không được sau ngày kết thúc.",
+  invalidDates: SharedFeatureMessageText.invalidDates,
   emptyContracts: "Không có hợp đồng phù hợp với bộ lọc.",
   emptyRevenue: "Không có dữ liệu doanh thu phù hợp với tiêu chí đã chọn.",
   pending: "Khoản tiền đang chờ xử lý, chưa phải chuyển khoản hoàn tất.",

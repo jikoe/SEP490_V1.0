@@ -306,7 +306,8 @@ public sealed class OfftakeSqlTests
                 {
                     Content = JsonContent.Create(new
                     {
-                        id = 613, transferType = "in", transferAmount = 60000, accountNumber,
+                        id = 613, gateway = "MBBank", transactionDate = "2026-10-27 08:00:00",
+                        transferType = "in", transferAmount = 60000, accountNumber,
                         content = qr.Reference, referenceCode = "DEPOSIT-2"
                     })
                 };

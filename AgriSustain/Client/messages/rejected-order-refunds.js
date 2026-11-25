@@ -1,9 +1,9 @@
 window.RejectedOrderRefundMessages = {
-  loadFailed: "Không thể tải dữ liệu. Vui lòng thử lại.",
-  invalidDates: "Ngày bắt đầu không được sau ngày kết thúc.",
-  choose: "Vui lòng chọn một yêu cầu từ danh sách.",
+  loadFailed: SharedFeatureMessageText.loadFailed,
+  invalidDates: SharedFeatureMessageText.invalidDates,
+  choose: SharedFeatureMessageText.selectRequest,
   empty: "Không có yêu cầu hoàn tiền phù hợp.",
-  copied: "Đã sao chép nội dung chuyển khoản.",
+  copied: SharedFeatureMessageText.transferMemoCopied,
   copyFailed: "Không thể sao chép. Vui lòng sao chép mã yêu cầu đang hiển thị.",
   qrFailed: "Không thể tải ảnh QR. Vui lòng tải lại chi tiết yêu cầu.",
   unopened: "Chưa mở QR. Kiểm tra yêu cầu trước khi xác nhận.",

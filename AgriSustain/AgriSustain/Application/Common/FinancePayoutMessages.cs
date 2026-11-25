@@ -5,7 +5,7 @@ public static class FinancePayoutMessages
     public static readonly IReadOnlyDictionary<string, string> All = new Dictionary<string, string>
     {
         ["MSG01"] = "Không có khoản chi trả phù hợp với bộ lọc.",
-        ["MSG02"] = "Vui lòng nhập đầy đủ thông tin bắt buộc, không chỉ chứa khoảng trắng.",
+        ["MSG02"] = SharedFeatureMessages.RequiredFields,
         ["MSG169"] =
             "Đã gửi yêu cầu thanh toán. Các nguồn đã chọn được giữ để Finance Staff xử lý; chưa thực hiện chuyển tiền.",
         ["MSG170"] =
@@ -29,7 +29,7 @@ public static class FinancePayoutMessages
             "Yêu cầu đã được ghi nhận. Kênh thông báo chưa gửi được sẽ được thử lại; không thực hiện lại thao tác.",
         ["MSG-PO-03"] =
             "Đã từ chối yêu cầu trước khi mở QR, giải phóng nguồn tiền và gửi lý do cho nông dân.",
-        ["MSG120"] = "Lý do từ chối không được vượt quá 500 ký tự.",
+        ["MSG120"] = SharedFeatureMessages.RejectionReasonTooLong,
         ["MSG121"] = "Bạn không có quyền truy cập yêu cầu thanh toán này.",
         ["QR_READY"] =
             "Đã mở mã QR. Dùng ứng dụng ngân hàng của tài khoản nguồn đã hiển thị để chuyển tiền. Tạo QR chưa chứng minh đã thanh toán.",
@@ -39,7 +39,7 @@ public static class FinancePayoutMessages
             "Chưa cấu hình token truy vấn SePay. Hệ thống vẫn nhận webhook; nút kiểm tra chỉ đối chiếu dữ liệu webhook đã nhận.",
         ["SOURCE_CONFIG"] =
             "Nguồn chi chưa đủ cấu hình nhận dữ liệu tiền ra SePay. Với MB cần token truy vấn và kết nối hỗ trợ tiền ra; khóa webhook checkout không thay thế token này.",
-        ["INVALID_DATES"] = "Ngày bắt đầu không được sau ngày kết thúc.",
+        ["INVALID_DATES"] = SharedFeatureMessages.InvalidDateRange,
         ["ACCOUNT_HOLD"] =
             "Tài khoản nhận tiền chưa được xác minh, không hoạt động hoặc đang trong thời gian giữ sau thay đổi.",
         ["ACCOUNT_CHANGED"] =

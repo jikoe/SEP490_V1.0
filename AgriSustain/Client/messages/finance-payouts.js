@@ -5,11 +5,11 @@ const FinancePayoutMessages = {
   saveFailed:
     "Không thể lưu yêu cầu. Nếu đã chuyển khoản, hãy kiểm tra giao dịch cũ, không chuyển lại.",
   selectPayout: "Vui lòng chọn khoản chi trả từ danh sách.",
-  dates: "Ngày bắt đầu không được sau ngày kết thúc.",
+  dates: SharedFeatureMessageText.invalidDates,
   empty: "Không có khoản chi trả phù hợp với bộ lọc.",
   noSources: "Chưa có nguồn tiền đủ điều kiện cho nông dân này.",
   confirm: "Xác nhận thực hiện thao tác với khoản chi trả đang hiển thị?",
-  copied: "Đã sao chép nội dung chuyển khoản.",
+  copied: SharedFeatureMessageText.transferMemoCopied,
   copyFailed: "Không thể sao chép tự động. Bạn có thể chọn và sao chép nội dung trên màn hình.",
   pending:
     "Chưa xác minh được giao dịch chuyển khoản. Kiểm tra giao dịch hiện tại trước khi thực hiện bất kỳ chuyển khoản nào khác.",
@@ -18,7 +18,7 @@ const FinancePayoutMessages = {
   rejectionRequired: "Vui lòng nhập lý do từ chối, không chỉ chứa khoảng trắng.",
   rejectionTooLong: "Lý do từ chối không được vượt quá 500 ký tự.",
   confirmReject: "Từ chối yêu cầu và giải phóng các nguồn tiền của yêu cầu này?",
-  selectRequest: "Vui lòng chọn một yêu cầu từ danh sách.",
+  selectRequest: SharedFeatureMessageText.selectRequest,
   confirmSubmit:
     "Gửi yêu cầu thanh toán và giữ các nguồn đã chọn để Finance Staff xử lý? Bước này chưa chuyển tiền.",
   selectionLimit: "Mỗi yêu cầu được chọn tối đa 100 nguồn tiền.",

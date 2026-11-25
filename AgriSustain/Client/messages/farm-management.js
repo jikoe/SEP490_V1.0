@@ -23,8 +23,8 @@ const FarmMessages = Object.freeze({
     "Yêu cầu xung đột với dữ liệu hiện tại hoặc đã được xử lý. Vui lòng tải lại; không thực hiện thao tác trùng lặp.",
   MSG123:
     "Không thể lưu dữ liệu hoặc bằng chứng. Không có thay đổi nghiệp vụ dở dang được lưu. Vui lòng thử lại.",
-  MSG124: "Không có dữ liệu phù hợp với điều kiện đã chọn.",
-  MSG126: "Không thể tải dữ liệu. Vui lòng thử lại.",
+  MSG124: SharedFeatureMessageText.emptyResults,
+  MSG126: SharedFeatureMessageText.loadFailed,
   MSG128: "Mùa vụ đã chuyển sang giai đoạn thu hoạch.",
   MSG129: "Đã ghi nhận hủy mùa vụ hoặc mất mùa. Lịch sử và các cam kết hiện có được giữ nguyên.",
   MSG130:
