@@ -200,10 +200,11 @@ builder.Services.AddScoped<IEmailOtpVerifier, EmailOtpVerifier>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
-// UC-AUTH-03 Manage Bank Account (BR-BA-01..06). The VietQR lookup is faked in development.
+// UC-AUTH-03 Manage Bank Account (BR-BA-01..06). The account holder lookup uses Casso.
 builder.Services.AddScoped<AgriSustain.Application.Interfaces.Repositories.IBankAccountRepository,
     AgriSustain.Infrastructure.Repositories.BankAccountRepository>();
-builder.Services.AddScoped<IBankAccountLookup, AgriSustain.Infrastructure.Banking.FakeBankAccountLookup>();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<IBankAccountLookup, AgriSustain.Infrastructure.Banking.CassoBankAccountLookup>(client => client.Timeout = TimeSpan.FromSeconds(8));
 builder.Services.AddSingleton<IBankAccountEmailSender, AgriSustain.Infrastructure.Email.BankAccountEmailSender>();
 builder.Services.AddScoped<IBankAccountService, BankAccountService>();
 // DuND ITE2: UC-AUTH-02, UC-FAR-07, UC-CM-02, UC-TRC-01, UC-FIN-08
