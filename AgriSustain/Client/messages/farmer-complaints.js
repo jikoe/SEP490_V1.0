@@ -10,12 +10,12 @@ const FarmerComplaintMessages = Object.freeze({
     "Đã hết thời hạn 48 giờ phản hồi yêu cầu này. Hệ thống không tiếp nhận phản hồi quá hạn.",
   closed:
     "Yêu cầu không còn khả dụng, đã đóng hoặc đã được phản hồi. Phản hồi trước đó được giữ nguyên.",
-  loadFailed: "Không thể tải dữ liệu. Vui lòng thử lại.",
+  loadFailed: SharedFeatureMessageText.loadFailed,
   saveFailed: "Không thể lưu phản hồi hoặc bằng chứng. Vui lòng thử lại.",
   conflict: "Thông tin đã thay đổi. Vui lòng tải lại chi tiết khiếu nại.",
   pendingNotification:
     "Phản hồi đã được ghi nhận. Có thông báo chưa gửi được đến Customer Support và sẽ được thử lại. Vui lòng không gửi lại phản hồi.",
-  empty: "Không có dữ liệu phù hợp với điều kiện đã chọn.",
+  empty: SharedFeatureMessageText.emptyResults,
   noEvidence: "Chưa có bằng chứng được chia sẻ.",
   noHistory: "Chưa có phản hồi được gửi.",
   noRequest: "Chưa có yêu cầu giải trình gửi đến bạn.",

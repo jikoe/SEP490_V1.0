@@ -5,7 +5,7 @@ public static class FarmerBusinessMessages
 {
     public static readonly IReadOnlyDictionary<string, string> All = new Dictionary<string, string>
     {
-        ["MSG02"] = "Vui lòng nhập đầy đủ thông tin bắt buộc, không chỉ chứa khoảng trắng.",
+        ["MSG02"] = SharedFeatureMessages.RequiredFields,
         ["MSG104"] =
             "Các bên đã xác nhận cùng phiên bản điều khoản. Việc thực hiện vẫn phụ thuộc điều kiện tiền cọc đã thỏa thuận.",
         ["MSG105"] = "Đã gửi phản hồi từ chối đề xuất đến doanh nghiệp mua hàng.",
@@ -16,7 +16,7 @@ public static class FarmerBusinessMessages
         ["MSG109"] =
             "Lý do từ chối hoặc đề nghị sửa đổi phải có từ 20–500 ký tự sau khi bỏ khoảng trắng đầu và cuối.",
         ["MSG110"] = "Không có dữ liệu doanh thu phù hợp với tiêu chí đã chọn.",
-        ["MSG111"] = "Ngày bắt đầu không được sau ngày kết thúc.",
+        ["MSG111"] = SharedFeatureMessages.InvalidDateRange,
         ["MSG120"] = "Thông tin không hợp lệ. Vui lòng kiểm tra lại.",
         ["MSG121"] = "Bạn không có quyền truy cập hoặc thực hiện thao tác này.",
         ["MSG122"] =
@@ -24,7 +24,7 @@ public static class FarmerBusinessMessages
         ["MSG123"] = "Không thể lưu dữ liệu hoặc bằng chứng. Vui lòng thử lại.",
         ["MSG124"] = "Không có hợp đồng phù hợp với bộ lọc.",
         ["MSG125"] = "Không thể xuất báo cáo. Vui lòng thử lại.",
-        ["MSG126"] = "Không thể tải dữ liệu. Vui lòng thử lại.",
+        ["MSG126"] = SharedFeatureMessages.LoadFailed,
         ["MSG127"] = "Báo cáo đã sẵn sàng để tải xuống.",
         ["MSG130"] =
             "Không thể đơn phương sửa các cam kết đã thực hiện hoặc có nghĩa vụ được bảo vệ.",

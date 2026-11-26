@@ -14,7 +14,7 @@ public static class FarmerComplaintMessages
         "Yêu cầu không còn khả dụng, đã đóng hoặc đã được phản hồi. Phản hồi trước đó được giữ nguyên.";
     public const string Conflict =
         "Thông tin đã thay đổi hoặc yêu cầu đã được xử lý. Vui lòng tải lại chi tiết khiếu nại.";
-    public const string LoadFailed = "Không thể tải dữ liệu. Vui lòng thử lại.";
+    public const string LoadFailed = SharedFeatureMessages.LoadFailed;
     public const string SaveFailed =
         "Không thể lưu phản hồi hoặc bằng chứng. Vui lòng thử lại. Không có phản hồi dở dang được tiếp nhận.";
     public const string NotificationPending =

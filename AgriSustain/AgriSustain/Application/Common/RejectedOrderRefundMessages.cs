@@ -13,7 +13,7 @@ public static class RejectedOrderRefundMessages
         "Chưa xác minh được giao dịch tiền ra khớp yêu cầu. Khoản hoàn tiếp tục chờ đối soát; không chuyển tiền lần nữa.";
     public const string Opened =
         "Đã mở QR hoàn tiền. Yêu cầu đang xử lý; chỉ hoàn tất sau khi SePay xác minh giao dịch tiền ra.";
-    public const string Load = "Không thể tải dữ liệu. Vui lòng thử lại.";
+    public const string Load = SharedFeatureMessages.LoadFailed;
     public const string Cancelled =
         "Đã từ chối đơn hàng. Hệ thống đã thông báo cho khách hàng và chuyển yêu cầu hoàn tiền, nếu có, đến bộ phận Tài chính.";
 
