@@ -7,7 +7,7 @@ using AgriSustain.Application.DTOs.Complaints;
 using AgriSustain.Application.DTOs.Orders;
 using AgriSustain.Application.Services.Complaints;
 using AgriSustain.Domain.Entities;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

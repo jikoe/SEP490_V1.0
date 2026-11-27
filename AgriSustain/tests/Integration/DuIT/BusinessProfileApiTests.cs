@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using AgriSustain.IntegrationTests.UseCaseApi;
 using Microsoft.EntityFrameworkCore;
 using Xunit;

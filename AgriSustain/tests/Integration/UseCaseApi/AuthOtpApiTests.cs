@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using AgriSustain.Application.DTOs.Authentication;
 using AgriSustain.Application.Interfaces.Repositories;
 using AgriSustain.Infrastructure.Data.Demo;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;

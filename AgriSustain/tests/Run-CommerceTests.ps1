@@ -14,7 +14,7 @@ function Invoke-TestProject {
 }
 try {
     if ($SqlServer) { $env:AGRISUSTAIN_TEST_SQL_SERVER = $SqlServer }
-    Invoke-TestProject (Join-Path $testRoot 'Unit/AgriSustain.UnitTests.csproj') 'FullyQualifiedName~.Commerce.' 'commerce-unit.trx'
+    Invoke-TestProject (Join-Path $testRoot 'Unit/AgriSustain.UnitTests.csproj') 'FullyQualifiedName~.UT1X.' 'commerce-unit.trx'
     Invoke-TestProject (Join-Path $testRoot 'Integration/AgriSustain.IntegrationTests.csproj') 'Layer=ApiIntegration' 'commerce-api.trx'
     if ($env:AGRISUSTAIN_TEST_SQL_SERVER -or $env:AGRISUSTAIN_TEST_SQL_CONNECTION) {
         Invoke-TestProject (Join-Path $testRoot 'Integration/AgriSustain.IntegrationTests.csproj') 'Layer=SqlIntegration' 'commerce-sql.trx'

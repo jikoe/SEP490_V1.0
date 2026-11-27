@@ -22,7 +22,7 @@ using AgriSustain.Infrastructure.Data.Demo;
 using AgriSustain.Infrastructure.Data.InMemoryStore;
 using AgriSustain.Infrastructure.Repositories;
 using AgriSustain.Infrastructure.UnitOfWork;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using AgriSustain.IntegrationTests.UseCaseApi;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
