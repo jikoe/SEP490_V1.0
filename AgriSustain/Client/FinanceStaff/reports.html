@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Báo cáo tài chính & Đối soát - AgriSustain</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/finance.css">
+  <style>
+    .fin-report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .fin-card { background: #fff; border: 1px solid #dfe7e1; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .fin-card.featured { border-left: 4px solid #378164; background: #f8fbf9; }
+    .fin-card span { font-size: 13px; color: #5a6e61; display: block; margin-bottom: 6px; }
+    .fin-card strong { font-size: 22px; color: #1c3326; display: block; margin-bottom: 6px; font-weight: 700; }
+    .fin-card small { font-size: 12px; color: #728479; }
+    .fin-card.negative strong { color: #c0392b; }
+    .fin-card.highlight strong { color: #27ae60; }
+
+    .fin-controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; margin-bottom: 24px; background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #dfe7e1; }
+    .fin-controls label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; color: #33443a; min-width: 160px; }
+    .fin-controls select, .fin-controls input { padding: 9px 12px; border: 1px solid #cfd8d2; border-radius: 6px; font-size: 14px; outline: none; background: #fff; }
+    .fin-controls select:focus, .fin-controls input:focus { border-color: #378164; box-shadow: 0 0 0 2px rgba(55,129,100,0.15); }
+    .fin-actions { display: flex; gap: 10px; margin-left: auto; align-items: center; }
+    .btn-action { padding: 9px 18px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s; }
+    .btn-primary { background: #378164; color: #fff; }
+    .btn-primary:hover { background: #2d6b53; }
+    .btn-export-excel { background: #107c41; color: #fff; }
+    .btn-export-excel:hover { background: #0b592e; }
+    .btn-export-pdf { background: #d32f2f; color: #fff; }
+    .btn-export-pdf:hover { background: #b71c1c; }
+
+    .report-tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #e1e8e3; padding-bottom: 8px; }
+    .report-tab-btn { padding: 8px 16px; border: none; background: transparent; font-size: 14px; font-weight: 600; color: #627568; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+    .report-tab-btn.active { background: #e8f3ee; color: #265945; }
+
+    .fin-data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    .fin-data-table th { background: #f4f7f5; padding: 12px 14px; border-bottom: 2px solid #dfe7e1; color: #374a3f; font-weight: 600; }
+    .fin-data-table td { padding: 12px 14px; border-bottom: 1px solid #edf2ee; color: #22332a; }
+    .fin-data-table tr:hover { background: #fbfdfc; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-success { background: #e6f7ec; color: #1e7e34; }
+    .badge-warning { background: #fff8e1; color: #b78103; }
+    .badge-danger { background: #fde8e8; color: #c81e1e; }
+    .badge-info { background: #e1f5fe; color: #0288d1; }
+    
+    .fin-info-box { background: #eef6f2; border-left: 4px solid #378164; padding: 14px 18px; border-radius: 4px; margin-bottom: 24px; font-size: 13px; color: #274836; line-height: 1.5; }
+    .fin-empty-state { text-align: center; padding: 48px 20px; color: #728479; }
+    .fin-empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; fill: #a2b2a8; }
+    @media print {
+      .sidebar, header, .fin-controls, .report-tabs, .btn-action, .fin-footer { display: none !important; }
+      body { background: #fff; font-size: 12pt; }
+      .app-shell { display: block; }
+      .workspace { margin: 0; padding: 0; }
+      .fin-card { border: 1px solid #ccc; box-shadow: none; break-inside: avoid; }
+      .fin-data-table th, .fin-data-table td { border: 1px solid #ccc; }
+      .print-header { display: block !important; margin-bottom: 20px; }
+    }
+    .print-header { display: none; }
+  </style>
+</head>
+<body data-finance-page="reports">
+  <div class="app-shell finance-shell">
+    <aside id="app-sidebar" class="sidebar"></aside>
+    <div class="workspace">
+      <header id="app-header"></header>
+      <main>
+        <section class="finance-page">
+          <div class="print-header">
+            <h2>NỀN TẢNG NÔNG NGHIỆP BỀN VỮNG AGRISUSTAIN</h2>
+            <p><strong>BÁO CÁO ĐỐI SOÁT & DOANH THU TÀI CHÍNH</strong></p>
+            <p id="print-period-text"></p>
+            <hr>
+          </div>
+
+          <div class="fin-heading" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div>
+              <h1 style="font-size:24px; color:#1c3326; margin:0 0 6px 0;">Báo Cáo Tài Chính & Đối Soát</h1>
+              <p style="color:#627568; margin:0; font-size:14px;">Tổng hợp dòng tiền GMV, phí sàn, thuế trích giữ và nghĩa vụ giải ngân theo thời gian thực.</p>
+            </div>
+            <div style="font-size:13px; color:#627568;">
+              <span id="report-refresh-time">Cập nhật: --:--:--</span>
+            </div>
+          </div>
+
+          <!-- Notification alert if any -->
+          <div id="finance-notice" class="notice error" role="alert" hidden></div>
+
+          <!-- Bộ lọc tạo báo cáo -->
+          <form id="report-filter-form" class="fin-controls">
+            <label>
+              Loại báo cáo
+              <select id="report-type" name="reportType">
+                <option value="All" selected>Báo cáo Doanh thu & Phí tổng hợp</option>
+                <option value="Gmv">Doanh số đơn hàng (GMV)</option>
+                <option value="PlatformFees">Doanh thu phí sàn (Commission 5%)</option>
+                <option value="Subscriptions">Doanh thu gói thuê bao Nông dân</option>
+                <option value="Refunds">Báo cáo Hoàn tiền & Đảo phí</option>
+                <option value="Payouts">Chi trả giải ngân Nông hộ (Payouts)</option>
+              </select>
+            </label>
+
+            <label>
+              Kỳ báo cáo
+              <select id="period-mode" name="periodMode">
+                <option value="Month" selected>Theo Tháng</option>
+                <option value="Day">Theo Ngày</option>
+                <option value="Custom">Tùy chỉnh khoảng ngày</option>
+              </select>
+            </label>
+
+            <div id="period-dynamic-inputs" style="display:flex; gap:12px;"></div>
+
+            <div class="fin-actions">
+              <button type="submit" class="btn-action btn-primary">
+                🔍 Xem báo cáo
+              </button>
+              <button type="button" id="btn-export-excel" class="btn-action btn-export-excel">
+                📊 Xuất Excel
+              </button>
+              <button type="button" id="btn-export-pdf" class="btn-action btn-export-pdf">
+                🖨️ In / PDF
+              </button>
+            </div>
+          </form>
+
+          <div class="fin-info-box">
+            <strong>Nguyên tắc ghi nhận số liệu:</strong>
+            Doanh số thuần (Net GMV) đã loại trừ các đơn hàng bị Hủy hoặc Hoàn tiền thành công. Thuế VAT/TNCN giữ hộ được bóc tách riêng khỏi doanh thu của sàn. Các giao dịch thanh toán qua SePay/VietQR chỉ được ghi nhận khi đã đối soát thành công (Reconciled).
+          </div>
+
+          <!-- Các thẻ KPI Tổng quan -->
+          <div class="fin-report-grid">
+            <div class="fin-card featured">
+              <span>Tổng doanh số thuần (Net GMV)</span>
+              <strong id="kpi-gmv">-- đ</strong>
+              <small>Đơn hàng đã thanh toán & giao thành công</small>
+            </div>
+            <div class="fin-card highlight">
+              <span>Phí nền tảng (Platform Fees)</span>
+              <strong id="kpi-fees">-- đ</strong>
+              <small>Hoa hồng 5% đơn hàng đã khấu trừ</small>
+            </div>
+            <div class="fin-card">
+              <span>Doanh thu gói thành viên (B2B Tiers)</span>
+              <strong id="kpi-subscriptions">-- đ</strong>
+              <small>Gói Đồng, Bạc, Vàng của Nông hộ</small>
+            </div>
+            <div class="fin-card">
+              <span>Thuế trích giữ (Withheld Tax)</span>
+              <strong id="kpi-tax">-- đ</strong>
+              <small>Khoản trích giữ phục vụ kê khai thuế</small>
+            </div>
+            <div class="fin-card negative">
+              <span>Tổng tiền hoàn (Refunds / Reversals)</span>
+              <strong id="kpi-refunds">-- đ</strong>
+              <small>Đã bao gồm hoàn phí hoa hồng theo tỷ lệ</small>
+            </div>
+            <div class="fin-card">
+              <span>Nghĩa vụ chi trả Nông hộ (Payouts)</span>
+              <strong id="kpi-payouts">-- đ</strong>
+              <small id="kpi-payouts-sub">Đã giải ngân: -- đ</small>
+            </div>
+          </div>
+
+          <!-- Tabs xem chi tiết bảng kê -->
+          <div class="report-tabs">
+            <button type="button" class="report-tab-btn active" data-metric="Gmv">1. Bảng kê Đơn hàng (GMV)</button>
+            <button type="button" class="report-tab-btn" data-metric="PlatformFees">2. Bảng kê Phí sàn</button>
+            <button type="button" class="report-tab-btn" data-metric="Subscriptions">3. Thuê bao thành viên</button>
+            <button type="button" class="report-tab-btn" data-metric="Refunds">4. Hoàn tiền & Đảo phí</button>
+            <button type="button" class="report-tab-btn" data-metric="PendingPayouts">5. Giải ngân nông dân</button>
+          </div>
+
+          <!-- Bảng kê dữ liệu chi tiết -->
+          <div class="fin-card" style="padding:0; overflow:hidden;">
+            <div style="padding:16px 20px; border-bottom:1px solid #dfe7e1; display:flex; justify-content:space-between; align-items:center;">
+              <h3 id="table-title" style="margin:0; font-size:16px; color:#1c3326;">Chi tiết chứng từ phát sinh trong kỳ</h3>
+              <span id="table-record-count" style="font-size:13px; color:#627568;">0 chứng từ</span>
+            </div>
+            <div class="fin-table-wrap" style="overflow-x:auto;">
+              <table class="fin-data-table" id="report-records-table">
+                <thead>
+                  <tr>
+                    <th>STT</th>
+                    <th>Mã chứng từ / Đơn hàng</th>
+                    <th>Mã tham chiếu liên kết</th>
+                    <th>Số tiền ghi nhận</th>
+                    <th>Trạng thái</th>
+                    <th>Thời gian đối soát</th>
+                    <th>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody id="report-records-body">
+                  <tr>
+                    <td colspan="7" class="fin-empty-state">Đang tải dữ liệu báo cáo...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="fin-records-pager" id="report-pagination" style="border-top:1px solid #edf2ee;">
+              <button id="btn-page-prev" type="button" disabled>‹ Trang trước</button>
+              <span id="page-indicator">Trang 1 / 1</span>
+              <button id="btn-page-next" type="button" disabled>Trang sau ›</button>
+            </div>
+          </div>
+
+          <p class="fin-footer" style="margin-top:20px; font-size:12px; color:#728479; text-align:center;">
+            Hệ thống Quản lý Tài chính Nông nghiệp Bền vững AgriSustain · Đơn vị tiền tệ: VND (Việt Nam Đồng) · Múi giờ chuẩn: UTC+7
+          </p>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/components.js"></script>
+  <script type="module" src="../js/financial-reports.js"></script>
+</body>
+</html>

@@ -138,6 +138,7 @@ const ROLE_CONFIGS = {
     landingRoute: 'FinanceStaff/dashboard.html',
     navItems: [
       { key: 'finance-dash', label: 'Tổng quan', icon: '▦', path: 'FinanceStaff/dashboard.html' },
+      { key: 'finance-reports', label: 'Báo cáo tài chính', icon: '📈', path: 'FinanceStaff/reports.html' },
       { key: 'finance-payments', label: 'Đối soát thanh toán', icon: '⇄', path: 'FinanceStaff/payments.html' },
       { key: 'finance-payouts', label: 'Chi trả cho nông dân', icon: '💸', path: 'FinanceStaff/farmer-payouts.html' },
       { key: 'finance-rejected-refunds', label: 'Hoàn tiền đơn bị từ chối', icon: '↩', path: 'FinanceStaff/rejected-order-refunds.html' },
