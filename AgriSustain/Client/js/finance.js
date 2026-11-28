@@ -35,20 +35,18 @@ function setBusy(value) {
   content.querySelectorAll('button').forEach(button => { button.disabled = value || button.dataset.disabled === 'true'; });
 }
 function renderPeriod() {
-  filters.innerHTML = `<form id="finance-period" class="fin-panel fin-period"><div class="fin-period-fields"><label>Kỳ báo cáo<select id="period-type"><option value="Day">Theo ngày</option><option value="Month" selected>Theo tháng</option><option value="Quarter">Theo quý</option></select></label>
+  filters.innerHTML = `<form id="finance-period" class="fin-panel fin-period"><div class="fin-period-fields"><label>Kỳ báo cáo<select id="period-type"><option value="Day">Theo ngày</option><option value="Month" selected>Theo tháng</option></select></label>
     <div id="period-inputs"></div><button class="fin-primary" type="submit">Áp dụng</button></div><div id="period-caption" class="fin-period-caption"></div></form>`;
   const draw = () => {
     const type = document.getElementById('period-type').value;
-    document.getElementById('period-inputs').innerHTML = type === 'Quarter'
-      ? `<div class="fin-quarter"><label>Quý<select name="quarter">${[1, 2, 3, 4].map(n => `<option value="${n}" ${Math.ceil(Number(today.slice(5, 7)) / 3) === n ? 'selected' : ''}>Quý ${n}</option>`).join('')}</select></label><label>Năm<input name="year" type="number" min="1900" max="9998" required value="${today.slice(0, 4)}"></label></div>`
-      : `<label>${type === 'Day' ? 'Ngày' : 'Tháng'}<input name="date" type="${type === 'Day' ? 'date' : 'month'}" min="${type === 'Day' ? '1900-01-01' : '1900-01'}" max="${type === 'Day' ? '9998-12-31' : '9998-12'}" required value="${type === 'Day' ? today : today.slice(0, 7)}"></label>`;
+    document.getElementById('period-inputs').innerHTML = `<label>${type === 'Day' ? 'Ngày' : 'Tháng'}<input name="date" type="${type === 'Day' ? 'date' : 'month'}" min="${type === 'Day' ? '1900-01-01' : '1900-01'}" max="${type === 'Day' ? '9998-12-31' : '9998-12'}" required value="${type === 'Day' ? today : today.slice(0, 7)}"></label>`;
   };
   document.getElementById('period-type').addEventListener('change', draw); draw();
   document.getElementById('finance-period').addEventListener('submit', event => {
     event.preventDefault();
     const form = event.currentTarget;
     const type = document.getElementById('period-type').value;
-    period = { period: type, date: type === 'Quarter' ? `${form.elements.year.value}-${String((Number(form.elements.quarter.value) - 1) * 3 + 1).padStart(2, '0')}-01` : form.elements.date.value + (type === 'Month' ? '-01' : '') };
+    period = { period: type, date: form.elements.date.value + (type === 'Month' ? '-01' : '') };
     load();
   });
 }
