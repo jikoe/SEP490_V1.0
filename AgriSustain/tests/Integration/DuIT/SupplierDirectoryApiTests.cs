@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using AgriSustain.Domain.Entities;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using AgriSustain.IntegrationTests.UseCaseApi;
 using Xunit;
 

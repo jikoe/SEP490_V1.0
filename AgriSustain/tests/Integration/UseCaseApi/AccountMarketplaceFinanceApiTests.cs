@@ -5,7 +5,7 @@ using AgriSustain.Application.DTOs.Auth;
 using AgriSustain.Application.DTOs.Finance;
 using AgriSustain.Application.DTOs.Marketplace;
 using AgriSustain.Domain.Entities;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

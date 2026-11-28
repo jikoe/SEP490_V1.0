@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using AgriSustain.Application.DTOs.Checkout;
 using AgriSustain.Infrastructure.Shipping;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Xunit;

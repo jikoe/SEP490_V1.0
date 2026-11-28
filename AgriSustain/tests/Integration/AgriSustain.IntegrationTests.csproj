@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -7,9 +7,10 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../Unit/TestIT2/Infrastructure/FarmerTestData.cs" Link="TestIT2/Infrastructure/FarmerTestData.cs" />
-    <Compile Include="../Unit/TestIT2/Infrastructure/NotificationGatewayProbe.cs" Link="TestIT2/Infrastructure/NotificationGatewayProbe.cs" />
-    <Compile Include="../Unit/Commerce/CommerceFixture.cs" Link="Shared/CommerceFixture.cs" />
+    <Compile Include="../Unit/UT2X/Infrastructure/FarmerTestData.cs" Link="UT2X/Infrastructure/FarmerTestData.cs" />
+    <Compile Include="../Unit/UT2X/Infrastructure/NotificationGatewayProbe.cs" Link="UT2X/Infrastructure/NotificationGatewayProbe.cs" />
+    <Compile Include="../Unit/UT1X/CommerceFixture.cs" Link="Shared/CommerceFixture.cs" />
+    <Compile Include="../Unit/UT1X/RejectedOrderRefundFixture.cs" Link="Shared/RejectedOrderRefundFixture.cs" />
     <ProjectReference Include="../../AgriSustain/AgriSustain.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />

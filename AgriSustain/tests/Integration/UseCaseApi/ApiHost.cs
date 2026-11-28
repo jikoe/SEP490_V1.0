@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using AgriSustain.Api;
 using AgriSustain.Api.Auth;
@@ -25,7 +25,7 @@ using AgriSustain.Infrastructure.Email;
 using AgriSustain.Infrastructure.FileStorage;
 using AgriSustain.Infrastructure.Repositories;
 using AgriSustain.Infrastructure.UnitOfWork;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -38,13 +38,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MailProbe = AgriSustain.TestIT2.Infrastructure.MailProbe;
+using MailProbe = AgriSustain.UT2X.Infrastructure.MailProbe;
 using TeamUnitOfWork = AgriSustain.Application.Interfaces.UnitOfWork.IUnitOfWork;
 
 namespace AgriSustain.IntegrationTests.UseCaseApi;
 
 /// <summary>
-/// HTTP API ↔ service ↔ SQL host for the use-case integration tests.
+/// HTTP API â†” service â†” SQL host for the use-case integration tests.
 /// Same controllers, services, repositories and middleware order as Program.cs, on a uniquely named
 /// SQL Server database. Only the edges are replaced: the test identity header, the clock, the OTP
 /// generator, the e-mail sink and the Goship address/rate adapters.
@@ -121,8 +121,8 @@ internal sealed class ApiHost : IAsyncDisposable
     public HttpClient Promotion() => As(PromotionId, "PromotionStaff");
 
     public static CheckoutRequest CheckoutInput(string phone = "0912345678", string? voucher = null, int points = 0) =>
-        new(new CheckoutAddress("Test Customer", phone, "100000", "Hà Nội", "100300", "Quận Hai Bà Trưng",
-            "19", "Phường Quỳnh Lôi", "Test delivery address"), "Standard", "SePay", voucher, points, null);
+        new(new CheckoutAddress("Test Customer", phone, "100000", "HĂ  Ná»™i", "100300", "Quáº­n Hai BĂ  TrÆ°ng",
+            "19", "PhÆ°á»ng Quá»³nh LĂ´i", "Test delivery address"), "Standard", "SePay", voucher, points, null);
 
     public async Task<CheckoutQuoteDto> QuoteAsync(CheckoutRequest? input = null)
     {
@@ -334,9 +334,9 @@ internal sealed class ApiHost : IAsyncDisposable
             CategoryId = category.CategoryId, FarmerProfileId = farm.FarmerProfileId, ProductName = name,
             Unit = "kg", BaseRetailPrice = price, ApprovalStatus = "Approved", IsPublished = true, CreatedAt = now
         };
-        var spinach = NewProduct(farmA, "Cải bó xôi", 15_000);
-        var tomato = NewProduct(farmA, "Cà chua", 10_000);
-        var rice = NewProduct(farmB, "Gạo", 20_000);
+        var spinach = NewProduct(farmA, "Cáº£i bĂ³ xĂ´i", 15_000);
+        var tomato = NewProduct(farmA, "CĂ  chua", 10_000);
+        var rice = NewProduct(farmB, "Gáº¡o", 20_000);
         db.Products.AddRange(spinach, tomato, rice);
         await db.SaveChangesAsync();
         SpinachId = spinach.ProductId;
@@ -367,7 +367,7 @@ internal sealed class ApiHost : IAsyncDisposable
         await db.SaveChangesAsync();
         (BatchId, CartItemId) = (batch.HarvestBatchId, cartItem.CartItemId);
 
-        // Delivered order: seller order A 180 000 ₫ (after 20 000 ₫ voucher share) + seller order B 100 000 ₫.
+        // Delivered order: seller order A 180 000 â‚« (after 20 000 â‚« voucher share) + seller order B 100 000 â‚«.
         var order = new Order
         {
             BuyerUserId = otherBuyer.UserId, OrderCode = "RC-COMPLAINT", OrderType = "Retail", OrderDate = now.AddDays(-2),
@@ -382,12 +382,12 @@ internal sealed class ApiHost : IAsyncDisposable
         };
         sellerA.OrderItems.Add(new OrderItem
         {
-            ProductId = spinach.ProductId, ProductNameSnapshot = "Cải bó xôi", Quantity = 10, UnitSnapshot = "kg",
+            ProductId = spinach.ProductId, ProductNameSnapshot = "Cáº£i bĂ³ xĂ´i", Quantity = 10, UnitSnapshot = "kg",
             UnitPriceSnapshot = 15_000, SubTotal = 150_000, ItemStatus = "Delivered"
         });
         sellerA.OrderItems.Add(new OrderItem
         {
-            ProductId = tomato.ProductId, ProductNameSnapshot = "Cà chua", Quantity = 5, UnitSnapshot = "kg",
+            ProductId = tomato.ProductId, ProductNameSnapshot = "CĂ  chua", Quantity = 5, UnitSnapshot = "kg",
             UnitPriceSnapshot = 10_000, SubTotal = 50_000, ItemStatus = "Delivered"
         });
         var sellerB = new SellerOrder
@@ -397,7 +397,7 @@ internal sealed class ApiHost : IAsyncDisposable
         };
         sellerB.OrderItems.Add(new OrderItem
         {
-            ProductId = rice.ProductId, ProductNameSnapshot = "Gạo", Quantity = 5, UnitSnapshot = "kg",
+            ProductId = rice.ProductId, ProductNameSnapshot = "Gáº¡o", Quantity = 5, UnitSnapshot = "kg",
             UnitPriceSnapshot = 20_000, SubTotal = 100_000, ItemStatus = "Delivered"
         });
         order.SellerOrders.Add(sellerA);
@@ -411,7 +411,7 @@ internal sealed class ApiHost : IAsyncDisposable
         db.Orders.Add(order);
         await db.SaveChangesAsync();
         SellerOrderId = sellerA.SellerOrderId;
-        SpinachItemId = sellerA.OrderItems.Single(item => item.ProductNameSnapshot == "Cải bó xôi").OrderItemId;
+        SpinachItemId = sellerA.OrderItems.Single(item => item.ProductNameSnapshot == "Cáº£i bĂ³ xĂ´i").OrderItemId;
 
         var ticket = new DisputeTicket
         {
@@ -519,13 +519,13 @@ internal sealed class TestShipping : IShippingRateProvider
 internal sealed class TestAddressCatalog : IAddressCatalog
 {
     public Task<IReadOnlyList<ProvinceOption>> GetProvincesAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<ProvinceOption>>([new("100000", "Hà Nội")]);
+        Task.FromResult<IReadOnlyList<ProvinceOption>>([new("100000", "HĂ  Ná»™i")]);
     public Task<IReadOnlyList<DistrictOption>> GetDistrictsAsync(string provinceCode, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<DistrictOption>>([new("100300", "100000", "Quận Hai Bà Trưng")]);
+        Task.FromResult<IReadOnlyList<DistrictOption>>([new("100300", "100000", "Quáº­n Hai BĂ  TrÆ°ng")]);
     public Task<IReadOnlyList<WardOption>> GetWardsAsync(string districtCode, CancellationToken cancellationToken) =>
-        Task.FromResult<IReadOnlyList<WardOption>>([new("19", "100300", "Phường Quỳnh Lôi")]);
+        Task.FromResult<IReadOnlyList<WardOption>>([new("19", "100300", "PhÆ°á»ng Quá»³nh LĂ´i")]);
     public Task<CheckoutAddress?> NormalizeAsync(CheckoutAddress address, CancellationToken cancellationToken) =>
         Task.FromResult(address is { ProvinceCode: "100000", DistrictCode: "100300", WardCode: "19" }
-            ? address with { Province = "Hà Nội", District = "Quận Hai Bà Trưng", Ward = "Phường Quỳnh Lôi", CatalogVersion = "test" }
+            ? address with { Province = "HĂ  Ná»™i", District = "Quáº­n Hai BĂ  TrÆ°ng", Ward = "PhÆ°á»ng Quá»³nh LĂ´i", CatalogVersion = "test" }
             : null);
 }

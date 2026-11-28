@@ -6,7 +6,7 @@ using AgriSustain.Application.DTOs.Finance;
 using AgriSustain.Application.DTOs.Refunds;
 using AgriSustain.Application.Services.Finance;
 using AgriSustain.Domain.Entities;
-using AgriSustain.IntegrationTests.Commerce;
+using AgriSustain.IntegrationTests.UT1X;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

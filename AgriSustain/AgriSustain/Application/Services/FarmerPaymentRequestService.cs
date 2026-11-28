@@ -150,12 +150,14 @@ public sealed class FarmerPaymentRequestService(
                     .ToList();
                 if (
                     sources.Count != input.SelectedSourceIds.Count
-                    || sources.Any(x => !x.Eligible)
-                    || sources.Sum(x => x.Net) <= 0
+                    || rules.ValidateVerifiedRecipient(context, DateTime.UtcNow) != null
+                    || (sources.All(x => x.Held == 0 && x.Settled == 0) && sources.Sum(x => x.Net) <= 0)
                 )
                     return Fail<PayoutActionResult>("MSG172");
                 if (rules.BalanceVersion(context, sources) != input.ExpectedBalance)
                     return Fail<PayoutActionResult>("MSG174");
+                if (sources.Any(x => !x.Eligible) || sources.Sum(x => x.Net) <= 0)
+                    return Fail<PayoutActionResult>("MSG172");
                 var bank = context.Bank!;
                 var payout = new FarmerPayout
                 {
